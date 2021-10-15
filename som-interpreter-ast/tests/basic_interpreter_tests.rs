@@ -64,6 +64,22 @@ fn basic_interpreter_tests() {
             Value::Symbol(universe.intern_symbol("constant")),
         ),
         (
+            "IfTrueIfFalse testIfTrueTrueResult",
+            universe.lookup_global("Integer").unwrap(),
+        ),
+        (
+            "IfTrueIfFalse testIfTrueFalseResult",
+            Value::Class(universe.nil_class()),
+        ),
+        (
+            "IfTrueIfFalse testIfFalseTrueResult",
+            Value::Class(universe.nil_class()),
+        ),
+        (
+            "IfTrueIfFalse testIfFalseFalseResult",
+            universe.lookup_global("Integer").unwrap(),
+        ),
+        (
             "CompilerSimplification testReturnConstantInt",
             Value::Integer(42),
         ),
@@ -104,8 +120,18 @@ fn basic_interpreter_tests() {
             "BlockInlining testOneLevelInliningWithLocalShadowFalse",
             Value::Integer(1),
         ),
+        (
+            "BlockInlining testShadowDoesntStoreWrongLocal",
+            Value::Integer(33),
+        ),
+        (
+            "BlockInlining testShadowDoesntReadUnrelated",
+            Value::Class(universe.nil_class()),
+        ),
         ("BlockInlining testBlockNestedInIfTrue", Value::Integer(2)),
         ("BlockInlining testBlockNestedInIfFalse", Value::Integer(42)),
+        ("BlockInlining testStackDisciplineTrue", Value::Integer(1)),
+        ("BlockInlining testStackDisciplineFalse", Value::Integer(2)),
         (
             "BlockInlining testDeepNestedInlinedIfTrue",
             Value::Integer(3),
@@ -135,7 +161,7 @@ fn basic_interpreter_tests() {
             Value::Integer(1),
         ),
         ("BinaryOperation test", Value::Integer(3 + 8)),
-        ("NumberOfTests numberOfTests", Value::Integer(57)),
+        ("NumberOfTests numberOfTests", Value::Integer(65)),
     ];
 
     for (expr, expected) in tests {
