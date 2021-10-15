@@ -60,6 +60,32 @@ fn as_string(_: &mut Universe, args: Vec<Value>) -> Return {
     Return::Local(Value::String(Rc::new(value)))
 }
 
+fn as_double(_: &mut Universe, args: Vec<Value>) -> Return {
+    const SIGNATURE: &str = "Integer>>#asString";
+
+    expect_args!(SIGNATURE, args, [
+        value => value,
+    ]);
+
+    let value = match value {
+        Value::Integer(value) => value.to_f64(),
+        Value::BigInteger(value) => value.to_f64(),
+        _ => return Return::Exception(format!("'{}': wrong types", SIGNATURE)),
+    };
+
+    let f64val = match value {
+        Some(v) => v,
+        None => {
+            return Return::Exception(format!(
+                "'{}': integer is too large/small to be represented as double",
+                SIGNATURE
+            ))
+        }
+    };
+
+    Return::Local(Value::Double(f64val))
+}
+
 fn at_random(_: &mut Universe, args: Vec<Value>) -> Return {
     const SIGNATURE: &str = "Integer>>#atRandom";
 
@@ -421,6 +447,7 @@ pub fn get_primitive(signature: impl AsRef<str>) -> Option<PrimitiveFn> {
     match signature.as_ref() {
         "fromString:" => Some(self::from_string),
         "asString" => Some(self::as_string),
+        "asDouble" => Some(self::as_double),
         "atRandom" => Some(self::at_random),
         "as32BitSignedValue" => Some(self::as_32bit_signed_value),
         "as32BitUnsignedValue" => Some(self::as_32bit_unsigned_value),

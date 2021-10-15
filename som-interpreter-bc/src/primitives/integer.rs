@@ -76,6 +76,35 @@ fn as_string(interpreter: &mut Interpreter, _: &mut Universe) {
     }
 }
 
+fn as_double(interpreter: &mut Interpreter, _: &mut Universe) {
+    const SIGNATURE: &str = "Integer>>#asDouble";
+
+    let frame = interpreter.current_frame().expect("no current frame");
+
+    expect_args!(SIGNATURE, frame, [
+        value => value,
+    ]);
+
+    let value = match value {
+        Value::Integer(value) => value.to_f64(),
+        Value::BigInteger(value) => value.to_f64(),
+        _ => panic!("'{}': wrong types", SIGNATURE),
+    };
+
+    let f64val = match value {
+        Some(v) => v,
+        None => panic!(
+            "'{}': integer is too large/small to be represented as double",
+            SIGNATURE
+        ),
+    };
+
+    {
+        frame.borrow_mut().stack.push(Value::Double(f64val));
+        return;
+    }
+}
+
 fn at_random(interpreter: &mut Interpreter, _: &mut Universe) {
     const SIGNATURE: &str = "Integer>>#atRandom";
 
@@ -591,6 +620,7 @@ pub fn get_primitive(signature: impl AsRef<str>) -> Option<PrimitiveFn> {
     match signature.as_ref() {
         "fromString:" => Some(self::from_string),
         "asString" => Some(self::as_string),
+        "asDouble" => Some(self::as_double),
         "atRandom" => Some(self::at_random),
         "as32BitSignedValue" => Some(self::as_32bit_signed_value),
         "as32BitUnsignedValue" => Some(self::as_32bit_unsigned_value),
