@@ -5,11 +5,21 @@ use crate::invokable::Return;
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
 use crate::value::Value;
+use num_traits::ToPrimitive;
 
 macro_rules! promote {
     ($signature:expr, $value:expr) => {
         match $value {
             Value::Integer(value) => value as f64,
+            Value::BigInteger(value) => match value.to_f64() {
+                Some(v) => v,
+                None => {
+                    return Return::Exception(format!(
+                        "'{}': integer is too large/small to be represented as double",
+                        $signature
+                    ))
+                }
+            },
             Value::Double(value) => value,
             _ => {
                 return Return::Exception(format!(
