@@ -1,4 +1,5 @@
 use som_core::ast::*;
+use som_core::ast::MethodDef::{Generic, InlinedWhile};
 use som_lexer::Token;
 use som_parser_core::combinators::*;
 use som_parser_core::Parser;
@@ -154,7 +155,7 @@ pub fn array<'a>() -> impl Parser<Vec<Literal>, &'a [Token]> {
             many(literal()),
             exact(Token::EndTerm),
         )
-        .parse(input)
+            .parse(input)
     }
 }
 
@@ -252,13 +253,13 @@ pub fn block<'a>() -> impl Parser<Expression, &'a [Token]> {
         default(parameters()).and(default(locals())).and(body()),
         exact(Token::EndBlock),
     )
-    .map(|((parameters, locals), body)| {
-        Expression::Block(Block {
-            parameters,
-            locals,
-            body,
+        .map(|((parameters, locals), body)| {
+            Expression::Block(Block {
+                parameters,
+                locals,
+                body,
+            })
         })
-    })
 }
 
 pub fn term<'a>() -> impl Parser<Expression, &'a [Token]> {
@@ -307,18 +308,18 @@ pub fn method_body<'a>() -> impl Parser<MethodBody, &'a [Token]> {
         default(locals()).and(body()),
         exact(Token::EndTerm),
     )
-    .map(|(locals, body)| MethodBody::Body { locals, body })
+        .map(|(locals, body)| MethodBody::Body { locals, body })
 }
 
 pub fn unary_method_def<'a>() -> impl Parser<MethodDef, &'a [Token]> {
     identifier()
         .and_left(exact(Token::Equal))
         .and(primitive().or(method_body()))
-        .map(|(signature, body)| MethodDef {
+        .map(|(signature, body)| Generic(GenericMethodDef {
             kind: MethodKind::Unary,
             signature,
             body,
-        })
+        }))
 }
 
 pub fn positional_method_def<'a>() -> impl Parser<MethodDef, &'a [Token]> {
@@ -326,12 +327,21 @@ pub fn positional_method_def<'a>() -> impl Parser<MethodDef, &'a [Token]> {
         .and_left(exact(Token::Equal))
         .and(primitive().or(method_body()))
         .map(|(pairs, body)| {
-            let (signature, parameters) = pairs.into_iter().unzip();
+            let (signature, parameters): (String, _) = pairs.into_iter().unzip();
 
-            MethodDef {
-                kind: MethodKind::Positional { parameters },
-                signature,
-                body,
+            match signature.as_str() {
+                "whileTrue:" => {
+                    InlinedWhile(GenericMethodDef {
+                        kind: MethodKind::Positional { parameters },
+                        signature,
+                        body,
+                    })
+                }
+                _ => Generic(GenericMethodDef {
+                    kind: MethodKind::Positional { parameters },
+                    signature,
+                    body,
+                })
             }
         })
 }
@@ -341,11 +351,11 @@ pub fn operator_method_def<'a>() -> impl Parser<MethodDef, &'a [Token]> {
         .and(identifier())
         .and_left(exact(Token::Equal))
         .and(primitive().or(method_body()))
-        .map(|((signature, rhs), body)| MethodDef {
+        .map(|((signature, rhs), body)| Generic(GenericMethodDef {
             kind: MethodKind::Operator { rhs },
             signature,
             body,
-        })
+        }))
 }
 
 pub fn method_def<'a>() -> impl Parser<MethodDef, &'a [Token]> {

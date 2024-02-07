@@ -4,12 +4,13 @@ use std::rc::{Rc, Weak};
 
 use indexmap::IndexMap;
 
-use som_core::ast::{ClassDef, MethodBody};
+use som_core::ast::{ClassDef, MethodBody, MethodDef};
 
 use crate::method::{Method, MethodKind};
 use crate::primitives;
 use crate::value::Value;
 use crate::{SOMRef, SOMWeakRef};
+use crate::specialized::while_node::WhileNode;
 
 /// A reference that may be either weak or owned/strong.
 #[derive(Debug, Clone)]
@@ -89,17 +90,22 @@ impl Class {
             .static_methods
             .iter()
             .map(|method| {
-                let signature = method.signature.clone();
-                let kind = match method.body {
-                    MethodBody::Primitive => MethodKind::NotImplemented(signature.clone()),
-                    MethodBody::Body { .. } => MethodKind::Defined(method.clone()),
-                };
-                let method = Method {
-                    kind,
-                    signature: signature.clone(),
-                    holder: Rc::downgrade(&static_class),
-                };
-                (signature, Rc::new(method))
+                match method {
+                    MethodDef::Generic(method) => {
+                        let signature = method.signature.clone();
+                        let kind = match method.body {
+                            MethodBody::Primitive => MethodKind::NotImplemented(signature.clone()),
+                            MethodBody::Body { .. } => MethodKind::Defined(method.clone()),
+                        };
+                        let method = Method {
+                            kind,
+                            signature: signature.clone(),
+                            holder: Rc::downgrade(&static_class),
+                        };
+                        (signature, Rc::new(method))
+                    }
+                    MethodDef::InlinedWhile(_) => todo!("Unreachable, I believe")
+                }
             })
             .collect();
 
@@ -124,18 +130,26 @@ impl Class {
         let mut instance_methods: IndexMap<String, Rc<Method>> = defn
             .instance_methods
             .iter()
-            .map(|method| {
-                let signature = method.signature.clone();
-                let kind = match method.body {
-                    MethodBody::Primitive => MethodKind::NotImplemented(signature.clone()),
-                    MethodBody::Body { .. } => MethodKind::Defined(method.clone()),
-                };
-                let method = Method {
-                    kind,
-                    signature: signature.clone(),
-                    holder: Rc::downgrade(&instance_class),
-                };
-                (signature, Rc::new(method))
+            .map(|method_def| {
+                match method_def {
+                    MethodDef::Generic(method) | MethodDef::InlinedWhile(method) => {
+                        let signature = method.signature.clone();
+                        let kind = match method_def {
+                            MethodDef::Generic(_) => {
+                                match method.body {
+                                    MethodBody::Primitive => MethodKind::NotImplemented(signature.clone()),
+                                    MethodBody::Body { .. } => MethodKind::Defined(method.clone())}
+                            },
+                            MethodDef::InlinedWhile(_) => MethodKind::WhileInlined(WhileNode { expected_bool: true }),
+                        };
+                        let method = Method {
+                            kind,
+                            signature: signature.clone(),
+                            holder: Rc::downgrade(&instance_class),
+                        };
+                        (signature, Rc::new(method))
+                    }
+                }
             })
             .collect();
 

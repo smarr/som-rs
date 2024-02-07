@@ -13,7 +13,7 @@ pub struct Block {
     /// Reference to the captured stack frame.
     pub frame: SOMRef<Frame>,
     /// Block definition from the AST.
-    pub block: ast::Block,
+    pub block: ast::Block
 }
 
 impl Block {

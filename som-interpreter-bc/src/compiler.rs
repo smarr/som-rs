@@ -430,7 +430,7 @@ impl GenCtxt for ClassGenCtxt<'_> {
     }
 }
 
-fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::MethodDef) -> Option<Method> {
+fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::GenericMethodDef) -> Option<Method> {
     // println!("(method) compiling '{}' ...", defn.signature);
 
     let mut ctxt = MethodGenCtxt {

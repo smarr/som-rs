@@ -64,6 +64,36 @@ impl Invoke for Method {
                 )
             }
             MethodKind::Primitive(func) => func(universe, args),
+            MethodKind::WhileInlined(while_node) => {
+                let (self_value, params) = {
+                    let mut iter = args.into_iter();
+                    let receiver = match iter.next() { // todo remove receiver
+                        Some(receiver) => receiver,
+                        None => {
+                            return Return::Exception("missing receiver for invocation".to_string())
+                        }
+                    };
+                    (receiver, iter.collect::<Vec<_>>())
+                };
+                let holder = match self.holder().upgrade() {
+                    Some(holder) => holder,
+                    None => {
+                        return Return::Exception(
+                            "cannot invoke this method because its holder has been collected"
+                                .to_string(),
+                        )
+                    }
+                };
+                let signature = universe.intern_symbol(&self.signature);
+                universe.with_frame(
+                    FrameKind::Method {
+                        holder,
+                        signature,
+                        self_value,
+                    },
+                    |universe| while_node.invoke(universe, params),
+                )
+            }
             MethodKind::NotImplemented(name) => {
                 Return::Exception(format!("unimplemented primitive: {}", name))
             }
@@ -80,7 +110,7 @@ impl Invoke for Method {
     }
 }
 
-impl Invoke for ast::MethodDef {
+impl Invoke for ast::GenericMethodDef {
     fn invoke(&self, universe: &mut Universe, args: Vec<Value>) -> Return {
         let current_frame = universe.current_frame().clone();
         match &self.kind {

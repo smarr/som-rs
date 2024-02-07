@@ -59,13 +59,19 @@ pub enum MethodKind {
 /// "operator method"    + value = ( self increment: value )
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub struct MethodDef {
+pub struct GenericMethodDef {
     /// The method's kind.
     pub kind: MethodKind,
     /// The method's signature (eg. `println`, `at:put:` or `==`).
     pub signature: String,
     /// The method's body.
     pub body: MethodBody,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum MethodDef {
+    Generic(GenericMethodDef),
+    InlinedWhile(GenericMethodDef)
 }
 
 /// Represents a method's body.
