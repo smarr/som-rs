@@ -335,7 +335,7 @@ pub fn positional_method_def<'a>() -> impl Parser<MethodDef, &'a [Token]> {
                         kind: MethodKind::Positional { parameters },
                         signature,
                         body,
-                    })
+                    }, true)
                 }
                 _ => Generic(GenericMethodDef {
                     kind: MethodKind::Positional { parameters },

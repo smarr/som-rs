@@ -11,34 +11,29 @@ pub struct WhileNode {
 
 impl Invoke for WhileNode {
     fn invoke(&self, universe: &mut Universe, args: Vec<Value>) -> Return {
-        let cond_block_val = universe.current_frame().borrow().get_self();
-        let body_block_arg = args.get(0).unwrap();
+        let cond_block_val = args.get(0).unwrap();
+        let body_block_arg = args.get(1).unwrap();
 
-        let cond_block = match cond_block_val {
-            Value::Block(b) => b.clone(),
-            _ => panic!("whileTrue method declared outside the block class")
-        };
-
-        let body_block = match body_block_arg {
-            Value::Block(b) => b.clone(),
-            _ => panic!("while invoked without a block?")
+        let (cond_block, body_block) = match (cond_block_val, body_block_arg) {
+            (Value::Block(b), Value::Block(c)) => (b.clone(), c.clone()),
+            _ => panic!("while[True|False] was not given two blocks as arguments")
         };
 
         loop {
-            let cond_val = match cond_block.block.body.evaluate(universe) { // TODO aint no way i need to declare empty vecs like this
-                Return::Local(val) => val,
-                not_return => panic!("Should be unreachable? Evaluated blocks return a Return::Local, instead was {:?}", not_return)
-            };
-
-            let bool_val = match cond_val {
-                Value::Boolean(v) => v,
+            let bool_val = match cond_block.invoke(universe, args.clone()) {
+                Return::Local(Value::Boolean(b)) => b,
                 v => panic!("Invalid, condition block should return a boolean: instead was {:?}.", v)
             };
 
-            if bool_val == self.expected_bool {
+            if bool_val != self.expected_bool {
                 break Return::Local(Nil)
             } else {
-                body_block.block.body.evaluate(universe);
+                let ret_val = body_block.invoke(universe, vec![]);
+                match ret_val {
+                    Return::Exception(e) => panic!("Exception thrown: {}", e),
+                    Return::Restart => {},
+                    ret => break ret // TODO shouldn't return non locals be handled as return locals? but then again we are already in the right scope... hmm
+                }
             }
         }
     }

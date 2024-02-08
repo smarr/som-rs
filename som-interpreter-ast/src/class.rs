@@ -104,7 +104,7 @@ impl Class {
                         };
                         (signature, Rc::new(method))
                     }
-                    MethodDef::InlinedWhile(_) => todo!("Unreachable, I believe")
+                    MethodDef::InlinedWhile(_, _) => panic!("Unreachable, I believe?")
                 }
             })
             .collect();
@@ -132,7 +132,7 @@ impl Class {
             .iter()
             .map(|method_def| {
                 match method_def {
-                    MethodDef::Generic(method) | MethodDef::InlinedWhile(method) => {
+                    MethodDef::Generic(method) | MethodDef::InlinedWhile(method, _) => {
                         let signature = method.signature.clone();
                         let kind = match method_def {
                             MethodDef::Generic(_) => {
@@ -140,7 +140,7 @@ impl Class {
                                     MethodBody::Primitive => MethodKind::NotImplemented(signature.clone()),
                                     MethodBody::Body { .. } => MethodKind::Defined(method.clone())}
                             },
-                            MethodDef::InlinedWhile(_) => MethodKind::WhileInlined(WhileNode { expected_bool: true }),
+                            MethodDef::InlinedWhile(_, exp_bool) => MethodKind::WhileInlined(WhileNode { expected_bool: *exp_bool }),
                         };
                         let method = Method {
                             kind,
