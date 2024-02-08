@@ -1,4 +1,3 @@
-use crate::evaluate::Evaluate;
 use crate::invokable::{Invoke, Return};
 use crate::universe::Universe;
 use crate::value::Value;
@@ -30,9 +29,9 @@ impl Invoke for WhileNode {
             } else {
                 let ret_val = body_block.invoke(universe, vec![]);
                 match ret_val {
+                    Return::Restart | Return::Local(_) => {},
+                    ret @ Return::NonLocal(_, _) => break ret,
                     Return::Exception(e) => panic!("Exception thrown: {}", e),
-                    Return::Restart => {},
-                    ret => break ret // TODO shouldn't return non locals be handled as return locals? but then again we are already in the right scope... hmm
                 }
             }
         }

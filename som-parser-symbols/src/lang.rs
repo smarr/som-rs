@@ -336,6 +336,13 @@ pub fn positional_method_def<'a>() -> impl Parser<MethodDef, &'a [Token]> {
                         signature,
                         body,
                     }, true)
+                },
+                "whileFalse:" => {
+                    InlinedWhile(GenericMethodDef {
+                        kind: MethodKind::Positional { parameters },
+                        signature,
+                        body,
+                    }, false)
                 }
                 _ => Generic(GenericMethodDef {
                     kind: MethodKind::Positional { parameters },
