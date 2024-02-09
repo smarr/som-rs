@@ -5,7 +5,7 @@ use crate::value::Value::Nil;
 
 #[derive(Clone)]
 pub struct WhileNode {
-    pub expected_bool: bool // only a true atm
+    pub(crate) expected_bool: bool
 }
 
 impl Invoke for WhileNode {

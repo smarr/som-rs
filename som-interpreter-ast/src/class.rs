@@ -10,6 +10,7 @@ use crate::method::{Method, MethodKind};
 use crate::primitives;
 use crate::value::Value;
 use crate::{SOMRef, SOMWeakRef};
+use crate::specialized::if_node::IfNode;
 use crate::specialized::while_node::WhileNode;
 
 /// A reference that may be either weak or owned/strong.
@@ -104,7 +105,7 @@ impl Class {
                         };
                         (signature, Rc::new(method))
                     }
-                    MethodDef::InlinedWhile(_, _) => panic!("Unreachable, I believe?")
+                    _ => panic!("Unreachable, I believe?") // inlinedwhile, inlinedif, etc.
                 }
             })
             .collect();
@@ -132,7 +133,7 @@ impl Class {
             .iter()
             .map(|method_def| {
                 match method_def {
-                    MethodDef::Generic(method) | MethodDef::InlinedWhile(method, _) => {
+                    MethodDef::Generic(method) | MethodDef::InlinedWhile(method, _) | MethodDef::InlinedIf(method, _) => {
                         let signature = method.signature.clone();
                         let kind = match method_def {
                             MethodDef::Generic(_) => {
@@ -141,6 +142,7 @@ impl Class {
                                     MethodBody::Body { .. } => MethodKind::Defined(method.clone())}
                             },
                             MethodDef::InlinedWhile(_, exp_bool) => MethodKind::WhileInlined(WhileNode { expected_bool: *exp_bool }),
+                            MethodDef::InlinedIf(_, exp_bool) => MethodKind::IfInlined(IfNode { expected_bool: *exp_bool }),
                         };
                         let method = Method {
                             kind,

@@ -5,16 +5,19 @@ use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
 use crate::{SOMRef, SOMWeakRef};
 use crate::specialized::while_node::WhileNode;
+use crate::specialized::if_node::IfNode;
 
 /// The kind of a class method.
 #[derive(Clone)]
 pub enum MethodKind {
     /// A user-defined method from the AST.
     Defined(ast::GenericMethodDef),
-    /// A specialized whileTrue/whileFalse node.
-    WhileInlined(WhileNode),
     /// An interpreter primitive.
     Primitive(PrimitiveFn),
+    /// Specialized: whileTrue/whileFalse node.
+    WhileInlined(WhileNode),
+    /// Specialized: ifTrue/ifFalse.
+    IfInlined(IfNode),
     /// A non-implemented primitive.
     NotImplemented(String),
 }

@@ -71,7 +71,8 @@ pub struct GenericMethodDef {
 #[derive(Debug, Clone, PartialEq)]
 pub enum MethodDef {
     Generic(GenericMethodDef),
-    InlinedWhile(GenericMethodDef, bool)
+    InlinedWhile(GenericMethodDef, bool),
+    InlinedIf(GenericMethodDef, bool),
 }
 
 /// Represents a method's body.

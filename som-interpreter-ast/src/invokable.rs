@@ -39,7 +39,7 @@ impl Invoke for Method {
                     let receiver = match iter.next() {
                         Some(receiver) => receiver,
                         None => {
-                            return Return::Exception("missing receiver for invocation".to_string())
+                            return Return::Exception("missing receiver for invocation".to_string());
                         }
                     };
                     (receiver, iter.collect::<Vec<_>>())
@@ -50,7 +50,7 @@ impl Invoke for Method {
                         return Return::Exception(
                             "cannot invoke this method because its holder has been collected"
                                 .to_string(),
-                        )
+                        );
                     }
                 };
                 let signature = universe.intern_symbol(&self.signature);
@@ -64,9 +64,8 @@ impl Invoke for Method {
                 )
             }
             MethodKind::Primitive(func) => func(universe, args),
-            MethodKind::WhileInlined(while_node) => {
-                while_node.invoke(universe, args)
-            }
+            MethodKind::WhileInlined(while_node) => { while_node.invoke(universe, args) }
+            MethodKind::IfInlined(if_node) => { if_node.invoke(universe, args) }
             MethodKind::NotImplemented(name) => {
                 Return::Exception(format!("unimplemented primitive: {}", name))
             }
