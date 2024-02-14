@@ -170,7 +170,7 @@ impl Frame {
             FrameKind::Block { block, .. } => block.frame.as_ref().unwrap().borrow().get_method(),
         }
     }
-    
+
     // Don't even need this function. We store a pointer to the bytecode in the interpreter directly.
     // pub fn get_bytecode(&self, idx: usize) -> Option<Bytecode> {
     //     self.bytecodes.get(idx).cloned()

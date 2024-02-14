@@ -14,6 +14,9 @@ use crate::universe::UniverseBC;
 use crate::value::Value;
 use crate::SOMRef;
 
+#[cfg(feature = "profiler")]
+use crate::profiler::Profiler;
+
 const INT_0: Value = Value::Integer(0);
 const INT_1: Value = Value::Integer(1);
 
@@ -113,7 +116,7 @@ impl Interpreter {
 
     pub fn pop_frame(&mut self) {
         self.frames.pop();
-        
+
         match self.frames.last().cloned() {
             None => {}
             Some(f) => {
@@ -126,7 +129,7 @@ impl Interpreter {
 
     pub fn pop_n_frames(&mut self, n: usize) {
         (0..n).for_each(|_| { self.frames.pop(); });
-        
+
         match self.frames.last().cloned() {
             None => {}
             Some(f) => {
@@ -145,7 +148,7 @@ impl Interpreter {
             let bytecode = *(unsafe { (*self.current_bytecodes).get_unchecked(self.bytecode_idx) });
 
             self.bytecode_idx += 1;
-            
+
             match bytecode {
                 Bytecode::Halt => {
                     return Some(Value::Nil);
@@ -429,7 +432,7 @@ impl Interpreter {
 
                 return;
             };
-            
+
             // we store the current bytecode idx to be able to correctly restore the bytecode state when we pop frames
             interpreter.current_frame.borrow_mut().bytecode_idx = interpreter.bytecode_idx;
 
@@ -438,7 +441,7 @@ impl Interpreter {
                     // let name = &method.holder.upgrade().unwrap().borrow().name.clone();
                     // let filter_list = ["Integer", "Vector", "True", "Pair"];
                     // let filter_list = [];
-                    
+
                     // if !filter_list.contains(&name.as_str()) {
                     //     eprintln!("Invoking {:?} (in {:?})", &method.signature, &method.holder.upgrade().unwrap().borrow().name);
                     // }
