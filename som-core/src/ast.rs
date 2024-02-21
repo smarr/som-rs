@@ -208,6 +208,8 @@ pub struct Block {
     pub locals: Vec<String>,
     /// Represents the block's body.
     pub body: Body,
+    /// Unique ID for blocks, to not break shadowing of variables when inlining
+    pub scope: u64
 }
 
 /// Represents a term.

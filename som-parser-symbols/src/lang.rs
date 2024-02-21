@@ -1,3 +1,4 @@
+use rand::Rng;
 use som_core::ast::*;
 use som_core::ast::MethodDef::{Generic, InlinedIf, InlinedIfTrueIfFalse, InlinedWhile};
 use som_lexer::Token;
@@ -258,6 +259,7 @@ pub fn block<'a>() -> impl Parser<Expression, &'a [Token]> {
                 parameters,
                 locals,
                 body,
+                scope: { let mut rand_thread = rand::thread_rng(); rand_thread.gen() } // todo: ugly. what we need is just for each block within a single method to have a different unique ID. e.g. scope level
             })
         })
 }
