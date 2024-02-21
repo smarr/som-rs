@@ -607,7 +607,8 @@ pub fn compile_class(
         let method = match method_def {
             MethodDef::Generic(v) => v,
             MethodDef::InlinedWhile(v, _) => v,
-            MethodDef::InlinedIf(v, _) => v
+            MethodDef::InlinedIf(v, _) => v,
+            MethodDef::InlinedIfTrueIfFalse(v) => v
         };
 
         let signature = static_class_ctxt.interner.intern(method.signature.as_str());
@@ -692,7 +693,8 @@ pub fn compile_class(
         let method = match method_def {
             MethodDef::Generic(v) => v,
             MethodDef::InlinedWhile(v, _) => v,
-            MethodDef::InlinedIf(v, _) => v
+            MethodDef::InlinedIf(v, _) => v,
+            MethodDef::InlinedIfTrueIfFalse(v) => v
         };
 
         let signature = instance_class_ctxt

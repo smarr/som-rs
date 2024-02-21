@@ -73,6 +73,7 @@ pub enum MethodDef {
     Generic(GenericMethodDef),
     InlinedWhile(GenericMethodDef, bool),
     InlinedIf(GenericMethodDef, bool),
+    InlinedIfTrueIfFalse(GenericMethodDef),
 }
 
 /// Represents a method's body.

@@ -66,6 +66,7 @@ impl Invoke for Method {
             MethodKind::Primitive(func) => func(universe, args),
             MethodKind::WhileInlined(while_node) => { while_node.invoke(universe, args) }
             MethodKind::IfInlined(if_node) => { if_node.invoke(universe, args) }
+            MethodKind::IfTrueIfFalseInlined(if_true_if_false_node) => { if_true_if_false_node.invoke(universe, args) },
             MethodKind::NotImplemented(name) => {
                 Return::Exception(format!("unimplemented primitive: {}", name))
             }

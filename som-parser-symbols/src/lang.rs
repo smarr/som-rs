@@ -1,5 +1,5 @@
 use som_core::ast::*;
-use som_core::ast::MethodDef::{Generic, InlinedIf, InlinedWhile};
+use som_core::ast::MethodDef::{Generic, InlinedIf, InlinedIfTrueIfFalse, InlinedWhile};
 use som_lexer::Token;
 use som_parser_core::combinators::*;
 use som_parser_core::Parser;
@@ -357,6 +357,13 @@ pub fn positional_method_def<'a>() -> impl Parser<MethodDef, &'a [Token]> {
                         signature,
                         body,
                     }, false)
+                },
+                "ifTrue:ifFalse:" => {
+                    InlinedIfTrueIfFalse(GenericMethodDef {
+                        kind: MethodKind::Positional { parameters },
+                        signature,
+                        body,
+                    })
                 },
                 _ => Generic(GenericMethodDef {
                     kind: MethodKind::Positional { parameters },
