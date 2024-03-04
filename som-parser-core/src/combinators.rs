@@ -1,4 +1,4 @@
-use crate::Parser;
+use crate::{Parser};
 
 /// Represents a value of either type A (Left) or type B (Right).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -8,51 +8,51 @@ pub enum Either<A, B> {
 }
 
 /// Transforms a parser into a non-consuming one, allowing to parse ahead without consuming anything.
-pub fn peek<A, I: Clone>(mut parser: impl Parser<A, I>) -> impl Parser<A, I> {
-    move |input: I| {
-        let (value, _) = parser.parse(input.clone())?;
+pub fn peek<A, I: Clone, MGCTXT>(mut parser: impl Parser<A, I, MGCTXT>) -> impl Parser<A, I, MGCTXT> {
+    move |input: I, mgctxt: &mut MGCTXT| {
+        let (value, _) = parser.parse(input.clone(), mgctxt)?;
         Some((value, input))
     }
 }
 
 /// Runs the given parser, fails if it succeeded, and succeeds otherwise.
-pub fn not<A, I: Clone>(mut parser: impl Parser<A, I>) -> impl Parser<(), I> {
-    move |input: I| match parser.parse(input.clone()) {
+pub fn not<A, I: Clone, MGCTXT>(mut parser: impl Parser<A, I, MGCTXT>) -> impl Parser<(), I, MGCTXT> {
+    move |input: I, mgctxt: &mut MGCTXT| match parser.parse(input.clone(), mgctxt) {
         Some(_) => None,
         None => Some(((), input)),
     }
 }
 
 /// Sequences two parsers, one after the other, collecting both results.
-pub fn sequence<A, B, I>(
-    mut fst: impl Parser<A, I>,
-    mut snd: impl Parser<B, I>,
-) -> impl Parser<(A, B), I> {
+pub fn sequence<A, B, I, MGCTXT>(
+    mut fst: impl Parser<A, I, MGCTXT>,
+    mut snd: impl Parser<B, I, MGCTXT>,
+) -> impl Parser<(A, B), I, MGCTXT> {
     // equivalent to: `fst.and(snd)`
-    move |input: I| {
-        let (a, input) = fst.parse(input)?;
-        let (b, input) = snd.parse(input)?;
+    move |input: I, mgctxt: &mut MGCTXT| {
+        let (a, input) = fst.parse(input, mgctxt)?;
+        let (b, input) = snd.parse(input, mgctxt)?;
         Some(((a, b), input))
     }
 }
 
 /// Tries to apply the first parser, if it fails, it tries to apply the second parser.
-pub fn alternative<A, I: Clone>(
-    mut fst: impl Parser<A, I>,
-    mut snd: impl Parser<A, I>,
-) -> impl Parser<A, I> {
-    move |input: I| fst.parse(input.clone()).or_else(|| snd.parse(input))
+pub fn alternative<A, I: Clone, MGCTXT>(
+    mut fst: impl Parser<A, I, MGCTXT>,
+    mut snd: impl Parser<A, I, MGCTXT>,
+) -> impl Parser<A, I, MGCTXT> {
+    move |input: I, mgctxt: &mut MGCTXT| fst.parse(input.clone(), mgctxt).or_else(|| snd.parse(input, mgctxt))
 }
 
 /// Same as `either`, but allows for different output types for the parsers.
-pub fn either<A, B, I: Clone>(
-    mut fst: impl Parser<A, I>,
-    mut snd: impl Parser<B, I>,
-) -> impl Parser<Either<A, B>, I> {
-    move |input: I| {
-        if let Some((a, input)) = fst.parse(input.clone()) {
+pub fn either<A, B, I: Clone, MGCTXT>(
+    mut fst: impl Parser<A, I, MGCTXT>,
+    mut snd: impl Parser<B, I, MGCTXT>,
+) -> impl Parser<Either<A, B>, I, MGCTXT> {
+    move |input: I, mgctxt: &mut MGCTXT| {
+        if let Some((a, input)) = fst.parse(input.clone(), mgctxt) {
             Some((Either::Left(a), input))
-        } else if let Some((b, input)) = snd.parse(input) {
+        } else if let Some((b, input)) = snd.parse(input, mgctxt) {
             Some((Either::Right(b), input))
         } else {
             None
@@ -61,37 +61,37 @@ pub fn either<A, B, I: Clone>(
 }
 
 /// Tries to apply a parser, or fallback to a constant value (making it an always-succeeding parser).
-pub fn fallback<A: Clone, I: Clone>(def: A, mut parser: impl Parser<A, I>) -> impl Parser<A, I> {
-    move |input: I| {
+pub fn fallback<A: Clone, I: Clone, MGCTXT>(def: A, mut parser: impl Parser<A, I, MGCTXT>) -> impl Parser<A, I, MGCTXT> {
+    move |input: I, mgctxt: &mut MGCTXT| {
         parser
-            .parse(input.clone())
+            .parse(input.clone(), mgctxt)
             .or_else(|| Some((def.clone(), input)))
     }
 }
 
 /// Tries to apply a parser, or fallback to its default value (making it an always-succeeding parser).
-pub fn default<A: Default, I: Clone>(parser: impl Parser<A, I>) -> impl Parser<A, I> {
+pub fn default<A: Default, I: Clone, MGCTXT>(parser: impl Parser<A, I, MGCTXT>) -> impl Parser<A, I, MGCTXT> {
     optional(parser).map(Option::unwrap_or_default)
 }
 
 /// Tries every parser in a slice, from left to right, and returns the output of the first succeeding one.
-pub fn any<'a, A, I: Clone>(parsers: &'a mut [impl Parser<A, I>]) -> impl Parser<A, I> + 'a {
-    move |input: I| {
+pub fn any<'a, A, I: Clone, MGCTXT>(parsers: &'a mut [impl Parser<A, I, MGCTXT>]) -> impl Parser<A, I, MGCTXT> + 'a {
+    move |input: I, mgctxt: &mut MGCTXT| {
         parsers
             .iter_mut()
-            .find_map(|parser| parser.parse(input.clone()))
+            .find_map(|parser| parser.parse(input.clone(), mgctxt))
     }
 }
 
 /// Applies every parser in a slice, from left to right, and returns the output from all of them.
 /// If one parser fails, the whole sequence is considered failed.
-pub fn all<'a, A, I>(parsers: &'a mut [impl Parser<A, I>]) -> impl Parser<Vec<A>, I> + 'a {
-    move |input: I| {
+pub fn all<'a, A, I, MGCTXT>(parsers: &'a mut [impl Parser<A, I, MGCTXT>]) -> impl Parser<Vec<A>, I, MGCTXT> + 'a {
+    move |input: I, mgctxt| {
         let output = Vec::<A>::with_capacity(parsers.len());
         parsers
             .iter_mut()
             .try_fold((output, input), |(mut output, input), parser| {
-                let (value, input) = parser.parse(input)?;
+                let (value, input) = parser.parse(input, mgctxt)?;
                 output.push(value);
                 Some((output, input))
             })
@@ -99,9 +99,9 @@ pub fn all<'a, A, I>(parsers: &'a mut [impl Parser<A, I>]) -> impl Parser<Vec<A>
 }
 
 /// Tries to apply a parser, but fails gracefully (with an `Option` output).
-pub fn optional<A, I: Clone>(mut parser: impl Parser<A, I>) -> impl Parser<Option<A>, I> {
-    move |input: I| {
-        if let Some((value, input)) = parser.parse(input.clone()) {
+pub fn optional<A, I: Clone, MGCTXT>(mut parser: impl Parser<A, I, MGCTXT>) -> impl Parser<Option<A>, I, MGCTXT> {
+    move |input: I, mgctxt: &mut MGCTXT| {
+        if let Some((value, input)) = parser.parse(input.clone(), mgctxt) {
             Some((Some(value), input))
         } else {
             Some((None, input))
@@ -110,10 +110,10 @@ pub fn optional<A, I: Clone>(mut parser: impl Parser<A, I>) -> impl Parser<Optio
 }
 
 /// Applies a parser zero or more times.
-pub fn many<A, I: Clone>(mut parser: impl Parser<A, I>) -> impl Parser<Vec<A>, I> {
-    move |mut input: I| {
+pub fn many<A, I: Clone, MGCTXT>(mut parser: impl Parser<A, I, MGCTXT>) -> impl Parser<Vec<A>, I, MGCTXT> {
+    move |mut input: I, mgctxt| {
         let mut output = Vec::<A>::new();
-        while let Some((value, next)) = parser.parse(input.clone()) {
+        while let Some((value, next)) = parser.parse(input.clone(), mgctxt) {
             input = next;
             output.push(value);
         }
@@ -122,11 +122,11 @@ pub fn many<A, I: Clone>(mut parser: impl Parser<A, I>) -> impl Parser<Vec<A>, I
 }
 
 /// Applies a parser one or more times.
-pub fn some<A, I: Clone>(mut parser: impl Parser<A, I>) -> impl Parser<Vec<A>, I> {
-    move |input: I| {
-        let (value, mut input) = parser.parse(input)?;
+pub fn some<A, I: Clone, MGCTXT>(mut parser: impl Parser<A, I, MGCTXT>) -> impl Parser<Vec<A>, I, MGCTXT> {
+    move |input: I, mgctxt| {
+        let (value, mut input) = parser.parse(input, mgctxt)?;
         let mut output = vec![value];
-        while let Some((value, next)) = parser.parse(input.clone()) {
+        while let Some((value, next)) = parser.parse(input.clone(), mgctxt) {
             input = next;
             output.push(value);
         }
@@ -135,31 +135,31 @@ pub fn some<A, I: Clone>(mut parser: impl Parser<A, I>) -> impl Parser<Vec<A>, I
 }
 
 /// Parses something that is enclosed between two other things.
-pub fn between<A, B, C, I>(
-    mut before: impl Parser<A, I>,
-    mut within: impl Parser<B, I>,
-    mut after: impl Parser<C, I>,
-) -> impl Parser<B, I> {
-    move |input: I| {
-        let (_, input) = before.parse(input)?;
-        let (value, input) = within.parse(input)?;
-        let (_, input) = after.parse(input)?;
+pub fn between<A, B, C, I, MGCTXT>(
+    mut before: impl Parser<A, I, MGCTXT>,
+    mut within: impl Parser<B, I, MGCTXT>,
+    mut after: impl Parser<C, I, MGCTXT>,
+) -> impl Parser<B, I, MGCTXT> {
+    move |input: I, mgctxt| {
+        let (_, input) = before.parse(input, mgctxt)?;
+        let (value, input) = within.parse(input, mgctxt)?;
+        let (_, input) = after.parse(input, mgctxt)?;
         Some((value, input))
     }
 }
 
 /// Parses zero or more things, separated by an arbitrary delimiter.
-pub fn sep_by<A, B, I: Clone>(
-    mut delim: impl Parser<A, I>,
-    mut within: impl Parser<B, I>,
-) -> impl Parser<Vec<B>, I> {
-    move |input: I| {
+pub fn sep_by<A, B, I: Clone, MGCTXT>(
+    mut delim: impl Parser<A, I, MGCTXT>,
+    mut within: impl Parser<B, I, MGCTXT>,
+) -> impl Parser<Vec<B>, I, MGCTXT> {
+    move |input: I, mgctxt| {
         let mut output = Vec::<B>::new();
-        if let Some((value, mut input)) = within.parse(input.clone()) {
+        if let Some((value, mut input)) = within.parse(input.clone(), mgctxt) {
             output.push(value);
             while let Some((value, next)) = delim
-                .parse(input.clone())
-                .and_then(|(_, input)| within.parse(input))
+                .parse(input.clone(), mgctxt)
+                .and_then(|(_, input)| within.parse(input, mgctxt))
             {
                 input = next;
                 output.push(value);
@@ -172,17 +172,17 @@ pub fn sep_by<A, B, I: Clone>(
 }
 
 /// Parses one or more things, separated by an arbitrary delimiter.
-pub fn sep_by1<A, B, I: Clone>(
-    mut delim: impl Parser<A, I>,
-    mut within: impl Parser<B, I>,
-) -> impl Parser<Vec<B>, I> {
-    move |input: I| {
+pub fn sep_by1<A, B, I: Clone, MGCTXT>(
+    mut delim: impl Parser<A, I, MGCTXT>,
+    mut within: impl Parser<B, I, MGCTXT>,
+) -> impl Parser<Vec<B>, I, MGCTXT> {
+    move |input: I, mgctxt| {
         let mut output = Vec::<B>::new();
-        let (value, mut input) = within.parse(input)?;
+        let (value, mut input) = within.parse(input, mgctxt)?;
         output.push(value);
         while let Some((value, next)) = delim
-            .parse(input.clone())
-            .and_then(|(_, input)| within.parse(input))
+            .parse(input.clone(), mgctxt)
+            .and_then(|(_, input)| within.parse(input, mgctxt))
         {
             input = next;
             output.push(value);
@@ -192,9 +192,9 @@ pub fn sep_by1<A, B, I: Clone>(
 }
 
 /// Transforms the output value of a parser.
-pub fn map<A, B, I>(mut parser: impl Parser<A, I>, func: impl Fn(A) -> B) -> impl Parser<B, I> {
-    move |input: I| {
-        let (value, input) = parser.parse(input)?;
+pub fn map<A, B, I, MGCTXT>(mut parser: impl Parser<A, I, MGCTXT>, func: impl Fn(A) -> B) -> impl Parser<B, I, MGCTXT> {
+    move |input: I, mgctxt: MGCTXT| {
+        let (value, input) = parser.parse(input, mgctxt)?;
         Some((func(value), input))
     }
 }

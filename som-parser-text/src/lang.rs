@@ -237,14 +237,14 @@ pub fn keyword<'a>() -> impl Parser<String, &'a [char]> {
 }
 
 pub fn unary_send<'a>() -> impl Parser<Expression, &'a [char]> {
-    move |input: &'a [char]| {
-        let (receiver, input) = primary().parse(input)?;
-        let (_, input) = many(spacing()).parse(input)?;
+    move |input: &'a [char], &mut mgctxt| {
+        let (receiver, input) = primary().parse(input, mgctxt)?;
+        let (_, input) = many(spacing()).parse(input, mgctxt)?;
         let (signatures, input) = sep_by(
             many(spacing()),
             identifier().and_left(not(peek(exact(':')))),
         )
-        .parse(input)?;
+        .parse(input, mgctxt)?;
 
         let expr = signatures
             .into_iter()
