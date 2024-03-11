@@ -259,18 +259,34 @@ pub fn parameters<'a>() -> impl Parser<Vec<String>, &'a [Token], AstMethodGenCtx
 
 pub fn block<'a>() -> impl Parser<Expression, &'a [Token], AstMethodGenCtxt> {
     //todo increase scope right there
-    between(
-        exact(Token::NewBlock),
-        default(parameters()).and(default(locals())).and(body()),
-        exact(Token::EndBlock),
-    )
-        .map(|((parameters, locals), body)| {
-            Expression::Block(Block {
-                parameters,
-                locals,
-                body,
-            })
-        })
+
+    // between(
+    //     exact(Token::NewBlock),
+    //     default(parameters()).and(default(locals())).and(body()),
+    //     exact(Token::EndBlock),
+    // )
+    //     .map(|((parameters, locals), body)| {
+    //         Expression::Block(Block {
+    //             parameters,
+    //             locals,
+    //             body,
+    //         })
+    //     })
+
+
+    move |input: &'a [Token], mgctxt| {
+        let (_, input, mut mgctxt) = exact(Token::NewBlock).parse(input, mgctxt)?;
+        mgctxt = mgctxt.increase_scope();
+        let (((parameters, locals), body), input, mgctxt) = default(parameters()).and(default(locals())).and(body()).parse(input, mgctxt)?;
+        let (_, input, mut mgctxt) = exact(Token::EndBlock).parse(input, mgctxt)?;
+        mgctxt = mgctxt.decrease_scope();
+
+        Some((Expression::Block(Block {
+            parameters,
+            locals,
+            body,
+        }), input, mgctxt))
+    }
 }
 
 pub fn term<'a>() -> impl Parser<Expression, &'a [Token], AstMethodGenCtxt> {
