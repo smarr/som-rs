@@ -3,8 +3,9 @@ use std::marker::PhantomData;
 /// Generic parser combinators.
 pub mod combinators;
 
-struct AstMethodGenCtxt {
-    tmp: usize // todo
+#[derive(Clone)]
+pub struct AstMethodGenCtxt {
+    pub tmp: usize // todo
 }
 
 /// Defines a parser.
@@ -15,7 +16,7 @@ pub trait Parser<T, I, MGCTXT>: Sized {
     ///
     /// It returns the parsed value and the rest of the unparsed input as `Some`, if successful.  
     /// Failing that, it returns `None`.  
-    fn parse(&mut self, input: I, mgctxt: &mut MGCTXT) -> Option<(T, I)>;
+    fn parse(&mut self, input: I, mgctxt: MGCTXT) -> Option<(T, I, MGCTXT)>;
 
     /// Sequences two parsers, one after the other, collecting both results.
     fn and<U, P: Parser<U, I, MGCTXT>>(self, parser: P) -> And<Self, P> {
@@ -72,10 +73,10 @@ where
     A: Parser<T1, I, MGCTXT>,
     B: Parser<T2, I, MGCTXT>,
 {
-    fn parse<'a>(&mut self, input: I, mgctxt: &mut MGCTXT) -> Option<((T1, T2), I)> {
-        let (v1, input) = self.p1.parse(input, mgctxt)?;
-        let (v2, input) = self.p2.parse(input, mgctxt)?;
-        Some(((v1, v2), input))
+    fn parse<'a>(&mut self, input: I, mgctxt: MGCTXT) -> Option<((T1, T2), I, MGCTXT)> {
+        let (v1, input, mgctxt) = self.p1.parse(input, mgctxt)?;
+        let (v2, input, mgctxt) = self.p2.parse(input, mgctxt)?;
+        Some(((v1, v2), input, mgctxt))
     }
 }
 
@@ -88,13 +89,22 @@ pub struct Or<A, B> {
 impl<T, A, B, I, MGCTXT> Parser<T, I, MGCTXT> for Or<A, B>
 where
     I: Clone,
+    MGCTXT: Clone,
     A: Parser<T, I, MGCTXT>,
     B: Parser<T, I, MGCTXT>,
 {
-    fn parse(&mut self, input: I, mgctxt: &mut MGCTXT) -> Option<(T, I)> {
-        self.p1
-            .parse(input.clone(), mgctxt)
-            .or_else(|| self.p2.parse(input, mgctxt))
+    fn parse(&mut self, input: I, mgctxt: MGCTXT) -> Option<(T, I, MGCTXT)> {
+        // self.p1
+        //     .parse(input.clone(), mgctxt)
+        //     .or_else(|| self.p2.parse(input, mgctxt))
+
+        let l1 = self.p1.parse(input.clone(), mgctxt.clone());
+
+        if l1.is_some() {
+            l1
+        } else {
+            self.p2.parse(input, mgctxt)
+        }
     }
 }
 
@@ -110,9 +120,9 @@ where
     P: Parser<T, I, MGCTXT>,
     F: Fn(T) -> U,
 {
-    fn parse<'a>(&mut self, input: I, mgctxt: &mut MGCTXT) -> Option<(U, I)> {
-        let (value, input) = self.parser.parse(input, mgctxt)?;
-        Some(((self.func)(value), input))
+    fn parse<'a>(&mut self, input: I, mgctxt: MGCTXT) -> Option<(U, I, MGCTXT)> {
+        let (value, input, mgctxt) = self.parser.parse(input, mgctxt)?;
+        Some(((self.func)(value), input, mgctxt))
     }
 }
 
@@ -128,10 +138,10 @@ where
     A: Parser<T, I, MGCTXT>,
     B: Parser<U, I, MGCTXT>,
 {
-    fn parse(&mut self, input: I, mgctxt: &mut MGCTXT) -> Option<(T, I)> {
-        let (value, input) = self.p1.parse(input, mgctxt)?;
-        let (_, input) = self.p2.parse(input, mgctxt)?;
-        Some((value, input))
+    fn parse(&mut self, input: I, mgctxt: MGCTXT) -> Option<(T, I, MGCTXT)> {
+        let (value, input, mgctxt) = self.p1.parse(input, mgctxt)?;
+        let (_, input, mgctxt) = self.p2.parse(input, mgctxt)?;
+        Some((value, input, mgctxt))
     }
 }
 
@@ -147,10 +157,10 @@ where
     A: Parser<T, I, MGCTXT>,
     B: Parser<U, I, MGCTXT>,
 {
-    fn parse(&mut self, input: I, mgctxt: &mut MGCTXT) -> Option<(U, I)> {
-        let (_, input) = self.p1.parse(input, mgctxt)?;
-        let (value, input) = self.p2.parse(input, mgctxt)?;
-        Some((value, input))
+    fn parse(&mut self, input: I, mgctxt: MGCTXT) -> Option<(U, I, MGCTXT)> {
+        let (_, input, mgctxt) = self.p1.parse(input, mgctxt)?;
+        let (value, input, mgctxt) = self.p2.parse(input, mgctxt)?;
+        Some((value, input, mgctxt))
     }
 }
 
@@ -161,9 +171,9 @@ where
 /// We can implement it for any bare `Fn(I) -> (T, I)`.
 impl<T, F, I, MGCTXT> Parser<T, I, MGCTXT> for F
 where
-    F: FnMut(I, & mut MGCTXT) -> Option<(T, I)>,
+    F: FnMut(I, MGCTXT) -> Option<(T, I, MGCTXT)>,
 {
-    fn parse(&mut self, input: I, mgctxt: &mut MGCTXT) -> Option<(T, I)> {
+    fn parse(&mut self, input: I, mgctxt: MGCTXT) -> Option<(T, I, MGCTXT)> {
         (self)(input, mgctxt)
     }
 }
