@@ -235,7 +235,15 @@ pub fn body<'a>() -> impl Parser<Body, &'a [Token], AstMethodGenCtxt> {
 }
 
 pub fn locals<'a>() -> impl Parser<Vec<String>, &'a [Token], AstMethodGenCtxt> {
-    between(exact(Token::Or), many(identifier()), exact(Token::Or))
+    // between(exact(Token::Or), many(identifier()), exact(Token::Or))
+    move |input: &'a [Token], mgctxt| {
+        let (_, input, mgctxt) = exact(Token::Or).parse(input, mgctxt)?;
+        let (value, input, mgctxt) = many(identifier()).parse(input, mgctxt)?;
+        let (_, input, mgctxt) = exact(Token::Or).parse(input, mgctxt)?;
+
+        let new_mgctxt = AstMethodGenCtxt {all_locals: mgctxt.all_locals.iter().cloned().chain(value.clone()).collect()};
+        Some((value, input, new_mgctxt))
+    }
 }
 
 pub fn parameter<'a>() -> impl Parser<String, &'a [Token], AstMethodGenCtxt> {

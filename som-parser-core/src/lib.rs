@@ -3,9 +3,9 @@ use std::marker::PhantomData;
 /// Generic parser combinators.
 pub mod combinators;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct AstMethodGenCtxt {
-    pub tmp: usize // todo
+    pub all_locals: Vec<String>
 }
 
 /// Defines a parser.

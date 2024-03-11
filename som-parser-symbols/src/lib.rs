@@ -18,10 +18,10 @@ pub fn parse_file(input: &[Token]) -> Option<ClassDef> {
 
 /// Applies a parser and returns the output value if the entirety of the input has been parsed successfully.
 pub fn apply<'a, A, P>(mut parser: P, input: &'a [Token]) -> Option<A>
-where
-    P: Parser<A, &'a [Token], AstMethodGenCtxt>,
+    where
+        P: Parser<A, &'a [Token], AstMethodGenCtxt>,
 {
-    match parser.parse(input, AstMethodGenCtxt{tmp:42}) {
+    match parser.parse(input, AstMethodGenCtxt { all_locals: vec![] }) {
         Some((output, tail, _)) if tail.is_empty() => Some(output),
         Some(_) | None => None,
     }
