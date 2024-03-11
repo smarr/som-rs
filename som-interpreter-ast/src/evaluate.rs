@@ -72,8 +72,12 @@ impl Evaluate for ast::Expression {
                 }
             }
             Self::Literal(literal) => literal.evaluate(universe),
-            Self::LocalVarRead(name) => universe.lookup_local(name).map(Return::Local)
-                .unwrap_or_else(|| Return::Exception(format!("variable '{}' not found", name))),
+            Self::LocalVarRead(name) => {
+                universe.current_frame().borrow().bindings.get(name)
+                    .map(|v| Return::Local(v.clone()))
+                    .unwrap_or_else(||
+                        Return::Exception(format!("LocalVarRead: variable '{}' not found", name)))
+            },
             Self::Reference(name) => (universe.lookup_local(name))
                 .or_else(|| universe.lookup_global(name))
                 .map(Return::Local)

@@ -241,11 +241,11 @@ pub fn locals<'a>() -> impl Parser<Vec<String>, &'a [Token], AstMethodGenCtxt> {
     // between(exact(Token::Or), many(identifier()), exact(Token::Or))
     move |input: &'a [Token], mgctxt| { // todo simplify if possible
         let (_, input, mgctxt) = exact(Token::Or).parse(input, mgctxt)?;
-        let (value, input, mgctxt) = many(identifier()).parse(input, mgctxt)?;
+        let (new_locals_names, input, mgctxt) = many(identifier()).parse(input, mgctxt)?;
         let (_, input, mgctxt) = exact(Token::Or).parse(input, mgctxt)?;
 
-        let new_mgctxt = AstMethodGenCtxt { all_locals: mgctxt.all_locals.iter().cloned().chain(value.clone()).collect() };
-        Some((value, input, new_mgctxt))
+        let new_mgctxt = mgctxt.add_new_local_vars(new_locals_names.clone());
+        Some((new_locals_names, input, new_mgctxt))
     }
 }
 
@@ -258,6 +258,7 @@ pub fn parameters<'a>() -> impl Parser<Vec<String>, &'a [Token], AstMethodGenCtx
 }
 
 pub fn block<'a>() -> impl Parser<Expression, &'a [Token], AstMethodGenCtxt> {
+    //todo increase scope right there
     between(
         exact(Token::NewBlock),
         default(parameters()).and(default(locals())).and(body()),
@@ -302,8 +303,11 @@ pub fn primary<'a>() -> impl Parser<Expression, &'a [Token], AstMethodGenCtxt> {
 
         let (v2, input, mgctxt) = v.unwrap();
 
-        // todo improve
-        if mgctxt.all_locals.contains(&v2) {
+        // todo refactor for cleanliness
+        if mgctxt.all_locals.iter().find(|(v, i)| *v == v2 && *i == mgctxt.current_scope).is_some() {
+            // if v2 == "class" {
+            //     dbg!(&mgctxt.all_locals);
+            // }
             Some((Expression::LocalVarRead(v2.clone()), input, mgctxt))
         } else {
             Some((Expression::Reference(v2.clone()), input, mgctxt))
@@ -335,7 +339,7 @@ pub fn method_body<'a>() -> impl Parser<MethodBody, &'a [Token], AstMethodGenCtx
 
 
         let (locals, input, _) = default(locals()).parse(input, mgctxt)?;
-        let new_mgctxt = AstMethodGenCtxt { all_locals: locals.clone() };
+        let new_mgctxt = AstMethodGenCtxt::default();
         let (body, input, mgctxt) = body().parse(input, new_mgctxt)?;
 
         let (head, input) = input.split_first()?;
