@@ -323,14 +323,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "som-parser-text"
-version = "0.1.0"
-dependencies = [
- "som-core",
- "som-parser-core",
-]
-
-[[package]]
 name = "strsim"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

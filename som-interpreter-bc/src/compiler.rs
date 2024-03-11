@@ -263,7 +263,7 @@ impl MethodCodegen for ast::Body {
 impl MethodCodegen for ast::Expression {
     fn codegen(&self, ctxt: &mut dyn InnerGenCtxt) -> Option<()> {
         match self {
-            ast::Expression::Reference(name) => {
+            ast::Expression::Reference(name) | ast::Expression::LocalVarRead(name) => {
                 match ctxt.find_var(name.as_str()) {
                     Some(FoundVar::Local(up_idx, idx)) => {
                         ctxt.push_instr(Bytecode::PushLocal(up_idx, idx))
