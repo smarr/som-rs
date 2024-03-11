@@ -9,7 +9,12 @@ pub mod lang;
 
 use som_core::ast::ClassDef;
 use som_lexer::Token;
-use som_parser_core::{AstMethodGenCtxt, Parser};
+use som_parser_core::{Parser};
+
+#[derive(Clone, Debug)]
+pub struct AstMethodGenCtxt {
+    pub all_locals: Vec<String>
+}
 
 /// Parses the input of an entire file into an AST.
 pub fn parse_file(input: &[Token]) -> Option<ClassDef> {

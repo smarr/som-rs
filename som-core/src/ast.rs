@@ -126,6 +126,8 @@ pub struct Body {
 pub enum Expression {
     /// A reference to a binding (eg. `counter`).
     Reference(String),
+    /// Read of a local var.
+    LocalVarRead(String), // todo should be idx into frame (usize)
     /// An assignment to a binding (eg. `counter := 10`).
     Assignment(String, Box<Expression>),
     /// A message send (eg. `counter incrementBy: 5`).

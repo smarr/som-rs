@@ -3,11 +3,6 @@ use std::marker::PhantomData;
 /// Generic parser combinators.
 pub mod combinators;
 
-#[derive(Clone, Debug)]
-pub struct AstMethodGenCtxt {
-    pub all_locals: Vec<String>
-}
-
 /// Defines a parser.
 ///
 /// It is basically a function that takes an input and returns a parsed result along with the rest of input (which can be parsed further).
