@@ -106,7 +106,7 @@ impl Frame {
             FrameKind::Block { block, .. } => {
                 Rc::clone(&block.frame)
             },
-            _ => panic!("Unreachable, I think?")
+            _ => panic!("non local lookup: no holder at all.")
         };
 
         // todo use the scope to know how many iterations to do
@@ -119,7 +119,7 @@ impl Frame {
                 FrameKind::Block { block, .. } => {
                     Rc::clone(&block.frame)
                 },
-                _ => panic!("Unreachable, I think?")
+                _ => panic!("non local lookup: holder is a method, we've gone too high.")
             }
         }
     }

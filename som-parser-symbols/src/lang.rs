@@ -249,6 +249,18 @@ pub fn locals<'a>() -> impl Parser<Vec<String>, &'a [Token], AstMethodGenCtxt> {
     }
 }
 
+pub fn class_locals<'a>() -> impl Parser<Vec<String>, &'a [Token], AstMethodGenCtxt> {
+    // between(exact(Token::Or), many(identifier()), exact(Token::Or))
+    move |input: &'a [Token], mgctxt| { // todo simplify if possible
+        let (_, input, mgctxt) = exact(Token::Or).parse(input, mgctxt)?;
+        let (new_locals_names, input, mgctxt) = many(identifier()).parse(input, mgctxt)?;
+        let (_, input, mgctxt) = exact(Token::Or).parse(input, mgctxt)?;
+
+        let new_mgctxt = mgctxt.add_fields(new_locals_names.clone());
+        Some((new_locals_names, input, new_mgctxt))
+    }
+}
+
 pub fn parameter<'a>() -> impl Parser<String, &'a [Token], AstMethodGenCtxt> {
     exact(Token::Colon).and_right(identifier())
 }
@@ -258,8 +270,6 @@ pub fn parameters<'a>() -> impl Parser<Vec<String>, &'a [Token], AstMethodGenCtx
 }
 
 pub fn block<'a>() -> impl Parser<Expression, &'a [Token], AstMethodGenCtxt> {
-    //todo increase scope right there
-
     // between(
     //     exact(Token::NewBlock),
     //     default(parameters()).and(default(locals())).and(body()),
@@ -324,10 +334,11 @@ pub fn primary<'a>() -> impl Parser<Expression, &'a [Token], AstMethodGenCtxt> {
                 if *scope == mgctxt.current_scope {
                     Some((Expression::LocalVarRead(name.clone()), input, mgctxt.clone()))
                 } else {
-                    Some((Expression::NonLocalVarRead(name.clone(), *scope), input, mgctxt.clone()))
+                    Some((Expression::NonLocalVarRead(name.clone(), *scope - 1), input, mgctxt.clone()))
                 }
             )
-            .or(Some((Expression::Reference(name.clone()), input, mgctxt.clone())));
+            .or(mgctxt.class_fields.iter().find(|v| **v == name).and_then(|_| Some((Expression::FieldRead(name.clone()), input, mgctxt.clone()))))
+            .or(Some((Expression::Reference(name.clone()), input, mgctxt.clone()))); // which really just is a global lookup?
     }
 }
 
@@ -347,14 +358,15 @@ pub fn primitive<'a>() -> impl Parser<MethodBody, &'a [Token], AstMethodGenCtxt>
 }
 
 pub fn method_body<'a>() -> impl Parser<MethodBody, &'a [Token], AstMethodGenCtxt> {
-    move |input: &'a [Token], mgctxt| {
+    move |input: &'a [Token], mgctxt: AstMethodGenCtxt| {
         let (head, input) = input.split_first()?;
         if *head != Token::NewTerm {
             return None;
         } // todo exact() instead?
 
 
-        let (locals, input, _) = default(locals()).parse(input, mgctxt)?;
+        let (locals, input, _) = default(locals()).parse(input, mgctxt.clone())?;
+
         let new_mgctxt = AstMethodGenCtxt::default();
         let (body, input, mgctxt) = body().parse(input, new_mgctxt)?;
 
@@ -424,7 +436,7 @@ pub fn class_def<'a>() -> impl Parser<ClassDef, &'a [Token], AstMethodGenCtxt> {
         .and(optional(identifier()))
         .and(between(
             exact(Token::NewTerm),
-            default(locals()).and(many(method_def())).and(default(
+            default(class_locals()).and(many(method_def())).and(default(
                 exact(Token::Separator).and_right(default(locals()).and(many(method_def()))),
             )),
             exact(Token::EndTerm),

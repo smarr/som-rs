@@ -11,16 +11,19 @@ use som_core::ast::ClassDef;
 use som_lexer::Token;
 use som_parser_core::{Parser};
 
+type Local = (String, usize); // each var has an assigned scope. todo also a block_id
+
 #[derive(Clone, Debug)]
 pub struct AstMethodGenCtxt {
-    // pub all_locals: Vec<String>,
-    pub all_locals: Vec<(String, usize)>, // each var has an assigned scope.
+    pub class_fields: Vec<String>,
+    pub all_locals: Vec<Local>,
     pub current_scope: usize
 }
 
 impl Default for AstMethodGenCtxt {
     fn default() -> Self {
         AstMethodGenCtxt{
+            class_fields: vec![],
             all_locals: vec![],
             current_scope: 0
         }
@@ -28,8 +31,17 @@ impl Default for AstMethodGenCtxt {
 }
 
 impl AstMethodGenCtxt {
+    pub fn add_fields(&self, fields_names: Vec<String>) -> AstMethodGenCtxt {
+        AstMethodGenCtxt {
+            class_fields: fields_names.clone(),
+            all_locals: self.all_locals.clone(),
+            current_scope: self.current_scope
+        }
+    }
+
     pub fn add_new_local_vars(&self, new_locals_names: Vec<String>) -> AstMethodGenCtxt {
         AstMethodGenCtxt {
+            class_fields: self.class_fields.clone(),
             all_locals: self.all_locals.iter().cloned()
                 .chain(new_locals_names.iter().map(|v| (v.clone(), self.current_scope)))
                 .collect(),
@@ -38,11 +50,19 @@ impl AstMethodGenCtxt {
     }
 
     pub fn increase_scope(&self) -> AstMethodGenCtxt {
-        AstMethodGenCtxt{ all_locals: self.all_locals.clone(), current_scope: self.current_scope + 1 }
+        AstMethodGenCtxt{
+            class_fields: self.class_fields.clone(),
+            all_locals: self.all_locals.clone(),
+            current_scope: self.current_scope + 1
+        }
     }
 
     pub fn decrease_scope(&self) -> AstMethodGenCtxt {
-        AstMethodGenCtxt{ all_locals: self.all_locals.clone(), current_scope: self.current_scope - 1 }
+        AstMethodGenCtxt{
+            all_locals: self.all_locals.clone(),
+            class_fields: self.class_fields.clone(),
+            current_scope: self.current_scope - 1
+        }
     }
 }
 
