@@ -85,10 +85,14 @@ impl Evaluate for ast::Expression {
                         Return::Exception(format!("non local variable '{}' not found", name))
                     })
             },
-            // Self::FieldRead(name) => {
-            //     todo!("field read case");
-            // },
-            Self::Reference(name) | Self::FieldRead(name) => (universe.lookup_local(name))
+            Self::FieldRead(name) => {
+                universe.lookup_field_1(name)
+                    .map(Return::Local)
+                    .unwrap_or_else(|| {
+                        Return::Exception(format!("field '{}' not found", name))
+                    })
+            },
+            Self::Reference(name) => (universe.lookup_local(name))
                 .or_else(|| universe.lookup_global(name))
                 .map(Return::Local)
                 .or_else(|| {

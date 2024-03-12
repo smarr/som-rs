@@ -108,7 +108,7 @@ impl Frame {
             _ => panic!("attempting to read a non local var from a method instead of a block.")
         };
 
-        for _ in 0..scope - 1 {
+        for _ in 1..scope {
             current_frame = match &Rc::clone(&current_frame).borrow().kind {
                 FrameKind::Block { block, .. } => {
                     Rc::clone(&block.frame)
@@ -119,6 +119,19 @@ impl Frame {
 
         let l = current_frame.borrow().lookup_local_1(name.as_ref());
         l
+    }
+
+    pub fn lookup_field_1(&self, name: impl AsRef<str>) -> Option<Value> {
+        match &self.kind {
+            FrameKind::Block { block } => block.frame.borrow().lookup_field_1(name),
+            FrameKind::Method { holder, self_value, .. } => {
+                if holder.borrow().is_static {
+                    holder.borrow().lookup_local(name)
+                } else {
+                    self_value.lookup_local(name)
+                }
+            }
+        }
     }
 
     /// Assign to a local binding.
