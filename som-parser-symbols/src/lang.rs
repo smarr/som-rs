@@ -309,25 +309,25 @@ pub fn expression<'a>() -> impl Parser<Expression, &'a [Token], AstMethodGenCtxt
 
 pub fn primary<'a>() -> impl Parser<Expression, &'a [Token], AstMethodGenCtxt> {
     move |input: &'a [Token], mgctxt: AstMethodGenCtxt| {
-        let v = identifier().parse(input, mgctxt.clone());
+        let name_opt = identifier().parse(input, mgctxt.clone());
 
-        if v.is_none() {
+        if name_opt.is_none() {
             return term()
                 .or(block())
                 .or(literal().map(Expression::Literal)).parse(input, mgctxt);
         }
 
-        let (v2, input, mgctxt) = v.unwrap();
+        let (name, input, mgctxt) = name_opt.unwrap();
 
-        // todo refactor for cleanliness
-        if mgctxt.all_locals.iter().find(|(v, i)| *v == v2 && *i == mgctxt.current_scope).is_some() {
-            // if v2 == "class" {
-            //     dbg!(&mgctxt.all_locals);
-            // }
-            Some((Expression::LocalVarRead(v2.clone()), input, mgctxt))
-        } else {
-            Some((Expression::Reference(v2.clone()), input, mgctxt))
-        }
+        return mgctxt.all_locals.iter().find(|(v, _)| *v == name)
+            .and_then(|(name, scope)|
+                if *scope == mgctxt.current_scope {
+                    Some((Expression::LocalVarRead(name.clone()), input, mgctxt.clone()))
+                } else {
+                    Some((Expression::NonLocalVarRead(name.clone(), *scope), input, mgctxt.clone()))
+                }
+            )
+            .or(Some((Expression::Reference(name.clone()), input, mgctxt.clone())));
     }
 }
 

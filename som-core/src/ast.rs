@@ -128,6 +128,8 @@ pub enum Expression {
     Reference(String),
     /// Read of a local var.
     LocalVarRead(String), // todo should be idx into frame (usize)
+    // Read of a nonlocal var.
+    NonLocalVarRead(String, usize), // todo should be idx into frame (usize)
     /// An assignment to a binding (eg. `counter := 10`).
     Assignment(String, Box<Expression>),
     /// A message send (eg. `counter incrementBy: 5`).

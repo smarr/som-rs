@@ -495,6 +495,7 @@ impl Universe {
         self.interner.lookup(symbol)
     }
 
+    // TODO: remove this legacy one, which is getting replaced by the next ones
     /// Search for a local binding.
     pub fn lookup_local(&self, name: impl AsRef<str>) -> Option<Value> {
         let name = name.as_ref();
@@ -506,6 +507,16 @@ impl Universe {
             }
             name => self.current_frame().borrow().lookup_local(name),
         }
+    }
+
+    /// Search for a local binding.
+    pub fn lookup_local_1(&self, name: impl AsRef<str>) -> Option<Value> {
+        self.current_frame().borrow().lookup_local_1(name)
+    }
+
+    /// Look up a variable we know to have been defined in another scope.
+    pub fn lookup_non_local_1(&self, name: impl AsRef<str>, target_scope: usize) -> Option<Value> {
+        self.current_frame().borrow().lookup_non_local_1(name, target_scope)
     }
 
     /// Returns whether a global binding of the specified name exists.

@@ -1,3 +1,4 @@
+use std::cell::{RefCell};
 use std::collections::HashMap;
 use std::rc::Rc;
 
@@ -73,6 +74,7 @@ impl Frame {
         }
     }
 
+    // todo remove this legacy func, override it with next ones
     /// Search for a local binding.
     pub fn lookup_local(&self, name: impl AsRef<str>) -> Option<Value> {
         let name = name.as_ref();
@@ -90,6 +92,35 @@ impl Frame {
                 }
             }
             FrameKind::Block { block, .. } => block.frame.borrow().lookup_local(name),
+        }
+    }
+
+    pub fn lookup_local_1(&self, name: impl AsRef<str>) -> Option<Value> {
+        self.bindings.get(name.as_ref()).cloned()
+    }
+
+    pub fn lookup_non_local_1(&self, name: impl AsRef<str>, _scope: usize) -> Option<Value> {
+        let mut current_frame: Rc<RefCell<Frame>>;
+
+        current_frame = match &self.kind {
+            FrameKind::Block { block, .. } => {
+                Rc::clone(&block.frame)
+            },
+            _ => panic!("Unreachable, I think?")
+        };
+
+        // todo use the scope to know how many iterations to do
+        loop {
+            if let Some(v) = self.lookup_local_1(name.as_ref()) {
+                return Some(v.clone());
+            }
+
+            current_frame = match &Rc::clone(&current_frame).borrow().kind {
+                FrameKind::Block { block, .. } => {
+                    Rc::clone(&block.frame)
+                },
+                _ => panic!("Unreachable, I think?")
+            }
         }
     }
 
