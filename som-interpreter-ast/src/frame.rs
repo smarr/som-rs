@@ -95,6 +95,7 @@ impl Frame {
         }
     }
 
+    #[inline] // not sure if necessary
     pub fn lookup_local_1(&self, name: impl AsRef<str>) -> Option<Value> {
         self.bindings.get(name.as_ref()).cloned()
     }
@@ -106,12 +107,12 @@ impl Frame {
             FrameKind::Block { block, .. } => {
                 Rc::clone(&block.frame)
             },
-            _ => panic!("non local lookup: no holder at all.")
+            _ => panic!("non local lookup failed: doing it from a base scope, somehow. should be a local read.")
         };
 
         // todo use the scope to know how many iterations to do
         loop {
-            if let Some(v) = self.lookup_local_1(name.as_ref()) {
+            if let Some(v) = current_frame.borrow().lookup_local_1(name.as_ref()) {
                 return Some(v.clone());
             }
 
@@ -119,7 +120,7 @@ impl Frame {
                 FrameKind::Block { block, .. } => {
                     Rc::clone(&block.frame)
                 },
-                _ => panic!("non local lookup: holder is a method, we've gone too high.")
+                _ => panic!("unreachable?")
             }
         }
     }

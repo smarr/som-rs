@@ -78,15 +78,17 @@ impl Evaluate for ast::Expression {
                     .unwrap_or_else(||
                         Return::Exception(format!("LocalVarRead: variable '{}' not found", name)))
             },
-            // Self::NonLocalVarRead(name, scope) => {
-            //     universe.lookup_non_local_1(name, *scope)
-            //         .map(Return::Local)
-            //         .unwrap_or_else(|| Return::Exception(format!("non local variable '{}' not found", name)))
-            // },
+            Self::NonLocalVarRead(name, scope) => {
+                universe.lookup_non_local_1(name, *scope)
+                    .map(Return::Local)
+                    .unwrap_or_else(|| {
+                        Return::Exception(format!("non local variable '{}' not found", name))
+                    })
+            },
             // Self::FieldRead(name) => {
             //     todo!("field read case");
             // },
-            Self::Reference(name) | Self::NonLocalVarRead(name, _) | Self::FieldRead(name) => (universe.lookup_local(name))
+            Self::Reference(name) | Self::FieldRead(name) => (universe.lookup_local(name))
                 .or_else(|| universe.lookup_global(name))
                 .map(Return::Local)
                 .or_else(|| {
