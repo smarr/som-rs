@@ -100,28 +100,26 @@ impl Frame {
         self.bindings.get(name.as_ref()).cloned()
     }
 
-    pub fn lookup_non_local_1(&self, name: impl AsRef<str>, _scope: usize) -> Option<Value> {
-        let mut current_frame: Rc<RefCell<Frame>>;
-
-        current_frame = match &self.kind {
+    pub fn lookup_non_local_1(&self, name: impl AsRef<str>, scope: usize) -> Option<Value> {
+        let mut current_frame: Option<Rc<RefCell<Frame>>> = match &self.kind {
             FrameKind::Block { block, .. } => {
-                Rc::clone(&block.frame)
-            },
-            _ => panic!("non local lookup failed: doing it from a base scope, somehow. should be a local read.")
+                Some(Rc::clone(&block.frame))
+            }
+            _ => panic!("attempting to read a non local var from a method instead of a block.")
         };
 
-        // todo use the scope to know how many iterations to do
-        loop {
-            if let Some(v) = current_frame.borrow().lookup_local_1(name.as_ref()) {
-                return Some(v.clone());
-            }
-
-            current_frame = match &Rc::clone(&current_frame).borrow().kind {
+        for _ in 0..scope - 1 {
+            current_frame = match &Rc::clone(&current_frame.unwrap()).borrow().kind {
                 FrameKind::Block { block, .. } => {
-                    Rc::clone(&block.frame)
-                },
-                _ => panic!("unreachable?")
-            }
+                    Some(Rc::clone(&block.frame))
+                }
+                _ => panic!("attempting to read a non local var from a method instead of a block.")
+            };
+        }
+
+        match current_frame {
+            Some(v) => v.borrow().lookup_local_1(name.as_ref()),
+            None => panic!("non local read error: scope was equal to 0, so it should have been a local read.")
         }
     }
 
