@@ -244,7 +244,7 @@ pub fn locals<'a>() -> impl Parser<Vec<String>, &'a [Token], AstMethodGenCtxt> {
         let (new_locals_names, input, mgctxt) = many(identifier()).parse(input, mgctxt)?;
         let (_, input, mgctxt) = exact(Token::Or).parse(input, mgctxt)?;
 
-        let new_mgctxt = mgctxt.add_new_local_vars(new_locals_names.clone());
+        let new_mgctxt = mgctxt.add_locals(&new_locals_names);
         Some((new_locals_names, input, new_mgctxt))
     }
 }
@@ -256,7 +256,7 @@ pub fn class_locals<'a>() -> impl Parser<Vec<String>, &'a [Token], AstMethodGenC
         let (new_locals_names, input, mgctxt) = many(identifier()).parse(input, mgctxt)?;
         let (_, input, mgctxt) = exact(Token::Or).parse(input, mgctxt)?;
 
-        let new_mgctxt = mgctxt.add_fields(new_locals_names.clone());
+        let new_mgctxt = mgctxt.add_fields(&new_locals_names);
         Some((new_locals_names, input, new_mgctxt))
     }
 }
@@ -286,10 +286,10 @@ pub fn block<'a>() -> impl Parser<Expression, &'a [Token], AstMethodGenCtxt> {
 
     move |input: &'a [Token], mgctxt| {
         let (_, input, mut mgctxt) = exact(Token::NewBlock).parse(input, mgctxt)?;
-        mgctxt = mgctxt.increase_scope();
+        mgctxt = mgctxt.new_ctxt_from_itself();
         let (((parameters, locals), body), input, mgctxt) = default(parameters()).and(default(locals())).and(body()).parse(input, mgctxt)?;
         let (_, input, mut mgctxt) = exact(Token::EndBlock).parse(input, mgctxt)?;
-        mgctxt = mgctxt.decrease_scope();
+        mgctxt = mgctxt.get_outer();
 
         Some((Expression::Block(Block {
             parameters,
@@ -329,13 +329,13 @@ pub fn primary<'a>() -> impl Parser<Expression, &'a [Token], AstMethodGenCtxt> {
 
         let (name, input, mgctxt) = name_opt.unwrap();
 
-        return mgctxt.all_locals.iter().find(|(v, _)| *v == name)
-            .and_then(|(name, scope)|
-                if *scope == mgctxt.current_scope {
-                    Some((Expression::LocalVarRead(name.clone()), input, mgctxt.clone()))
-                } else {
-                    Some((Expression::NonLocalVarRead(name.clone(), *scope - 1), input, mgctxt.clone()))
+        return mgctxt.get_var(&name).and_then(|(_, scope)|
+            {
+                match scope {
+                    0 => Some((Expression::LocalVarRead(name.clone()), input, mgctxt.clone())),
+                    _ => Some((Expression::NonLocalVarRead(name.clone(), scope), input, mgctxt.clone()))
                 }
+            }
             )
             .or(mgctxt.class_fields.iter().find(|v| **v == name).and_then(|_| Some((Expression::FieldRead(name.clone()), input, mgctxt.clone()))))
             .or(Some((Expression::Reference(name.clone()), input, mgctxt.clone()))); // which really just is a global lookup?
@@ -367,13 +367,15 @@ pub fn method_body<'a>() -> impl Parser<MethodBody, &'a [Token], AstMethodGenCtx
 
         let (locals, input, _) = default(locals()).parse(input, mgctxt.clone())?;
 
-        let new_mgctxt = AstMethodGenCtxt::default();
+        let new_mgctxt = mgctxt.new_ctxt_from_itself();
         let (body, input, mgctxt) = body().parse(input, new_mgctxt)?;
 
         let (head, input) = input.split_first()?;
         if *head != Token::EndTerm {
             return None;
         }
+
+        let mgctxt = mgctxt.get_outer();
 
         Some((MethodBody::Body { locals, body }, input, mgctxt))
     }
@@ -437,7 +439,7 @@ pub fn class_def<'a>() -> impl Parser<ClassDef, &'a [Token], AstMethodGenCtxt> {
         .and(between(
             exact(Token::NewTerm),
             default(class_locals()).and(many(method_def())).and(default(
-                exact(Token::Separator).and_right(default(locals()).and(many(method_def()))),
+                exact(Token::Separator).and_right(default(class_locals()).and(many(method_def()))),
             )),
             exact(Token::EndTerm),
         ))
