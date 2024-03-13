@@ -125,7 +125,9 @@ impl Frame {
         match &self.kind {
             FrameKind::Block { block } => block.frame.borrow().lookup_field_1(name),
             FrameKind::Method { holder, self_value, .. } => {
-                if holder.borrow().is_static {
+                if let Some(value) = self.bindings.get(name.as_ref()).cloned() {
+                    return Some(value);
+                } else if holder.borrow().is_static {
                     holder.borrow().lookup_local(name)
                 } else {
                     self_value.lookup_local(name)
