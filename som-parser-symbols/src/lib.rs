@@ -22,7 +22,7 @@ pub struct AstMethodGenCtxt {
 
 impl Default for AstMethodGenCtxt {
     fn default() -> Self {
-        AstMethodGenCtxt{
+        AstMethodGenCtxt {
             all_locals: vec![],
             params: vec![],
             class_fields: vec![],
@@ -64,7 +64,7 @@ impl AstMethodGenCtxt {
             params: self.params.clone(),
             class_fields: self.class_fields.clone(),
             current_scope: self.current_scope,
-            outer_ctxt: self.outer_ctxt.clone()
+            outer_ctxt: self.outer_ctxt.clone(),
         }
     }
 
@@ -74,7 +74,7 @@ impl AstMethodGenCtxt {
             params: parameters.clone(),
             class_fields: self.class_fields.clone(),
             current_scope: self.current_scope,
-            outer_ctxt: self.outer_ctxt.clone()
+            outer_ctxt: self.outer_ctxt.clone(),
         }
     }
 
@@ -82,7 +82,7 @@ impl AstMethodGenCtxt {
         self.get_var_rec(name, 0)
     }
 
-    pub fn get_var_rec(&self, name: &String, cur_scope: usize) -> Option<(String, usize)> {
+    fn get_var_rec(&self, name: &String, cur_scope: usize) -> Option<(String, usize)> {
         match self.all_locals.iter().find(|local| *local == name) {
             Some(a) => Some((a.clone(), cur_scope)),
             None => {
@@ -103,7 +103,7 @@ impl AstMethodGenCtxt {
         l
     }
 
-    pub fn get_param_rec(&self, name: &String, cur_scope: usize) -> Option<(String, usize)> {
+    fn get_param_rec(&self, name: &String, cur_scope: usize) -> Option<(String, usize)> {
         match self.params.iter().find(|local| *local == name) {
             Some(a) => Some((a.clone(), cur_scope)),
             None => {
