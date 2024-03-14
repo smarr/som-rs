@@ -141,8 +141,6 @@ impl Frame {
             // dbg!(name.as_ref());
             return Some(value);
         } else {
-            panic!("uh.. unreachable for now, i guess?");
-            // std::process::exit(1);
             return match &self.kind {
                 FrameKind::Method { .. } => {
                     panic!("arg lookup: we've gone too high up, i think?")

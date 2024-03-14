@@ -345,7 +345,7 @@ pub fn primary<'a>() -> impl Parser<Expression, &'a [Token], AstMethodGenCtxt> {
                     _ => Some((Expression::NonLocalVarRead(name.clone(), scope), input, mgctxt.clone()))
                 }
             })
-            .or(mgctxt.params.iter().find(|v| **v == name).and_then(|_| Some((Expression::ArgRead(name.clone()), input, mgctxt.clone()))))
+            .or(mgctxt.get_param(&name).and_then(|_| Some((Expression::ArgRead(name.clone()), input, mgctxt.clone()))))
             .or(mgctxt.class_fields.iter().find(|v| **v == name).and_then(|_| Some((Expression::FieldRead(name.clone()), input, mgctxt.clone()))))
             .or(Some((Expression::GlobalRead(name.clone()), input, mgctxt.clone())));
     }
@@ -409,18 +409,35 @@ pub fn unary_method_def<'a>() -> impl Parser<MethodDef, &'a [Token], AstMethodGe
 }
 
 pub fn positional_method_def<'a>() -> impl Parser<MethodDef, &'a [Token], AstMethodGenCtxt> {
-    some(keyword().and(identifier()))
-        .and_left(exact(Token::Equal))
-        .and(primitive().or(method_body()))
-        .map(|(pairs, body)| {
-            let (signature, parameters) = pairs.into_iter().unzip();
+    move |input: &'a [Token], mgctxt: AstMethodGenCtxt| {
+        let method_def_opt = some(keyword().and(identifier()))
+            .and_left(exact(Token::Equal))
+            .and(primitive().or(method_body()))
+            .map(|(pairs, body)| {
+                let (signature, parameters) = pairs.into_iter().unzip();
 
-            MethodDef {
-                kind: MethodKind::Positional { parameters },
-                signature,
-                body,
-            }
-        })
+                MethodDef {
+                    kind: MethodKind::Positional { parameters },
+                    signature,
+                    body,
+                }
+            }).parse(input, mgctxt);
+
+        if method_def_opt.is_none() {
+            return None;
+        }
+
+        let (method_def, input, mut mgctxt) = method_def_opt.unwrap();
+
+        mgctxt = match &method_def.kind {
+            MethodKind::Positional { parameters } => {
+                mgctxt.add_params(&parameters)
+            },
+            _ => unreachable!()
+        };
+
+        Some((method_def, input, mgctxt.clone()))
+    }
 }
 
 pub fn operator_method_def<'a>() -> impl Parser<MethodDef, &'a [Token], AstMethodGenCtxt> {

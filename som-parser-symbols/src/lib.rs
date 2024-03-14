@@ -68,10 +68,10 @@ impl AstMethodGenCtxt {
         }
     }
 
-    pub fn add_params(&self, params: &Vec<String>) -> AstMethodGenCtxt {
+    pub fn add_params(&self, parameters: &Vec<String>) -> AstMethodGenCtxt {
         AstMethodGenCtxt {
             all_locals: self.all_locals.clone(),
-            params: params.clone(),
+            params: parameters.clone(),
             class_fields: self.class_fields.clone(),
             current_scope: self.current_scope,
             outer_ctxt: self.outer_ctxt.clone()
@@ -90,6 +90,27 @@ impl AstMethodGenCtxt {
                     None
                 } else {
                     self.outer_ctxt.as_ref().unwrap().get_var_rec(name, cur_scope + 1)
+                }
+            }
+        }
+    }
+
+    pub fn get_param(&self, name: &String) -> Option<(String, usize)> {
+        let l = self.get_param_rec(name, 0);
+        // if name == "argumentsAAA" {
+        //     dbg!(&l);
+        // }
+        l
+    }
+
+    pub fn get_param_rec(&self, name: &String, cur_scope: usize) -> Option<(String, usize)> {
+        match self.params.iter().find(|local| *local == name) {
+            Some(a) => Some((a.clone(), cur_scope)),
+            None => {
+                if self.outer_ctxt.is_none() {
+                    None
+                } else {
+                    self.outer_ctxt.as_ref().unwrap().get_param_rec(name, cur_scope + 1)
                 }
             }
         }

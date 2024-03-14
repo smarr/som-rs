@@ -103,6 +103,8 @@ impl Evaluate for ast::Expression {
                 .or_else(|| universe.lookup_global(name))
                 .map(Return::Local)
                 .or_else(|| {
+                    // dbg!(&name);
+                    // std::process::exit(1);
                     let frame = universe.current_frame();
                     let self_value = frame.borrow().get_self();
                     universe.unknown_global(self_value, name.as_str())
