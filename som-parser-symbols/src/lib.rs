@@ -14,6 +14,7 @@ use som_parser_core::{Parser};
 #[derive(Clone, Debug)]
 pub struct AstMethodGenCtxt {
     pub all_locals: Vec<String>,
+    pub params: Vec<String>,
     pub class_fields: Vec<String>,
     pub current_scope: usize,
     pub outer_ctxt: Option<Box<AstMethodGenCtxt>>,
@@ -23,6 +24,7 @@ impl Default for AstMethodGenCtxt {
     fn default() -> Self {
         AstMethodGenCtxt{
             all_locals: vec![],
+            params: vec![],
             class_fields: vec![],
             current_scope: 0,
             outer_ctxt: None,
@@ -34,6 +36,7 @@ impl AstMethodGenCtxt {
     pub fn new_ctxt_from_itself(&self) -> AstMethodGenCtxt {
         AstMethodGenCtxt {
             all_locals: vec![],
+            params: vec![],
             class_fields: self.class_fields.clone(),
             current_scope: self.current_scope + 1,
             outer_ctxt: Some(Box::from(self.clone())),
@@ -48,6 +51,7 @@ impl AstMethodGenCtxt {
     pub fn add_fields(&self, fields_names: &Vec<String>) -> AstMethodGenCtxt {
         AstMethodGenCtxt {
             all_locals: self.all_locals.clone(),
+            params: self.params.clone(),
             class_fields: fields_names.clone(),
             current_scope: self.current_scope,
             outer_ctxt: self.outer_ctxt.clone(),
@@ -57,6 +61,17 @@ impl AstMethodGenCtxt {
     pub fn add_locals(&self, new_locals_names: &Vec<String>) -> AstMethodGenCtxt {
         AstMethodGenCtxt {
             all_locals: new_locals_names.clone(),
+            params: self.params.clone(),
+            class_fields: self.class_fields.clone(),
+            current_scope: self.current_scope,
+            outer_ctxt: self.outer_ctxt.clone()
+        }
+    }
+
+    pub fn add_params(&self, params: &Vec<String>) -> AstMethodGenCtxt {
+        AstMethodGenCtxt {
+            all_locals: self.all_locals.clone(),
+            params: params.clone(),
             class_fields: self.class_fields.clone(),
             current_scope: self.current_scope,
             outer_ctxt: self.outer_ctxt.clone()

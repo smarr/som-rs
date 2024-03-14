@@ -125,11 +125,13 @@ pub struct Body {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expression {
     /// A reference to a binding (eg. `counter`). todo this is going to be renamed to readglobal
-    Reference(String),
+    GlobalRead(String),
     /// Read of a local var.
     LocalVarRead(String), // todo should be idx into frame (usize) ditto for nonlocal and field
     /// Read of a nonlocal var.
     NonLocalVarRead(String, usize),
+    /// Read of an argument.
+    ArgRead(String), // todo differentiate between local arg and nonlocal arg
     /// Read of a field.
     FieldRead(String),
     /// An assignment to a binding (eg. `counter := 10`).

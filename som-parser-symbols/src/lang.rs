@@ -266,7 +266,13 @@ pub fn parameter<'a>() -> impl Parser<String, &'a [Token], AstMethodGenCtxt> {
 }
 
 pub fn parameters<'a>() -> impl Parser<Vec<String>, &'a [Token], AstMethodGenCtxt> {
-    some(parameter()).and_left(exact(Token::Or))
+    // some(parameter()).and_left(exact(Token::Or))
+    move |input: &'a [Token], mgctxt: AstMethodGenCtxt | {
+        let (param_names, input, mut mgctxt) = some(parameter()).parse(input, mgctxt.clone())?;
+        mgctxt = mgctxt.add_params(&param_names);
+        let (_, input, mgctxt) = exact(Token::Or).parse(input, mgctxt)?;
+        Some((param_names, input, mgctxt))
+    }
 }
 
 pub fn block<'a>() -> impl Parser<Expression, &'a [Token], AstMethodGenCtxt> {
@@ -287,7 +293,10 @@ pub fn block<'a>() -> impl Parser<Expression, &'a [Token], AstMethodGenCtxt> {
     move |input: &'a [Token], mgctxt| {
         let (_, input, mut mgctxt) = exact(Token::NewBlock).parse(input, mgctxt)?;
         mgctxt = mgctxt.new_ctxt_from_itself();
-        let (((parameters, locals), body), input, mgctxt) = default(parameters()).and(default(locals())).and(body()).parse(input, mgctxt)?;
+        let (((parameters, locals), body), input, mgctxt) = default(parameters())
+            .and(default(locals()))
+            .and(body())
+            .parse(input, mgctxt)?;
         let (_, input, mut mgctxt) = exact(Token::EndBlock).parse(input, mgctxt)?;
         mgctxt = mgctxt.get_outer();
 
@@ -335,10 +344,10 @@ pub fn primary<'a>() -> impl Parser<Expression, &'a [Token], AstMethodGenCtxt> {
                     0 => Some((Expression::LocalVarRead(name.clone()), input, mgctxt.clone())),
                     _ => Some((Expression::NonLocalVarRead(name.clone(), scope), input, mgctxt.clone()))
                 }
-            }
-            )
+            })
+            .or(mgctxt.params.iter().find(|v| **v == name).and_then(|_| Some((Expression::ArgRead(name.clone()), input, mgctxt.clone()))))
             .or(mgctxt.class_fields.iter().find(|v| **v == name).and_then(|_| Some((Expression::FieldRead(name.clone()), input, mgctxt.clone()))))
-            .or(Some((Expression::Reference(name.clone()), input, mgctxt.clone()))); // which really just is a global lookup?
+            .or(Some((Expression::GlobalRead(name.clone()), input, mgctxt.clone())));
     }
 }
 

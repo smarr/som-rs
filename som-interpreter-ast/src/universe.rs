@@ -524,6 +524,10 @@ impl Universe {
         self.current_frame().borrow().lookup_field_1(name)
     }
 
+    pub fn lookup_arg_1(&self, name: impl AsRef<str>) -> Option<Value> {
+        self.current_frame().borrow().lookup_arg_1(name)
+    }
+
     /// Returns whether a global binding of the specified name exists.
     pub fn has_global(&self, name: impl AsRef<str>) -> bool {
         let name = name.as_ref();

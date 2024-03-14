@@ -92,7 +92,14 @@ impl Evaluate for ast::Expression {
                         Return::Exception(format!("field '{}' not found", name))
                     })
             },
-            Self::Reference(name) => (universe.lookup_local(name))
+            Self::ArgRead(name) => {
+                universe.lookup_arg_1(name)
+                    .map(Return::Local)
+                    .unwrap_or_else(|| {
+                        Return::Exception(format!("arg '{}' not found", name))
+                    })
+            },
+            Self::GlobalRead(name) => (universe.lookup_local(name))
                 .or_else(|| universe.lookup_global(name))
                 .map(Return::Local)
                 .or_else(|| {
@@ -109,7 +116,7 @@ impl Evaluate for ast::Expression {
 impl Evaluate for ast::BinaryOp {
     fn evaluate(&self, universe: &mut Universe) -> Return {
         let (lhs, invokable) = match self.lhs.as_ref() {
-            ast::Expression::Reference(ident) if ident == "super" => {
+            ast::Expression::GlobalRead(ident) if ident == "super" => {
                 let frame = universe.current_frame();
                 let lhs = frame.borrow().get_self();
                 let holder = frame.borrow().get_method_holder();
@@ -206,7 +213,7 @@ impl Evaluate for ast::Message {
             //     let invokable = holder.borrow().lookup_method(&self.signature);
             //     (receiver, invokable)
             // }
-            ast::Expression::Reference(ident) if ident == "super" => {
+            ast::Expression::GlobalRead(ident) if ident == "super" => {
                 let frame = universe.current_frame();
                 let receiver = frame.borrow().get_self();
                 let holder = frame.borrow().get_method_holder();

@@ -136,6 +136,22 @@ impl Frame {
         }
     }
 
+    pub fn lookup_arg_1(&self, name: impl AsRef<str>) -> Option<Value> {
+        if let Some(value) = self.bindings.get(name.as_ref()).cloned() {
+            // dbg!(name.as_ref());
+            return Some(value);
+        } else {
+            panic!("uh.. unreachable for now, i guess?");
+            // std::process::exit(1);
+            return match &self.kind {
+                FrameKind::Method { .. } => {
+                    panic!("arg lookup: we've gone too high up, i think?")
+                }
+                FrameKind::Block { block, .. } => block.frame.borrow().lookup_arg_1(name),
+            }
+        }
+    }
+
     /// Assign to a local binding.
     pub fn assign_local(&mut self, name: impl AsRef<str>, value: Value) -> Option<()> {
         let name = name.as_ref();

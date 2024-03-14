@@ -263,8 +263,9 @@ impl MethodCodegen for ast::Body {
 impl MethodCodegen for ast::Expression {
     fn codegen(&self, ctxt: &mut dyn InnerGenCtxt) -> Option<()> {
         match self {
-            ast::Expression::Reference(name) | ast::Expression::LocalVarRead(name)
-            | ast::Expression::NonLocalVarRead(name, _) | ast::Expression::FieldRead(name) => {
+            ast::Expression::GlobalRead(name) | ast::Expression::LocalVarRead(name)
+            | ast::Expression::NonLocalVarRead(name, _) | ast::Expression::FieldRead(name)
+            | ast::Expression::ArgRead(name) => {
                 match ctxt.find_var(name.as_str()) {
                     Some(FoundVar::Local(up_idx, idx)) => {
                         ctxt.push_instr(Bytecode::PushLocal(up_idx, idx))
@@ -300,7 +301,7 @@ impl MethodCodegen for ast::Expression {
             }
             ast::Expression::Message(message) => {
                 let super_send = match message.receiver.as_ref() {
-                    ast::Expression::Reference(value) if value == "super" => true,
+                    ast::Expression::GlobalRead(value) if value == "super" => true,
                     _ => false,
                 };
                 message.receiver.codegen(ctxt)?;
@@ -335,7 +336,7 @@ impl MethodCodegen for ast::Expression {
             }
             ast::Expression::BinaryOp(message) => {
                 let super_send = match message.lhs.as_ref() {
-                    ast::Expression::Reference(value) if value == "super" => true,
+                    ast::Expression::GlobalRead(value) if value == "super" => true,
                     _ => false,
                 };
                 message.lhs.codegen(ctxt)?;

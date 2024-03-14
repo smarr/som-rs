@@ -43,7 +43,7 @@ fn expression_test_1() {
             op: String::from("+"),
             lhs: Box::new(Expression::Literal(Literal::Integer(3))),
             rhs: Box::new(Expression::Message(Message {
-                receiver: Box::new(Expression::Reference(String::from("counter"))),
+                receiver: Box::new(Expression::GlobalRead(String::from("counter"))),
                 signature: String::from("get"),
                 values: vec![],
             }))
@@ -165,21 +165,21 @@ fn primary_test() {
             locals: vec![],
             body: Body {
                 exprs: vec![Expression::Message(Message {
-                    receiver: Box::new(Expression::Reference(String::from("self"))),
+                    receiver: Box::new(Expression::GlobalRead(String::from("self"))),
                     signature: String::from("fib:"),
                     values: vec![Expression::BinaryOp(BinaryOp {
                         op: String::from("+"),
                         lhs: Box::new(Expression::BinaryOp(BinaryOp {
                             op: String::from("-"),
-                            lhs: Box::new(Expression::Reference(String::from("n"))),
+                            lhs: Box::new(Expression::GlobalRead(String::from("n"))),
                             rhs: Box::new(Expression::Literal(Literal::Integer(1))),
                         })),
                         rhs: Box::new(Expression::Message(Message {
-                            receiver: Box::new(Expression::Reference(String::from("self"))),
+                            receiver: Box::new(Expression::GlobalRead(String::from("self"))),
                             signature: String::from("fib:"),
                             values: vec![Expression::BinaryOp(BinaryOp {
                                 op: String::from("-"),
-                                lhs: Box::new(Expression::Reference(String::from("n"))),
+                                lhs: Box::new(Expression::GlobalRead(String::from("n"))),
                                 rhs: Box::new(Expression::Literal(Literal::Integer(2))),
                             })],
                         }))
