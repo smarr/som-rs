@@ -142,8 +142,8 @@ impl Frame {
             return Some(value);
         } else {
             return match &self.kind {
-                FrameKind::Method { .. } => {
-                    panic!("arg lookup: we've gone too high up, i think?")
+                FrameKind::Method { self_value, .. } => {
+                    self_value.lookup_local(name) // confused by this, frankly. args as stored as method locals?
                 }
                 FrameKind::Block { block, .. } => block.frame.borrow().lookup_arg_1(name),
             }
