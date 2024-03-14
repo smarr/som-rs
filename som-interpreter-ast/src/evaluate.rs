@@ -73,37 +73,35 @@ impl Evaluate for ast::Expression {
             }
             Self::Literal(literal) => literal.evaluate(universe),
             Self::LocalVarRead(name) => {
-                universe.lookup_local_1(name)
+                universe.lookup_local(name)
                     .map(|v| Return::Local(v.clone()))
                     .unwrap_or_else(||
                         Return::Exception(format!("LocalVarRead: variable '{}' not found", name)))
             },
             Self::NonLocalVarRead(name, scope) => {
-                universe.lookup_non_local_1(name, *scope)
+                universe.lookup_non_local(name, *scope)
                     .map(Return::Local)
                     .unwrap_or_else(|| {
                         Return::Exception(format!("non local variable '{}' not found", name))
                     })
             },
             Self::FieldRead(name) => {
-                universe.lookup_field_1(name)
+                universe.lookup_field(name)
                     .map(Return::Local)
                     .unwrap_or_else(|| {
                         Return::Exception(format!("field '{}' not found", name))
                     })
             },
             Self::ArgRead(name) => {
-                universe.lookup_arg_1(name)
+                universe.lookup_arg(name)
                     .map(Return::Local)
                     .unwrap_or_else(|| {
                         Return::Exception(format!("arg '{}' not found", name))
                     })
             },
-            Self::GlobalRead(name) => (universe.lookup_global(name))
+            Self::GlobalRead(name) => universe.lookup_global(name)
                 .map(Return::Local)
                 .or_else(|| {
-                    dbg!(&name);
-                    // std::process::exit(1);
                     let frame = universe.current_frame();
                     let self_value = frame.borrow().get_self();
                     universe.unknown_global(self_value, name.as_str())
