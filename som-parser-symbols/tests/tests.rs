@@ -2,7 +2,7 @@ use som_core::ast::*;
 use som_lexer::{Lexer, Token};
 use som_parser_core::combinators::*;
 use som_parser_core::Parser;
-use som_parser_symbols::AstMethodGenCtxt;
+use som_parser_symbols::AstGenCtxt;
 use som_parser_symbols::lang::*;
 
 #[test]
@@ -11,7 +11,7 @@ fn literal_tests() {
         .skip_whitespace(true)
         .collect();
 
-    let result = many(literal()).parse(tokens.as_slice(), AstMethodGenCtxt::default());
+    let result = many(literal()).parse(tokens.as_slice(), AstGenCtxt::default());
 
     assert!(result.is_some(), "input did not parse successfully");
     let (literals, rest, _) = result.unwrap();
@@ -31,7 +31,7 @@ fn expression_test_1() {
         .skip_whitespace(true)
         .collect();
 
-    let result = expression().parse(tokens.as_slice(), AstMethodGenCtxt::default());
+    let result = expression().parse(tokens.as_slice(), AstGenCtxt::default());
 
     assert!(result.is_some(), "input did not parse successfully");
     let (expression, rest, _) = result.unwrap();
@@ -58,7 +58,7 @@ fn block_test() {
             .skip_whitespace(true)
             .collect();
 
-    let result = block().parse(tokens.as_slice(), AstMethodGenCtxt::default());
+    let result = block().parse(tokens.as_slice(), AstGenCtxt::default());
 
     assert!(result.is_some(), "input did not parse successfully");
     let (block, rest, _) = result.unwrap();
@@ -97,7 +97,7 @@ fn expression_test_2() {
     .skip_whitespace(true)
     .collect();
 
-    let result = expression().parse(tokens.as_slice(), AstMethodGenCtxt::default());
+    let result = expression().parse(tokens.as_slice(), AstGenCtxt::default());
 
     assert!(result.is_some(), "input did not parse successfully");
     let (expression, rest, _) = result.unwrap();
@@ -152,7 +152,7 @@ fn primary_test() {
         .skip_whitespace(true)
         .collect();
 
-    let result = primary().parse(tokens.as_slice(), AstMethodGenCtxt::default());
+    let result = primary().parse(tokens.as_slice(), AstGenCtxt::default());
 
     assert!(result.is_some(), "input did not parse successfully");
     let (primary, rest, _) = result.unwrap();

@@ -2,7 +2,7 @@ use som_core::ast::*;
 use som_lexer::Token;
 use som_parser_core::combinators::*;
 use som_parser_core::{Parser};
-use crate::AstMethodGenCtxt;
+use crate::{AstGenCtxt, AstGenCtxtType};
 
 macro_rules! opaque {
     ($expr:expr) => {{
@@ -11,8 +11,8 @@ macro_rules! opaque {
 }
 
 /// A parser that expects to be nothing left in its input.
-pub fn eof<'a>() -> impl Parser<(), &'a [Token], AstMethodGenCtxt> {
-    move |input: &'a [Token], mgctxt: AstMethodGenCtxt| {
+pub fn eof<'a>() -> impl Parser<(), &'a [Token], AstGenCtxt> {
+    move |input: &'a [Token], mgctxt: AstGenCtxt| {
         if input.is_empty() {
             Some(((), input, mgctxt))
         } else {
@@ -21,8 +21,8 @@ pub fn eof<'a>() -> impl Parser<(), &'a [Token], AstMethodGenCtxt> {
     }
 }
 
-pub fn exact<'a>(ch: Token) -> impl Parser<(), &'a [Token], AstMethodGenCtxt> {
-    move |input: &'a [Token], mgctxt: AstMethodGenCtxt| {
+pub fn exact<'a>(ch: Token) -> impl Parser<(), &'a [Token], AstGenCtxt> {
+    move |input: &'a [Token], mgctxt: AstGenCtxt| {
         let (head, tail) = input.split_first()?;
         if *head == ch {
             Some(((), tail, mgctxt))
@@ -32,7 +32,7 @@ pub fn exact<'a>(ch: Token) -> impl Parser<(), &'a [Token], AstMethodGenCtxt> {
     }
 }
 
-pub fn exact_ident<'a, 'b: 'a>(string: &'b str) -> impl Parser<(), &'a [Token], AstMethodGenCtxt> {
+pub fn exact_ident<'a, 'b: 'a>(string: &'b str) -> impl Parser<(), &'a [Token], AstGenCtxt> {
     move |input: &'a [Token], mgctxt| {
         let (head, tail) = input.split_first()?;
         match head {
@@ -42,7 +42,7 @@ pub fn exact_ident<'a, 'b: 'a>(string: &'b str) -> impl Parser<(), &'a [Token], 
     }
 }
 
-pub fn big_integer<'a>() -> impl Parser<String, &'a [Token], AstMethodGenCtxt> {
+pub fn big_integer<'a>() -> impl Parser<String, &'a [Token], AstGenCtxt> {
     move |input: &'a [Token], mgctxt| {
         let (sign, input, mgctxt) = optional(exact(Token::Minus)).parse(input, mgctxt)?;
         let sign = if sign.is_some() { "-" } else { "" };
@@ -55,7 +55,7 @@ pub fn big_integer<'a>() -> impl Parser<String, &'a [Token], AstMethodGenCtxt> {
     }
 }
 
-pub fn integer<'a>() -> impl Parser<i64, &'a [Token], AstMethodGenCtxt> {
+pub fn integer<'a>() -> impl Parser<i64, &'a [Token], AstGenCtxt> {
     move |input: &'a [Token], mgctxt| {
         let (sign, input, mgctxt) = optional(exact(Token::Minus)).parse(input, mgctxt)?;
         let sign = if sign.is_some() { -1 } else { 1 };
@@ -68,7 +68,7 @@ pub fn integer<'a>() -> impl Parser<i64, &'a [Token], AstMethodGenCtxt> {
     }
 }
 
-pub fn double<'a>() -> impl Parser<f64, &'a [Token], AstMethodGenCtxt> {
+pub fn double<'a>() -> impl Parser<f64, &'a [Token], AstGenCtxt> {
     move |input: &'a [Token], mgctxt| {
         let (sign, input, mgctxt) = optional(exact(Token::Minus)).parse(input, mgctxt)?;
         let sign = if sign.is_some() { -1.0 } else { 1.0 };
@@ -81,7 +81,7 @@ pub fn double<'a>() -> impl Parser<f64, &'a [Token], AstMethodGenCtxt> {
     }
 }
 
-pub fn single_operator<'a>() -> impl Parser<&'static str, &'a [Token], AstMethodGenCtxt> {
+pub fn single_operator<'a>() -> impl Parser<&'static str, &'a [Token], AstGenCtxt> {
     move |input: &'a [Token], mgctxt| {
         let (head, tail) = input.split_first()?;
         match head {
@@ -104,7 +104,7 @@ pub fn single_operator<'a>() -> impl Parser<&'static str, &'a [Token], AstMethod
     }
 }
 
-pub fn operator_sequence<'a>() -> impl Parser<String, &'a [Token], AstMethodGenCtxt> {
+pub fn operator_sequence<'a>() -> impl Parser<String, &'a [Token], AstGenCtxt> {
     move |input: &'a [Token], mgctxt| {
         let (head, tail) = input.split_first()?;
         match head {
@@ -114,12 +114,12 @@ pub fn operator_sequence<'a>() -> impl Parser<String, &'a [Token], AstMethodGenC
     }
 }
 
-pub fn operator<'a>() -> impl Parser<String, &'a [Token], AstMethodGenCtxt> {
+pub fn operator<'a>() -> impl Parser<String, &'a [Token], AstGenCtxt> {
     single_operator().map(String::from).or(operator_sequence())
 }
 
-pub fn identifier<'a>() -> impl Parser<String, &'a [Token], AstMethodGenCtxt> {
-    move |input: &'a [Token], mgctxt: AstMethodGenCtxt| {
+pub fn identifier<'a>() -> impl Parser<String, &'a [Token], AstGenCtxt> {
+    move |input: &'a [Token], mgctxt: AstGenCtxt| {
         let (head, tail) = input.split_first()?;
         match head {
             Token::Identifier(value) => {
@@ -130,7 +130,7 @@ pub fn identifier<'a>() -> impl Parser<String, &'a [Token], AstMethodGenCtxt> {
     }
 }
 
-pub fn string<'a>() -> impl Parser<String, &'a [Token], AstMethodGenCtxt> {
+pub fn string<'a>() -> impl Parser<String, &'a [Token], AstGenCtxt> {
     move |input: &'a [Token], mgctxt| {
         let (head, tail) = input.split_first()?;
         match head {
@@ -140,7 +140,7 @@ pub fn string<'a>() -> impl Parser<String, &'a [Token], AstMethodGenCtxt> {
     }
 }
 
-pub fn symbol<'a>() -> impl Parser<String, &'a [Token], AstMethodGenCtxt> {
+pub fn symbol<'a>() -> impl Parser<String, &'a [Token], AstGenCtxt> {
     move |input: &'a [Token], mgctxt| {
         let (head, tail) = input.split_first()?;
         match head {
@@ -150,7 +150,7 @@ pub fn symbol<'a>() -> impl Parser<String, &'a [Token], AstMethodGenCtxt> {
     }
 }
 
-pub fn array<'a>() -> impl Parser<Vec<Literal>, &'a [Token], AstMethodGenCtxt> {
+pub fn array<'a>() -> impl Parser<Vec<Literal>, &'a [Token], AstGenCtxt> {
     move |input: &'a [Token], mgctxt| {
         between(
             exact(Token::NewArray),
@@ -161,7 +161,7 @@ pub fn array<'a>() -> impl Parser<Vec<Literal>, &'a [Token], AstMethodGenCtxt> {
     }
 }
 
-pub fn literal<'a>() -> impl Parser<Literal, &'a [Token], AstMethodGenCtxt> {
+pub fn literal<'a>() -> impl Parser<Literal, &'a [Token], AstGenCtxt> {
     (double().map(Literal::Double))
         .or(integer().map(Literal::Integer))
         .or(big_integer().map(Literal::BigInteger))
@@ -170,7 +170,7 @@ pub fn literal<'a>() -> impl Parser<Literal, &'a [Token], AstMethodGenCtxt> {
         .or(array().map(Literal::Array))
 }
 
-pub fn keyword<'a>() -> impl Parser<String, &'a [Token], AstMethodGenCtxt> {
+pub fn keyword<'a>() -> impl Parser<String, &'a [Token], AstGenCtxt> {
     move |input: &'a [Token], mgctxt| {
         let (head, tail) = input.split_first()?;
         match head {
@@ -180,7 +180,7 @@ pub fn keyword<'a>() -> impl Parser<String, &'a [Token], AstMethodGenCtxt> {
     }
 }
 
-pub fn unary_send<'a>() -> impl Parser<Expression, &'a [Token], AstMethodGenCtxt> {
+pub fn unary_send<'a>() -> impl Parser<Expression, &'a [Token], AstGenCtxt> {
     opaque!(primary())
         .and(many(identifier()))
         .map(|(receiver, signatures)| {
@@ -196,7 +196,7 @@ pub fn unary_send<'a>() -> impl Parser<Expression, &'a [Token], AstMethodGenCtxt
         })
 }
 
-pub fn binary_send<'a>() -> impl Parser<Expression, &'a [Token], AstMethodGenCtxt> {
+pub fn binary_send<'a>() -> impl Parser<Expression, &'a [Token], AstGenCtxt> {
     unary_send()
         .and(many(operator().and(unary_send().map(Box::new))))
         .map(|(lhs, operands)| {
@@ -210,7 +210,7 @@ pub fn binary_send<'a>() -> impl Parser<Expression, &'a [Token], AstMethodGenCtx
         })
 }
 
-pub fn positional_send<'a>() -> impl Parser<Expression, &'a [Token], AstMethodGenCtxt> {
+pub fn positional_send<'a>() -> impl Parser<Expression, &'a [Token], AstGenCtxt> {
     binary_send()
         .and(many(keyword().and(binary_send())))
         .map(|(receiver, pairs)| {
@@ -228,7 +228,7 @@ pub fn positional_send<'a>() -> impl Parser<Expression, &'a [Token], AstMethodGe
         })
 }
 
-pub fn body<'a>() -> impl Parser<Body, &'a [Token], AstMethodGenCtxt> {
+pub fn body<'a>() -> impl Parser<Body, &'a [Token], AstGenCtxt> {
     sep_by(exact(Token::Period), exit().or(statement()))
         .and(optional(exact(Token::Period)))
         .map(|(exprs, stopped)| Body {
@@ -237,7 +237,7 @@ pub fn body<'a>() -> impl Parser<Body, &'a [Token], AstMethodGenCtxt> {
         })
 }
 
-pub fn locals<'a>() -> impl Parser<Vec<String>, &'a [Token], AstMethodGenCtxt> {
+pub fn locals<'a>() -> impl Parser<Vec<String>, &'a [Token], AstGenCtxt> {
     move |input: &'a [Token], mgctxt| {
         let (new_locals_names, input, mut mgctxt) = between(exact(Token::Or), many(identifier()), exact(Token::Or)).parse(input, mgctxt)?;
         mgctxt = mgctxt.add_locals(&new_locals_names);
@@ -245,7 +245,7 @@ pub fn locals<'a>() -> impl Parser<Vec<String>, &'a [Token], AstMethodGenCtxt> {
     }
 }
 
-pub fn class_locals<'a>() -> impl Parser<Vec<String>, &'a [Token], AstMethodGenCtxt> {
+pub fn class_locals<'a>() -> impl Parser<Vec<String>, &'a [Token], AstGenCtxt> {
     move |input: &'a [Token], mgctxt| {
         let (new_locals_names, input, mut mgctxt) = between(exact(Token::Or), many(identifier()), exact(Token::Or)).parse(input, mgctxt)?;
         mgctxt = mgctxt.add_fields(&new_locals_names);
@@ -253,19 +253,19 @@ pub fn class_locals<'a>() -> impl Parser<Vec<String>, &'a [Token], AstMethodGenC
     }
 }
 
-pub fn parameter<'a>() -> impl Parser<String, &'a [Token], AstMethodGenCtxt> {
+pub fn parameter<'a>() -> impl Parser<String, &'a [Token], AstGenCtxt> {
     exact(Token::Colon).and_right(identifier())
 }
 
-pub fn parameters<'a>() -> impl Parser<Vec<String>, &'a [Token], AstMethodGenCtxt> {
-    move |input: &'a [Token], mgctxt: AstMethodGenCtxt | {
+pub fn parameters<'a>() -> impl Parser<Vec<String>, &'a [Token], AstGenCtxt> {
+    move |input: &'a [Token], mgctxt: AstGenCtxt| {
         let (param_names, input, mut mgctxt) = some(parameter()).and_left(exact(Token::Or)).parse(input, mgctxt)?;
         mgctxt = mgctxt.add_params(&param_names);
         Some((param_names, input, mgctxt))
     }
 }
 
-pub fn block<'a>() -> impl Parser<Expression, &'a [Token], AstMethodGenCtxt> {
+pub fn block<'a>() -> impl Parser<Expression, &'a [Token], AstGenCtxt> {
     // between(
     //     exact(Token::NewBlock),
     //     default(parameters()).and(default(locals())).and(body()),
@@ -282,7 +282,7 @@ pub fn block<'a>() -> impl Parser<Expression, &'a [Token], AstMethodGenCtxt> {
 
     move |input: &'a [Token], mgctxt| {
         let (_, input, mut mgctxt) = exact(Token::NewBlock).parse(input, mgctxt)?;
-        mgctxt = mgctxt.new_ctxt_from_itself();
+        mgctxt = mgctxt.new_ctxt_from_itself(AstGenCtxtType::Block);
         let (((parameters, locals), body), input, mgctxt) = default(parameters())
             .and(default(locals()))
             .and(body())
@@ -298,7 +298,7 @@ pub fn block<'a>() -> impl Parser<Expression, &'a [Token], AstMethodGenCtxt> {
     }
 }
 
-pub fn term<'a>() -> impl Parser<Expression, &'a [Token], AstMethodGenCtxt> {
+pub fn term<'a>() -> impl Parser<Expression, &'a [Token], AstGenCtxt> {
     between(
         exact(Token::NewTerm),
         assignment().or(expression()),
@@ -306,18 +306,18 @@ pub fn term<'a>() -> impl Parser<Expression, &'a [Token], AstMethodGenCtxt> {
     )
 }
 
-pub fn exit<'a>() -> impl Parser<Expression, &'a [Token], AstMethodGenCtxt> {
+pub fn exit<'a>() -> impl Parser<Expression, &'a [Token], AstGenCtxt> {
     exact(Token::Exit)
         .and_right(statement())
         .map(|expr| Expression::Exit(Box::new(expr)))
 }
 
-pub fn expression<'a>() -> impl Parser<Expression, &'a [Token], AstMethodGenCtxt> {
+pub fn expression<'a>() -> impl Parser<Expression, &'a [Token], AstGenCtxt> {
     positional_send()
 }
 
-pub fn primary<'a>() -> impl Parser<Expression, &'a [Token], AstMethodGenCtxt> {
-    move |input: &'a [Token], mgctxt: AstMethodGenCtxt| {
+pub fn primary<'a>() -> impl Parser<Expression, &'a [Token], AstGenCtxt> {
+    move |input: &'a [Token], mgctxt: AstGenCtxt| {
         let name_opt = identifier().parse(input, mgctxt.clone());
 
         if name_opt.is_none() {
@@ -341,27 +341,27 @@ pub fn primary<'a>() -> impl Parser<Expression, &'a [Token], AstMethodGenCtxt> {
     }
 }
 
-pub fn assignment<'a>() -> impl Parser<Expression, &'a [Token], AstMethodGenCtxt> {
+pub fn assignment<'a>() -> impl Parser<Expression, &'a [Token], AstGenCtxt> {
     identifier()
         .and_left(exact(Token::Assign))
         .and(opaque!(statement()))
         .map(|(name, expr)| Expression::Assignment(name, Box::new(expr)))
 }
 
-pub fn statement<'a>() -> impl Parser<Expression, &'a [Token], AstMethodGenCtxt> {
+pub fn statement<'a>() -> impl Parser<Expression, &'a [Token], AstGenCtxt> {
     assignment().or(expression())
 }
 
-pub fn primitive<'a>() -> impl Parser<MethodBody, &'a [Token], AstMethodGenCtxt> {
+pub fn primitive<'a>() -> impl Parser<MethodBody, &'a [Token], AstGenCtxt> {
     exact(Token::Primitive).map(|_| MethodBody::Primitive)
 }
 
-pub fn method_body<'a>() -> impl Parser<MethodBody, &'a [Token], AstMethodGenCtxt> {
-    move |input: &'a [Token], mgctxt: AstMethodGenCtxt| {
+pub fn method_body<'a>() -> impl Parser<MethodBody, &'a [Token], AstGenCtxt> {
+    move |input: &'a [Token], mgctxt: AstGenCtxt| {
         let (_, input, mut mgctxt) = exact(Token::NewTerm).parse(input, mgctxt)?;
         let (locals, input, _) = default(locals()).parse(input, mgctxt.clone())?;
 
-        mgctxt = mgctxt.new_ctxt_from_itself();
+        mgctxt = mgctxt.new_ctxt_from_itself(AstGenCtxtType::Method);
         let (body, input, mgctxt) = body().parse(input, mgctxt)?;
         let (_, input, mut mgctxt) = exact(Token::EndTerm).parse(input, mgctxt)?;
         mgctxt = mgctxt.get_outer();
@@ -377,7 +377,7 @@ pub fn method_body<'a>() -> impl Parser<MethodBody, &'a [Token], AstMethodGenCtx
     // .map(|(locals, body)| MethodBody::Body { locals, body })
 }
 
-pub fn unary_method_def<'a>() -> impl Parser<MethodDef, &'a [Token], AstMethodGenCtxt> {
+pub fn unary_method_def<'a>() -> impl Parser<MethodDef, &'a [Token], AstGenCtxt> {
     identifier()
         .and_left(exact(Token::Equal))
         .and(primitive().or(method_body()))
@@ -388,8 +388,8 @@ pub fn unary_method_def<'a>() -> impl Parser<MethodDef, &'a [Token], AstMethodGe
         })
 }
 
-pub fn positional_method_def<'a>() -> impl Parser<MethodDef, &'a [Token], AstMethodGenCtxt> {
-    move |input: &'a [Token], mgctxt: AstMethodGenCtxt| {
+pub fn positional_method_def<'a>() -> impl Parser<MethodDef, &'a [Token], AstGenCtxt> {
+    move |input: &'a [Token], mgctxt: AstGenCtxt| {
         let (method_def, input, mut mgctxt) = some(keyword().and(identifier()))
             .and_left(exact(Token::Equal))
             .and(primitive().or(method_body()))
@@ -410,11 +410,13 @@ pub fn positional_method_def<'a>() -> impl Parser<MethodDef, &'a [Token], AstMet
             _ => unreachable!()
         };
 
+        // dbg!(&mgctxt.params);
+
         Some((method_def, input, mgctxt.clone()))
     }
 }
 
-pub fn operator_method_def<'a>() -> impl Parser<MethodDef, &'a [Token], AstMethodGenCtxt> {
+pub fn operator_method_def<'a>() -> impl Parser<MethodDef, &'a [Token], AstGenCtxt> {
     operator()
         .and(identifier())
         .and_left(exact(Token::Equal))
@@ -426,13 +428,13 @@ pub fn operator_method_def<'a>() -> impl Parser<MethodDef, &'a [Token], AstMetho
         })
 }
 
-pub fn method_def<'a>() -> impl Parser<MethodDef, &'a [Token], AstMethodGenCtxt> {
+pub fn method_def<'a>() -> impl Parser<MethodDef, &'a [Token], AstGenCtxt> {
     unary_method_def()
         .or(positional_method_def())
         .or(operator_method_def())
 }
 
-pub fn class_def<'a>() -> impl Parser<ClassDef, &'a [Token], AstMethodGenCtxt> {
+pub fn class_def<'a>() -> impl Parser<ClassDef, &'a [Token], AstGenCtxt> {
     identifier()
         .and_left(exact(Token::Equal))
         .and(optional(identifier()))
@@ -458,6 +460,6 @@ pub fn class_def<'a>() -> impl Parser<ClassDef, &'a [Token], AstMethodGenCtxt> {
         })
 }
 
-pub fn file<'a>() -> impl Parser<ClassDef, &'a [Token], AstMethodGenCtxt> {
+pub fn file<'a>() -> impl Parser<ClassDef, &'a [Token], AstGenCtxt> {
     class_def().and_left(eof())
 }

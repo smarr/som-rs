@@ -11,18 +11,27 @@ use som_core::ast::ClassDef;
 use som_lexer::Token;
 use som_parser_core::{Parser};
 
-#[derive(Clone, Debug)]
-pub struct AstMethodGenCtxt {
-    pub all_locals: Vec<String>,
-    pub params: Vec<String>,
-    pub class_fields: Vec<String>,
-    pub current_scope: usize,
-    pub outer_ctxt: Option<Box<AstMethodGenCtxt>>,
+#[derive(Copy, Clone, Debug)]
+pub enum AstGenCtxtType {
+    Class,
+    Block,
+    Method,
 }
 
-impl Default for AstMethodGenCtxt {
+#[derive(Clone, Debug)]
+pub struct AstGenCtxt {
+    kind: AstGenCtxtType,
+    all_locals: Vec<String>,
+    params: Vec<String>,
+    class_fields: Vec<String>,
+    current_scope: usize,
+    outer_ctxt: Option<Box<AstGenCtxt>>,
+}
+
+impl Default for AstGenCtxt {
     fn default() -> Self {
-        AstMethodGenCtxt {
+        AstGenCtxt {
+            kind: AstGenCtxtType::Class,
             all_locals: vec![],
             params: vec![],
             class_fields: vec![],
@@ -32,9 +41,10 @@ impl Default for AstMethodGenCtxt {
     }
 }
 
-impl AstMethodGenCtxt {
-    pub fn new_ctxt_from_itself(&self) -> AstMethodGenCtxt {
-        AstMethodGenCtxt {
+impl AstGenCtxt {
+    pub fn new_ctxt_from_itself(&self, kind: AstGenCtxtType) -> AstGenCtxt {
+        AstGenCtxt {
+            kind,
             all_locals: vec![],
             params: vec![],
             class_fields: self.class_fields.clone(),
@@ -43,13 +53,14 @@ impl AstMethodGenCtxt {
         }
     }
 
-    pub fn get_outer(&self) -> AstMethodGenCtxt {
+    pub fn get_outer(&self) -> AstGenCtxt {
         let outer = self.outer_ctxt.as_ref().unwrap();
         *outer.clone()
     }
 
-    pub fn add_fields(&self, fields_names: &Vec<String>) -> AstMethodGenCtxt {
-        AstMethodGenCtxt {
+    pub fn add_fields(&self, fields_names: &Vec<String>) -> AstGenCtxt {
+        AstGenCtxt {
+            kind: self.kind,
             all_locals: self.all_locals.clone(),
             params: self.params.clone(),
             class_fields: fields_names.clone(),
@@ -58,8 +69,9 @@ impl AstMethodGenCtxt {
         }
     }
 
-    pub fn add_locals(&self, new_locals_names: &Vec<String>) -> AstMethodGenCtxt {
-        AstMethodGenCtxt {
+    pub fn add_locals(&self, new_locals_names: &Vec<String>) -> AstGenCtxt {
+        AstGenCtxt {
+            kind: self.kind,
             all_locals: new_locals_names.clone(),
             params: self.params.clone(),
             class_fields: self.class_fields.clone(),
@@ -68,8 +80,9 @@ impl AstMethodGenCtxt {
         }
     }
 
-    pub fn add_params(&self, parameters: &Vec<String>) -> AstMethodGenCtxt {
-        AstMethodGenCtxt {
+    pub fn add_params(&self, parameters: &Vec<String>) -> AstGenCtxt {
+        AstGenCtxt {
+            kind: self.kind,
             all_locals: self.all_locals.clone(),
             params: parameters.clone(),
             class_fields: self.class_fields.clone(),
@@ -126,9 +139,9 @@ pub fn parse_file(input: &[Token]) -> Option<ClassDef> {
 /// Applies a parser and returns the output value if the entirety of the input has been parsed successfully.
 pub fn apply<'a, A, P>(mut parser: P, input: &'a [Token]) -> Option<A>
     where
-        P: Parser<A, &'a [Token], AstMethodGenCtxt>,
+        P: Parser<A, &'a [Token], AstGenCtxt>,
 {
-    match parser.parse(input, AstMethodGenCtxt::default()) {
+    match parser.parse(input, AstGenCtxt::default()) {
         Some((output, tail, _)) if tail.is_empty() => Some(output),
         Some(_) | None => None,
     }

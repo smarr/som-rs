@@ -138,7 +138,6 @@ impl Frame {
 
     pub fn lookup_arg_1(&self, name: impl AsRef<str>) -> Option<Value> {
         if let Some(value) = self.bindings.get(name.as_ref()).cloned() {
-            // dbg!(name.as_ref());
             return Some(value);
         } else {
             return match &self.kind {
