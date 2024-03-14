@@ -339,7 +339,7 @@ pub fn primary<'a>() -> impl Parser<Expression, &'a [Token], AstGenCtxt> {
                 }
             })
             .or(genctxt.get_param(&name).and_then(|_| Some((Expression::ArgRead(name.clone()), input, genctxt.clone()))))
-            .or((name == "self").then_some((Expression::ArgRead(name.clone()), input, genctxt.clone()))) // bit lame i thiiink?
+            .or((name.as_str() == "self").then_some((Expression::ArgRead(name.clone()), input, genctxt.clone()))) // bit lame i thiiink?
             .or(genctxt.class_field_names.iter().find(|v| **v == name).and_then(|_| Some((Expression::FieldRead(name.clone()), input, genctxt.clone()))))
             .or(Some((Expression::GlobalRead(name.clone()), input, genctxt.clone())));
     }
@@ -435,9 +435,9 @@ pub fn method_def<'a>() -> impl Parser<MethodDef, &'a [Token], AstGenCtxt> {
 
 pub fn class_def<'a>() -> impl Parser<ClassDef, &'a [Token], AstGenCtxt> {
     move |input: &'a [Token], genctxt: AstGenCtxt| {
-        let (name, input, genctxt) = identifier().and_left(exact(Token::Equal)).parse(input, genctxt).unwrap();
+        let (name, input, mut genctxt) = identifier().and_left(exact(Token::Equal)).parse(input, genctxt).unwrap();
 
-        genctxt.set_name(name.clone());
+        genctxt = genctxt.set_name(name.clone());
 
         optional(identifier())
             .and(between(
