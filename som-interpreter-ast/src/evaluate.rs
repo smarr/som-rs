@@ -99,11 +99,10 @@ impl Evaluate for ast::Expression {
                         Return::Exception(format!("arg '{}' not found", name))
                     })
             },
-            Self::GlobalRead(name) => (universe.lookup_local(name))
-                .or_else(|| universe.lookup_global(name))
+            Self::GlobalRead(name) => (universe.lookup_global(name))
                 .map(Return::Local)
                 .or_else(|| {
-                    // dbg!(&name);
+                    dbg!(&name);
                     // std::process::exit(1);
                     let frame = universe.current_frame();
                     let self_value = frame.borrow().get_self();

@@ -495,37 +495,30 @@ impl Universe {
         self.interner.lookup(symbol)
     }
 
-    // TODO: remove this legacy one, which is getting replaced by the next ones
     /// Search for a local binding.
-    pub fn lookup_local(&self, name: impl AsRef<str>) -> Option<Value> {
-        let name = name.as_ref();
-        match name {
+    pub fn lookup_local_1(&self, name: impl AsRef<str>) -> Option<Value> {
+        self.current_frame().borrow().lookup_local(name)
+    }
+
+    /// Look up a variable we know to have been defined in another scope.
+    pub fn lookup_non_local_1(&self, name: impl AsRef<str>, target_scope: usize) -> Option<Value> {
+        self.current_frame().borrow().lookup_non_local(name, target_scope)
+    }
+
+    /// Look up a field.
+    pub fn lookup_field_1(&self, name: impl AsRef<str>) -> Option<Value> {
+        self.current_frame().borrow().lookup_field(name)
+    }
+
+    pub fn lookup_arg_1(&self, name: impl AsRef<str>) -> Option<Value> {
+        match name.as_ref() {
             "self" | "super" => {
                 let frame = self.current_frame();
                 let self_value = frame.borrow().get_self();
                 Some(self_value)
             }
-            name => self.current_frame().borrow().lookup_local(name),
+            name => self.current_frame().borrow().lookup_arg(name),
         }
-    }
-
-    /// Search for a local binding.
-    pub fn lookup_local_1(&self, name: impl AsRef<str>) -> Option<Value> {
-        self.current_frame().borrow().lookup_local_1(name)
-    }
-
-    /// Look up a variable we know to have been defined in another scope.
-    pub fn lookup_non_local_1(&self, name: impl AsRef<str>, target_scope: usize) -> Option<Value> {
-        self.current_frame().borrow().lookup_non_local_1(name, target_scope)
-    }
-
-    /// Look up a field.
-    pub fn lookup_field_1(&self, name: impl AsRef<str>) -> Option<Value> {
-        self.current_frame().borrow().lookup_field_1(name)
-    }
-
-    pub fn lookup_arg_1(&self, name: impl AsRef<str>) -> Option<Value> {
-        self.current_frame().borrow().lookup_arg_1(name)
     }
 
     /// Returns whether a global binding of the specified name exists.

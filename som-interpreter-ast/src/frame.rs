@@ -74,33 +74,12 @@ impl Frame {
         }
     }
 
-    // todo remove this legacy func, override it with next ones
-    /// Search for a local binding.
-    pub fn lookup_local(&self, name: impl AsRef<str>) -> Option<Value> {
-        let name = name.as_ref();
-        if let Some(value) = self.bindings.get(name).cloned() {
-            return Some(value);
-        }
-        match &self.kind {
-            FrameKind::Method {
-                self_value, holder, ..
-            } => {
-                if holder.borrow().is_static {
-                    holder.borrow().lookup_local(name)
-                } else {
-                    self_value.lookup_local(name)
-                }
-            }
-            FrameKind::Block { block, .. } => block.frame.borrow().lookup_local(name),
-        }
-    }
-
     #[inline] // not sure if necessary
-    pub fn lookup_local_1(&self, name: impl AsRef<str>) -> Option<Value> {
+    pub fn lookup_local(&self, name: impl AsRef<str>) -> Option<Value> {
         self.bindings.get(name.as_ref()).cloned()
     }
 
-    pub fn lookup_non_local_1(&self, name: impl AsRef<str>, scope: usize) -> Option<Value> {
+    pub fn lookup_non_local(&self, name: impl AsRef<str>, scope: usize) -> Option<Value> {
         let mut current_frame: Rc<RefCell<Frame>> = match &self.kind {
             FrameKind::Block { block, .. } => {
                 Rc::clone(&block.frame)
@@ -117,13 +96,13 @@ impl Frame {
             };
         }
 
-        let l = current_frame.borrow().lookup_local_1(name.as_ref());
+        let l = current_frame.borrow().lookup_local(name.as_ref());
         l
     }
 
-    pub fn lookup_field_1(&self, name: impl AsRef<str>) -> Option<Value> {
+    pub fn lookup_field(&self, name: impl AsRef<str>) -> Option<Value> {
         match &self.kind {
-            FrameKind::Block { block } => block.frame.borrow().lookup_field_1(name),
+            FrameKind::Block { block } => block.frame.borrow().lookup_field(name),
             FrameKind::Method { holder, self_value, .. } => {
                 if let Some(value) = self.bindings.get(name.as_ref()).cloned() {
                     return Some(value);
@@ -136,7 +115,7 @@ impl Frame {
         }
     }
 
-    pub fn lookup_arg_1(&self, name: impl AsRef<str>) -> Option<Value> {
+    pub fn lookup_arg(&self, name: impl AsRef<str>) -> Option<Value> {
         if let Some(value) = self.bindings.get(name.as_ref()).cloned() {
             return Some(value);
         } else {
@@ -144,7 +123,7 @@ impl Frame {
                 FrameKind::Method { self_value, .. } => {
                     self_value.lookup_local(name) // confused by this, frankly. args as stored as method locals?
                 }
-                FrameKind::Block { block, .. } => block.frame.borrow().lookup_arg_1(name),
+                FrameKind::Block { block, .. } => block.frame.borrow().lookup_arg(name),
             }
         }
     }

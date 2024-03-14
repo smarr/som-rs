@@ -11,7 +11,7 @@ use som_core::ast::ClassDef;
 use som_lexer::Token;
 use som_parser_core::{Parser};
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 pub enum AstGenCtxtType {
     Class,
     Block,
@@ -20,10 +20,11 @@ pub enum AstGenCtxtType {
 
 #[derive(Clone, Debug)]
 pub struct AstGenCtxt {
-    kind: AstGenCtxtType,
-    all_locals: Vec<String>,
-    params: Vec<String>,
-    class_fields: Vec<String>,
+    kind: AstGenCtxtType, // used for debugging
+    name: String, // debugging too
+    local_names: Vec<String>,
+    param_names: Vec<String>,
+    class_field_names: Vec<String>,
     current_scope: usize,
     outer_ctxt: Option<Box<AstGenCtxt>>,
 }
@@ -32,9 +33,10 @@ impl Default for AstGenCtxt {
     fn default() -> Self {
         AstGenCtxt {
             kind: AstGenCtxtType::Class,
-            all_locals: vec![],
-            params: vec![],
-            class_fields: vec![],
+            name: "NO NAME".to_string(),
+            local_names: vec![],
+            param_names: vec![],
+            class_field_names: vec![],
             current_scope: 0,
             outer_ctxt: None,
         }
@@ -45,11 +47,24 @@ impl AstGenCtxt {
     pub fn new_ctxt_from_itself(&self, kind: AstGenCtxtType) -> AstGenCtxt {
         AstGenCtxt {
             kind,
-            all_locals: vec![],
-            params: vec![],
-            class_fields: self.class_fields.clone(),
+            name: "NO NAME".to_string(),
+            local_names: vec![],
+            param_names: vec![],
+            class_field_names: self.class_field_names.clone(),
             current_scope: self.current_scope + 1,
             outer_ctxt: Some(Box::from(self.clone())),
+        }
+    }
+
+    pub fn set_name(&self, name: String) -> AstGenCtxt {
+        AstGenCtxt {
+            kind: self.kind,
+            name,
+            local_names: self.local_names.clone(),
+            param_names: self.param_names.clone(),
+            class_field_names: self.class_field_names.clone(),
+            current_scope: self.current_scope,
+            outer_ctxt: self.outer_ctxt.clone(),
         }
     }
 
@@ -61,9 +76,10 @@ impl AstGenCtxt {
     pub fn add_fields(&self, fields_names: &Vec<String>) -> AstGenCtxt {
         AstGenCtxt {
             kind: self.kind,
-            all_locals: self.all_locals.clone(),
-            params: self.params.clone(),
-            class_fields: fields_names.clone(),
+            name: self.name.clone(),
+            local_names: self.local_names.clone(),
+            param_names: self.param_names.clone(),
+            class_field_names: fields_names.clone(),
             current_scope: self.current_scope,
             outer_ctxt: self.outer_ctxt.clone(),
         }
@@ -72,20 +88,23 @@ impl AstGenCtxt {
     pub fn add_locals(&self, new_locals_names: &Vec<String>) -> AstGenCtxt {
         AstGenCtxt {
             kind: self.kind,
-            all_locals: new_locals_names.clone(),
-            params: self.params.clone(),
-            class_fields: self.class_fields.clone(),
+            name: self.name.clone(),
+            local_names: new_locals_names.clone(),
+            param_names: self.param_names.clone(),
+            class_field_names: self.class_field_names.clone(),
             current_scope: self.current_scope,
             outer_ctxt: self.outer_ctxt.clone(),
         }
     }
 
     pub fn add_params(&self, parameters: &Vec<String>) -> AstGenCtxt {
+        assert_ne!(self.kind, AstGenCtxtType::Class); // can't add parameters to a class.
         AstGenCtxt {
             kind: self.kind,
-            all_locals: self.all_locals.clone(),
-            params: parameters.clone(),
-            class_fields: self.class_fields.clone(),
+            name: self.name.clone(),
+            local_names: self.local_names.clone(),
+            param_names: parameters.clone(),
+            class_field_names: self.class_field_names.clone(),
             current_scope: self.current_scope,
             outer_ctxt: self.outer_ctxt.clone(),
         }
@@ -96,7 +115,7 @@ impl AstGenCtxt {
     }
 
     fn get_var_rec(&self, name: &String, cur_scope: usize) -> Option<(String, usize)> {
-        match self.all_locals.iter().find(|local| *local == name) {
+        match self.local_names.iter().find(|local| *local == name) {
             Some(a) => Some((a.clone(), cur_scope)),
             None => {
                 if self.outer_ctxt.is_none() {
@@ -109,15 +128,11 @@ impl AstGenCtxt {
     }
 
     pub fn get_param(&self, name: &String) -> Option<(String, usize)> {
-        let l = self.get_param_rec(name, 0);
-        // if name == "argumentsAAA" {
-        //     dbg!(&l);
-        // }
-        l
+        self.get_param_rec(name, 0)
     }
 
     fn get_param_rec(&self, name: &String, cur_scope: usize) -> Option<(String, usize)> {
-        match self.params.iter().find(|local| *local == name) {
+        match self.param_names.iter().find(|local| *local == name) {
             Some(a) => Some((a.clone(), cur_scope)),
             None => {
                 if self.outer_ctxt.is_none() {
