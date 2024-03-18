@@ -71,7 +71,7 @@ fn block_test() {
             locals: vec![String::from("local")],
             body: Body {
                 exprs: vec![
-                    Expression::GlobalWrite(
+                    Expression::LocalVarWrite(
                         String::from("local"),
                         Box::new(Expression::Literal(Literal::String(String::from(
                             "this is correct"

@@ -285,7 +285,9 @@ impl MethodCodegen for ast::Expression {
                 }
                 Some(())
             }
-            ast::Expression::GlobalWrite(name, expr) => {
+            ast::Expression::GlobalWrite(name, expr) | ast::Expression::LocalVarWrite(name, expr)
+                | ast::Expression::NonLocalVarWrite(name, _, expr) | ast::Expression::FieldWrite(name, expr)
+                | ast::Expression::ArgWrite(name, expr)  => {
                 expr.codegen(ctxt)?;
                 ctxt.push_instr(Bytecode::Dup);
                 match ctxt.find_var(name.as_str())? {
