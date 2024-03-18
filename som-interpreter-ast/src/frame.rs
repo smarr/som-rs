@@ -130,32 +130,12 @@ impl Frame {
 
     /// Assign to a local binding.
     pub fn assign_local(&mut self, name: impl AsRef<str>, value: Value) -> Option<()> {
-        let name = name.as_ref();
-        if let Some(local) = self.bindings.get_mut(name) {
-            *local = value;
-            return Some(());
-        }
-        match &mut self.kind {
-            FrameKind::Method {
-                self_value, holder, ..
-            } => {
-                if holder.borrow().is_static {
-                    holder.borrow_mut().assign_local(name, value)
-                } else {
-                    self_value.assign_local(name, value)
-                }
-            }
-            FrameKind::Block { block, .. } => block.frame.borrow_mut().assign_local(name, value),
-        }
-    }
-
-    pub fn assign_local_1(&mut self, name: impl AsRef<str>, value: Value) -> Option<()> {
         let local = self.bindings.get_mut(name.as_ref()).unwrap();
         *local = value;
         Some(())
     }
 
-    pub fn assign_non_local_1(&mut self, name: impl AsRef<str>, scope: usize, value: Value) -> Option<()> {
+    pub fn assign_non_local(&mut self, name: impl AsRef<str>, scope: usize, value: Value) -> Option<()> {
         let mut current_frame: Rc<RefCell<Frame>> = match &self.kind {
             FrameKind::Block { block, .. } => {
                 Rc::clone(&block.frame)
@@ -172,13 +152,13 @@ impl Frame {
             };
         }
 
-        let x= current_frame.borrow_mut().assign_local_1(name.as_ref(), value);
+        let x= current_frame.borrow_mut().assign_local(name.as_ref(), value);
         x
     }
 
-    pub fn assign_field_1(&mut self, name: impl AsRef<str>, value: Value) -> Option<()> {
+    pub fn assign_field(&mut self, name: impl AsRef<str>, value: Value) -> Option<()> {
         match &mut self.kind {
-            FrameKind::Block { block } => block.frame.borrow_mut().assign_field_1(name, value),
+            FrameKind::Block { block } => block.frame.borrow_mut().assign_field(name, value),
             FrameKind::Method { holder, ref mut self_value, .. } => {
                 if let Some(val) = self.bindings.get_mut(name.as_ref()) {
                     *val = value;
@@ -192,7 +172,7 @@ impl Frame {
         }
     }
 
-    pub fn assign_arg_1(&mut self, name: impl AsRef<str>, value: Value) -> Option<()> {
+    pub fn assign_arg(&mut self, name: impl AsRef<str>, value: Value) -> Option<()> {
         if let Some(val) = self.bindings.get_mut(name.as_ref()) {
             *val = value;
             return Some(());
@@ -201,7 +181,7 @@ impl Frame {
                 FrameKind::Method { ref mut self_value, .. } => {
                     self_value.assign_local(name, value)
                 }
-                FrameKind::Block { block, .. } => block.frame.borrow_mut().assign_arg_1(name, value),
+                FrameKind::Block { block, .. } => block.frame.borrow_mut().assign_arg(name, value),
             }
         }
     }

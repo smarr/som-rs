@@ -351,8 +351,22 @@ pub fn assignment<'a>() -> impl Parser<Expression, &'a [Token], AstGenCtxt> {
     //     .and(opaque!(statement()))
     //     .map(|(name, expr)| Expression::GlobalWrite(name, Box::new(expr)))
     move |input: &'a [Token], genctxt: AstGenCtxt| {
-        let (name, input, genctxt) = identifier().and_left(exact(Token::Assign)).parse(input, genctxt).unwrap();
-        let (expr, input, genctxt) = opaque!(statement()).parse(input, genctxt).unwrap();
+        let name_opt = identifier().and_left(exact(Token::Assign)).parse(input, genctxt.clone());
+
+        if name_opt.is_none() {
+            return None;
+        }
+
+        let (name, input, genctxt) = name_opt.unwrap();
+        let expr_opt = opaque!(statement()).parse(input, genctxt);
+
+        if expr_opt.is_none() {
+            return None;
+        }
+
+        let (expr, input, genctxt) = expr_opt.unwrap();
+
+        // Some((LegacyAssignment(name, Box::new(expr)), input, genctxt.clone()))
 
         // it's stupid we have to clone expr in this bit. can this be avoided?
         genctxt.get_var(&name).and_then(|(_, scope)|

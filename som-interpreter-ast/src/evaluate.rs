@@ -29,28 +29,28 @@ impl Evaluate for ast::Expression {
         match self {
             Self::LocalVarWrite(name, expr) => {
                 let value = propagate!(expr.evaluate(universe));
-                universe.assign_local_1(name, value.clone()) // todo 2 clones? isn't that unnecessary
+                universe.assign_local(name, value.clone()) // todo 2 clones? isn't that unnecessary
                     .map(|_| Return::Local(value.clone()))
                     .unwrap_or_else(||
                         Return::Exception(format!("LocalVarWrite: variable '{}' not found", name)))
             },
             Self::NonLocalVarWrite(name, scope, expr) => {
                 let value = propagate!(expr.evaluate(universe));
-                universe.assign_non_local_1(name, *scope, value.clone())
+                universe.assign_non_local(name, *scope, value.clone())
                     .map(|_| Return::Local(value.clone()))
                     .unwrap_or_else(||
                         Return::Exception(format!("LocalVarWrite: variable '{}' not found", name)))
             },
             Self::FieldWrite(name, expr) => {
                 let value = propagate!(expr.evaluate(universe));
-                universe.assign_field_1(name, value.clone())
+                universe.assign_field(name, value.clone())
                     .map(|_| Return::Local(value.clone()))
                     .unwrap_or_else(||
                         Return::Exception(format!("FieldWrite: variable '{}' not found", name)))
             },
             Self::ArgWrite(name, expr) => {
                 let value = propagate!(expr.evaluate(universe));
-                universe.assign_arg_1(name, value.clone())
+                universe.assign_arg(name, value.clone())
                     .map(|_| Return::Local(value.clone()))
                     .unwrap_or_else(||
                         Return::Exception(format!("ArgWrite: variable '{}' not found", name)))
@@ -58,7 +58,7 @@ impl Evaluate for ast::Expression {
             Self::GlobalWrite(name, expr) => {
                 let value = propagate!(expr.evaluate(universe));
                 universe
-                    .assign_global_1(name, value.clone())
+                    .assign_global(name, value.clone())
                     .map(|_| Return::Local(value))
                     .unwrap_or_else(|| {
                         Return::Exception(format!("variable '{}' not found to assign to", name))
