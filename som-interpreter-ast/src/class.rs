@@ -220,9 +220,9 @@ impl Class {
     }
 
     /// Assign a value to a local binding.
-    pub fn assign_local(&mut self, name: impl AsRef<str>, value: Value) -> Option<()> {
+    pub fn assign_local(&mut self, name: impl AsRef<str>, value: &Value) -> Option<()> {
         if let Some(local) = self.locals.get_mut(name.as_ref()) {
-            *local = value;
+            *local = value.clone();
             return Some(());
         }
         let super_class = self.super_class()?;

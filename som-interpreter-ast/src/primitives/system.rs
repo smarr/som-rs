@@ -159,7 +159,7 @@ fn global_put(universe: &mut Universe, args: Vec<Value>) -> Return {
     ]);
 
     let symbol = universe.lookup_symbol(sym).to_string();
-    universe.assign_global(symbol, value.clone());
+    universe.assign_global(symbol, &value);
     Return::Local(value)
 }
 

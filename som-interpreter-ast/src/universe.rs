@@ -534,19 +534,19 @@ impl Universe {
     }
 
     /// Assign a value to a local binding.
-    pub fn assign_local(&mut self, name: impl AsRef<str>, value: Value) -> Option<()> {
+    pub fn assign_local(&mut self, name: impl AsRef<str>, value: &Value) -> Option<()> {
         self.current_frame().borrow_mut().assign_local(name, value)
     }
 
-    pub fn assign_non_local(&mut self, name: impl AsRef<str>, scope: usize, value: Value) -> Option<()> {
+    pub fn assign_non_local(&mut self, name: impl AsRef<str>, scope: usize, value: &Value) -> Option<()> {
         self.current_frame().borrow_mut().assign_non_local(name, scope, value)
     }
 
-    pub fn assign_field(&mut self, name: impl AsRef<str>, value: Value) -> Option<()> {
+    pub fn assign_field(&mut self, name: impl AsRef<str>, value: &Value) -> Option<()> {
         self.current_frame().borrow_mut().assign_field(name, value)
     }
 
-    pub fn assign_arg(&mut self, name: impl AsRef<str>, value: Value) -> Option<()> {
+    pub fn assign_arg(&mut self, name: impl AsRef<str>, value: &Value) -> Option<()> {
         match name.as_ref() {
             "self" => {
                 panic!("We don't handle the case where we assign to self.")
@@ -556,10 +556,10 @@ impl Universe {
     }
 
     /// Assign a value to a global binding.
-    pub fn assign_global(&mut self, name: impl AsRef<str>, value: Value) -> Option<()> {
+    pub fn assign_global(&mut self, name: impl AsRef<str>, value: &Value) -> Option<()> {
         // this is called by globalwrite. I assume it'll fail badly if the global doesn't actually exist?
         self.globals
-            .insert(name.as_ref().to_string(), value)
+            .insert(name.as_ref().to_string(), value.clone())
             .map(|_| ())
     }
 }

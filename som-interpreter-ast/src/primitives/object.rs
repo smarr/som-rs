@@ -248,7 +248,7 @@ fn inst_var_at_put(universe: &mut Universe, args: Vec<Value>) -> Return {
     let locals = gather_locals(universe, object.class(universe));
     let local = locals
         .get(index)
-        .and_then(|local| object.assign_local(local, value.clone()).map(|_| value))
+        .and_then(|local| object.assign_local(local, &value).map(|_| value))
         .unwrap_or(Value::Nil);
 
     Return::Local(local)
