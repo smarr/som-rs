@@ -149,6 +149,63 @@ impl Frame {
         }
     }
 
+    pub fn assign_local_1(&mut self, name: impl AsRef<str>, value: Value) -> Option<()> {
+        let local = self.bindings.get_mut(name.as_ref()).unwrap();
+        *local = value;
+        Some(())
+    }
+
+    pub fn assign_non_local_1(&mut self, name: impl AsRef<str>, scope: usize, value: Value) -> Option<()> {
+        let mut current_frame: Rc<RefCell<Frame>> = match &self.kind {
+            FrameKind::Block { block, .. } => {
+                Rc::clone(&block.frame)
+            }
+            _ => panic!("attempting to read a non local var from a method instead of a block.")
+        };
+
+        for _ in 1..scope {
+            current_frame = match &Rc::clone(&current_frame).borrow_mut().kind {
+                FrameKind::Block { block, .. } => {
+                    Rc::clone(&block.frame)
+                }
+                _ => panic!("attempting to read a non local var from a method instead of a block.")
+            };
+        }
+
+        let x= current_frame.borrow_mut().assign_local_1(name.as_ref(), value);
+        x
+    }
+
+    pub fn assign_field_1(&mut self, name: impl AsRef<str>, value: Value) -> Option<()> {
+        match &mut self.kind {
+            FrameKind::Block { block } => block.frame.borrow_mut().assign_field_1(name, value),
+            FrameKind::Method { holder, ref mut self_value, .. } => {
+                if let Some(val) = self.bindings.get_mut(name.as_ref()) {
+                    *val = value;
+                    return Some(());
+                } else if holder.borrow().is_static {
+                    holder.borrow_mut().assign_local(name, value)
+                } else {
+                    self_value.assign_local(name, value)
+                }
+            }
+        }
+    }
+
+    pub fn assign_arg_1(&mut self, name: impl AsRef<str>, value: Value) -> Option<()> {
+        if let Some(val) = self.bindings.get_mut(name.as_ref()) {
+            *val = value;
+            return Some(());
+        } else {
+            return match &mut self.kind {
+                FrameKind::Method { ref mut self_value, .. } => {
+                    self_value.assign_local(name, value)
+                }
+                FrameKind::Block { block, .. } => block.frame.borrow_mut().assign_arg_1(name, value),
+            }
+        }
+    }
+
     /// Get the method invocation frame for that frame.
     pub fn method_frame(frame: &SOMRef<Frame>) -> SOMRef<Frame> {
         match frame.borrow().kind() {

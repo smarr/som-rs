@@ -27,15 +27,43 @@ pub trait Evaluate {
 impl Evaluate for ast::Expression {
     fn evaluate(&self, universe: &mut Universe) -> Return {
         match self {
-            Self::Assignment(name, expr) => {
+            Self::LocalVarWrite(name, expr) => {
+                let value = propagate!(expr.evaluate(universe));
+                universe.assign_local_1(name, value.clone()) // todo 2 clones? isn't that unnecessary
+                    .map(|_| Return::Local(value.clone()))
+                    .unwrap_or_else(||
+                        Return::Exception(format!("LocalVarWrite: variable '{}' not found", name)))
+            },
+            Self::NonLocalVarWrite(name, scope, expr) => {
+                let value = propagate!(expr.evaluate(universe));
+                universe.assign_non_local_1(name, *scope, value.clone())
+                    .map(|_| Return::Local(value.clone()))
+                    .unwrap_or_else(||
+                        Return::Exception(format!("LocalVarWrite: variable '{}' not found", name)))
+            },
+            Self::FieldWrite(name, expr) => {
+                let value = propagate!(expr.evaluate(universe));
+                universe.assign_field_1(name, value.clone())
+                    .map(|_| Return::Local(value.clone()))
+                    .unwrap_or_else(||
+                        Return::Exception(format!("FieldWrite: variable '{}' not found", name)))
+            },
+            Self::ArgWrite(name, expr) => {
+                let value = propagate!(expr.evaluate(universe));
+                universe.assign_arg_1(name, value.clone())
+                    .map(|_| Return::Local(value.clone()))
+                    .unwrap_or_else(||
+                        Return::Exception(format!("ArgWrite: variable '{}' not found", name)))
+            },
+            Self::GlobalWrite(name, expr) => {
                 let value = propagate!(expr.evaluate(universe));
                 universe
-                    .assign_local(name, value.clone())
+                    .assign_global_1(name, value.clone())
                     .map(|_| Return::Local(value))
                     .unwrap_or_else(|| {
                         Return::Exception(format!("variable '{}' not found to assign to", name))
                     })
-            }
+            },
             Self::BinaryOp(bin_op) => bin_op.evaluate(universe),
             Self::Block(blk) => blk.evaluate(universe),
             Self::Exit(expr) => {

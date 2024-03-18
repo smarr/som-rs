@@ -538,6 +538,38 @@ impl Universe {
         self.current_frame().borrow_mut().assign_local(name, value)
     }
 
+    pub fn assign_local_1(&mut self, name: impl AsRef<str>, value: Value) -> Option<()> {
+        self.current_frame().borrow_mut().assign_local_1(name, value)
+    }
+
+    pub fn assign_non_local_1(&mut self, name: impl AsRef<str>, scope: usize, value: Value) -> Option<()> {
+        self.current_frame().borrow_mut().assign_non_local_1(name, scope, value)
+    }
+
+    pub fn assign_field_1(&mut self, name: impl AsRef<str>, value: Value) -> Option<()> {
+        self.current_frame().borrow_mut().assign_field_1(name, value)
+    }
+
+    pub fn assign_arg_1(&mut self, name: impl AsRef<str>, value: Value) -> Option<()> {
+        match name.as_ref() {
+            "self" => {
+                panic!("We don't handle the case where we assign to self.")
+            },
+            name => self.current_frame().borrow_mut().assign_arg_1(name, value),
+        }
+    }
+
+    pub fn assign_global_1(&mut self, name: impl AsRef<str>, value: Value) -> Option<()> {
+        match self.globals.contains_key(name.as_ref()) {
+            true => {
+                let g = self.globals.get_mut(name.as_ref()).unwrap();
+                *g = value;
+                Some(())
+            }
+            false => self.assign_global(name, value)
+        }
+    }
+
     /// Assign a value to a global binding.
     pub fn assign_global(&mut self, name: impl AsRef<str>, value: Value) -> Option<()> {
         self.globals

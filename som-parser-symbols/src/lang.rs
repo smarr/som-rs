@@ -331,7 +331,7 @@ pub fn primary<'a>() -> impl Parser<Expression, &'a [Token], AstGenCtxt> {
 
         let (name, input, genctxt) = name_opt.unwrap();
 
-        return genctxt.get_var(&name).and_then(|(_, scope)|
+        genctxt.get_var(&name).and_then(|(_, scope)|
             {
                 match scope {
                     0 => Some((Expression::LocalVarRead(name.clone()), input, genctxt.clone())),
@@ -341,15 +341,32 @@ pub fn primary<'a>() -> impl Parser<Expression, &'a [Token], AstGenCtxt> {
             .or(genctxt.get_param(&name).and_then(|_| Some((Expression::ArgRead(name.clone()), input, genctxt.clone()))))
             .or((name.as_str() == "self").then_some((Expression::ArgRead(name.clone()), input, genctxt.clone()))) // bit lame i thiiink?
             .or(genctxt.class_field_names.iter().find(|v| **v == name).and_then(|_| Some((Expression::FieldRead(name.clone()), input, genctxt.clone()))))
-            .or(Some((Expression::GlobalRead(name.clone()), input, genctxt.clone())));
+            .or(Some((Expression::GlobalRead(name.clone()), input, genctxt.clone())))
     }
 }
 
 pub fn assignment<'a>() -> impl Parser<Expression, &'a [Token], AstGenCtxt> {
-    identifier()
-        .and_left(exact(Token::Assign))
-        .and(opaque!(statement()))
-        .map(|(name, expr)| Expression::Assignment(name, Box::new(expr)))
+    // identifier()
+    //     .and_left(exact(Token::Assign))
+    //     .and(opaque!(statement()))
+    //     .map(|(name, expr)| Expression::GlobalWrite(name, Box::new(expr)))
+    move |input: &'a [Token], genctxt: AstGenCtxt| {
+        let (name, input, genctxt) = identifier().and_left(exact(Token::Assign)).parse(input, genctxt).unwrap();
+        let (expr, input, genctxt) = opaque!(statement()).parse(input, genctxt).unwrap();
+
+        // it's stupid we have to clone expr in this bit. can this be avoided?
+        genctxt.get_var(&name).and_then(|(_, scope)|
+            {
+                match scope {
+                    0 => Some((Expression::LocalVarWrite(name.clone(), Box::new(expr.clone())), input, genctxt.clone())),
+                    _ => Some((Expression::NonLocalVarWrite(name.clone(), scope, Box::new(expr.clone())), input, genctxt.clone()))
+                }
+            })
+            .or(genctxt.get_param(&name).and_then(|_| Some((Expression::ArgWrite(name.clone(), Box::new(expr.clone())), input, genctxt.clone()))))
+            .or((name.as_str() == "self").then_some((Expression::ArgWrite(name.clone(), Box::new(expr.clone())), input, genctxt.clone()))) // bit lame i thiiink?
+            .or(genctxt.class_field_names.iter().find(|v| **v == name).and_then(|_| Some((Expression::FieldWrite(name.clone(), Box::new(expr.clone())), input, genctxt.clone()))))
+            .or(Some((Expression::GlobalWrite(name.clone(), Box::new(expr.clone())), input, genctxt.clone())))
+    }
 }
 
 pub fn statement<'a>() -> impl Parser<Expression, &'a [Token], AstGenCtxt> {
