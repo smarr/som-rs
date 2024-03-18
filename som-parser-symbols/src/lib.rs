@@ -7,6 +7,8 @@
 /// SOM-specific parser combinators.
 pub mod lang;
 
+use std::cell::RefCell;
+use std::rc::Rc;
 use som_core::ast::ClassDef;
 use som_lexer::Token;
 use som_parser_core::{Parser};
@@ -19,19 +21,21 @@ pub enum AstGenCtxtType {
 }
 
 #[derive(Clone, Debug)]
-pub struct AstGenCtxt {
+pub struct AstGenCtxtData {
     kind: AstGenCtxtType, // used for debugging
     name: String, // debugging too
     local_names: Vec<String>,
     param_names: Vec<String>,
     class_field_names: Vec<String>,
     current_scope: usize,
-    outer_ctxt: Option<Box<AstGenCtxt>>,
+    outer_ctxt: Option<AstGenCtxt>,
 }
 
-impl Default for AstGenCtxt {
+pub type AstGenCtxt = Rc<RefCell<AstGenCtxtData>>;
+
+impl Default for AstGenCtxtData {
     fn default() -> Self {
-        AstGenCtxt {
+        AstGenCtxtData {
             kind: AstGenCtxtType::Class,
             name: "NO NAME".to_string(),
             local_names: vec![],
@@ -43,71 +47,40 @@ impl Default for AstGenCtxt {
     }
 }
 
-impl AstGenCtxt {
-    pub fn new_ctxt_from_itself(&self, kind: AstGenCtxtType) -> AstGenCtxt {
-        AstGenCtxt {
+impl AstGenCtxtData {
+    pub fn new_ctxt_from(outer: AstGenCtxt, kind: AstGenCtxtType) -> AstGenCtxt {
+        Rc::new(RefCell::new(
+        AstGenCtxtData {
             kind,
             name: "NO NAME".to_string(),
             local_names: vec![],
             param_names: vec![],
-            class_field_names: self.class_field_names.clone(),
-            current_scope: self.current_scope + 1,
-            outer_ctxt: Some(Box::from(self.clone())),
-        }
+            class_field_names: outer.borrow().class_field_names.clone(),
+            current_scope: outer.borrow().current_scope + 1,
+            outer_ctxt: Some(Rc::clone(&outer)),
+        }))
     }
 
-    pub fn set_name(&self, name: String) -> AstGenCtxt {
-        AstGenCtxt {
-            kind: self.kind,
-            name,
-            local_names: self.local_names.clone(),
-            param_names: self.param_names.clone(),
-            class_field_names: self.class_field_names.clone(),
-            current_scope: self.current_scope,
-            outer_ctxt: self.outer_ctxt.clone(),
-        }
+    pub fn set_name(&mut self, name: String) {
+        self.name = name;
     }
 
     pub fn get_outer(&self) -> AstGenCtxt {
         let outer = self.outer_ctxt.as_ref().unwrap();
-        *outer.clone()
+        Rc::clone(outer)
     }
 
-    pub fn add_fields(&self, fields_names: &Vec<String>) -> AstGenCtxt {
-        AstGenCtxt {
-            kind: self.kind,
-            name: self.name.clone(),
-            local_names: self.local_names.clone(),
-            param_names: self.param_names.clone(),
-            class_field_names: fields_names.clone(),
-            current_scope: self.current_scope,
-            outer_ctxt: self.outer_ctxt.clone(),
-        }
+    pub fn add_fields(&mut self, fields_names: &Vec<String>) {
+        self.class_field_names = fields_names.clone();
     }
 
-    pub fn add_locals(&self, new_locals_names: &Vec<String>) -> AstGenCtxt {
-        AstGenCtxt {
-            kind: self.kind,
-            name: self.name.clone(),
-            local_names: new_locals_names.clone(),
-            param_names: self.param_names.clone(),
-            class_field_names: self.class_field_names.clone(),
-            current_scope: self.current_scope,
-            outer_ctxt: self.outer_ctxt.clone(),
-        }
+    pub fn add_locals(&mut self, new_locals_names: &Vec<String>) {
+        self.local_names = new_locals_names.clone()
     }
 
-    pub fn add_params(&self, parameters: &Vec<String>) -> AstGenCtxt {
+    pub fn add_params(&mut self, parameters: &Vec<String>) {
         assert_ne!(self.kind, AstGenCtxtType::Class); // can't add parameters to a class.
-        AstGenCtxt {
-            kind: self.kind,
-            name: self.name.clone(),
-            local_names: self.local_names.clone(),
-            param_names: parameters.clone(),
-            class_field_names: self.class_field_names.clone(),
-            current_scope: self.current_scope,
-            outer_ctxt: self.outer_ctxt.clone(),
-        }
+        self.param_names = parameters.clone();
     }
 
     pub fn get_var(&self, name: &String) -> Option<(String, usize)> {
@@ -121,7 +94,7 @@ impl AstGenCtxt {
                 if self.outer_ctxt.is_none() {
                     None
                 } else {
-                    self.outer_ctxt.as_ref().unwrap().get_var_rec(name, cur_scope + 1)
+                    self.outer_ctxt.as_ref().unwrap().borrow().get_var_rec(name, cur_scope + 1)
                 }
             }
         }
@@ -138,7 +111,7 @@ impl AstGenCtxt {
                 if self.outer_ctxt.is_none() {
                     None
                 } else {
-                    self.outer_ctxt.as_ref().unwrap().get_param_rec(name, cur_scope + 1)
+                    self.outer_ctxt.as_ref().unwrap().borrow().get_param_rec(name, cur_scope + 1)
                 }
             }
         }

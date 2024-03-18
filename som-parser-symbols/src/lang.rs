@@ -1,8 +1,9 @@
+use std::rc::Rc;
 use som_core::ast::*;
 use som_lexer::Token;
 use som_parser_core::combinators::*;
 use som_parser_core::Parser;
-use crate::{AstGenCtxt, AstGenCtxtType};
+use crate::{AstGenCtxt, AstGenCtxtData, AstGenCtxtType};
 
 macro_rules! opaque {
     ($expr:expr) => {{
@@ -239,16 +240,16 @@ pub fn body<'a>() -> impl Parser<Body, &'a [Token], AstGenCtxt> {
 
 pub fn locals<'a>() -> impl Parser<Vec<String>, &'a [Token], AstGenCtxt> {
     move |input: &'a [Token], genctxt| {
-        let (new_locals_names, input, mut genctxt) = between(exact(Token::Or), many(identifier()), exact(Token::Or)).parse(input, genctxt)?;
-        genctxt = genctxt.add_locals(&new_locals_names);
+        let (new_locals_names, input, genctxt) = between(exact(Token::Or), many(identifier()), exact(Token::Or)).parse(input, genctxt)?;
+        genctxt.borrow_mut().add_locals(&new_locals_names);
         Some((new_locals_names, input, genctxt))
     }
 }
 
 pub fn class_locals<'a>() -> impl Parser<Vec<String>, &'a [Token], AstGenCtxt> {
     move |input: &'a [Token], genctxt| {
-        let (new_locals_names, input, mut genctxt) = between(exact(Token::Or), many(identifier()), exact(Token::Or)).parse(input, genctxt)?;
-        genctxt = genctxt.add_fields(&new_locals_names);
+        let (new_locals_names, input, genctxt) = between(exact(Token::Or), many(identifier()), exact(Token::Or)).parse(input, genctxt)?;
+        genctxt.borrow_mut().add_fields(&new_locals_names);
         Some((new_locals_names, input, genctxt))
     }
 }
@@ -259,8 +260,8 @@ pub fn parameter<'a>() -> impl Parser<String, &'a [Token], AstGenCtxt> {
 
 pub fn parameters<'a>() -> impl Parser<Vec<String>, &'a [Token], AstGenCtxt> {
     move |input: &'a [Token], genctxt: AstGenCtxt| {
-        let (param_names, input, mut genctxt) = some(parameter()).and_left(exact(Token::Or)).parse(input, genctxt)?;
-        genctxt = genctxt.add_params(&param_names);
+        let (param_names, input, genctxt) = some(parameter()).and_left(exact(Token::Or)).parse(input, genctxt)?;
+        genctxt.borrow_mut().add_params(&param_names);
         Some((param_names, input, genctxt))
     }
 }
@@ -281,26 +282,26 @@ pub fn block<'a>() -> impl Parser<Expression, &'a [Token], AstGenCtxt> {
 
 
     move |input: &'a [Token], genctxt| {
-        let (_, input, mut genctxt) = exact(Token::NewBlock).parse(input, genctxt)?;
+        let (_, input, genctxt) = exact(Token::NewBlock).parse(input, genctxt)?;
 
-        genctxt = genctxt.new_ctxt_from_itself(AstGenCtxtType::Block);
-        genctxt = genctxt.set_name("anonymous block".to_string());
+        let new_genctxt = AstGenCtxtData::new_ctxt_from(genctxt, AstGenCtxtType::Block);
+        new_genctxt.borrow_mut().set_name("anonymous block".to_string());
 
         let (((parameters, locals), body), input, genctxt) = default(parameters())
             .and(default(locals()))
             .and(body())
-            .parse(input, genctxt)?;
+            .parse(input, new_genctxt)?;
         // we unwrap here at the risk of panicking since if it fails we would want to adjust the scope - but atm we just panoc instead of recovering
 
-        let (_, input, mut genctxt) = exact(Token::EndBlock).parse(input, genctxt)?;
+        let (_, input, genctxt) = exact(Token::EndBlock).parse(input, genctxt)?;
 
-        genctxt = genctxt.get_outer();
+        let new_genctxt = genctxt.borrow().get_outer();
 
         Some((Expression::Block(Block {
             parameters,
             locals,
             body,
-        }), input, genctxt))
+        }), input, new_genctxt))
     }
 }
 
@@ -324,23 +325,23 @@ pub fn expression<'a>() -> impl Parser<Expression, &'a [Token], AstGenCtxt> {
 
 pub fn primary<'a>() -> impl Parser<Expression, &'a [Token], AstGenCtxt> {
     move |input: &'a [Token], genctxt: AstGenCtxt| {
-        match identifier().parse(input, genctxt.clone()) {
+        match identifier().parse(input, Rc::clone(&genctxt)) {
             None => term()
                 .or(block())
                 .or(literal().map(Expression::Literal))
                 .parse(input, genctxt),
             Some((name, input, genctxt)) => {
-                genctxt.get_var(&name).and_then(|(_, scope)|
+                genctxt.borrow().get_var(&name).and_then(|(_, scope)|
                     {
                         match scope {
-                            0 => Some((Expression::LocalVarRead(name.clone()), input, genctxt.clone())),
-                            _ => Some((Expression::NonLocalVarRead(name.clone(), scope), input, genctxt.clone()))
+                            0 => Some((Expression::LocalVarRead(name.clone()), input, Rc::clone(&genctxt))),
+                            _ => Some((Expression::NonLocalVarRead(name.clone(), scope), input, Rc::clone(&genctxt)))
                         }
                     })
-                    .or(genctxt.get_param(&name).and_then(|_| Some((Expression::ArgRead(name.clone()), input, genctxt.clone()))))
-                    .or((name.as_str() == "self").then_some((Expression::ArgRead(name.clone()), input, genctxt.clone()))) // bit lame we hardcode self i thiiink?
-                    .or(genctxt.class_field_names.iter().find(|v| **v == name).and_then(|_| Some((Expression::FieldRead(name.clone()), input, genctxt.clone()))))
-                    .or(Some((Expression::GlobalRead(name.clone()), input, genctxt.clone())))
+                    .or(genctxt.borrow().get_param(&name).and_then(|_| Some((Expression::ArgRead(name.clone()), input, Rc::clone(&genctxt)))))
+                    .or((name.as_str() == "self").then_some((Expression::ArgRead(name.clone()), input, Rc::clone(&genctxt)))) // bit lame we hardcode self i thiiink?
+                    .or(genctxt.borrow().class_field_names.iter().find(|v| **v == name).and_then(|_| Some((Expression::FieldRead(name.clone()), input, Rc::clone(&genctxt)))))
+                    .or(Some((Expression::GlobalRead(name.clone()), input, Rc::clone(&genctxt))))
             }
         }
     }
@@ -354,17 +355,17 @@ pub fn assignment<'a>() -> impl Parser<Expression, &'a [Token], AstGenCtxt> {
             .and(opaque!(statement())).parse(input, genctxt) {
             Some(((name, expr), input, genctxt)) => {
                 // it's kinda stupid we have to clone expr in this bit. can this be avoided or is this only going to be fixed with Rust's smarter borrow checker
-                genctxt.get_var(&name).and_then(|(_, scope)|
+                genctxt.borrow().get_var(&name).and_then(|(_, scope)|
                     {
                         match scope {
-                            0 => Some((Expression::LocalVarWrite(name.clone(), Box::new(expr.clone())), input, genctxt.clone())),
-                            _ => Some((Expression::NonLocalVarWrite(name.clone(), scope, Box::new(expr.clone())), input, genctxt.clone()))
+                            0 => Some((Expression::LocalVarWrite(name.clone(), Box::new(expr.clone())), input, Rc::clone(&genctxt))),
+                            _ => Some((Expression::NonLocalVarWrite(name.clone(), scope, Box::new(expr.clone())), input, Rc::clone(&genctxt)))
                         }
                     })
-                    .or(genctxt.get_param(&name).and_then(|_| Some((Expression::ArgWrite(name.clone(), Box::new(expr.clone())), input, genctxt.clone()))))
-                    .or((name.as_str() == "self").then_some((Expression::ArgWrite(name.clone(), Box::new(expr.clone())), input, genctxt.clone()))) // bit lame i thiiink?
-                    .or(genctxt.class_field_names.iter().find(|v| **v == name).and_then(|_| Some((Expression::FieldWrite(name.clone(), Box::new(expr.clone())), input, genctxt.clone()))))
-                    .or(Some((Expression::GlobalWrite(name.clone(), Box::new(expr.clone())), input, genctxt.clone())))
+                    .or(genctxt.borrow().get_param(&name).and_then(|_| Some((Expression::ArgWrite(name.clone(), Box::new(expr.clone())), input, Rc::clone(&genctxt)))))
+                    .or((name.as_str() == "self").then_some((Expression::ArgWrite(name.clone(), Box::new(expr.clone())), input, Rc::clone(&genctxt)))) // bit lame i thiiink?
+                    .or(genctxt.borrow().class_field_names.iter().find(|v| **v == name).and_then(|_| Some((Expression::FieldWrite(name.clone(), Box::new(expr.clone())), input, Rc::clone(&genctxt)))))
+                    .or(Some((Expression::GlobalWrite(name.clone(), Box::new(expr.clone())), input, Rc::clone(&genctxt))))
             }
             None => None
         }
@@ -401,11 +402,11 @@ pub fn unary_method_def<'a>() -> impl Parser<MethodDef, &'a [Token], AstGenCtxt>
 
 pub fn positional_method_def<'a>() -> impl Parser<MethodDef, &'a [Token], AstGenCtxt> {
     move |input: &'a [Token], genctxt: AstGenCtxt| {
-        let (pairs, input, mut genctxt) = some(keyword().and(identifier())).and_left(exact(Token::Equal)).parse(input, genctxt)?;
+        let (pairs, input, genctxt) = some(keyword().and(identifier())).and_left(exact(Token::Equal)).parse(input, genctxt)?;
         let (signature, parameters): (String, Vec<String>) = pairs.into_iter().unzip();
 
-        genctxt = genctxt.set_name(signature.clone());
-        genctxt = genctxt.add_params(&parameters);
+        genctxt.borrow_mut().set_name(signature.clone());
+        genctxt.borrow_mut().add_params(&parameters);
 
         let (body, input, genctxt) = primitive().or(method_body()).parse(input, genctxt)?;
 
@@ -421,9 +422,9 @@ pub fn positional_method_def<'a>() -> impl Parser<MethodDef, &'a [Token], AstGen
 
 pub fn operator_method_def<'a>() -> impl Parser<MethodDef, &'a [Token], AstGenCtxt> {
     move |input: &'a [Token], genctxt: AstGenCtxt| {
-        let ((op, rhs), input, mut genctxt) = operator().and(identifier()).and_left(exact(Token::Equal)).parse(input, genctxt)?;
+        let ((op, rhs), input, genctxt) = operator().and(identifier()).and_left(exact(Token::Equal)).parse(input, genctxt)?;
 
-        genctxt = genctxt.add_params(&vec![rhs.clone()]);
+        genctxt.borrow_mut().add_params(&vec![rhs.clone()]);
 
         primitive().or(method_body())
             .map(|body| MethodDef {
@@ -436,15 +437,15 @@ pub fn operator_method_def<'a>() -> impl Parser<MethodDef, &'a [Token], AstGenCt
 
 pub fn method_def<'a>() -> impl Parser<MethodDef, &'a [Token], AstGenCtxt> {
     move |input: &'a [Token], genctxt: AstGenCtxt| {
-        let genctxt = genctxt.new_ctxt_from_itself(AstGenCtxtType::Method);
+        let genctxt = AstGenCtxtData::new_ctxt_from(genctxt, AstGenCtxtType::Method);
 
         match unary_method_def()
             .or(positional_method_def())
             .or(operator_method_def())
-            .parse(input, genctxt.clone()) {
-            Some((method_def, input, mut genctxt)) => {
-                genctxt = genctxt.get_outer();
-                Some((method_def, input, genctxt))
+            .parse(input, Rc::clone(&genctxt)) {
+            Some((method_def, input, genctxt)) => {
+                let original_genctxt = genctxt.borrow().get_outer();
+                Some((method_def, input, original_genctxt))
             },
             None => None,
         }
@@ -453,9 +454,9 @@ pub fn method_def<'a>() -> impl Parser<MethodDef, &'a [Token], AstGenCtxt> {
 
 pub fn class_def<'a>() -> impl Parser<ClassDef, &'a [Token], AstGenCtxt> {
     move |input: &'a [Token], genctxt: AstGenCtxt| {
-        let (name, input, mut genctxt) = identifier().and_left(exact(Token::Equal)).parse(input, genctxt)?;
+        let (name, input, genctxt) = identifier().and_left(exact(Token::Equal)).parse(input, genctxt)?;
 
-        genctxt = genctxt.set_name(name.clone());
+        genctxt.borrow_mut().set_name(name.clone());
 
         optional(identifier())
             .and(between(
