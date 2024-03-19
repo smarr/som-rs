@@ -71,16 +71,16 @@ impl AstGenCtxtData {
     }
 
     pub fn add_fields(&mut self, fields_names: &Vec<String>) {
-        self.class_field_names = fields_names.clone();
+        self.class_field_names.extend(fields_names.iter().cloned());
     }
 
     pub fn add_locals(&mut self, new_locals_names: &Vec<String>) {
-        self.local_names = new_locals_names.clone()
+        self.local_names.extend(new_locals_names.iter().cloned());
     }
 
     pub fn add_params(&mut self, parameters: &Vec<String>) {
         assert_ne!(self.kind, AstGenCtxtType::Class); // can't add parameters to a class.
-        self.param_names = parameters.clone();
+        self.param_names.extend(parameters.iter().cloned());
     }
 
     pub fn get_var(&self, name: &String) -> Option<(String, usize)> {
