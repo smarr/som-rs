@@ -27,19 +27,19 @@ pub trait Evaluate {
 impl Evaluate for ast::Expression {
     fn evaluate(&self, universe: &mut Universe) -> Return {
         match self {
-            Self::LocalVarWrite(name, expr) => {
+            Self::LocalVarWrite(idx, expr) => {
                 let value = propagate!(expr.evaluate(universe)); // TODO: this doesn't call the fastest path for evaluate, still has to dispatch the right expr. potential minor speedup there
-                universe.assign_local(name, &value)
+                universe.assign_local(*idx, &value)
                     .map(|_| Return::Local(value))
                     .unwrap_or_else(||
-                        Return::Exception(format!("LocalVarWrite: variable '{}' not found", name)))
+                        Return::Exception(format!("LocalVarWrite: variable of idx '{}' not found", idx)))
             },
-            Self::NonLocalVarWrite(name, scope, expr) => {
+            Self::NonLocalVarWrite(idx, scope, expr) => {
                 let value = propagate!(expr.evaluate(universe));
-                universe.assign_non_local(name, *scope, &value)
+                universe.assign_non_local(*idx, *scope, &value)
                     .map(|_| Return::Local(value))
                     .unwrap_or_else(||
-                        Return::Exception(format!("LocalVarWrite: variable '{}' not found", name)))
+                        Return::Exception(format!("LocalVarWrite: variable of idx '{}' not found", idx)))
             },
             Self::FieldWrite(name, expr) => {
                 let value = propagate!(expr.evaluate(universe));
@@ -100,17 +100,17 @@ impl Evaluate for ast::Expression {
                 }
             }
             Self::Literal(literal) => literal.evaluate(universe),
-            Self::LocalVarRead(name) => {
-                universe.lookup_local(name)
+            Self::LocalVarRead(idx) => {
+                universe.lookup_local(*idx)
                     .map(|v| Return::Local(v.clone()))
                     .unwrap_or_else(||
-                        Return::Exception(format!("LocalVarRead: variable '{}' not found", name)))
+                        Return::Exception(format!("LocalVarRead: variable of idx '{}' not found", idx)))
             },
-            Self::NonLocalVarRead(name, scope) => {
-                universe.lookup_non_local(name, *scope)
+            Self::NonLocalVarRead(idx, scope) => {
+                universe.lookup_non_local(*idx, *scope)
                     .map(Return::Local)
                     .unwrap_or_else(|| {
-                        Return::Exception(format!("non local variable '{}' not found", name))
+                        Return::Exception(format!("non local variable of idx '{}' not found", idx))
                     })
             },
             Self::FieldRead(name) => {

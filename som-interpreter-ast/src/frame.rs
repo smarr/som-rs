@@ -34,6 +34,10 @@ pub struct Frame {
     pub kind: FrameKind,
     /// The bindings within this frame.
     pub bindings: HashMap<String, Value>,
+    /// Local variables that get defined within this frame.
+    pub locals: Vec<Value>,
+//    /// Parameters for this frame.
+    // pub params: Vec<Value>,
 }
 
 impl Frame {
@@ -41,6 +45,7 @@ impl Frame {
     pub fn from_kind(kind: FrameKind) -> Self {
         Self {
             kind,
+            locals: vec![],
             bindings: HashMap::new(),
         }
     }
@@ -75,11 +80,11 @@ impl Frame {
     }
 
     #[inline] // not sure if necessary
-    pub fn lookup_local(&self, name: impl AsRef<str>) -> Option<Value> {
-        self.bindings.get(name.as_ref()).cloned()
+    pub fn lookup_local(&self, idx: usize) -> Option<Value> {
+        self.locals.get(idx).cloned()
     }
 
-    pub fn lookup_non_local(&self, name: impl AsRef<str>, scope: usize) -> Option<Value> {
+    pub fn lookup_non_local(&self, idx: usize, scope: usize) -> Option<Value> {
         let mut current_frame: Rc<RefCell<Frame>> = match &self.kind {
             FrameKind::Block { block, .. } => {
                 Rc::clone(&block.frame)
@@ -96,7 +101,7 @@ impl Frame {
             };
         }
 
-        let l = current_frame.borrow().lookup_local(name.as_ref());
+        let l = current_frame.borrow().lookup_local(idx);
         l
     }
 
@@ -127,13 +132,13 @@ impl Frame {
     }
 
     /// Assign to a local binding.
-    pub fn assign_local(&mut self, name: impl AsRef<str>, value: &Value) -> Option<()> {
-        let local = self.bindings.get_mut(name.as_ref()).unwrap();
+    pub fn assign_local(&mut self, idx: usize, value: &Value) -> Option<()> {
+        let local = self.locals.get_mut(idx).unwrap();
         *local = value.clone();
         Some(())
     }
 
-    pub fn assign_non_local(&mut self, name: impl AsRef<str>, scope: usize, value: &Value) -> Option<()> {
+    pub fn assign_non_local(&mut self, idx: usize, scope: usize, value: &Value) -> Option<()> {
         let mut current_frame: Rc<RefCell<Frame>> = match &self.kind {
             FrameKind::Block { block, .. } => {
                 Rc::clone(&block.frame)
@@ -150,7 +155,7 @@ impl Frame {
             };
         }
 
-        let x= current_frame.borrow_mut().assign_local(name.as_ref(), value);
+        let x= current_frame.borrow_mut().assign_local(idx, value);
         x
     }
 

@@ -151,13 +151,7 @@ impl Invoke for Block {
                 .cloned()
                 .zip(args.into_iter().skip(1)),
         );
-        current_frame.borrow_mut().bindings.extend(
-            self.block
-                .locals
-                .iter()
-                .cloned()
-                .zip(std::iter::repeat(Value::Nil)),
-        );
+        current_frame.borrow_mut().locals = vec![Value::Nil; self.block.locals.len()];
         self.block.body.evaluate(universe)
     }
 }

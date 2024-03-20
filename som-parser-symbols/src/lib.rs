@@ -83,17 +83,17 @@ impl AstGenCtxtData {
         self.param_names.extend(parameters.iter().cloned());
     }
 
-    pub fn get_local(&self, name: &String) -> Option<String> {
-        self.local_names.iter().find(|local| *local == name).map(|v| v.clone())
+    pub fn get_local(&self, name: &String) -> Option<usize> {
+        self.local_names.iter().position(|local| local == name)
     }
 
-    pub fn get_non_local(&self, name: &String) -> Option<(String, usize)> {
+    pub fn get_non_local(&self, name: &String) -> Option<(usize, usize)> {
         self.get_var_rec(name, 0)
     }
 
-    fn get_var_rec(&self, name: &String, cur_scope: usize) -> Option<(String, usize)> {
-        match self.local_names.iter().find(|local| *local == name) {
-            Some(a) => Some((a.clone(), cur_scope)),
+    fn get_var_rec(&self, name: &String, cur_scope: usize) -> Option<(usize, usize)> {
+        match self.local_names.iter().position(|local| local == name) {
+            Some(idx) => Some((idx, cur_scope)),
             None => {
                 if self.outer_ctxt.is_none() {
                     None

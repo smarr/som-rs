@@ -127,17 +127,17 @@ pub enum Expression {
     /// A reference to a binding (eg. `counter`).
     GlobalRead(String),
     /// Read of a local var.
-    LocalVarRead(String), // todo should be idx into frame (usize) ditto for nonlocal and field
+    LocalVarRead(usize),
     /// Read of a nonlocal var.
-    NonLocalVarRead(String, usize),
+    NonLocalVarRead(usize, usize),
     /// Read of an argument.
     ArgRead(String),
     /// Read of a field.
     FieldRead(String),
     /// An assignment to a binding (eg. `counter := 10`).
     GlobalWrite(String, Box<Expression>),
-    LocalVarWrite(String, Box<Expression>),
-    NonLocalVarWrite(String, usize, Box<Expression>),
+    LocalVarWrite(usize, Box<Expression>),
+    NonLocalVarWrite(usize, usize, Box<Expression>),
     ArgWrite(String, Box<Expression>),
     FieldWrite(String, Box<Expression>),
     /// A message send (eg. `counter incrementBy: 5`).

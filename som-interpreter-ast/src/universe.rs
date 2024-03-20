@@ -496,13 +496,13 @@ impl Universe {
     }
 
     /// Search for a local binding.
-    pub fn lookup_local(&self, name: impl AsRef<str>) -> Option<Value> {
-        self.current_frame().borrow().lookup_local(name)
+    pub fn lookup_local(&self, idx: usize) -> Option<Value> {
+        self.current_frame().borrow().lookup_local(idx)
     }
 
     /// Look up a variable we know to have been defined in another scope.
-    pub fn lookup_non_local(&self, name: impl AsRef<str>, target_scope: usize) -> Option<Value> {
-        self.current_frame().borrow().lookup_non_local(name, target_scope)
+    pub fn lookup_non_local(&self, idx: usize, target_scope: usize) -> Option<Value> {
+        self.current_frame().borrow().lookup_non_local(idx, target_scope)
     }
 
     /// Look up a field.
@@ -534,12 +534,12 @@ impl Universe {
     }
 
     /// Assign a value to a local binding.
-    pub fn assign_local(&mut self, name: impl AsRef<str>, value: &Value) -> Option<()> {
-        self.current_frame().borrow_mut().assign_local(name, value)
+    pub fn assign_local(&mut self, idx: usize, value: &Value) -> Option<()> {
+        self.current_frame().borrow_mut().assign_local(idx, value)
     }
 
-    pub fn assign_non_local(&mut self, name: impl AsRef<str>, scope: usize, value: &Value) -> Option<()> {
-        self.current_frame().borrow_mut().assign_non_local(name, scope, value)
+    pub fn assign_non_local(&mut self, idx: usize, scope: usize, value: &Value) -> Option<()> {
+        self.current_frame().borrow_mut().assign_non_local(idx, scope, value)
     }
 
     pub fn assign_field(&mut self, name: impl AsRef<str>, value: &Value) -> Option<()> {
