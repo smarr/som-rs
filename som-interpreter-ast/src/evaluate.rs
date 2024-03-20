@@ -57,7 +57,7 @@ impl Evaluate for ast::Expression {
             },
             Self::GlobalWrite(name, expr) => {
                 let value = propagate!(expr.evaluate(universe));
-                universe.assign_field(name, &value)
+                universe.assign_field(name, &value) // TODO OBVIOUSLY A BAD SOLUTION. it comes from the fact we can't determine fieldreads to superclass-defined fields in the parser atm
                     .or_else(|| universe.assign_global(name, &value))
                     .map(|_| Return::Local(value))
                     .unwrap_or_else(|| {

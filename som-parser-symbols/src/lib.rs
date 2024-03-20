@@ -83,7 +83,11 @@ impl AstGenCtxtData {
         self.param_names.extend(parameters.iter().cloned());
     }
 
-    pub fn get_var(&self, name: &String) -> Option<(String, usize)> {
+    pub fn get_local(&self, name: &String) -> Option<String> {
+        self.local_names.iter().find(|local| *local == name).map(|v| v.clone())
+    }
+
+    pub fn get_non_local(&self, name: &String) -> Option<(String, usize)> {
         self.get_var_rec(name, 0)
     }
 

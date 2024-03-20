@@ -83,6 +83,7 @@ impl Invoke for Method {
 impl Invoke for ast::MethodDef {
     fn invoke(&self, universe: &mut Universe, args: Vec<Value>) -> Return {
         let current_frame = universe.current_frame().clone();
+        // println!("Invoking {:?}", &self.signature);
         match &self.kind {
             ast::MethodKind::Unary => {}
             ast::MethodKind::Positional { parameters } => current_frame
