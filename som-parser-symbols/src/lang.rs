@@ -460,7 +460,7 @@ pub fn class_def<'a>() -> impl Parser<ClassDef, &'a [Token], AstGenCtxt> {
 
         genctxt.borrow_mut().set_name(name.clone());
 
-        thread::sleep(Duration::from_secs(1));
+        thread::sleep(Duration::from_millis(100));
 
         optional(identifier())
             .and(between(
