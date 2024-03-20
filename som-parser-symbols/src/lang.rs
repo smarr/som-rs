@@ -1,6 +1,4 @@
 use std::rc::Rc;
-use std::thread;
-use std::time::Duration;
 use som_core::ast::*;
 use som_lexer::Token;
 use som_parser_core::combinators::*;
@@ -459,8 +457,6 @@ pub fn class_def<'a>() -> impl Parser<ClassDef, &'a [Token], AstGenCtxt> {
         let (name, input, genctxt) = identifier().and_left(exact(Token::Equal)).parse(input, genctxt)?;
 
         genctxt.borrow_mut().set_name(name.clone());
-
-        thread::sleep(Duration::from_millis(100));
 
         optional(identifier())
             .and(between(
