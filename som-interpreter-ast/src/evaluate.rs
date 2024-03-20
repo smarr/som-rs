@@ -28,7 +28,7 @@ impl Evaluate for ast::Expression {
     fn evaluate(&self, universe: &mut Universe) -> Return {
         match self {
             Self::LocalVarWrite(name, expr) => {
-                let value = propagate!(expr.evaluate(universe));
+                let value = propagate!(expr.evaluate(universe)); // TODO: this doesn't call the fastest path for evaluate, still has to dispatch the right expr. potential minor speedup there
                 universe.assign_local(name, &value)
                     .map(|_| Return::Local(value))
                     .unwrap_or_else(||
@@ -57,11 +57,11 @@ impl Evaluate for ast::Expression {
             },
             Self::GlobalWrite(name, expr) => {
                 let value = propagate!(expr.evaluate(universe));
-                universe
-                    .assign_global(name, &value)
+                universe.assign_field(name, &value)
+                    .or_else(|| universe.assign_global(name, &value))
                     .map(|_| Return::Local(value))
                     .unwrap_or_else(|| {
-                        Return::Exception(format!("variable '{}' not found to assign to", name))
+                        Return::Exception(format!("global variable '{}' not found to assign to", name))
                     })
             },
             Self::BinaryOp(bin_op) => bin_op.evaluate(universe),
@@ -127,14 +127,15 @@ impl Evaluate for ast::Expression {
                         Return::Exception(format!("arg '{}' not found", name))
                     })
             },
-            Self::GlobalRead(name) => universe.lookup_global(name)
+            Self::GlobalRead(name) => universe.lookup_field(name)
+                .or_else(|| universe.lookup_global(name))
                 .map(Return::Local)
                 .or_else(|| {
                     let frame = universe.current_frame();
                     let self_value = frame.borrow().get_self();
                     universe.unknown_global(self_value, name.as_str())
                 })
-                .unwrap_or_else(|| Return::Exception(format!("variable '{}' not found", name))),
+                .unwrap_or_else(|| Return::Exception(format!("global variable '{}' not found", name))),
             Self::Message(msg) => msg.evaluate(universe),
         }
     }

@@ -104,9 +104,7 @@ impl Frame {
         match &self.kind {
             FrameKind::Block { block } => block.frame.borrow().lookup_field(name),
             FrameKind::Method { holder, self_value, .. } => {
-                if let Some(value) = self.bindings.get(name.as_ref()).cloned() {
-                    return Some(value);
-                } else if holder.borrow().is_static {
+                if holder.borrow().is_static {
                     holder.borrow().lookup_local(name)
                 } else {
                     self_value.lookup_local(name)
@@ -160,10 +158,7 @@ impl Frame {
         match &mut self.kind {
             FrameKind::Block { block } => block.frame.borrow_mut().assign_field(name, value),
             FrameKind::Method { holder, ref mut self_value, .. } => {
-                if let Some(val) = self.bindings.get_mut(name.as_ref()) {
-                    *val = value.clone();
-                    return Some(());
-                } else if holder.borrow().is_static {
+                if holder.borrow().is_static {
                     holder.borrow_mut().assign_local(name, value)
                 } else {
                     self_value.assign_local(name, value)

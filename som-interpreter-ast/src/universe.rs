@@ -557,7 +557,6 @@ impl Universe {
 
     /// Assign a value to a global binding.
     pub fn assign_global(&mut self, name: impl AsRef<str>, value: &Value) -> Option<()> {
-        // this is called by globalwrite. I assume it'll fail badly if the global doesn't actually exist?
         self.globals
             .insert(name.as_ref().to_string(), value.clone())
             .map(|_| ())
