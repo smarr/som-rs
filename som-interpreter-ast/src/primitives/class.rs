@@ -85,9 +85,8 @@ fn fields(universe: &mut Universe, args: Vec<Value>) -> Return {
         fields.extend(
             class
                 .borrow()
-                .locals
-                .keys()
-                .map(|field| Value::Symbol(universe.intern_symbol(field))),
+                .locals.clone()
+                // .map(|field| Value::Symbol(universe.intern_symbol(field))),
         );
         fields
     }

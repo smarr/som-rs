@@ -2,12 +2,12 @@ use std::collections::hash_map::DefaultHasher;
 use std::convert::TryFrom;
 use std::hash::{Hash, Hasher};
 
-use crate::class::Class;
 use crate::invokable::{Invoke, Return};
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
 use crate::value::Value;
 use crate::{expect_args, SOMRef};
+use crate::class::Class;
 
 pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[
     ("class", self::class, true),
@@ -225,7 +225,7 @@ fn inst_var_at(universe: &mut Universe, args: Vec<Value>) -> Return {
     let locals = gather_locals(universe, object.class(universe));
     let local = locals
         .get(index)
-        .and_then(|local| object.lookup_local(local))
+        .and_then(|local| object.lookup_local(*local))
         .unwrap_or(Value::Nil);
 
     Return::Local(local)
@@ -248,18 +248,20 @@ fn inst_var_at_put(universe: &mut Universe, args: Vec<Value>) -> Return {
     let locals = gather_locals(universe, object.class(universe));
     let local = locals
         .get(index)
-        .and_then(|local| object.assign_local(local, &value).map(|_| value))
+        .and_then(|local| object.assign_local(*local, &value).map(|_| value))
         .unwrap_or(Value::Nil);
 
     Return::Local(local)
 }
 
-fn gather_locals(universe: &mut Universe, class: SOMRef<Class>) -> Vec<String> {
-    let mut fields = match class.borrow().super_class() {
+fn gather_locals(universe: &mut Universe, class: SOMRef<Class>) -> Vec<usize> {
+    let fields = match class.borrow().super_class() {
         Some(super_class) => gather_locals(universe, super_class),
         None => Vec::new(),
     };
-    fields.extend(class.borrow().locals.keys().cloned());
+    // fields.extend(class.borrow().locals.keys().cloned());
+    // fields.extend(class.borrow().locals.clone());
+    // todo idk maybe
     fields
 }
 

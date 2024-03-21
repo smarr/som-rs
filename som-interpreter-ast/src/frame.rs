@@ -33,21 +33,24 @@ pub struct Frame {
     /// This frame's kind.
     pub kind: FrameKind,
     /// The bindings within this frame.
-    pub bindings: HashMap<String, Value>,
+    pub bindings: HashMap<String, Value>, // todo used for... binaryops?
     /// Local variables that get defined within this frame.
     pub locals: Vec<Value>,
-//    /// Parameters for this frame.
-    // pub params: Vec<Value>,
+    /// Parameters for this frame.
+    pub params: Vec<Value>,
 }
 
 impl Frame {
     /// Construct a new empty frame from its kind.
     pub fn from_kind(kind: FrameKind) -> Self {
-        Self {
+        let mut frame = Self {
             kind,
             locals: vec![], // TODO we can statically determine the length of the locals array here and not have to init it later. does it matter for perf, though? probably not
-            bindings: HashMap::new(),
-        }
+            params: vec![], // ditto for params
+            bindings: HashMap::new()
+        };
+        frame.params.push(frame.get_self());
+        frame
     }
 
     /// Get the frame's kind.
@@ -105,31 +108,31 @@ impl Frame {
         l
     }
 
-    pub fn lookup_field(&self, name: impl AsRef<str>) -> Option<Value> {
+    pub fn lookup_field(&self, idx: usize) -> Option<Value> {
         match &self.kind {
-            FrameKind::Block { block } => block.frame.borrow().lookup_field(name),
+            FrameKind::Block { block } => block.frame.borrow().lookup_field(idx),
             FrameKind::Method { holder, self_value, .. } => {
                 if holder.borrow().is_static {
-                    holder.borrow().lookup_local(name)
+                    holder.borrow().lookup_local(idx)
                 } else {
-                    self_value.lookup_local(name)
+                    self_value.lookup_local(idx)
                 }
             }
         }
     }
 
-    pub fn lookup_arg(&self, name: impl AsRef<str>, scope: usize) -> Option<Value> {
+    pub fn lookup_arg(&self, idx: usize, scope: usize) -> Option<Value> {
         match scope {
-            0 => self.lookup_local_arg(name),
-            _ => self.lookup_non_local_arg(name, scope),
+            0 => self.lookup_local_arg(idx),
+            _ => self.lookup_non_local_arg(idx, scope),
         }
     }
 
-    pub fn lookup_local_arg(&self, name: impl AsRef<str>) -> Option<Value> {
-        self.bindings.get(name.as_ref()).cloned()
+    pub fn lookup_local_arg(&self, idx: usize) -> Option<Value> {
+        self.params.get(idx).cloned()
     }
 
-    pub fn lookup_non_local_arg(&self, name: impl AsRef<str>, scope: usize) -> Option<Value> {
+    pub fn lookup_non_local_arg(&self, idx: usize, scope: usize) -> Option<Value> {
         let mut current_frame: Rc<RefCell<Frame>> = match &self.kind {
             FrameKind::Block { block, .. } => {
                 Rc::clone(&block.frame)
@@ -146,7 +149,7 @@ impl Frame {
             };
         }
 
-        let l = current_frame.borrow().lookup_local_arg(name);
+        let l = current_frame.borrow().lookup_local_arg(idx);
         l
     }
 
@@ -179,29 +182,29 @@ impl Frame {
         x
     }
 
-    pub fn assign_field(&mut self, name: impl AsRef<str>, value: &Value) -> Option<()> {
+    pub fn assign_field(&mut self, idx: usize, value: &Value) -> Option<()> {
         match &mut self.kind {
-            FrameKind::Block { block } => block.frame.borrow_mut().assign_field(name, value),
+            FrameKind::Block { block } => block.frame.borrow_mut().assign_field(idx, value),
             FrameKind::Method { holder, ref mut self_value, .. } => {
                 if holder.borrow().is_static {
-                    holder.borrow_mut().assign_local(name, value)
+                    holder.borrow_mut().assign_local(idx, value)
                 } else {
-                    self_value.assign_local(name, value)
+                    self_value.assign_local(idx, value)
                 }
             }
         }
     }
 
-    pub fn assign_arg(&mut self, name: impl AsRef<str>, scope: usize, value: &Value) -> Option<()> {
-        if let Some(val) = self.bindings.get_mut(name.as_ref()) {
+    pub fn assign_arg(&mut self, idx: usize, scope: usize, value: &Value) -> Option<()> {
+        if let Some(val) = self.params.get_mut(idx) {
             *val = value.clone();
             return Some(());
         } else {
             return match &mut self.kind {
                 FrameKind::Method { ref mut self_value, .. } => {
-                    self_value.assign_local(name, value)
+                    self_value.assign_local(idx, value)
                 }
-                FrameKind::Block { block, .. } => block.frame.borrow_mut().assign_arg(name, scope, value),
+                FrameKind::Block { block, .. } => block.frame.borrow_mut().assign_arg(idx, scope, value),
             }
         }
     }
