@@ -108,10 +108,7 @@ impl Invoke for ast::MethodDef {
         }
         match &self.body {
             ast::MethodBody::Body { locals, body } => {
-                current_frame
-                    .borrow_mut()
-                    .bindings
-                    .extend(locals.iter().cloned().zip(std::iter::repeat(Value::Nil)));
+                current_frame.borrow_mut().locals = vec![Value::Nil; locals.len()];
                 loop {
                     match body.evaluate(universe) {
                         Return::NonLocal(value, frame) => {

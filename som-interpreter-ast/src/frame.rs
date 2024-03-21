@@ -45,7 +45,7 @@ impl Frame {
     pub fn from_kind(kind: FrameKind) -> Self {
         Self {
             kind,
-            locals: vec![],
+            locals: vec![], // TODO we can statically determine the length of the locals array here and not have to init it later. does it matter for perf, though? probably not
             bindings: HashMap::new(),
         }
     }
