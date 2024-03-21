@@ -74,14 +74,20 @@ impl Hash for Value {
 impl Hash for Class {
     fn hash<H: Hasher>(&self, hasher: &mut H) {
         self.name.hash(hasher);
-        self.locals.hash(hasher)
+        self.locals.iter().for_each(|(key, value)| {
+            key.hash(hasher);
+            value.hash(hasher);
+        });
     }
 }
 
 impl Hash for Instance {
     fn hash<H: Hasher>(&self, hasher: &mut H) {
         self.class.borrow().hash(hasher);
-        self.locals.hash(hasher)
+        self.locals.iter().for_each(|(key, value)| {
+            key.hash(hasher);
+            value.hash(hasher);
+        });
     }
 }
 

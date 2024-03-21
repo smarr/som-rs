@@ -33,24 +33,21 @@ pub struct Frame {
     /// This frame's kind.
     pub kind: FrameKind,
     /// The bindings within this frame.
-    pub bindings: HashMap<String, Value>, // todo used for... binaryops?
+    pub bindings: HashMap<String, Value>,
     /// Local variables that get defined within this frame.
     pub locals: Vec<Value>,
-    /// Parameters for this frame.
-    pub params: Vec<Value>,
+//    /// Parameters for this frame.
+    // pub params: Vec<Value>,
 }
 
 impl Frame {
     /// Construct a new empty frame from its kind.
     pub fn from_kind(kind: FrameKind) -> Self {
-        let mut frame = Self {
+        Self {
             kind,
             locals: vec![], // TODO we can statically determine the length of the locals array here and not have to init it later. does it matter for perf, though? probably not
-            params: vec![], // ditto for params
-            bindings: HashMap::new()
-        };
-        frame.params.push(frame.get_self());
-        frame
+            bindings: HashMap::new(),
+        }
     }
 
     /// Get the frame's kind.
@@ -108,28 +105,28 @@ impl Frame {
         l
     }
 
-    pub fn lookup_field(&self, idx: usize) -> Option<Value> {
+    pub fn lookup_field(&self, name: impl AsRef<str>) -> Option<Value> {
         match &self.kind {
-            FrameKind::Block { block } => block.frame.borrow().lookup_field(idx),
+            FrameKind::Block { block } => block.frame.borrow().lookup_field(name),
             FrameKind::Method { holder, self_value, .. } => {
                 if holder.borrow().is_static {
-                    holder.borrow().lookup_local(idx)
+                    holder.borrow().lookup_local(name)
                 } else {
-                    self_value.lookup_local(idx)
+                    self_value.lookup_local(name)
                 }
             }
         }
     }
 
-    pub fn lookup_arg(&self, idx: usize) -> Option<Value> {
-        if let Some(value) = self.params.get(idx).cloned() {
+    pub fn lookup_arg(&self, name: impl AsRef<str>) -> Option<Value> {
+        if let Some(value) = self.bindings.get(name.as_ref()).cloned() {
             return Some(value);
         } else {
             return match &self.kind {
                 FrameKind::Method { self_value, .. } => {
-                    self_value.lookup_local(idx) // confused by this, frankly. args as stored as method locals?
+                    self_value.lookup_local(name) // confused by this, frankly. args as stored as method locals?
                 }
-                FrameKind::Block { block, .. } => block.frame.borrow().lookup_arg(idx),
+                FrameKind::Block { block, .. } => block.frame.borrow().lookup_arg(name),
             }
         }
     }
@@ -162,29 +159,29 @@ impl Frame {
         x
     }
 
-    pub fn assign_field(&mut self, idx: usize, value: &Value) -> Option<()> {
+    pub fn assign_field(&mut self, name: impl AsRef<str>, value: &Value) -> Option<()> {
         match &mut self.kind {
-            FrameKind::Block { block } => block.frame.borrow_mut().assign_field(idx, value),
+            FrameKind::Block { block } => block.frame.borrow_mut().assign_field(name, value),
             FrameKind::Method { holder, ref mut self_value, .. } => {
                 if holder.borrow().is_static {
-                    holder.borrow_mut().assign_local(idx, value)
+                    holder.borrow_mut().assign_local(name, value)
                 } else {
-                    self_value.assign_local(idx, value)
+                    self_value.assign_local(name, value)
                 }
             }
         }
     }
 
-    pub fn assign_arg(&mut self, idx: usize, value: &Value) -> Option<()> {
-        if let Some(val) = self.params.get_mut(idx) {
+    pub fn assign_arg(&mut self, name: impl AsRef<str>, value: &Value) -> Option<()> {
+        if let Some(val) = self.bindings.get_mut(name.as_ref()) {
             *val = value.clone();
             return Some(());
         } else {
             return match &mut self.kind {
                 FrameKind::Method { ref mut self_value, .. } => {
-                    self_value.assign_local(idx, value)
+                    self_value.assign_local(name, value)
                 }
-                FrameKind::Block { block, .. } => block.frame.borrow_mut().assign_arg(idx, value),
+                FrameKind::Block { block, .. } => block.frame.borrow_mut().assign_arg(name, value),
             }
         }
     }

@@ -31,7 +31,7 @@ pub struct Class {
     // TODO: Should probably be `Option<SOMRef<Class>>`.
     pub super_class: SOMWeakRef<Class>,
     /// The class' locals.
-    pub locals: Vec<Value>,
+    pub locals: IndexMap<String, Value>,
     /// The class' methods/invokables.
     pub methods: IndexMap<String, Rc<Method>>,
     /// Is this class a static one ?
@@ -71,7 +71,7 @@ impl Class {
             name: format!("{} class", defn.name),
             class: MaybeWeak::Weak(Weak::new()),
             super_class: Weak::new(),
-            locals: vec![Value::Nil; static_locals.len()],
+            locals: static_locals,
             methods: IndexMap::new(),
             is_static: true,
         }));
@@ -80,7 +80,7 @@ impl Class {
             name: defn.name.clone(),
             class: MaybeWeak::Strong(static_class.clone()),
             super_class: Weak::new(),
-            locals: vec![Value::Nil; instance_locals.len()],
+            locals: instance_locals,
             methods: IndexMap::new(),
             is_static: false,
         }));
@@ -210,22 +210,23 @@ impl Class {
     }
 
     /// Search for a local binding.
-    pub fn lookup_local(&self, idx: usize) -> Option<Value> {
-        self.locals.get(idx).cloned().or_else(|| {
+    pub fn lookup_local(&self, name: impl AsRef<str>) -> Option<Value> {
+        let name = name.as_ref();
+        self.locals.get(name).cloned().or_else(|| {
             let super_class = self.super_class()?;
-            let local = super_class.borrow_mut().lookup_local(idx)?;
+            let local = super_class.borrow_mut().lookup_local(name)?;
             Some(local)
         })
     }
 
     /// Assign a value to a local binding.
-    pub fn assign_local(&mut self, idx: usize, value: &Value) -> Option<()> {
-        if let Some(local) = self.locals.get_mut(idx) {
+    pub fn assign_local(&mut self, name: impl AsRef<str>, value: &Value) -> Option<()> {
+        if let Some(local) = self.locals.get_mut(name.as_ref()) {
             *local = value.clone();
             return Some(());
         }
         let super_class = self.super_class()?;
-        super_class.borrow_mut().assign_local(idx, value)?;
+        super_class.borrow_mut().assign_local(name, value)?;
         Some(())
     }
 }
@@ -234,7 +235,7 @@ impl fmt::Debug for Class {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("Class")
             .field("name", &self.name)
-            .field("locals", &self.locals)
+            .field("locals", &self.locals.keys())
             // .field("class", &self.class)
             // .field("super_class", &self.super_class)
             .finish()

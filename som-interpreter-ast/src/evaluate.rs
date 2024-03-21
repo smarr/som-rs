@@ -32,32 +32,33 @@ impl Evaluate for ast::Expression {
                 universe.assign_local(*idx, &value)
                     .map(|_| Return::Local(value))
                     .unwrap_or_else(||
-                        Return::Exception(format!("local var write: idx '{}' not found", idx)))
+                        Return::Exception(format!("LocalVarWrite: variable of idx '{}' not found", idx)))
             },
             Self::NonLocalVarWrite(scope, idx, expr) => {
                 let value = propagate!(expr.evaluate(universe));
                 universe.assign_non_local(*idx, *scope, &value)
                     .map(|_| Return::Local(value))
                     .unwrap_or_else(||
-                        Return::Exception(format!("non local var write: idx '{}' not found", idx)))
+                        Return::Exception(format!("LocalVarWrite: variable of idx '{}' not found", idx)))
             },
-            Self::FieldWrite(idx, expr) => {
+            Self::FieldWrite(name, expr) => {
                 let value = propagate!(expr.evaluate(universe));
-                universe.assign_field(*idx, &value)
+                universe.assign_field(name, &value)
                     .map(|_| Return::Local(value))
                     .unwrap_or_else(||
-                        Return::Exception(format!("field write: idx '{}' not found", idx)))
+                        Return::Exception(format!("FieldWrite: variable '{}' not found", name)))
             },
-            Self::ArgWrite(idx, expr) => {
+            Self::ArgWrite(name, expr) => {
                 let value = propagate!(expr.evaluate(universe));
-                universe.assign_arg(*idx, &value)
+                universe.assign_arg(name, &value)
                     .map(|_| Return::Local(value))
                     .unwrap_or_else(||
-                        Return::Exception(format!("arg write: idx '{}' not found", idx)))
+                        Return::Exception(format!("ArgWrite: variable '{}' not found", name)))
             },
             Self::GlobalWrite(name, expr) => {
                 let value = propagate!(expr.evaluate(universe));
-                universe.assign_global(name, &value)
+                universe.assign_field(name, &value) // TODO OBVIOUSLY A BAD SOLUTION. it comes from the fact we can't determine fieldreads to superclass-defined fields in the parser atm
+                    .or_else(|| universe.assign_global(name, &value))
                     .map(|_| Return::Local(value))
                     .unwrap_or_else(|| {
                         Return::Exception(format!("global variable '{}' not found to assign to", name))
@@ -103,30 +104,31 @@ impl Evaluate for ast::Expression {
                 universe.lookup_local(*idx)
                     .map(|v| Return::Local(v.clone()))
                     .unwrap_or_else(||
-                        Return::Exception(format!("local var read: idx '{}' not found", idx)))
+                        Return::Exception(format!("LocalVarRead: variable of idx '{}' not found", idx)))
             },
             Self::NonLocalVarRead(scope, idx) => {
                 universe.lookup_non_local(*idx, *scope)
                     .map(Return::Local)
                     .unwrap_or_else(|| {
-                        Return::Exception(format!("non local var read: idx '{}' not found", idx))
+                        Return::Exception(format!("non local variable of idx '{}' not found", idx))
                     })
             },
-            Self::FieldRead(idx) => {
-                universe.lookup_field(*idx)
+            Self::FieldRead(name) => {
+                universe.lookup_field(name)
                     .map(Return::Local)
                     .unwrap_or_else(|| {
-                        Return::Exception(format!("field read: idx '{}' not found", idx))
+                        Return::Exception(format!("field '{}' not found", name))
                     })
             },
-            Self::ArgRead(idx) => {
-                universe.lookup_arg(*idx)
+            Self::ArgRead(name) => {
+                universe.lookup_arg(name)
                     .map(Return::Local)
                     .unwrap_or_else(|| {
-                        Return::Exception(format!("arg read: idx '{}' not found", idx))
+                        Return::Exception(format!("arg '{}' not found", name))
                     })
             },
-            Self::GlobalRead(name) => universe.lookup_global(name)
+            Self::GlobalRead(name) => universe.lookup_field(name)
+                .or_else(|| universe.lookup_global(name))
                 .map(Return::Local)
                 .or_else(|| {
                     let frame = universe.current_frame();

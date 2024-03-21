@@ -104,13 +104,13 @@ impl AstGenCtxtData {
         }
     }
 
-    pub fn get_param(&self, name: &String) -> Option<(usize, usize)> {
-        self.get_param_rec(name, 0).and_then(|(idx, scope)| Some((idx + 1, scope))) // since self is the first argument, you need to add 1
+    pub fn get_param(&self, name: &String) -> Option<(String, usize)> {
+        self.get_param_rec(name, 0)
     }
 
-    fn get_param_rec(&self, name: &String, cur_scope: usize) -> Option<(usize, usize)> {
-        match self.param_names.iter().position(|local| local == name) {
-            Some(idx) => Some((idx, cur_scope)),
+    fn get_param_rec(&self, name: &String, cur_scope: usize) -> Option<(String, usize)> {
+        match self.param_names.iter().find(|local| *local == name) {
+            Some(a) => Some((a.clone(), cur_scope)),
             None => {
                 if self.outer_ctxt.is_none() {
                     None

@@ -1,4 +1,5 @@
 use std::cell::RefCell;
+use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::fs;
 use std::io;
@@ -298,7 +299,7 @@ impl Universe {
             let class = Class::from_class_def(defn).map_err(Error::msg)?;
             set_super_class(&class, &super_class, &self.core.metaclass_class);
 
-            /*fn has_duplicated_field(class: &SOMRef<Class>) -> Option<(String, (String, String))> {
+            fn has_duplicated_field(class: &SOMRef<Class>) -> Option<(String, (String, String))> {
                 let super_class_iterator = std::iter::successors(Some(class.clone()), |class| {
                     class.borrow().super_class()
                 });
@@ -318,9 +319,9 @@ impl Universe {
                     }
                 }
                 return None;
-            }*/
+            }
 
-            /*if let Some((field, (c1, c2))) = has_duplicated_field(&class) {
+            if let Some((field, (c1, c2))) = has_duplicated_field(&class) {
                 return Err(anyhow!(
                     "the field named '{}' is defined more than once (by '{}' and '{}', where the latter inherits from the former)",
                     field, c1, c2,
@@ -332,7 +333,7 @@ impl Universe {
                     "the field named '{}' is defined more than once (by '{}' and '{}', where the latter inherits from the former)",
                     field, c1, c2,
                 ));
-            }*/
+            }
 
             self.globals.insert(
                 class.borrow().name().to_string(),
@@ -505,12 +506,19 @@ impl Universe {
     }
 
     /// Look up a field.
-    pub fn lookup_field(&self, idx: usize) -> Option<Value> {
-        self.current_frame().borrow().lookup_field(idx)
+    pub fn lookup_field(&self, name: impl AsRef<str>) -> Option<Value> {
+        self.current_frame().borrow().lookup_field(name)
     }
 
-    pub fn lookup_arg(&self, idx: usize) -> Option<Value> {
-        self.current_frame().borrow().lookup_arg(idx)
+    pub fn lookup_arg(&self, name: impl AsRef<str>) -> Option<Value> {
+        match name.as_ref() {
+            "self" => {
+                let frame = self.current_frame();
+                let self_value = frame.borrow().get_self();
+                Some(self_value)
+            },
+            name => self.current_frame().borrow().lookup_arg(name),
+        }
     }
 
     /// Returns whether a global binding of the specified name exists.
@@ -534,12 +542,17 @@ impl Universe {
         self.current_frame().borrow_mut().assign_non_local(idx, scope, value)
     }
 
-    pub fn assign_field(&mut self, idx: usize, value: &Value) -> Option<()> {
-        self.current_frame().borrow_mut().assign_field(idx, value)
+    pub fn assign_field(&mut self, name: impl AsRef<str>, value: &Value) -> Option<()> {
+        self.current_frame().borrow_mut().assign_field(name, value)
     }
 
-    pub fn assign_arg(&mut self, idx: usize, value: &Value) -> Option<()> {
-        self.current_frame().borrow_mut().assign_arg(idx, value)
+    pub fn assign_arg(&mut self, name: impl AsRef<str>, value: &Value) -> Option<()> {
+        match name.as_ref() {
+            "self" => {
+                panic!("We don't handle the case where we assign to self.")
+            },
+            name => self.current_frame().borrow_mut().assign_arg(name, value),
+        }
     }
 
     /// Assign a value to a global binding.

@@ -73,19 +73,19 @@ impl Value {
     }
 
     /// Search for a local binding within this value.
-    pub fn lookup_local(&self, idx: usize) -> Option<Self> {
+    pub fn lookup_local(&self, name: impl AsRef<str>) -> Option<Self> {
         match self {
-            Self::Instance(instance) => instance.borrow().lookup_local(idx),
-            Self::Class(class) => class.borrow().lookup_local(idx),
+            Self::Instance(instance) => instance.borrow().lookup_local(name),
+            Self::Class(class) => class.borrow().lookup_local(name),
             _ => None,
         }
     }
 
     /// Assign a value to a local binding within this value.
-    pub fn assign_local(&mut self, idx: usize, value: &Self) -> Option<()> {
+    pub fn assign_local(&mut self, name: impl AsRef<str>, value: &Self) -> Option<()> {
         match self {
-            Self::Instance(instance) => instance.borrow_mut().assign_local(idx, value.clone()),
-            Self::Class(class) => class.borrow_mut().assign_local(idx, value),
+            Self::Instance(instance) => instance.borrow_mut().assign_local(name, value.clone()),
+            Self::Class(class) => class.borrow_mut().assign_local(name, value),
             _ => None,
         }
     }

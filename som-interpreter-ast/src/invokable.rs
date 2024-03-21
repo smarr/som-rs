@@ -32,8 +32,6 @@ pub trait Invoke {
 
 impl Invoke for Method {
     fn invoke(&self, universe: &mut Universe, args: Vec<Value>) -> Return {
-        println!("--- Invoking \"{:1}\" ({:2})", &self.signature, &self.holder.upgrade().unwrap().borrow().name);
-        println!("--- ...with args: {:?}", &args);
         let output = match self.kind() {
             MethodKind::Defined(method) => {
                 let (self_value, params) = {
@@ -85,15 +83,14 @@ impl Invoke for Method {
 impl Invoke for ast::MethodDef {
     fn invoke(&self, universe: &mut Universe, args: Vec<Value>) -> Return {
         let current_frame = universe.current_frame().clone();
-        // dbg!(&self.body);
-
+        // println!("Invoking {:?}", &self.signature);
         match &self.kind {
             ast::MethodKind::Unary => {}
-            ast::MethodKind::Positional { .. } => current_frame
+            ast::MethodKind::Positional { parameters } => current_frame
                 .borrow_mut()
-                .params
-                .extend(args),
-            ast::MethodKind::Operator { .. } => {
+                .bindings
+                .extend(parameters.iter().cloned().zip(args)),
+            ast::MethodKind::Operator { rhs } => {
                 let rhs_value = match args.into_iter().next() {
                     Some(value) => value,
                     None => {
@@ -105,8 +102,8 @@ impl Invoke for ast::MethodDef {
                 };
                 current_frame
                     .borrow_mut()
-                    .params
-                    .push(rhs_value);
+                    .bindings
+                    .insert(rhs.clone(), rhs_value);
             }
         }
         match &self.body {
@@ -144,15 +141,13 @@ impl Invoke for ast::MethodDef {
 impl Invoke for Block {
     fn invoke(&self, universe: &mut Universe, args: Vec<Value>) -> Return {
         let current_frame = universe.current_frame();
-        // current_frame.borrow_mut().bindings.extend(
-        //     self.block
-        //         .parameters
-        //         .iter()
-        //         .cloned()
-        //         .zip(args.into_iter().skip(1)),
-        // );
-        current_frame.borrow_mut().params.extend(args);
-
+        current_frame.borrow_mut().bindings.extend(
+            self.block
+                .parameters
+                .iter()
+                .cloned()
+                .zip(args.into_iter().skip(1)),
+        );
         current_frame.borrow_mut().locals = vec![Value::Nil; self.block.locals.len()];
         self.block.body.evaluate(universe)
     }
