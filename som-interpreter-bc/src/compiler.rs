@@ -272,7 +272,7 @@ impl MethodCodegen for ast::Expression {
                 Some(())
             },
             ast::Expression::GlobalRead(name) | ast::Expression::FieldRead(name)
-            | ast::Expression::ArgRead(name) => { // TODO this can be refactored: split find_var() into specialized methods who already know what they're looking for.
+            | ast::Expression::ArgRead(name, _) => { // TODO this can be refactored: split find_var() into specialized methods who already know what they're looking for.
                 match ctxt.find_var(name.as_str()) {
                     Some(FoundVar::Local(..)) => {
                         panic!("Should have been caught by the (Non)LocalVarRead expressions")
@@ -303,7 +303,7 @@ impl MethodCodegen for ast::Expression {
                 Some(())
             },
             ast::Expression::GlobalWrite(name, expr) | ast::Expression::FieldWrite(name, expr)
-                | ast::Expression::ArgWrite(name, expr)  => { // TODO ditto - see prev todo
+                | ast::Expression::ArgWrite(name, _, expr)  => { // TODO ditto - see prev todo
                 expr.codegen(ctxt)?;
                 ctxt.push_instr(Bytecode::Dup);
                 match ctxt.find_var(name.as_str())? {

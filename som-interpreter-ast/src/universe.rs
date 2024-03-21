@@ -510,14 +510,14 @@ impl Universe {
         self.current_frame().borrow().lookup_field(name)
     }
 
-    pub fn lookup_arg(&self, name: impl AsRef<str>) -> Option<Value> {
+    pub fn lookup_arg(&self, name: impl AsRef<str>, scope: usize) -> Option<Value> {
         match name.as_ref() {
             "self" => {
                 let frame = self.current_frame();
                 let self_value = frame.borrow().get_self();
                 Some(self_value)
             },
-            name => self.current_frame().borrow().lookup_arg(name),
+            name => self.current_frame().borrow().lookup_arg(name, scope),
         }
     }
 
@@ -546,12 +546,12 @@ impl Universe {
         self.current_frame().borrow_mut().assign_field(name, value)
     }
 
-    pub fn assign_arg(&mut self, name: impl AsRef<str>, value: &Value) -> Option<()> {
+    pub fn assign_arg(&mut self, name: impl AsRef<str>, scope: usize, value: &Value) -> Option<()> {
         match name.as_ref() {
             "self" => {
                 panic!("We don't handle the case where we assign to self.")
             },
-            name => self.current_frame().borrow_mut().assign_arg(name, value),
+            name => self.current_frame().borrow_mut().assign_arg(name, scope, value),
         }
     }
 

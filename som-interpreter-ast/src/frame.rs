@@ -118,18 +118,38 @@ impl Frame {
         }
     }
 
-    pub fn lookup_arg(&self, name: impl AsRef<str>) -> Option<Value> {
-        if let Some(value) = self.bindings.get(name.as_ref()).cloned() {
-            return Some(value);
-        } else {
-            return match &self.kind {
-                FrameKind::Method { self_value, .. } => {
-                    self_value.lookup_local(name) // confused by this, frankly. args as stored as method locals?
-                }
-                FrameKind::Block { block, .. } => block.frame.borrow().lookup_arg(name),
-            }
+    pub fn lookup_arg(&self, name: impl AsRef<str>, scope: usize) -> Option<Value> {
+        match scope {
+            0 => self.lookup_local_arg(name),
+            _ => self.lookup_non_local_arg(name, scope),
         }
     }
+
+    pub fn lookup_local_arg(&self, name: impl AsRef<str>) -> Option<Value> {
+        self.bindings.get(name.as_ref()).cloned()
+    }
+
+    pub fn lookup_non_local_arg(&self, name: impl AsRef<str>, scope: usize) -> Option<Value> {
+        let mut current_frame: Rc<RefCell<Frame>> = match &self.kind {
+            FrameKind::Block { block, .. } => {
+                Rc::clone(&block.frame)
+            },
+            _ => panic!("looking up a non local arg from the root of a method?")
+        };
+
+        for _ in 1..scope {
+            current_frame = match &Rc::clone(&current_frame).borrow().kind {
+                FrameKind::Block { block, .. } => {
+                    Rc::clone(&block.frame)
+                }
+                _ => panic!("...why is this never reached in practice? because methods contain a framekind::block?")
+            };
+        }
+
+        let l = current_frame.borrow().lookup_local_arg(name);
+        l
+    }
+
 
     /// Assign to a local binding.
     pub fn assign_local(&mut self, idx: usize, value: &Value) -> Option<()> {
@@ -172,7 +192,7 @@ impl Frame {
         }
     }
 
-    pub fn assign_arg(&mut self, name: impl AsRef<str>, value: &Value) -> Option<()> {
+    pub fn assign_arg(&mut self, name: impl AsRef<str>, scope: usize, value: &Value) -> Option<()> {
         if let Some(val) = self.bindings.get_mut(name.as_ref()) {
             *val = value.clone();
             return Some(());
@@ -181,7 +201,7 @@ impl Frame {
                 FrameKind::Method { ref mut self_value, .. } => {
                     self_value.assign_local(name, value)
                 }
-                FrameKind::Block { block, .. } => block.frame.borrow_mut().assign_arg(name, value),
+                FrameKind::Block { block, .. } => block.frame.borrow_mut().assign_arg(name, scope, value),
             }
         }
     }

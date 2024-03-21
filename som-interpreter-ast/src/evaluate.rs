@@ -48,9 +48,9 @@ impl Evaluate for ast::Expression {
                     .unwrap_or_else(||
                         Return::Exception(format!("FieldWrite: variable '{}' not found", name)))
             },
-            Self::ArgWrite(name, expr) => {
+            Self::ArgWrite(name, scope, expr) => {
                 let value = propagate!(expr.evaluate(universe));
-                universe.assign_arg(name, &value)
+                universe.assign_arg(name, *scope, &value)
                     .map(|_| Return::Local(value))
                     .unwrap_or_else(||
                         Return::Exception(format!("ArgWrite: variable '{}' not found", name)))
@@ -120,8 +120,8 @@ impl Evaluate for ast::Expression {
                         Return::Exception(format!("field '{}' not found", name))
                     })
             },
-            Self::ArgRead(name) => {
-                universe.lookup_arg(name)
+            Self::ArgRead(name, scope) => {
+                universe.lookup_arg(name, *scope)
                     .map(Return::Local)
                     .unwrap_or_else(|| {
                         Return::Exception(format!("arg '{}' not found", name))

@@ -131,14 +131,14 @@ pub enum Expression {
     /// Read of a nonlocal var.
     NonLocalVarRead(usize, usize),
     /// Read of an argument.
-    ArgRead(String),
+    ArgRead(String, usize),
     /// Read of a field.
     FieldRead(String),
     /// An assignment to a binding (eg. `counter := 10`).
     GlobalWrite(String, Box<Expression>),
     LocalVarWrite(usize, Box<Expression>),
     NonLocalVarWrite(usize, usize, Box<Expression>),
-    ArgWrite(String, Box<Expression>),
+    ArgWrite(String, usize, Box<Expression>),
     FieldWrite(String, Box<Expression>),
     /// A message send (eg. `counter incrementBy: 5`).
     Message(Message),

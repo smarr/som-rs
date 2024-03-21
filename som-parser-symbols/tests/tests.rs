@@ -165,7 +165,7 @@ fn primary_test() {
             locals: vec![],
             body: Body {
                 exprs: vec![Expression::Message(Message {
-                    receiver: Box::new(Expression::ArgRead(String::from("self"))),
+                    receiver: Box::new(Expression::ArgRead(String::from("self"), 0)),
                     signature: String::from("fib:"),
                     values: vec![Expression::BinaryOp(BinaryOp {
                         op: String::from("+"),
@@ -175,7 +175,7 @@ fn primary_test() {
                             rhs: Box::new(Expression::Literal(Literal::Integer(1))),
                         })),
                         rhs: Box::new(Expression::Message(Message {
-                            receiver: Box::new(Expression::ArgRead(String::from("self"))),
+                            receiver: Box::new(Expression::ArgRead(String::from("self"), 0)),
                             signature: String::from("fib:"),
                             values: vec![Expression::BinaryOp(BinaryOp {
                                 op: String::from("-"),
