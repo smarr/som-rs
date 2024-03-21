@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::fmt;
 
 use crate::class::Class;
@@ -11,26 +10,26 @@ pub struct Instance {
     /// The class of which this is an instance from.
     pub class: SOMRef<Class>,
     /// This instance's locals.
-    pub locals: HashMap<String, Value>,
+    pub locals: Vec<Value>,
 }
 
 impl Instance {
     /// Construct an instance for a given class.
     pub fn from_class(class: SOMRef<Class>) -> Self {
-        let mut locals = HashMap::new();
+        let mut locals = vec![];
 
-        fn collect_locals(class: &SOMRef<Class>, locals: &mut HashMap<String, Value>) {
+        fn collect_locals(class: &SOMRef<Class>, locals: &mut Vec<Value>) {
             if let Some(class) = class.borrow().super_class() {
                 collect_locals(&class, locals);
             }
-            locals.extend(
-                class
-                    .borrow()
-                    .locals
-                    .keys()
-                    .cloned()
-                    .zip(std::iter::repeat(Value::Nil)),
-            );
+
+            locals.extend(vec![Value::Nil; class.borrow().locals.len()]);
+                // class
+                //     .borrow()
+                //     .locals
+                //     .iter()
+                //     .zip(std::iter::repeat(Value::Nil)),
+            // );
         }
 
         collect_locals(&class, &mut locals);
@@ -49,13 +48,13 @@ impl Instance {
     }
 
     /// Search for a local binding.
-    pub fn lookup_local(&self, name: impl AsRef<str>) -> Option<Value> {
-        self.locals.get(name.as_ref()).cloned()
+    pub fn lookup_local(&self, idx: usize) -> Option<Value> {
+        self.locals.get(idx).cloned()
     }
 
     /// Assign a value to a local binding.
-    pub fn assign_local(&mut self, name: impl AsRef<str>, value: Value) -> Option<()> {
-        *self.locals.get_mut(name.as_ref())? = value;
+    pub fn assign_local(&mut self, idx: usize, value: Value) -> Option<()> {
+        *self.locals.get_mut(idx)? = value;
         Some(())
     }
 }
@@ -64,7 +63,7 @@ impl fmt::Debug for Instance {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Instance")
             .field("name", &self.class.borrow().name())
-            .field("locals", &self.locals.keys())
+            .field("locals", &self.locals)
             .finish()
     }
 }
