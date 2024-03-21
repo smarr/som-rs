@@ -263,13 +263,19 @@ impl MethodCodegen for ast::Body {
 impl MethodCodegen for ast::Expression {
     fn codegen(&self, ctxt: &mut dyn InnerGenCtxt) -> Option<()> {
         match self {
-            ast::Expression::LocalVarRead(idx) => {ctxt.push_instr(Bytecode::PushLocal(0, *idx as u8)); Some(())},
-            ast::Expression::NonLocalVarRead(up_idx, idx) => {ctxt.push_instr(Bytecode::PushLocal(*up_idx as u8, *idx as u8)); Some(())},
+            ast::Expression::LocalVarRead(idx) => {
+                ctxt.push_instr(Bytecode::PushLocal(0, *idx as u8));
+                Some(())
+            },
+            ast::Expression::NonLocalVarRead(up_idx, idx) => {
+                ctxt.push_instr(Bytecode::PushLocal(*up_idx as u8, *idx as u8));
+                Some(())
+            },
             ast::Expression::GlobalRead(name) | ast::Expression::FieldRead(name)
             | ast::Expression::ArgRead(name) => { // TODO this can be refactored: split find_var() into specialized methods who already know what they're looking for.
                 match ctxt.find_var(name.as_str()) {
-                    Some(FoundVar::Local(up_idx, idx)) => {
-                        ctxt.push_instr(Bytecode::PushLocal(up_idx, idx))
+                    Some(FoundVar::Local(..)) => {
+                        panic!("Should have been caught by the (Non)LocalVarRead expressions")
                     }
                     Some(FoundVar::Argument(up_idx, idx)) => {
                         ctxt.push_instr(Bytecode::PushArgument(up_idx, idx))
@@ -286,21 +292,23 @@ impl MethodCodegen for ast::Expression {
                 }
                 Some(())
             }
-            ast::Expression::LocalVarWrite(idx, expr) => {
+            ast::Expression::LocalVarWrite(_, expr) | ast::Expression::NonLocalVarWrite(_, _, expr) => {
                 expr.codegen(ctxt)?;
-                ctxt.push_instr(Bytecode::PopLocal(0, *idx as u8)); Some(())
-            },
-            ast::Expression::NonLocalVarWrite(up_idx, idx, expr) => {
-                expr.codegen(ctxt)?;
-                ctxt.push_instr(Bytecode::PopLocal(*up_idx as u8, *idx as u8)); Some(())
+                ctxt.push_instr(Bytecode::Dup);
+                match self {
+                    ast::Expression::LocalVarWrite(idx, _) => ctxt.push_instr(Bytecode::PopLocal(0, *idx as u8)),
+                    ast::Expression::NonLocalVarWrite(up_idx, idx, _) => ctxt.push_instr(Bytecode::PopLocal(*up_idx as u8, *idx as u8)),
+                    _ => unreachable!()
+                }
+                Some(())
             },
             ast::Expression::GlobalWrite(name, expr) | ast::Expression::FieldWrite(name, expr)
                 | ast::Expression::ArgWrite(name, expr)  => { // TODO ditto - see prev todo
                 expr.codegen(ctxt)?;
                 ctxt.push_instr(Bytecode::Dup);
                 match ctxt.find_var(name.as_str())? {
-                    FoundVar::Local(up_idx, idx) => {
-                        ctxt.push_instr(Bytecode::PopLocal(up_idx, idx))
+                    FoundVar::Local(..) => {
+                        panic!("Should have been caught by the (Non)LocalVarWrite expressions")
                     }
                     FoundVar::Argument(up_idx, idx) => {
                         ctxt.push_instr(Bytecode::PopArgument(up_idx, idx))
