@@ -34,7 +34,7 @@ impl Evaluate for ast::Expression {
                     .unwrap_or_else(||
                         Return::Exception(format!("LocalVarWrite: variable of idx '{}' not found", idx)))
             },
-            Self::NonLocalVarWrite(idx, scope, expr) => {
+            Self::NonLocalVarWrite(scope, idx, expr) => {
                 let value = propagate!(expr.evaluate(universe));
                 universe.assign_non_local(*idx, *scope, &value)
                     .map(|_| Return::Local(value))
@@ -106,7 +106,7 @@ impl Evaluate for ast::Expression {
                     .unwrap_or_else(||
                         Return::Exception(format!("LocalVarRead: variable of idx '{}' not found", idx)))
             },
-            Self::NonLocalVarRead(idx, scope) => {
+            Self::NonLocalVarRead(scope, idx) => {
                 universe.lookup_non_local(*idx, *scope)
                     .map(Return::Local)
                     .unwrap_or_else(|| {

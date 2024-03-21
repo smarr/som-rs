@@ -72,13 +72,13 @@ fn block_test() {
             body: Body {
                 exprs: vec![
                     Expression::LocalVarWrite(
-                        String::from("local"),
+                        0,
                         Box::new(Expression::Literal(Literal::String(String::from(
                             "this is correct"
                         ))))
                     ),
                     Expression::Message(Message {
-                        receiver: Box::new(Expression::LocalVarRead(String::from("local"))),
+                        receiver: Box::new(Expression::LocalVarRead(0)),
                         signature: String::from("println"),
                         values: vec![],
                     })

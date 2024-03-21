@@ -263,8 +263,9 @@ impl MethodCodegen for ast::Body {
 impl MethodCodegen for ast::Expression {
     fn codegen(&self, ctxt: &mut dyn InnerGenCtxt) -> Option<()> {
         match self {
-            ast::Expression::GlobalRead(name) | ast::Expression::LocalVarRead(name)
-            | ast::Expression::NonLocalVarRead(name, _) | ast::Expression::FieldRead(name)
+            ast::Expression::LocalVarRead(idx) => {ctxt.push_instr(Bytecode::PushLocal(0, *idx as u8)); Some(())},
+            ast::Expression::NonLocalVarRead(up_idx, idx) => {ctxt.push_instr(Bytecode::PushLocal(*up_idx as u8, *idx as u8)); Some(())},
+            ast::Expression::GlobalRead(name) | ast::Expression::FieldRead(name)
             | ast::Expression::ArgRead(name) => { // TODO this can be refactored: split find_var() into specialized methods who already know what they're looking for.
                 match ctxt.find_var(name.as_str()) {
                     Some(FoundVar::Local(up_idx, idx)) => {
@@ -285,8 +286,15 @@ impl MethodCodegen for ast::Expression {
                 }
                 Some(())
             }
-            ast::Expression::GlobalWrite(name, expr) | ast::Expression::LocalVarWrite(name, expr)
-                | ast::Expression::NonLocalVarWrite(name, _, expr) | ast::Expression::FieldWrite(name, expr)
+            ast::Expression::LocalVarWrite(idx, expr) => {
+                expr.codegen(ctxt)?;
+                ctxt.push_instr(Bytecode::PopLocal(0, *idx as u8)); Some(())
+            },
+            ast::Expression::NonLocalVarWrite(up_idx, idx, expr) => {
+                expr.codegen(ctxt)?;
+                ctxt.push_instr(Bytecode::PopLocal(*up_idx as u8, *idx as u8)); Some(())
+            },
+            ast::Expression::GlobalWrite(name, expr) | ast::Expression::FieldWrite(name, expr)
                 | ast::Expression::ArgWrite(name, expr)  => { // TODO ditto - see prev todo
                 expr.codegen(ctxt)?;
                 ctxt.push_instr(Bytecode::Dup);
