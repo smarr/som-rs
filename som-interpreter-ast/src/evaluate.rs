@@ -48,7 +48,7 @@ impl Evaluate for ast::Expression {
                     .unwrap_or_else(||
                         Return::Exception(format!("field write: idx '{}' not found", idx)))
             },
-            Self::ArgWrite(idx, scope, expr) => {
+            Self::ArgWrite(scope, idx, expr) => {
                 let value = propagate!(expr.evaluate(universe));
                 universe.assign_arg(*idx, *scope, &value)
                     .map(|_| Return::Local(value))
@@ -119,7 +119,7 @@ impl Evaluate for ast::Expression {
                         Return::Exception(format!("field read: idx '{}' not found", idx))
                     })
             },
-            Self::ArgRead(idx, scope) => {
+            Self::ArgRead(scope, idx) => {
                 universe.lookup_arg(*idx, *scope)
                     .map(Return::Local)
                     .unwrap_or_else(|| {

@@ -105,7 +105,7 @@ impl AstGenCtxtData {
     }
 
     pub fn get_param(&self, name: &String) -> Option<(usize, usize)> {
-        self.get_param_rec(name, 0).and_then(|(idx, scope)| Some((idx + 1, scope))) // since self is the first argument, you need to add 1
+        self.get_param_rec(name, 0).and_then(|(idx, scope)| Some((idx + 1, scope))) // since self is the first argument, we need to add 1
     }
 
     fn get_param_rec(&self, name: &String, cur_scope: usize) -> Option<(usize, usize)> {

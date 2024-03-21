@@ -63,7 +63,7 @@ impl fmt::Debug for Instance {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Instance")
             .field("name", &self.class.borrow().name())
-            .field("locals", &self.locals)
+            .field("fields", &self.locals.len())
             .finish()
     }
 }

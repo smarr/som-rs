@@ -266,29 +266,27 @@ impl MethodCodegen for ast::Expression {
             ast::Expression::LocalVarRead(idx) => {
                 ctxt.push_instr(Bytecode::PushLocal(0, *idx as u8));
                 Some(())
-            },
+            }
             ast::Expression::NonLocalVarRead(up_idx, idx) => {
                 ctxt.push_instr(Bytecode::PushLocal(*up_idx as u8, *idx as u8));
                 Some(())
-            },
-            ast::Expression::GlobalRead(name) | ast::Expression::FieldRead(name)
-            | ast::Expression::ArgRead(name, _) => { // TODO this can be refactored: split find_var() into specialized methods who already know what they're looking for.
-                match ctxt.find_var(name.as_str()) {
-                    Some(FoundVar::Local(..)) => {
-                        panic!("Should have been caught by the (Non)LocalVarRead expressions")
+            }
+            ast::Expression::FieldRead(idx) => {
+                ctxt.push_instr(Bytecode::PushField(*idx as u8));
+                Some(())
+            }
+            ast::Expression::ArgRead(up_idx, idx) => {
+                ctxt.push_instr(Bytecode::PushArgument(*up_idx as u8, *idx as u8));
+                Some(())
+            }
+            ast::Expression::GlobalRead(name) => { // TODO this can be refactored: split find_var() into specialized methods who already know what they're looking for.
+                match name.as_str() {
+                    "nil" => ctxt.push_instr(Bytecode::PushNil),
+                    _ => {
+                        let name = ctxt.intern_symbol(name);
+                        let idx = ctxt.push_literal(Literal::Symbol(name));
+                        ctxt.push_instr(Bytecode::PushGlobal(idx as u8));
                     }
-                    Some(FoundVar::Argument(up_idx, idx)) => {
-                        ctxt.push_instr(Bytecode::PushArgument(up_idx, idx))
-                    }
-                    Some(FoundVar::Field(idx)) => ctxt.push_instr(Bytecode::PushField(idx)),
-                    None => match name.as_str() {
-                        "nil" => ctxt.push_instr(Bytecode::PushNil),
-                        _ => {
-                            let name = ctxt.intern_symbol(name);
-                            let idx = ctxt.push_literal(Literal::Symbol(name));
-                            ctxt.push_instr(Bytecode::PushGlobal(idx as u8));
-                        }
-                    },
                 }
                 Some(())
             }
@@ -301,21 +299,21 @@ impl MethodCodegen for ast::Expression {
                     _ => unreachable!()
                 }
                 Some(())
-            },
-            ast::Expression::GlobalWrite(name, expr) | ast::Expression::FieldWrite(name, expr)
-                | ast::Expression::ArgWrite(name, _, expr)  => { // TODO ditto - see prev todo
+            }
+            ast::Expression::FieldWrite(idx, expr) => {
                 expr.codegen(ctxt)?;
                 ctxt.push_instr(Bytecode::Dup);
-                match ctxt.find_var(name.as_str())? {
-                    FoundVar::Local(..) => {
-                        panic!("Should have been caught by the (Non)LocalVarWrite expressions")
-                    }
-                    FoundVar::Argument(up_idx, idx) => {
-                        ctxt.push_instr(Bytecode::PopArgument(up_idx, idx))
-                    }
-                    FoundVar::Field(idx) => ctxt.push_instr(Bytecode::PopField(idx)),
-                }
+                ctxt.push_instr(Bytecode::PopField(*idx as u8));
                 Some(())
+            }
+            ast::Expression::ArgWrite(up_idx, idx, expr) => {
+                expr.codegen(ctxt)?;
+                ctxt.push_instr(Bytecode::Dup);
+                ctxt.push_instr(Bytecode::PopArgument(*up_idx as u8, *idx as u8));
+                Some(())
+            }
+            ast::Expression::GlobalWrite(..) => {
+                panic!("was unreachable outside of locals/args/fields in the original code?")
             }
             ast::Expression::Message(message) => {
                 let super_send = match message.receiver.as_ref() {

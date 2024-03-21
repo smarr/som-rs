@@ -234,7 +234,7 @@ impl fmt::Debug for Class {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("Class")
             .field("name", &self.name)
-            .field("locals", &self.locals)
+            .field("fields", &self.locals.len())
             // .field("class", &self.class)
             // .field("super_class", &self.super_class)
             .finish()

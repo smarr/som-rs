@@ -333,7 +333,7 @@ pub fn primary<'a>() -> impl Parser<Expression, &'a [Token], AstGenCtxt> {
             Some((name, input, genctxt)) => {
                 genctxt.borrow().get_local(&name) // TODO known bug: checking params of ANY scope before non locals of any scope can mess up if the non local is closer, since it should have priority.
                     .and_then(|idx| Some((Expression::LocalVarRead(idx), input, Rc::clone(&genctxt))))
-                    .or(genctxt.borrow().get_param(&name).and_then(|(idx, scope)| Some((Expression::ArgRead(idx, scope), input, Rc::clone(&genctxt)))))
+                    .or(genctxt.borrow().get_param(&name).and_then(|(idx, scope)| Some((Expression::ArgRead(scope, idx), input, Rc::clone(&genctxt)))))
                     .or(genctxt.borrow().get_non_local(&name).and_then(|(idx, scope)| Some((Expression::NonLocalVarRead(scope, idx), input, Rc::clone(&genctxt)))))
                     .or((name.as_str() == "self").then_some((Expression::ArgRead(0, 0), input, Rc::clone(&genctxt)))) // bit lame we hardcode self i thiiink?
                     .or(genctxt.borrow().class_field_names.iter().position(|v| **v == name).and_then(|idx| Some((Expression::FieldRead(idx), input, Rc::clone(&genctxt)))))
@@ -352,7 +352,7 @@ pub fn assignment<'a>() -> impl Parser<Expression, &'a [Token], AstGenCtxt> {
             Some(((name, expr), input, genctxt)) => {
                 // it's kinda stupid we have to clone expr in this bit. can this be avoided or is this only going to be fixed with Rust's smarter borrow checker
                 genctxt.borrow().get_local(&name).and_then(|idx| Some((Expression::LocalVarWrite(idx, Box::new(expr.clone())), input, Rc::clone(&genctxt))))
-                    .or(genctxt.borrow().get_param(&name).and_then(|(idx, scope)| Some((Expression::ArgWrite(idx, scope, Box::new(expr.clone())), input, Rc::clone(&genctxt)))))
+                    .or(genctxt.borrow().get_param(&name).and_then(|(idx, scope)| Some((Expression::ArgWrite(scope, idx, Box::new(expr.clone())), input, Rc::clone(&genctxt)))))
                     .or(genctxt.borrow().get_non_local(&name).and_then(|(idx, scope)| Some((Expression::NonLocalVarWrite(scope, idx, Box::new(expr.clone())), input, Rc::clone(&genctxt)))))
                     .or((name.as_str() == "self").then_some((Expression::ArgWrite(0, 0, Box::new(expr.clone())), input, Rc::clone(&genctxt)))) // bit lame i thiiink?
                     .or(genctxt.borrow().class_field_names.iter().position(|v| **v == name).and_then(|idx| Some((Expression::FieldWrite(idx, Box::new(expr.clone())), input, Rc::clone(&genctxt)))))

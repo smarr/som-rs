@@ -70,6 +70,7 @@ impl Invoke for Method {
                 Return::Exception(format!("unimplemented primitive: {}", name))
             }
         };
+        println!("...exiting {:}.", self.signature);
         match output {
             // Return::Exception(msg) => Return::Exception(format!(
             //     "from {}>>#{}\n{}",
@@ -85,7 +86,10 @@ impl Invoke for Method {
 impl Invoke for ast::MethodDef {
     fn invoke(&self, universe: &mut Universe, args: Vec<Value>) -> Return {
         let current_frame = universe.current_frame().clone();
-        // dbg!(&self.body);
+        if &self.signature == "doIndexes:" {
+            dbg!(&self.body);
+        }
+
 
         match &self.kind {
             ast::MethodKind::Unary => {}
@@ -143,6 +147,8 @@ impl Invoke for ast::MethodDef {
 
 impl Invoke for Block {
     fn invoke(&self, universe: &mut Universe, args: Vec<Value>) -> Return {
+        println!("Invoking a block.");
+        dbg!(&self.block.body);
         let current_frame = universe.current_frame();
         // current_frame.borrow_mut().bindings.extend(
         //     self.block
@@ -154,6 +160,8 @@ impl Invoke for Block {
         current_frame.borrow_mut().params.extend(args);
 
         current_frame.borrow_mut().locals = vec![Value::Nil; self.block.locals.len()];
-        self.block.body.evaluate(universe)
+        let l = self.block.body.evaluate(universe);
+        println!("...exiting a block.");
+        l
     }
 }
