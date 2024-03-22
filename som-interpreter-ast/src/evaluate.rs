@@ -28,7 +28,8 @@ impl Evaluate for ast::Expression {
     fn evaluate(&self, universe: &mut Universe) -> Return {
         match self {
             Self::LocalVarWrite(idx, expr) => {
-                let value = propagate!(expr.evaluate(universe)); // TODO: this doesn't call the fastest path for evaluate, still has to dispatch the right expr. potential minor speedup there
+                // TODO: this doesn't call the fastest path for evaluate, still has to dispatch the right expr even though it's always a var write. potential minor speedup there
+                let value = propagate!(expr.evaluate(universe));
                 universe.assign_local(*idx, &value)
                     .map(|_| Return::Local(value))
                     .unwrap_or_else(||

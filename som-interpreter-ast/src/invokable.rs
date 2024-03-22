@@ -86,9 +86,10 @@ impl Invoke for Method {
 impl Invoke for ast::MethodDef {
     fn invoke(&self, universe: &mut Universe, args: Vec<Value>) -> Return {
         let current_frame = universe.current_frame().clone();
-        if &self.signature == "doIndexes:" {
-            dbg!(&self.body);
-        }
+        // if &self.signature == "initialize:" {
+        //     dbg!(&self.body);
+        // std::process::exit(1);
+        // }
 
 
         match &self.kind {
@@ -148,7 +149,7 @@ impl Invoke for ast::MethodDef {
 impl Invoke for Block {
     fn invoke(&self, universe: &mut Universe, args: Vec<Value>) -> Return {
         println!("Invoking a block.");
-        dbg!(&self.block.body);
+        // dbg!(&self.block.body);
         let current_frame = universe.current_frame();
         // current_frame.borrow_mut().bindings.extend(
         //     self.block

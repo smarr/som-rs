@@ -102,9 +102,6 @@ impl AstGenCtxtData {
     }
 
     fn find_var(&self, name: &String) -> Option<FoundVar> {
-        if name == "self" { //} || name == "super"  {
-            return Some(FoundVar::Argument(0, 0))
-        }
         self.get_local(name)
             .map(|idx| FoundVar::Local(0, idx))
             .or_else(|| self.get_param(name).map(|idx| FoundVar::Argument(0, idx)))
@@ -121,8 +118,11 @@ impl AstGenCtxtData {
             })
     }
     fn get_var_read(&self, name: &String) -> Expression {
-        let found_var = self.find_var(name);
-        match found_var {
+        if name == "self" {
+            return Expression::ArgRead(0, 0);
+        }
+
+        match self.find_var(name) {
             None => Expression::GlobalRead(name.clone()),
             Some(v) => {
                 match v {
@@ -132,7 +132,7 @@ impl AstGenCtxtData {
                             _ => Expression::NonLocalVarRead(up_idx, idx)
                         }
                     },
-                    FoundVar::Argument(up_idx, idx) => Expression::ArgRead(up_idx, idx),
+                    FoundVar::Argument(up_idx, idx) => Expression::ArgRead(up_idx, idx + 1),
                     FoundVar::Field(idx) => Expression::FieldRead(idx)
                 }
             }
@@ -140,8 +140,11 @@ impl AstGenCtxtData {
     }
 
     fn get_var_write(&self, name: &String, expr: Box<Expression>) -> Expression {
-        let found_var = self.find_var(name);
-        match found_var {
+        if name == "self" {
+            return Expression::ArgWrite(0, 0, expr);
+        }
+
+        match self.find_var(name) {
             None => Expression::GlobalWrite(name.clone(), expr),
             Some(v) => {
                 match v {
@@ -151,7 +154,7 @@ impl AstGenCtxtData {
                             _ => Expression::NonLocalVarWrite(up_idx, idx, expr)
                         }
                     },
-                    FoundVar::Argument(up_idx, idx) => Expression::ArgWrite(up_idx, idx, expr),
+                    FoundVar::Argument(up_idx, idx) => Expression::ArgWrite(up_idx, idx + 1, expr), // + 1 to adjust for self
                     FoundVar::Field(idx) => Expression::FieldWrite(idx, expr)
                 }
             }
