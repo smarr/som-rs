@@ -9,7 +9,7 @@ pub mod lang;
 
 use std::cell::RefCell;
 use std::rc::Rc;
-use som_core::ast::ClassDef;
+use som_core::ast::{ClassDef, Expression};
 use som_lexer::Token;
 use som_parser_core::{Parser};
 
@@ -33,6 +33,12 @@ pub struct AstGenCtxtData {
 
 pub type AstGenCtxt = Rc<RefCell<AstGenCtxtData>>;
 
+enum FoundVar {
+    Local(usize, usize),
+    Argument(usize, usize),
+    Field(usize),
+}
+
 impl Default for AstGenCtxtData {
     fn default() -> Self {
         AstGenCtxtData {
@@ -55,7 +61,7 @@ impl AstGenCtxtData {
             name: "NO NAME".to_string(),
             local_names: vec![],
             param_names: vec![],
-            class_field_names: outer.borrow().class_field_names.clone(),
+            class_field_names: vec![],
             current_scope: outer.borrow().current_scope + 1,
             outer_ctxt: Some(Rc::clone(&outer)),
         }))
@@ -87,35 +93,66 @@ impl AstGenCtxtData {
         self.local_names.iter().position(|local| local == name)
     }
 
-    pub fn get_non_local(&self, name: &String) -> Option<(usize, usize)> {
-        self.get_var_rec(name, 0)
+    pub fn get_param(&self, name: &String) -> Option<usize> {
+        self.param_names.iter().position(|local| *local == *name)
     }
 
-    fn get_var_rec(&self, name: &String, cur_scope: usize) -> Option<(usize, usize)> {
-        match self.local_names.iter().position(|local| local == name) {
-            Some(idx) => Some((idx, cur_scope)),
-            None => {
-                if self.outer_ctxt.is_none() {
-                    None
-                } else {
-                    self.outer_ctxt.as_ref().unwrap().borrow().get_var_rec(name, cur_scope + 1)
+    pub fn get_field(&self, name: &String) -> Option<usize> {
+        self.class_field_names.iter().position(|c| c == name)
+    }
+
+    fn find_var(&self, name: &String) -> Option<FoundVar> {
+        if name == "self" { //} || name == "super"  {
+            return Some(FoundVar::Argument(0, 0))
+        }
+        self.get_local(name)
+            .map(|idx| FoundVar::Local(0, idx))
+            .or_else(|| self.get_param(name).map(|idx| FoundVar::Argument(0, idx)))
+            .or_else(|| self.get_field(name).map(|idx| FoundVar::Field(idx)))
+            .or_else(|| {
+                match &self.outer_ctxt.as_ref() {
+                    None => None,
+                    Some(outer) => outer.borrow().find_var(name).map(|found| match found {
+                        FoundVar::Local(up_idx, idx) => FoundVar::Local(up_idx + 1, idx),
+                        FoundVar::Argument(up_idx, idx) => FoundVar::Argument(up_idx + 1, idx),
+                        FoundVar::Field(idx) => FoundVar::Field(idx),
+                    })
+                }
+            })
+    }
+    fn get_var_read(&self, name: &String) -> Expression {
+        let found_var = self.find_var(name);
+        match found_var {
+            None => Expression::GlobalRead(name.clone()),
+            Some(v) => {
+                match v {
+                    FoundVar::Local(up_idx, idx) => {
+                        match up_idx {
+                            0 => Expression::LocalVarRead(idx),
+                            _ => Expression::NonLocalVarRead(up_idx, idx)
+                        }
+                    },
+                    FoundVar::Argument(up_idx, idx) => Expression::ArgRead(up_idx, idx),
+                    FoundVar::Field(idx) => Expression::FieldRead(idx)
                 }
             }
         }
     }
 
-    pub fn get_param(&self, name: &String) -> Option<(usize, usize)> {
-        self.get_param_rec(name, 0).and_then(|(idx, scope)| Some((idx + 1, scope))) // since self is the first argument, we need to add 1
-    }
-
-    fn get_param_rec(&self, name: &String, cur_scope: usize) -> Option<(usize, usize)> {
-        match self.param_names.iter().position(|local| local == name) {
-            Some(idx) => Some((idx, cur_scope)),
-            None => {
-                if self.outer_ctxt.is_none() {
-                    None
-                } else {
-                    self.outer_ctxt.as_ref().unwrap().borrow().get_param_rec(name, cur_scope + 1)
+    fn get_var_write(&self, name: &String, expr: Box<Expression>) -> Expression {
+        let found_var = self.find_var(name);
+        match found_var {
+            None => Expression::GlobalWrite(name.clone(), expr),
+            Some(v) => {
+                match v {
+                    FoundVar::Local(up_idx, idx) => {
+                        match up_idx {
+                            0 => Expression::LocalVarWrite(idx, expr),
+                            _ => Expression::NonLocalVarWrite(up_idx, idx, expr)
+                        }
+                    },
+                    FoundVar::Argument(up_idx, idx) => Expression::ArgWrite(up_idx, idx, expr),
+                    FoundVar::Field(idx) => Expression::FieldWrite(idx, expr)
                 }
             }
         }
