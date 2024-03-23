@@ -32,8 +32,23 @@ pub trait Invoke {
 
 impl Invoke for Method {
     fn invoke(&self, universe: &mut Universe, args: Vec<Value>) -> Return {
-        println!("--- Invoking \"{:1}\" ({:2})", &self.signature, &self.holder.upgrade().unwrap().borrow().name);
-        println!("--- ...with args: {:?}", &args);
+        // println!("--- Invoking \"{:1}\" ({:2})", &self.signature, &self.holder.upgrade().unwrap().borrow().name);
+        // println!("--- ...with args: {:?}", &args);
+        //
+        // if self.signature == "at:" {
+        //     dbg!("wow");
+        // }
+        //
+        // if !universe.frames.is_empty() {
+        //     match &universe.current_method_frame().as_ref().borrow().kind {
+        //         FrameKind::Block { .. } => {}
+        //         FrameKind::Method { signature, holder, .. } => {
+        //             println!("We're in {:?} ({:?})", universe.lookup_symbol(signature.clone()),
+        //                      holder.borrow().name)
+        //         }
+        //     }
+        // }
+
         let output = match self.kind() {
             MethodKind::Defined(method) => {
                 let (self_value, params) = {
@@ -41,7 +56,7 @@ impl Invoke for Method {
                     let receiver = match iter.next() {
                         Some(receiver) => receiver,
                         None => {
-                            return Return::Exception("missing receiver for invocation".to_string())
+                            return Return::Exception("missing receiver for invocation".to_string());
                         }
                     };
                     (receiver, iter.collect::<Vec<_>>())
@@ -52,7 +67,7 @@ impl Invoke for Method {
                         return Return::Exception(
                             "cannot invoke this method because its holder has been collected"
                                 .to_string(),
-                        )
+                        );
                     }
                 };
                 let signature = universe.intern_symbol(&self.signature);
@@ -70,7 +85,7 @@ impl Invoke for Method {
                 Return::Exception(format!("unimplemented primitive: {}", name))
             }
         };
-        println!("...exiting {:}.", self.signature);
+        // println!("...exiting {:}.", self.signature);
         match output {
             // Return::Exception(msg) => Return::Exception(format!(
             //     "from {}>>#{}\n{}",
@@ -148,7 +163,7 @@ impl Invoke for ast::MethodDef {
 
 impl Invoke for Block {
     fn invoke(&self, universe: &mut Universe, args: Vec<Value>) -> Return {
-        println!("Invoking a block.");
+        // println!("Invoking a block.");
         // dbg!(&self.block.body);
         let current_frame = universe.current_frame();
         // current_frame.borrow_mut().bindings.extend(
@@ -158,11 +173,12 @@ impl Invoke for Block {
         //         .cloned()
         //         .zip(args.into_iter().skip(1)),
         // );
-        current_frame.borrow_mut().params.extend(args);
+        current_frame.borrow_mut().params.extend(args.into_iter().skip(1)); // skip self
+
 
         current_frame.borrow_mut().locals = vec![Value::Nil; self.block.locals.len()];
         let l = self.block.body.evaluate(universe);
-        println!("...exiting a block.");
+        // println!("...exiting a block.");
         l
     }
 }

@@ -140,9 +140,9 @@ impl AstGenCtxtData {
     }
 
     fn get_var_write(&self, name: &String, expr: Box<Expression>) -> Expression {
-        if name == "self" {
-            return Expression::ArgWrite(0, 0, expr);
-        }
+        // if name == "self" {
+        //     return Expression::ArgWrite(0, 0, expr); // but really, this isn't a thing... right?
+        // }
 
         match self.find_var(name) {
             None => Expression::GlobalWrite(name.clone(), expr),
