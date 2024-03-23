@@ -271,7 +271,7 @@ impl MethodCodegen for ast::Expression {
                 ctxt.push_instr(Bytecode::PushLocal(*up_idx as u8, *idx as u8));
                 Some(())
             }
-            ast::Expression::FieldRead(idx) => {
+            ast::Expression::FieldRead(idx, _) => {
                 ctxt.push_instr(Bytecode::PushField(*idx as u8));
                 Some(())
             }
@@ -279,7 +279,7 @@ impl MethodCodegen for ast::Expression {
                 ctxt.push_instr(Bytecode::PushArgument(*up_idx as u8, *idx as u8));
                 Some(())
             }
-            ast::Expression::GlobalRead(name) => { // TODO this can be refactored: split find_var() into specialized methods who already know what they're looking for.
+            ast::Expression::GlobalRead(name) => {
                 match name.as_str() {
                     "nil" => ctxt.push_instr(Bytecode::PushNil),
                     _ => {
@@ -300,7 +300,8 @@ impl MethodCodegen for ast::Expression {
                 }
                 Some(())
             }
-            ast::Expression::FieldWrite(idx, expr) => {
+            ast::Expression::FieldWrite(idx, _, expr) => {
+                // todo take kind into account here too
                 expr.codegen(ctxt)?;
                 ctxt.push_instr(Bytecode::Dup);
                 ctxt.push_instr(Bytecode::PopField(*idx as u8));
@@ -313,7 +314,7 @@ impl MethodCodegen for ast::Expression {
                 Some(())
             }
             ast::Expression::GlobalWrite(..) => {
-                panic!("was unreachable outside of locals/args/fields in the original code?")
+                panic!("was unreachable in the original som-rs code? i guess not used in the benchmarks, but TODO")
             }
             ast::Expression::Message(message) => {
                 let super_send = match message.receiver.as_ref() {

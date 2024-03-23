@@ -108,14 +108,19 @@ impl Frame {
         l
     }
 
-    pub fn lookup_field(&self, idx: usize) -> Option<Value> {
+    pub fn lookup_field(&self, idx: usize, kind: bool) -> Option<Value> {
         match &self.kind {
-            FrameKind::Block { block } => block.frame.borrow().lookup_field(idx),
+            FrameKind::Block { block } => block.frame.borrow().lookup_field(idx, kind),
             FrameKind::Method { holder, self_value, .. } => {
-                if holder.borrow().is_static {
-                    holder.borrow().lookup_local(idx)
-                } else {
-                    self_value.lookup_local(idx)
+                match kind {
+                    true => self_value.lookup_local(idx),
+                    false => {
+                        if holder.borrow().is_static {
+                            holder.borrow().lookup_local(idx)
+                        } else {
+                            None
+                        }
+                    }
                 }
             }
         }
@@ -182,14 +187,19 @@ impl Frame {
         x
     }
 
-    pub fn assign_field(&mut self, idx: usize, value: &Value) -> Option<()> {
+    pub fn assign_field(&mut self, idx: usize, kind: bool, value: &Value) -> Option<()> {
         match &mut self.kind {
-            FrameKind::Block { block } => block.frame.borrow_mut().assign_field(idx, value),
+            FrameKind::Block { block } => block.frame.borrow_mut().assign_field(idx, kind, value),
             FrameKind::Method { holder, ref mut self_value, .. } => {
-                if holder.borrow().is_static {
-                    holder.borrow_mut().assign_local(idx, value)
-                } else {
-                    self_value.assign_local(idx, value)
+                match kind {
+                    true => self_value.assign_local(idx, value),
+                    false => {
+                        if holder.borrow().is_static {
+                            holder.borrow_mut().assign_local(idx, value)
+                        } else {
+                            None
+                        }
+                    }
                 }
             }
         }

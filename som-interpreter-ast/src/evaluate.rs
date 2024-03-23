@@ -42,12 +42,12 @@ impl Evaluate for ast::Expression {
                     .unwrap_or_else(||
                         Return::Exception(format!("non local var write: idx '{}' not found", idx)))
             },
-            Self::FieldWrite(idx, expr) => {
+            Self::FieldWrite(idx, kind, expr) => {
                 let value = propagate!(expr.evaluate(universe));
-                universe.assign_field(*idx, &value)
+                universe.assign_field(*idx, *kind, &value)
                     .map(|_| Return::Local(value))
                     .unwrap_or_else(||
-                        Return::Exception(format!("field write: idx '{}' not found", idx)))
+                        Return::Exception(format!("field write: idx '{}' of kind '{}' not found", idx, kind)))
             },
             Self::ArgWrite(scope, idx, expr) => {
                 let value = propagate!(expr.evaluate(universe));
@@ -113,11 +113,11 @@ impl Evaluate for ast::Expression {
                         Return::Exception(format!("non local var read: idx '{}' not found", idx))
                     })
             },
-            Self::FieldRead(idx) => {
-                universe.lookup_field(*idx)
+            Self::FieldRead(idx, kind) => {
+                universe.lookup_field(*idx, *kind)
                     .map(Return::Local)
                     .unwrap_or_else(|| {
-                        Return::Exception(format!("field read: idx '{}' not found", idx))
+                        Return::Exception(format!("field read: idx '{}' of kind '{}' not found", idx, kind))
                     })
             },
             Self::ArgRead(scope, idx) => {
