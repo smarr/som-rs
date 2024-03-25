@@ -40,11 +40,13 @@ pub struct Frame {
 impl Frame {
     /// Construct a new empty frame from its kind.
     pub fn from_kind(kind: FrameKind, self_value: Value) -> Self {
-        Self {
+        let mut frame = Self {
             kind,
             locals: vec![], // TODO we can statically determine the length of the locals array here and not have to init it later. does it matter for perf, though? probably not
-            params: vec![self_value; 1], // ditto for params
-        }
+            params: vec![], // ditto for params
+        };
+        frame.params.push(self_value);
+        frame
     }
 
     /// Get the frame's kind.
