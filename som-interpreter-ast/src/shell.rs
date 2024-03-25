@@ -80,14 +80,13 @@ pub fn interactive(universe: &mut Universe, verbose: bool) -> Result<(), Error> 
             holder: universe.system_class(),
             self_value: Value::System,
         };
-        let output = universe.with_frame(kind, |universe| {
+        let output = universe.with_frame(kind, Value::System, |universe| {
             // todo: by removing bindings, i likely broke the shell. but i don't really care about the shell, so i'll fix it way later.
             // universe
             //     .current_frame()
             //     .borrow_mut()
             //     .bindings
             //     .insert("it".into(), last_value.clone());
-
             expr.evaluate(universe)
         });
         let elapsed = start.elapsed();

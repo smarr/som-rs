@@ -24,10 +24,12 @@ pub mod block1 {
             Value::Block(block) => block,
         ]);
 
+        let block_self = block.frame.borrow().get_self();
         universe.with_frame(
             FrameKind::Block {
                 block: block.clone(),
             },
+            block_self,
             |universe| block.invoke(universe, block_args),
         )
     }
@@ -73,10 +75,12 @@ pub mod block2 {
             _,
         ]);
 
+        let block_self = block.frame.borrow().get_self();
         universe.with_frame(
             FrameKind::Block {
                 block: block.clone(),
             },
+            block_self,
             |universe| block.invoke(universe, block_args),
         )
     }
@@ -116,10 +120,12 @@ pub mod block3 {
             _,
         ]);
 
+        let block_self = block.frame.borrow().get_self();
         universe.with_frame(
             FrameKind::Block {
                 block: block.clone(),
             },
+            block_self,
             |universe| block.invoke(universe, block_args),
         )
     }

@@ -75,8 +75,9 @@ impl Invoke for Method {
                     FrameKind::Method {
                         holder,
                         signature,
-                        self_value,
+                        self_value: self_value.clone(),
                     },
+                    self_value,
                     |universe| method.invoke(universe, params),
                 )
             }

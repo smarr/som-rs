@@ -39,13 +39,13 @@ pub struct Frame {
 
 impl Frame {
     /// Construct a new empty frame from its kind.
-    pub fn from_kind(kind: FrameKind) -> Self {
+    pub fn from_kind(kind: FrameKind, self_value: Value) -> Self {
         let mut frame = Self {
             kind,
             locals: vec![], // TODO we can statically determine the length of the locals array here and not have to init it later. does it matter for perf, though? probably not
             params: vec![], // ditto for params
         };
-        frame.params.push(frame.get_self());
+        frame.params.push(self_value);
         frame
     }
 
@@ -56,10 +56,7 @@ impl Frame {
 
     /// Get the self value for this frame.
     pub fn get_self(&self) -> Value {
-        match &self.kind {
-            FrameKind::Method { self_value, .. } => self_value.clone(),
-            FrameKind::Block { block, .. } => block.frame.borrow().get_self(),
-        }
+        self.params.get(0).unwrap().clone() // todo should that really be a clone?
     }
 
     /// Get the holder for this current method.
