@@ -1,6 +1,7 @@
 use std::rc::Rc;
 
 use som_core::ast;
+use som_core::ast::MethodBody;
 
 use crate::block::Block;
 use crate::evaluate::Evaluate;
@@ -71,6 +72,12 @@ impl Invoke for Method {
                         );
                     }
                 };
+
+                let nbr_locals = match &method.body {
+                    MethodBody::Body { locals, .. } => {locals.len()}
+                    MethodBody::Primitive => unreachable!()
+                };
+
                 let signature = universe.intern_symbol(&self.signature);
                 universe.with_frame(
                     FrameKind::Method {
@@ -79,6 +86,7 @@ impl Invoke for Method {
                         self_value: self_value.clone(),
                     },
                     self_value,
+                    nbr_locals,
                     |universe| method.invoke(universe, params),
                 )
             }
@@ -132,8 +140,7 @@ impl Invoke for ast::MethodDef {
             }
         }
         match &self.body {
-            ast::MethodBody::Body { locals, body } => {
-                current_frame.borrow_mut().locals = vec![Value::Nil; locals.len()];
+            ast::MethodBody::Body { body, .. } => {
                 loop {
                     match body.evaluate(universe) {
                         Return::NonLocal(value, frame) => {
@@ -177,8 +184,6 @@ impl Invoke for Block {
         // );
         current_frame.borrow_mut().params.extend(args.into_iter().skip(1)); // skip self
 
-
-        current_frame.borrow_mut().locals = vec![Value::Nil; self.block.locals.len()];
         let l = self.block.body.evaluate(universe);
         // println!("...exiting a block.");
         l

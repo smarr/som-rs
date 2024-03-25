@@ -466,8 +466,8 @@ impl Universe {
 
 impl Universe {
     /// Execute a piece of code within a new stack frame.
-    pub fn with_frame<T>(&mut self, kind: FrameKind, self_value: Value, func: impl FnOnce(&mut Self) -> T) -> T {
-        let frame = Rc::new(RefCell::new(Frame::from_kind(kind, self_value)));
+    pub fn with_frame<T>(&mut self, kind: FrameKind, self_value: Value, nbr_locals: usize, func: impl FnOnce(&mut Self) -> T) -> T {
+        let frame = Rc::new(RefCell::new(Frame::from_kind(kind, nbr_locals, self_value)));
         self.frames.push(frame);
         let ret = func(self);
         self.frames.pop();

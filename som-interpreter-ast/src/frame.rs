@@ -39,11 +39,11 @@ pub struct Frame {
 
 impl Frame {
     /// Construct a new empty frame from its kind.
-    pub fn from_kind(kind: FrameKind, self_value: Value) -> Self {
+    pub fn from_kind(kind: FrameKind, nbr_locals: usize, self_value: Value) -> Self {
         let mut frame = Self {
             kind,
-            locals: vec![], // TODO we can statically determine the length of the locals array here and not have to init it later. does it matter for perf, though? probably not
-            params: vec![], // ditto for params
+            locals: vec![Value::Nil; nbr_locals],
+            params: vec![], // TODO statically determine the length to not have to init it later.
         };
         frame.params.push(self_value);
         frame

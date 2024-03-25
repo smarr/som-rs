@@ -175,7 +175,8 @@ fn basic_interpreter_tests() {
             holder: universe.system_class(),
             self_value: Value::System,
         };
-        let output = universe.with_frame(kind, Value::System, |universe| ast.evaluate(universe));
+        let nbr_locals = 0;
+        let output = universe.with_frame(kind, Value::System, nbr_locals, |universe| ast.evaluate(universe));
 
         match &output {
             Return::Local(output) => assert_eq!(output, expected, "unexpected test output value"),
