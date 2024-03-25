@@ -22,7 +22,7 @@ pub fn interactive(universe: &mut Universe, verbose: bool) -> Result<(), Error> 
 
     let mut counter = 0;
     let mut line = String::new();
-    let mut last_value = Value::Nil;
+    // let mut last_value = Value::Nil;
     let signature = universe.intern_symbol("run:");
     loop {
         write!(&mut stdout, "({}) SOM Shell | ", counter)?;
@@ -81,11 +81,12 @@ pub fn interactive(universe: &mut Universe, verbose: bool) -> Result<(), Error> 
             self_value: Value::System,
         };
         let output = universe.with_frame(kind, |universe| {
-            universe
-                .current_frame()
-                .borrow_mut()
-                .bindings
-                .insert("it".into(), last_value.clone());
+            // todo: by removing bindings, i likely broke the shell. but i don't really care about the shell, so i'll fix it way later.
+            // universe
+            //     .current_frame()
+            //     .borrow_mut()
+            //     .bindings
+            //     .insert("it".into(), last_value.clone());
 
             expr.evaluate(universe)
         });
@@ -103,7 +104,7 @@ pub fn interactive(universe: &mut Universe, verbose: bool) -> Result<(), Error> 
         match output {
             Return::Local(value) => {
                 println!("returned: {} ({:?})", value.to_string(&universe), value);
-                last_value = value;
+                // last_value = value;
             }
             Return::NonLocal(value, frame) => {
                 println!(
@@ -112,7 +113,7 @@ pub fn interactive(universe: &mut Universe, verbose: bool) -> Result<(), Error> 
                     value
                 );
                 println!("intended for frame: {:?}", frame);
-                last_value = value;
+                // last_value = value;
             }
             Return::Exception(message) => println!("ERROR: {}", message),
             Return::Restart => println!("ERROR: asked for a restart to the top-level"),

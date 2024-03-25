@@ -1,5 +1,4 @@
 use std::cell::{RefCell};
-use std::collections::HashMap;
 use std::rc::Rc;
 
 use crate::block::Block;
@@ -32,8 +31,6 @@ pub enum FrameKind {
 pub struct Frame {
     /// This frame's kind.
     pub kind: FrameKind,
-    /// The bindings within this frame.
-    pub bindings: HashMap<String, Value>, // todo used for... binaryops?
     /// Local variables that get defined within this frame.
     pub locals: Vec<Value>,
     /// Parameters for this frame.
@@ -47,7 +44,6 @@ impl Frame {
             kind,
             locals: vec![], // TODO we can statically determine the length of the locals array here and not have to init it later. does it matter for perf, though? probably not
             params: vec![], // ditto for params
-            bindings: HashMap::new()
         };
         frame.params.push(frame.get_self());
         frame
