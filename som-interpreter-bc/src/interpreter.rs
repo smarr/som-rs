@@ -150,8 +150,6 @@ impl Interpreter {
                         from = temp;
                     }
                     let value = from.borrow().lookup_argument(idx as usize).unwrap();
-                    dbg!(&from.borrow().args);
-                    dbg!(&idx);
                     self.stack.push(value);
                 }
                 Bytecode::PushField(idx) => {
