@@ -40,13 +40,11 @@ pub struct Frame {
 impl Frame {
     /// Construct a new empty frame from its kind.
     pub fn from_kind(kind: FrameKind, self_value: Value) -> Self {
-        let mut frame = Self {
+        Self {
             kind,
             locals: vec![], // TODO we can statically determine the length of the locals array here and not have to init it later. does it matter for perf, though? probably not
-            params: vec![], // ditto for params
-        };
-        frame.params.push(self_value);
-        frame
+            params: vec![self_value; 1], // ditto for params
+        }
     }
 
     /// Get the frame's kind.
@@ -61,6 +59,11 @@ impl Frame {
 
     /// Get the holder for this current method.
     pub fn get_method_holder(&self) -> SOMRef<Class> {
+        // dbg!(&self);
+        // match self.get_self() {
+        //     Value::Class(c) => c,
+        //     _ => unreachable!()
+        // }
         match &self.kind {
             FrameKind::Method { holder, .. } => holder.clone(),
             FrameKind::Block { block, .. } => block.frame.borrow().get_method_holder(),
@@ -68,13 +71,12 @@ impl Frame {
     }
 
     /// Get the signature of the current method.
-    pub fn get_method_signature(&self) -> Interned {
-        match &self.kind {
-            FrameKind::Method { signature, .. } => *signature,
-            FrameKind::Block { block, .. } => block.frame.borrow().get_method_signature(),
-        }
-    }
-
+    // pub fn get_method_signature(&self) -> Interned {
+    //     match &self.kind {
+    //         FrameKind::Method { signature, .. } => *signature,
+    //         FrameKind::Block { block, .. } => block.frame.borrow().get_method_signature(),
+    //     }
+    // }
     #[inline] // not sure if necessary
     pub fn lookup_local(&self, idx: usize) -> Option<Value> {
         self.locals.get(idx).cloned()
@@ -134,7 +136,7 @@ impl Frame {
         let mut current_frame: Rc<RefCell<Frame>> = match &self.kind {
             FrameKind::Block { block, .. } => {
                 Rc::clone(&block.frame)
-            },
+            }
             _ => panic!("looking up a non local arg from the root of a method?")
         };
 
@@ -176,7 +178,7 @@ impl Frame {
             };
         }
 
-        let x= current_frame.borrow_mut().assign_local(idx, value);
+        let x = current_frame.borrow_mut().assign_local(idx, value);
         x
     }
 
@@ -208,7 +210,7 @@ impl Frame {
                     self_value.assign_local(idx, value)
                 }
                 FrameKind::Block { block, .. } => block.frame.borrow_mut().assign_arg(idx, scope, value),
-            }
+            };
         }
     }
 

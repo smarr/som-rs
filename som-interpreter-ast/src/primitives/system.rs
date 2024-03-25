@@ -206,8 +206,9 @@ fn print_stack_trace(universe: &mut Universe, args: Vec<Value>) -> Return {
 
     for frame in &universe.frames {
         let class = frame.borrow().get_method_holder();
-        let signature = frame.borrow().get_method_signature();
-        let signature = universe.lookup_symbol(signature);
+        // let signature = frame.borrow().get_method_signature();
+        // let signature = universe.lookup_symbol(signature);
+        let signature = "we do not support method signatures in stack traces anymore...";
         let block = match frame.borrow().kind() {
             FrameKind::Block { .. } => "$block",
             _ => "",

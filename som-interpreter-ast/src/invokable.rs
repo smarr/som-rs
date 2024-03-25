@@ -61,6 +61,7 @@ impl Invoke for Method {
                     };
                     (receiver, iter.collect::<Vec<_>>())
                 };
+                // dbg!(&self_value);
                 let holder = match self.holder().upgrade() {
                     Some(holder) => holder,
                     None => {
