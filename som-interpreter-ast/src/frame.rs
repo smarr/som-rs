@@ -8,7 +8,7 @@ use crate::value::Value;
 use crate::SOMRef;
 
 /// The kind of a given frame.
-#[cfg(feature = "frame-debug-info")]
+// #[cfg(feature = "frame-debug-info")]
 #[derive(Debug, Clone)]
 pub enum FrameKind {
     /// A frame created from a block evaluation.
@@ -31,7 +31,7 @@ pub enum FrameKind {
 #[derive(Debug)]
 pub struct Frame {
     /// This frame's kind.
-    #[cfg(feature = "frame-debug-info")]
+    // #[cfg(feature = "frame-debug-info")]
     pub kind: FrameKind,
     /// Local variables that get defined within this frame.
     pub locals: Vec<Value>,
@@ -45,7 +45,7 @@ impl Frame {
         let mut frame = Self {
             kind,
             locals: vec![Value::Nil; nbr_locals],
-            params: vec![], // TODO statically determine the length to not have to init it later.
+            params: vec![], // can we statically determine the length to not have to init it later? it's not straightforward as it turns out, but *should* be doable...
         };
         frame.params.push(self_value);
         frame
@@ -58,29 +58,46 @@ impl Frame {
 
     /// Get the self value for this frame.
     pub fn get_self(&self) -> Value {
-        self.params.get(0).unwrap().clone() // todo should that really be a clone?
+        let new = self.params.get(0).unwrap().clone(); // todo should that really be a clone?
+
+        // let oracle = match &self.kind {
+        //     FrameKind::Method { self_value, .. } => self_value.clone(),
+        //     FrameKind::Block { block, .. } => block.frame.borrow().get_self(),
+        // };
+        //
+        // assert_eq!(new, oracle);
+
+        new
     }
 
     /// Get the holder for this current method.
     pub fn get_method_holder(&self) -> SOMRef<Class> {
-        // dbg!(&self);
-        // match self.get_self() {
-        //     Value::Class(c) => c,
-        //     _ => unreachable!()
-        // }
-        match &self.kind {
-            FrameKind::Method { holder, .. } => holder.clone(),
-            FrameKind::Block { block, .. } => block.frame.borrow().get_method_holder(),
-        }
+        let ours = match self.get_self() {
+            Value::Class(c) => c,
+            v => todo!("{:?}", v)
+        };
+
+        ours.clone().borrow().class()
+        // dbg!(&ours.borrow().class());
+
+        // let oracle = match &self.kind {
+        //     FrameKind::Method { holder, .. } => holder.clone(),
+        //     FrameKind::Block { block, .. } => block.frame.borrow().get_method_holder(),
+        // };
+
+        // dbg!(&ours, &oracle);
+        // oracle
     }
 
     /// Get the signature of the current method.
-    // pub fn get_method_signature(&self) -> Interned {
-    //     match &self.kind {
-    //         FrameKind::Method { signature, .. } => *signature,
-    //         FrameKind::Block { block, .. } => block.frame.borrow().get_method_signature(),
-    //     }
-    // }
+    #[cfg(feature = "frame-debug-info")]
+    pub fn get_method_signature(&self) -> Interned {
+        match &self.kind {
+            FrameKind::Method { signature, .. } => *signature,
+            FrameKind::Block { block, .. } => block.frame.borrow().get_method_signature(),
+        }
+    }
+
     #[inline] // not sure if necessary
     pub fn lookup_local(&self, idx: usize) -> Option<Value> {
         self.locals.get(idx).cloned()
