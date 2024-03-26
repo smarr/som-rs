@@ -69,7 +69,13 @@ impl Value {
         universe: &Universe,
         signature: impl AsRef<str>,
     ) -> Option<Rc<Method>> {
-        self.class(universe).borrow().lookup_method(signature)
+        println!("Looking up {} in {}...", signature.as_ref(), self.class(universe).borrow().name);
+        if signature.as_ref() == "at:" {
+            dbg!("wow");
+        }
+        let v = self.class(universe).borrow().lookup_method(signature.as_ref());
+        println!("Looked up {}: {}", signature.as_ref(), v.is_some());
+        v
     }
 
     /// Search for a local binding within this value.

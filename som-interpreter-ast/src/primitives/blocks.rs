@@ -24,12 +24,15 @@ pub mod block1 {
             Value::Block(block) => block,
         ]);
 
-        let block_self = block.frame.borrow().get_self();
+        // let block_self = block.frame.borrow().get_self();
+        // dbg!(&block_self);
+        // dbg!(&args.clone());
+        // std::process::exit(1);
         universe.with_frame(
             FrameKind::Block {
                 block: block.clone(),
             },
-            block_self,
+            Value::Block(block.clone()),
             block.block.locals.len(),
             |universe| block.invoke(universe, block_args),
         )
@@ -76,12 +79,13 @@ pub mod block2 {
             _,
         ]);
 
-        let block_self = block.frame.borrow().get_self();
+        // let block_self = block.frame.borrow().get_self();
+        // dbg!(block_self);
         universe.with_frame(
             FrameKind::Block {
                 block: block.clone(),
             },
-            block_self,
+            Value::Block(block.clone()),
             block.block.locals.len(),
             |universe| block.invoke(universe, block_args),
         )
@@ -122,12 +126,12 @@ pub mod block3 {
             _,
         ]);
 
-        let block_self = block.frame.borrow().get_self();
+        // let block_self = block.frame.borrow().get_self();
         universe.with_frame(
             FrameKind::Block {
                 block: block.clone(),
             },
-            block_self,
+            Value::Block(block.clone()),
             block.block.locals.len(),
             |universe| block.invoke(universe, block_args),
         )
