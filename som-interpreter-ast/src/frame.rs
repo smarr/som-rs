@@ -8,6 +8,7 @@ use crate::value::Value;
 use crate::SOMRef;
 
 /// The kind of a given frame.
+#[cfg(feature = "frame-debug-info")]
 #[derive(Debug, Clone)]
 pub enum FrameKind {
     /// A frame created from a block evaluation.
@@ -30,6 +31,7 @@ pub enum FrameKind {
 #[derive(Debug)]
 pub struct Frame {
     /// This frame's kind.
+    #[cfg(feature = "frame-debug-info")]
     pub kind: FrameKind,
     /// Local variables that get defined within this frame.
     pub locals: Vec<Value>,
