@@ -207,9 +207,11 @@ pub struct BinaryOp {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Block {
     /// Represents the parameters' names.
-    pub parameters: Vec<String>, // todo remove! not needed, put under "debug info" or whatever
+    // pub parameters: Vec<String>, // todo enable as a compilation flag for debug info
     /// The names of the locals.
-    pub locals: Vec<String>, // todo you too.
+    // pub locals: Vec<String>,
+    pub nbr_params: usize,
+    pub nbr_locals: usize,
     /// Represents the block's body.
     pub body: Body,
 }
