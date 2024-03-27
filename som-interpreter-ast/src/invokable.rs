@@ -33,30 +33,22 @@ pub trait Invoke {
 
 impl Invoke for Method {
     fn invoke(&self, universe: &mut Universe, args: Vec<Value>) -> Return {
-        println!("--- Invoking \"{:1}\" ({:2})", &self.signature, &self.holder.upgrade().unwrap().borrow().name);
-        println!("--- ...with args: {:?}", &args);
+        // println!("--- Invoking \"{:1}\" ({:2})", &self.signature, &self.holder.upgrade().unwrap().borrow().name);
+        // println!("--- ...with args: {:?}", &args);
         //
         // if self.signature == "at:" {
         //     dbg!("wow");
         // }
-
-        // if self.signature == "do:" {
-        //     match &self.kind {
-        //         MethodKind::Defined(ast) => {dbg!(&ast)},
-        //         _ => unreachable!()
-        //     };
-        //      dbg!("wowwwww");
+        //
+        // if !universe.frames.is_empty() {
+        //     match &universe.current_method_frame().as_ref().borrow().kind {
+        //         FrameKind::Block { .. } => {}
+        //         FrameKind::Method { signature, holder, .. } => {
+        //             println!("We're in {:?} ({:?})", universe.lookup_symbol(signature.clone()),
+        //                      holder.borrow().name)
+        //         }
+        //     }
         // }
-
-        if !universe.frames.is_empty() {
-            match &universe.current_method_frame().as_ref().borrow().kind {
-                FrameKind::Block { .. } => {}
-                FrameKind::Method { signature, holder, .. } => {
-                    println!("We're in {:?} ({:?})", universe.lookup_symbol(signature.clone()),
-                             holder.borrow().name)
-                }
-            }
-        }
 
         let output = match self.kind() {
             MethodKind::Defined(method) => {
@@ -103,7 +95,7 @@ impl Invoke for Method {
                 Return::Exception(format!("unimplemented primitive: {}", name))
             }
         };
-        println!("...exiting {:}.", self.signature);
+        // println!("...exiting {:}.", self.signature);
         match output {
             // Return::Exception(msg) => Return::Exception(format!(
             //     "from {}>>#{}\n{}",
@@ -190,8 +182,6 @@ impl Invoke for Block {
         //         .cloned()
         //         .zip(args.into_iter().skip(1)),
         // );
-
-        // todo remove this skip and handle it in block prim class
         current_frame.borrow_mut().params.extend(args.into_iter().skip(1)); // skip self
 
         let l = self.block.body.evaluate(universe);

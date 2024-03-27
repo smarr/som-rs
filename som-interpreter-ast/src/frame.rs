@@ -58,12 +58,7 @@ impl Frame {
 
     /// Get the self value for this frame.
     pub fn get_self(&self) -> Value {
-        // todo should that really be a clone?
-        let new = match self.params.get(0).unwrap().clone() {
-            Value::Block(b) => {b.clone().frame.borrow().get_self()},
-            v => v
-        };
-        // new
+        let new = self.params.get(0).unwrap().clone(); // todo should that really be a clone?
 
         // let oracle = match &self.kind {
         //     FrameKind::Method { self_value, .. } => self_value.clone(),
@@ -73,14 +68,6 @@ impl Frame {
         // assert_eq!(new, oracle);
 
         new
-    }
-
-    /// When from a block and we want to look up the current block value, not the real "self" (holder)
-    pub fn get_block_self(&self) -> Value {
-        match self.params.get(0).unwrap().clone() {
-            v @ Value::Block(_) => v,
-            _ => panic!("get_block_self called from outside a block")
-        }
     }
 
     /// Get the holder for this current method.
@@ -103,13 +90,13 @@ impl Frame {
     }
 
     /// Get the signature of the current method.
-    // #[cfg(feature = "frame-debug-info")]
-    // pub fn get_method_signature(&self) -> Interned {
-    //     match &self.kind {
-    //         FrameKind::Method { signature, .. } => *signature,
-    //         FrameKind::Block { block, .. } => block.frame.borrow().get_method_signature(),
-    //     }
-    // }
+    #[cfg(feature = "frame-debug-info")]
+    pub fn get_method_signature(&self) -> Interned {
+        match &self.kind {
+            FrameKind::Method { signature, .. } => *signature,
+            FrameKind::Block { block, .. } => block.frame.borrow().get_method_signature(),
+        }
+    }
 
     #[inline] // not sure if necessary
     pub fn lookup_local(&self, idx: usize) -> Option<Value> {
@@ -117,11 +104,11 @@ impl Frame {
     }
 
     pub fn lookup_non_local(&self, idx: usize, scope: usize) -> Option<Value> {
-        let mut current_frame: Rc<RefCell<Frame>> = match self.get_block_self() {
-            Value::Block(block) => {
+        let mut current_frame: Rc<RefCell<Frame>> = match &self.kind {
+            FrameKind::Block { block, .. } => {
                 Rc::clone(&block.frame)
             }
-            _ => panic!("attempting to read a non local var from a method instead of a block..")
+            _ => panic!("attempting to read a non local var from a method instead of a block.")
         };
 
         for _ in 1..scope {
@@ -155,39 +142,6 @@ impl Frame {
         }
     }
 
-    pub fn _lookup_field_new_and_broken(&self, idx: usize, kind: bool) -> Option<Value> {
-    // pub fn lookup_field(&self, idx: usize, kind: bool) -> Option<Value> {
-        let s = self.get_self();
-
-        let o = match s {
-            Value::Class(cc) => {
-                if kind == true || !cc.borrow().is_static {
-                    panic!("Receiver is a Class type (not instance) {}... but field read is not static?", cc.borrow().name);
-                }
-                cc.borrow().lookup_local(idx)
-            },
-            Value::Instance(i) => {
-                match kind {
-                    true => i.borrow().lookup_local(idx),
-                    false => {
-                        if i.borrow().class.borrow().is_static {
-                            i.borrow().lookup_local(idx)
-                        } else {
-                            None
-                        }
-                    }
-                }
-            }
-            v => todo!("{:?}", v)
-        };
-
-        if o.is_none() {
-            dbg!("[jerry seinfeld noise]");
-        }
-
-        o
-    }
-
     pub fn lookup_arg(&self, idx: usize, scope: usize) -> Option<Value> {
         match scope {
             0 => self.lookup_local_arg(idx),
@@ -196,31 +150,15 @@ impl Frame {
     }
 
     pub fn lookup_local_arg(&self, idx: usize) -> Option<Value> {
-        // self.params.get(idx).cloned()
-        match idx {
-            0 => {
-                Some(self.get_self())
-                // match self.params.get(0).unwrap() {
-                //     Value::Block(b) => {},
-                //     _ => Some(self.get_self())
-                // }
-            },
-            _ => self.params.get(idx).cloned()
-        }
+        self.params.get(idx).cloned()
     }
 
     pub fn lookup_non_local_arg(&self, idx: usize, scope: usize) -> Option<Value> {
-        // let mut current_frame: Rc<RefCell<Frame>> = match &self.kind {
-        //     FrameKind::Block { block, .. } => {
-        //         Rc::clone(&block.frame)
-        //     }
-        //     _ => panic!("looking up a non local arg from the root of a method?")
-        // };
-        let mut current_frame: Rc<RefCell<Frame>> = match self.get_block_self() {
-            Value::Block(block) => {
+        let mut current_frame: Rc<RefCell<Frame>> = match &self.kind {
+            FrameKind::Block { block, .. } => {
                 Rc::clone(&block.frame)
             }
-            _ => panic!("attempting to read a non local var from a method instead of a block.")
+            _ => panic!("looking up a non local arg from the root of a method?")
         };
 
         for _ in 1..scope {
@@ -245,15 +183,15 @@ impl Frame {
     }
 
     pub fn assign_non_local(&mut self, idx: usize, scope: usize, value: &Value) -> Option<()> {
-        let mut current_frame: Rc<RefCell<Frame>> = match self.get_block_self() {
-            Value::Block(block) => {
+        let mut current_frame: Rc<RefCell<Frame>> = match &self.kind {
+            FrameKind::Block { block, .. } => {
                 Rc::clone(&block.frame)
             }
             _ => panic!("attempting to read a non local var from a method instead of a block.")
         };
 
         for _ in 1..scope {
-            current_frame = match &Rc::clone(&current_frame).borrow().kind {
+            current_frame = match &Rc::clone(&current_frame).borrow_mut().kind {
                 FrameKind::Block { block, .. } => {
                     Rc::clone(&block.frame)
                 }

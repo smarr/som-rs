@@ -133,7 +133,7 @@ pub enum Expression {
     /// Read of an argument.
     ArgRead(usize, usize),
     /// Read of a field.
-    FieldRead(usize, bool), // todo ugly. bool means "from instance or from static class?" false means from static.
+    FieldRead(usize, bool), // todo ugly. bool means "from instance or from static class?"
     /// An assignment to a binding (eg. `counter := 10`).
     GlobalWrite(String, Box<Expression>),
     LocalVarWrite(usize, Box<Expression>),
@@ -207,7 +207,7 @@ pub struct BinaryOp {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Block {
     /// Represents the parameters' names.
-    pub parameters: Vec<String>, // TODO remove! unneeded. add to the debug info compilation flag or something.
+    pub parameters: Vec<String>, // todo remove! not needed, put under "debug info" or whatever
     /// The names of the locals.
     pub locals: Vec<String>, // todo you too.
     /// Represents the block's body.
