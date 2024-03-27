@@ -306,8 +306,8 @@ pub fn block<'a>() -> impl Parser<Expression, &'a [Token], AstGenCtxt> {
         let new_genctxt = genctxt.borrow().get_outer();
 
         Some((Expression::Block(Block {
-            nbr_params: parameters.len(),
-            nbr_locals: locals.len(),
+            parameters,
+            locals,
             body,
         }), input, new_genctxt))
     }

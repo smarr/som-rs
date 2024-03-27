@@ -29,7 +29,7 @@ impl Block {
 
     /// Retrieve the number of parameters this block accepts.
     pub fn nb_parameters(&self) -> usize {
-        self.block.nbr_params
+        self.block.parameters.len()
     }
 }
 
