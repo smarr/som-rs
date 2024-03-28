@@ -124,19 +124,46 @@ impl Frame {
         l
     }
 
-    pub fn lookup_field(&self, idx: usize, kind: bool) -> Option<Value> {
-        match &self.kind {
-            FrameKind::Block { block } => block.frame.borrow().lookup_field(idx, kind),
-            FrameKind::Method { holder, self_value, .. } => {
-                match kind {
-                    true => self_value.lookup_local(idx),
-                    false => {
-                        if holder.borrow().is_static {
-                            holder.borrow().lookup_local(idx)
-                        } else {
-                            None
-                        }
-                    }
+    pub fn lookup_field(&self, idx: usize, _kind: bool) -> Option<Value> {
+        let self_val = self.get_self();
+
+        // todo i am growing more and more confident the "kind" arg is useless. remove it when done with the variable arrays refactorings + frame refactorings
+        match _kind {
+            true => {
+                match self_val {
+                    Value::Instance(i) => { i.borrow_mut().lookup_local(idx) }
+                    // Value::Class(c) => { c.borrow_mut().lookup_local(idx) }
+                    v => { panic!("{:?}", &v) }
+                }
+            }
+            false => {
+                match self_val {
+                    // Value::Instance(i) => { i.borrow().class.borrow().class().borrow_mut().lookup_local(idx) }
+                    Value::Class(c) => { c.borrow().class().borrow_mut().lookup_local(idx) }
+                    v => { panic!("{:?}", &v) }
+                }
+            }
+        }
+    }
+
+    pub fn assign_field(&self, idx: usize, _kind: bool, value: &Value) -> Option<()> {
+        let self_val = self.get_self();
+
+        // dbg!(&_kind);
+
+        match _kind {
+            true => {
+                match self_val {
+                    Value::Instance(i) => { i.borrow_mut().assign_local(idx, value.clone()) }
+                    // Value::Class(c) => { c.borrow_mut().assign_local(idx, &value) }
+                    v => { panic!("{:?}", &v) }
+                }
+            }
+            false => {
+                match self_val {
+                    // Value::Instance(i) => { i.borrow().class.borrow().class().borrow_mut().assign_local(idx, &value) }
+                    Value::Class(c) => { c.borrow().class().borrow_mut().assign_local(idx, &value) }
+                    v => { panic!("{:?}", &v) }
                 }
             }
         }
@@ -201,24 +228,6 @@ impl Frame {
 
         let x = current_frame.borrow_mut().assign_local(idx, value);
         x
-    }
-
-    pub fn assign_field(&mut self, idx: usize, kind: bool, value: &Value) -> Option<()> {
-        match &mut self.kind {
-            FrameKind::Block { block } => block.frame.borrow_mut().assign_field(idx, kind, value),
-            FrameKind::Method { holder, ref mut self_value, .. } => {
-                match kind {
-                    true => self_value.assign_local(idx, value),
-                    false => {
-                        if holder.borrow().is_static {
-                            holder.borrow_mut().assign_local(idx, value)
-                        } else {
-                            None
-                        }
-                    }
-                }
-            }
-        }
     }
 
     pub fn assign_arg(&mut self, idx: usize, scope: usize, value: &Value) -> Option<()> {
