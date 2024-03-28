@@ -561,18 +561,18 @@ impl Universe {
     /// Call `doesNotUnderstand:` on the given value, if it is defined.
     pub fn does_not_understand(
         &mut self,
-        value: Value,
+        _value: Value,
         symbol: impl AsRef<str>,
-        args: Vec<Value>,
+        _args: Vec<Value>,
     ) -> Option<Return> {
-        let initialize = value.lookup_method(self, "doesNotUnderstand:arguments:")?;
-        let sym = self.intern_symbol(symbol.as_ref());
-        let sym = Value::Symbol(sym);
-        let args = Value::Array(Rc::new(RefCell::new(args)));
+        // let initialize = value.lookup_method(self, "doesNotUnderstand:arguments:")?;
+        // let sym = self.intern_symbol(symbol.as_ref());
+        // let sym = Value::Symbol(sym);
+        // let args = Value::Array(Rc::new(RefCell::new(args)));
 
-        // eprintln!("Couldn't invoke {}; exiting.", symbol.as_ref());
-        // std::process::exit(1);
-        Some(initialize.invoke(self, vec![value, sym, args]))
+        eprintln!("Couldn't invoke {}; exiting.", symbol.as_ref());
+        std::process::exit(1);
+        // Some(initialize.invoke(self, vec![value, sym, args]))
     }
 
     /// Call `unknownGlobal:` on the given value, if it is defined.
