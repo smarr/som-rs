@@ -174,15 +174,9 @@ impl Invoke for Block {
     fn invoke(&self, universe: &mut Universe, args: Vec<Value>) -> Return {
         // println!("Invoking a block.");
         // dbg!(&self.block.body);
+
         let current_frame = universe.current_frame();
-        // current_frame.borrow_mut().bindings.extend(
-        //     self.block
-        //         .parameters
-        //         .iter()
-        //         .cloned()
-        //         .zip(args.into_iter().skip(1)),
-        // );
-        current_frame.borrow_mut().params.extend(args.into_iter().skip(1)); // skip self
+        current_frame.borrow_mut().params.extend(args);
 
         let l = self.block.body.evaluate(universe);
         // println!("...exiting a block.");

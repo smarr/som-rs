@@ -19,12 +19,16 @@ pub mod block1 {
     fn value(universe: &mut Universe, args: Vec<Value>) -> Return {
         const SIGNATURE: &str = "Block1>>#value";
 
-        let block_args = args.clone();
+        let mut block_args = args.clone();
         expect_args!(SIGNATURE, args, [
             Value::Block(block) => block,
         ]);
 
-        let block_self = block.frame.borrow().get_self();
+        block_args.remove(0);
+
+        // let block_self = block.frame.borrow().get_self();
+        let block_self = Value::Block(block.clone());
+
         universe.with_frame(
             FrameKind::Block {
                 block: block.clone(),
@@ -70,13 +74,17 @@ pub mod block2 {
     fn value(universe: &mut Universe, args: Vec<Value>) -> Return {
         const SIGNATURE: &str = "Block2>>#value:";
 
-        let block_args = args.clone();
+        let mut block_args = args.clone();
         expect_args!(SIGNATURE, args, [
             Value::Block(block) => block,
             _,
         ]);
 
-        let block_self = block.frame.borrow().get_self();
+        block_args.remove(0);
+
+        // let block_self = block.frame.borrow().get_self();
+        let block_self = Value::Block(block.clone());
+
         universe.with_frame(
             FrameKind::Block {
                 block: block.clone(),
@@ -115,14 +123,18 @@ pub mod block3 {
     fn value_with(universe: &mut Universe, args: Vec<Value>) -> Return {
         const SIGNATURE: &str = "Block3>>#value:with:";
 
-        let block_args = args.clone();
+        let mut block_args = args.clone();
         expect_args!(SIGNATURE, args, [
             Value::Block(block) => block,
             _,
             _,
         ]);
 
-        let block_self = block.frame.borrow().get_self();
+        block_args.remove(0);
+
+        // let block_self = block.frame.borrow().get_self();
+        let block_self = Value::Block(block.clone());
+
         universe.with_frame(
             FrameKind::Block {
                 block: block.clone(),

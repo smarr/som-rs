@@ -207,6 +207,31 @@ impl Frame {
             };
         }
 
+        let oracle = self.nth_frame_back_oracle(n);
+        // we can't easily compare kinds (I don't want everything to needlessly implement PartialEq), so eh, this'll probably do
+        assert_eq!(target_frame.borrow().locals, oracle.borrow().locals);
+        assert_eq!(target_frame.borrow().params, oracle.borrow().params);
+
+        target_frame
+    }
+
+    pub fn nth_frame_back_oracle(&self, n: usize) -> SOMRef<Frame> {
+        let mut target_frame: Rc<RefCell<Frame>> = match self.params.get(0).unwrap() {
+            Value::Block(block) => {
+                Rc::clone(&block.frame)
+            }
+            _ => panic!("attempting to access a non local var/arg from a method instead of a block.")
+        };
+
+        for _ in 1..n {
+            target_frame = match Rc::clone(&target_frame).borrow().params.get(0).unwrap() {
+                Value::Block(block) => {
+                    Rc::clone(&block.frame)
+                }
+                _ => panic!("attempting to access a non local var/arg from a method instead of a block.")
+            };
+        }
+
         target_frame
     }
 
