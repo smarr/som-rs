@@ -104,24 +104,45 @@ impl Frame {
     }
 
     pub fn lookup_non_local(&self, idx: usize, scope: usize) -> Option<Value> {
-        let mut current_frame: Rc<RefCell<Frame>> = match &self.kind {
-            FrameKind::Block { block, .. } => {
-                Rc::clone(&block.frame)
-            }
-            _ => panic!("attempting to read a non local var from a method instead of a block.")
-        };
+        self.nth_frame_back(scope).borrow().lookup_local(idx)
+    }
+    pub fn assign_local(&mut self, idx: usize, value: &Value) -> Option<()> {
+        let local = self.locals.get_mut(idx).unwrap();
+        *local = value.clone();
+        Some(())
+    }
 
-        for _ in 1..scope {
-            current_frame = match &Rc::clone(&current_frame).borrow().kind {
-                FrameKind::Block { block, .. } => {
-                    Rc::clone(&block.frame)
+    pub fn assign_non_local(&mut self, idx: usize, scope: usize, value: &Value) -> Option<()> {
+        self.nth_frame_back(scope).borrow_mut().assign_local(idx, value)
+    }
+
+    pub fn lookup_arg(&self, idx: usize, scope: usize) -> Option<Value> {
+        match scope {
+            0 => self.lookup_local_arg(idx),
+            _ => self.lookup_non_local_arg(idx, scope),
+        }
+    }
+
+    pub fn lookup_local_arg(&self, idx: usize) -> Option<Value> {
+        self.params.get(idx).cloned()
+    }
+
+    pub fn lookup_non_local_arg(&self, idx: usize, scope: usize) -> Option<Value> {
+        self.nth_frame_back(scope).borrow().lookup_local_arg(idx)
+    }
+
+    pub fn assign_arg(&mut self, idx: usize, scope: usize, value: &Value) -> Option<()> {
+        if let Some(val) = self.params.get_mut(idx) {
+            *val = value.clone();
+            return Some(());
+        } else {
+            return match &mut self.kind {
+                FrameKind::Method { ref mut self_value, .. } => {
+                    self_value.assign_local(idx, value)
                 }
-                _ => panic!("attempting to read a non local var from a method instead of a block.")
+                FrameKind::Block { block, .. } => block.frame.borrow_mut().assign_arg(idx, scope, value),
             };
         }
-
-        let l = current_frame.borrow().lookup_local(idx);
-        l
     }
 
     pub fn lookup_field(&self, idx: usize, _kind: bool) -> Option<Value> {
@@ -169,79 +190,24 @@ impl Frame {
         }
     }
 
-    pub fn lookup_arg(&self, idx: usize, scope: usize) -> Option<Value> {
-        match scope {
-            0 => self.lookup_local_arg(idx),
-            _ => self.lookup_non_local_arg(idx, scope),
-        }
-    }
-
-    pub fn lookup_local_arg(&self, idx: usize) -> Option<Value> {
-        self.params.get(idx).cloned()
-    }
-
-    pub fn lookup_non_local_arg(&self, idx: usize, scope: usize) -> Option<Value> {
-        let mut current_frame: Rc<RefCell<Frame>> = match &self.kind {
+    pub fn nth_frame_back(&self, n: usize) -> SOMRef<Frame> {
+        let mut target_frame: Rc<RefCell<Frame>> = match &self.kind {
             FrameKind::Block { block, .. } => {
                 Rc::clone(&block.frame)
             }
-            _ => panic!("looking up a non local arg from the root of a method?")
+            _ => panic!("attempting to access a non local var/arg from a method instead of a block.")
         };
 
-        for _ in 1..scope {
-            current_frame = match &Rc::clone(&current_frame).borrow().kind {
+        for _ in 1..n {
+            target_frame = match &Rc::clone(&target_frame).borrow().kind {
                 FrameKind::Block { block, .. } => {
                     Rc::clone(&block.frame)
                 }
-                _ => panic!("...why is this never reached in practice? because methods contain a framekind::block?")
+                _ => panic!("attempting to access a non local var/arg from a method instead of a block.")
             };
         }
 
-        let l = current_frame.borrow().lookup_local_arg(idx);
-        l
-    }
-
-
-    /// Assign to a local binding.
-    pub fn assign_local(&mut self, idx: usize, value: &Value) -> Option<()> {
-        let local = self.locals.get_mut(idx).unwrap();
-        *local = value.clone();
-        Some(())
-    }
-
-    pub fn assign_non_local(&mut self, idx: usize, scope: usize, value: &Value) -> Option<()> {
-        let mut current_frame: Rc<RefCell<Frame>> = match &self.kind {
-            FrameKind::Block { block, .. } => {
-                Rc::clone(&block.frame)
-            }
-            _ => panic!("attempting to read a non local var from a method instead of a block.")
-        };
-
-        for _ in 1..scope {
-            current_frame = match &Rc::clone(&current_frame).borrow_mut().kind {
-                FrameKind::Block { block, .. } => {
-                    Rc::clone(&block.frame)
-                }
-                _ => panic!("attempting to read a non local var from a method instead of a block.")
-            };
-        }
-
-        let x = current_frame.borrow_mut().assign_local(idx, value);
-        x
-    }
-
-    pub fn assign_arg(&mut self, idx: usize, scope: usize, value: &Value) -> Option<()> {
-        if let Some(val) = self.params.get_mut(idx) {
-            *val = value.clone();
-            return Some(());
-        } else {
-            return match &mut self.kind {
-                FrameKind::Method { ref mut self_value, .. } => {
-                    self_value.assign_local(idx, value)
-                }
-                FrameKind::Block { block, .. } => block.frame.borrow_mut().assign_arg(idx, scope, value),
-            };
-        }
+        target_frame
     }
 
     /// Get the method invocation frame for that frame.
