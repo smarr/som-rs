@@ -114,9 +114,9 @@ impl Invoke for ast::MethodDef {
         //     dbg!(&self.body);
         // std::process::exit(1);
         // }
-        if self.signature == "schedule" {
-            dbg!(&self.body);
-        }
+        // if self.signature == "link" {
+        //     dbg!(&self.body);
+        // }
 
 
         match &self.kind {

@@ -271,7 +271,7 @@ impl MethodCodegen for ast::Expression {
                 ctxt.push_instr(Bytecode::PushLocal(*up_idx as u8, *idx as u8));
                 Some(())
             }
-            ast::Expression::FieldRead(idx, _) => {
+            ast::Expression::FieldRead(idx) => {
                 ctxt.push_instr(Bytecode::PushField(*idx as u8));
                 Some(())
             }
@@ -301,7 +301,7 @@ impl MethodCodegen for ast::Expression {
                 }
                 Some(())
             }
-            ast::Expression::FieldWrite(idx, _, expr) => {
+            ast::Expression::FieldWrite(idx, expr) => {
                 // todo take kind into account here too
                 expr.codegen(ctxt)?;
                 ctxt.push_instr(Bytecode::Dup);
