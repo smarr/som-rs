@@ -167,7 +167,7 @@ impl Invoke for Block {
         // dbg!(&self.block.body);
 
         let current_frame = universe.current_frame();
-        current_frame.borrow_mut().params.extend(args.into_iter().skip(1));
+        current_frame.borrow_mut().params.extend(args);
 
         // dbg!(&current_frame.borrow_mut().params);
         // dbg!(&self.block.parameters);
