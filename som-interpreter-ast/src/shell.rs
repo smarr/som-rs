@@ -80,7 +80,8 @@ pub fn interactive(universe: &mut Universe, verbose: bool) -> Result<(), Error> 
         //     self_value: Value::System,
         // };
         let nbr_locals = 1; // idk. maybe 0? 
-        let output = universe.with_frame(Value::System, nbr_locals, |universe| {
+        let nbr_params = 1; // idk
+        let output = universe.with_frame(Value::System, nbr_locals, nbr_params,|universe| {
             // todo: by removing bindings, i likely broke the shell. but i don't really care about the shell, so i'll fix it way later.
             // universe
             //     .current_frame()

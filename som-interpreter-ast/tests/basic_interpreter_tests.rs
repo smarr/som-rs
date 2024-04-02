@@ -175,10 +175,12 @@ fn basic_interpreter_tests() {
         //     self_value: Value::System,
         // };
         let nbr_locals = 0;
+        let nbr_params = 0;
         let output = universe.with_frame(
             // kind,
                                          Value::System,
                                          nbr_locals,
+                                         nbr_params,
                                          |universe| ast.evaluate(universe)
         );
 

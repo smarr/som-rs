@@ -32,6 +32,7 @@ pub mod block1 {
             // },
             block_self,
             block.block.locals.len(),
+            1,
             |universe| block.invoke(universe, block_args),
         )
     }
@@ -86,6 +87,7 @@ pub mod block2 {
             // },
             block_self,
             block.block.locals.len(),
+            2,
             |universe| block.invoke(universe, block_args),
         )
     }
@@ -134,6 +136,7 @@ pub mod block3 {
             // },
             block_self,
             block.block.locals.len(),
+            3,
             |universe| block.invoke(universe, block_args),
         )
     }

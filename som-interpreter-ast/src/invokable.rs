@@ -51,6 +51,8 @@ impl Invoke for Method {
 
         let output = match self.kind() {
             MethodKind::Defined(method) => {
+                let nbr_params = args.len();
+
                 let (self_value, params) = {
                     let mut iter = args.into_iter();
                     let receiver = match iter.next() {
@@ -86,6 +88,7 @@ impl Invoke for Method {
                     // },
                     self_value,
                     nbr_locals,
+                    nbr_params,
                     |universe| method.invoke(universe, params),
                 )
             }
