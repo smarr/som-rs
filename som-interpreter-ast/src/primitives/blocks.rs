@@ -31,7 +31,7 @@ pub mod block1 {
             //     block: block.clone(),
             // },
             block_self,
-            block.block.locals.len(),
+            block.block.nbr_locals,
             1,
             |universe| block.invoke(universe, block_args),
         )
@@ -85,7 +85,7 @@ pub mod block2 {
             //     block: block.clone(),
             // },
             block_self,
-            block.block.locals.len(),
+            block.block.nbr_locals,
             2,
             |universe| block.invoke(universe, block_args),
         )
@@ -134,7 +134,7 @@ pub mod block3 {
             //     block: block.clone(),
             // },
             block_self,
-            block.block.locals.len(),
+            block.block.nbr_locals,
             3,
             |universe| block.invoke(universe, block_args),
         )

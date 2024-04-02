@@ -2,13 +2,13 @@ use std::collections::hash_map::DefaultHasher;
 use std::convert::TryFrom;
 use std::hash::{Hash, Hasher};
 
+use crate::class::Class;
 use crate::invokable::{Invoke, Return};
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
 use crate::value::Value;
 use crate::{expect_args, SOMRef};
 use crate::value::Value::Nil;
-use crate::class::Class;
 
 pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[
     ("halt", self::halt, true),

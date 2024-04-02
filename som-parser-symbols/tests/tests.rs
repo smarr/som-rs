@@ -67,8 +67,8 @@ fn block_test() {
     assert_eq!(
         block,
         Expression::Block(Block {
-            parameters: vec![String::from("test")],
-            locals: vec![String::from("local")],
+            nbr_params: 1,
+            nbr_locals: 1,
             body: Body {
                 exprs: vec![
                     Expression::LocalVarWrite(
@@ -114,8 +114,8 @@ fn expression_test_2() {
             signature: String::from("ifTrue:ifFalse:"),
             values: vec![
                 Expression::Block(Block {
-                    parameters: vec![],
-                    locals: vec![],
+                    nbr_params: 0,
+                    nbr_locals: 0,
                     body: Body {
                         exprs: vec![Expression::Message(Message {
                             receiver: Box::new(Expression::Literal(Literal::String(String::from(
@@ -128,8 +128,8 @@ fn expression_test_2() {
                     }
                 }),
                 Expression::Block(Block {
-                    parameters: vec![],
-                    locals: vec![],
+                    nbr_params: 0,
+                    nbr_locals: 0,
                     body: Body {
                         exprs: vec![Expression::Message(Message {
                             receiver: Box::new(Expression::Literal(Literal::String(String::from(
@@ -161,8 +161,8 @@ fn primary_test() {
     assert_eq!(
         primary,
         Expression::Block(Block {
-            parameters: vec![],
-            locals: vec![],
+            nbr_params: 0,
+            nbr_locals: 0,
             body: Body {
                 exprs: vec![Expression::Message(Message {
                     receiver: Box::new(Expression::ArgRead(0, 0)),

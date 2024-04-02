@@ -19,7 +19,7 @@ impl Invoke for IfNode {
             (a, b) => panic!("if[True|False] was not given a bool and a block as arguments, but {:?} and {:?}", a, b)
         };
 
-        let nbr_locals = body_block.block.locals.len();
+        let nbr_locals = body_block.block.nbr_locals;
 
         if bool_val != self.expected_bool {
             Return::Local(Nil)
