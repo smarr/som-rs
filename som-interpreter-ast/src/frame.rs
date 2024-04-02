@@ -71,8 +71,6 @@ impl Frame {
             _ => self_or_block_self
         };
 
-        assert_eq!(self.get_self_oracle(), self_or_block_self);
-
         self_or_block_self
     }
 
@@ -84,8 +82,6 @@ impl Frame {
         };
 
         let res = ours.clone().borrow().class();
-
-        assert_eq!(self.get_method_holder_oracle().borrow().name, res.borrow().name);
 
         res
         // dbg!(&ours.borrow().class());
@@ -112,13 +108,11 @@ impl Frame {
     pub fn lookup_local(&self, idx: usize) -> Option<Value> {
         let res = self.locals.get(idx).cloned();
 
-        assert_eq!(self.lookup_local_oracle(idx), res);
         res
     }
 
     pub fn lookup_non_local(&self, idx: usize, scope: usize) -> Option<Value> {
         let res = self.nth_frame_back(scope).borrow().lookup_local(idx);
-        assert_eq!(self.lookup_non_local_oracle(idx, scope), res);
         res
     }
     pub fn assign_local(&mut self, idx: usize, value: &Value) -> Option<()> {
@@ -132,7 +126,6 @@ impl Frame {
     }
 
     pub fn lookup_arg(&self, idx: usize, scope: usize) -> Option<Value> {
-        // dbg!(&idx, &scope);
         if idx == 0 && scope == 0 {
             return Some(self.get_self());
         }
@@ -141,11 +134,7 @@ impl Frame {
             0 => self.lookup_local_arg(idx),
             _ => self.lookup_non_local_arg(idx, scope),
         };
-        // dbg!(&res);
 
-        // if idx == 0 && scope == 0 {
-        // }
-        assert_eq!(self.lookup_arg_oracle(idx, scope), res);
         res
     }
 
@@ -192,7 +181,7 @@ impl Frame {
                 }
             }
         };
-        assert_eq!(self.lookup_field_oracle(idx, kind), res);
+
         res
     }
 
@@ -218,7 +207,6 @@ impl Frame {
             }
         };
 
-        assert_eq!(self.lookup_field_oracle(idx, _kind).unwrap(), value.clone());
         Some(())
     }
 
@@ -239,206 +227,11 @@ impl Frame {
             };
         }
 
-        // let oracle = self.nth_frame_back_oracle(n);
-        // we can't easily compare kinds (I don't want everything to needlessly implement PartialEq), so eh, this'll probably do
-        // assert_eq!(target_frame.borrow().locals, oracle.borrow().locals);
-        // assert_eq!(target_frame.borrow().params, oracle.borrow().params);
-
-        target_frame
-    }
-
-    pub fn nth_frame_back_oracle(&self, n: usize) -> SOMRef<Frame> {
-        let mut target_frame: Rc<RefCell<Frame>> = match self.params.get(0).unwrap() {
-            Value::Block(block) => {
-                Rc::clone(&block.frame)
-            }
-            _ => panic!("attempting to access a non local var/arg from a method instead of a block.")
-        };
-
-        for _ in 1..n {
-            target_frame = match Rc::clone(&target_frame).borrow().params.get(0).unwrap() {
-                Value::Block(block) => {
-                    Rc::clone(&block.frame)
-                }
-                _ => panic!("attempting to access a non local var/arg from a method instead of a block.")
-            };
-        }
-
         target_frame
     }
 
     /// Get the method invocation frame for that frame.
     pub fn method_frame(frame: &SOMRef<Frame>) -> SOMRef<Frame> {
-        match frame.borrow().kind() {
-            FrameKind::Block { block, .. } => Frame::method_frame(&block.frame),
-            FrameKind::Method { .. } => frame.clone(),
-        }
-    }
-}
-
-impl Frame {
-    pub fn get_self_oracle(&self) -> Value {
-        match &self.kind {
-            FrameKind::Method { self_value, .. } => self_value.clone(),
-            FrameKind::Block { block, .. } => block.frame.borrow().get_self(),
-        }
-    }
-
-    /// Get the holder for this current method.
-    pub fn get_method_holder_oracle(&self) -> SOMRef<Class> {
-        match &self.kind {
-            FrameKind::Method { holder, .. } => holder.clone(),
-            FrameKind::Block { block, .. } => block.frame.borrow().get_method_holder(),
-        }
-    }
-
-    /// Get the signature of the current method.
-    pub fn get_method_signature_oracle(&self) -> Interned {
-        match &self.kind {
-            FrameKind::Method { signature, .. } => *signature,
-            FrameKind::Block { block, .. } => block.frame.borrow().get_method_signature_oracle(),
-        }
-    }
-
-    #[inline] // not sure if necessary
-    pub fn lookup_local_oracle(&self, idx: usize) -> Option<Value> {
-        self.locals.get(idx).cloned()
-    }
-
-    pub fn lookup_non_local_oracle(&self, idx: usize, scope: usize) -> Option<Value> {
-        let mut current_frame: Rc<RefCell<Frame>> = match &self.kind {
-            FrameKind::Block { block, .. } => {
-                Rc::clone(&block.frame)
-            }
-            _ => panic!("attempting to read a non local var from a method instead of a block.")
-        };
-
-        for _ in 1..scope {
-            current_frame = match &Rc::clone(&current_frame).borrow().kind {
-                FrameKind::Block { block, .. } => {
-                    Rc::clone(&block.frame)
-                }
-                _ => panic!("attempting to read a non local var from a method instead of a block.")
-            };
-        }
-
-        let l = current_frame.borrow().lookup_local_oracle(idx);
-        l
-    }
-
-    pub fn lookup_field_oracle(&self, idx: usize, kind: bool) -> Option<Value> {
-        match &self.kind {
-            FrameKind::Block { block } => block.frame.borrow().lookup_field_oracle(idx, kind),
-            FrameKind::Method { holder, self_value, .. } => {
-                match kind {
-                    true => self_value.lookup_local(idx),
-                    false => {
-                        if holder.borrow().is_static {
-                            holder.borrow().lookup_local(idx)
-                        } else {
-                            None
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    pub fn lookup_arg_oracle(&self, idx: usize, scope: usize) -> Option<Value> {
-        match scope {
-            0 => self.lookup_local_arg_oracle(idx),
-            _ => self.lookup_non_local_arg_oracle(idx, scope),
-        }
-    }
-
-    pub fn lookup_local_arg_oracle(&self, idx: usize) -> Option<Value> {
-        self.params.get(idx).cloned()
-    }
-
-    pub fn lookup_non_local_arg_oracle(&self, idx: usize, scope: usize) -> Option<Value> {
-        let mut current_frame: Rc<RefCell<Frame>> = match &self.kind {
-            FrameKind::Block { block, .. } => {
-                Rc::clone(&block.frame)
-            },
-            _ => panic!("looking up a non local arg from the root of a method?")
-        };
-
-        for _ in 1..scope {
-            current_frame = match &Rc::clone(&current_frame).borrow().kind {
-                FrameKind::Block { block, .. } => {
-                    Rc::clone(&block.frame)
-                }
-                _ => panic!("...why is this never reached in practice? because methods contain a framekind::block?")
-            };
-        }
-
-        let l = current_frame.borrow().lookup_local_arg_oracle(idx);
-        l
-    }
-
-
-    /// Assign to a local binding.
-    pub fn assign_local_oracle(&mut self, idx: usize, value: &Value) -> Option<()> {
-        let local = self.locals.get_mut(idx).unwrap();
-        *local = value.clone();
-        Some(())
-    }
-
-    pub fn assign_non_local_oracle(&mut self, idx: usize, scope: usize, value: &Value) -> Option<()> {
-        let mut current_frame: Rc<RefCell<Frame>> = match &self.kind {
-            FrameKind::Block { block, .. } => {
-                Rc::clone(&block.frame)
-            }
-            _ => panic!("attempting to read a non local var from a method instead of a block.")
-        };
-
-        for _ in 1..scope {
-            current_frame = match &Rc::clone(&current_frame).borrow_mut().kind {
-                FrameKind::Block { block, .. } => {
-                    Rc::clone(&block.frame)
-                }
-                _ => panic!("attempting to read a non local var from a method instead of a block.")
-            };
-        }
-
-        let x= current_frame.borrow_mut().assign_local_oracle(idx, value);
-        x
-    }
-
-    pub fn assign_field_oracle(&mut self, idx: usize, kind: bool, value: &Value) -> Option<()> {
-        match &mut self.kind {
-            FrameKind::Block { block } => block.frame.borrow_mut().assign_field_oracle(idx, kind, value),
-            FrameKind::Method { holder, ref mut self_value, .. } => {
-                match kind {
-                    true => self_value.assign_local(idx, value),
-                    false => {
-                        if holder.borrow().is_static {
-                            holder.borrow_mut().assign_local(idx, value)
-                        } else {
-                            None
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    pub fn assign_arg_oracle(&mut self, idx: usize, scope: usize, value: &Value) -> Option<()> {
-        if let Some(val) = self.params.get_mut(idx) {
-            *val = value.clone();
-            return Some(());
-        } else {
-            return match &mut self.kind {
-                FrameKind::Method { ref mut self_value, .. } => {
-                    self_value.assign_local(idx, value)
-                }
-                FrameKind::Block { block, .. } => block.frame.borrow_mut().assign_arg_oracle(idx, scope, value),
-            }
-        }
-    }
-
-    /// Get the method invocation frame for that frame.
-    pub fn method_frame_oracle(frame: &SOMRef<Frame>) -> SOMRef<Frame> {
         match frame.borrow().kind() {
             FrameKind::Block { block, .. } => Frame::method_frame(&block.frame),
             FrameKind::Method { .. } => frame.clone(),
