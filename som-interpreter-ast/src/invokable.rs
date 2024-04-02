@@ -35,9 +35,6 @@ impl Invoke for Method {
         // println!("--- Invoking \"{:1}\" ({:2})", &self.signature, &self.holder.upgrade().unwrap().borrow().name);
         // println!("--- ...with args: {:?}", &args);
         //
-        // if self.signature == "at:" {
-        //     dbg!("wow");
-        // }
         //
         // if !universe.frames.is_empty() {
         //     match &universe.current_method_frame().as_ref().borrow().kind {
@@ -117,6 +114,9 @@ impl Invoke for ast::MethodDef {
         //     dbg!(&self.body);
         // std::process::exit(1);
         // }
+        if self.signature == "schedule" {
+            dbg!(&self.body);
+        }
 
 
         match &self.kind {

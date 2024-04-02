@@ -65,41 +65,20 @@ impl Frame {
 
     /// Get the self value for this frame.
     pub fn get_self(&self) -> Value {
-        let mut self_or_block_self = self.params.get(0).unwrap().clone(); // todo should that really be a clone?
-
-        // let oracle = match &self.kind {
-        //     FrameKind::Method { self_value, .. } => self_value.clone(),
-        //     FrameKind::Block { block, .. } => block.frame.borrow().get_self(),
-        // };
-        //
-        // assert_eq!(new, oracle);
-        self_or_block_self = match self_or_block_self {
+        match self.params.get(0).unwrap() {
             Value::BlockSelf(b) => b.frame.borrow().get_self(),
-            _ => self_or_block_self
-        };
-
-        self_or_block_self
+            s => s.clone()
+        }
     }
 
     /// Get the holder for this current method.
     pub fn get_method_holder(&self) -> SOMRef<Class> {
         let ours = match self.get_self() {
             Value::Class(c) => c,
-            v => todo!("{:?}", v)
+            v => panic!("self value not a class, but {:?}", v)
         };
 
-        let res = ours.clone().borrow().class();
-
-        res
-        // dbg!(&ours.borrow().class());
-
-        // let oracle = match &self.kind {
-        //     FrameKind::Method { holder, .. } => holder.clone(),
-        //     FrameKind::Block { block, .. } => block.frame.borrow().get_method_holder(),
-        // };
-
-        // dbg!(&ours, &oracle);
-        // oracle
+        ours.clone().borrow().class()
     }
 
     /// Get the signature of the current method.
@@ -113,14 +92,11 @@ impl Frame {
 
     #[inline] // not sure if necessary
     pub fn lookup_local(&self, idx: usize) -> Option<Value> {
-        let res = self.locals.get(idx).cloned();
-
-        res
+        self.locals.get(idx).cloned()
     }
 
     pub fn lookup_non_local(&self, idx: usize, scope: usize) -> Option<Value> {
-        let res = self.nth_frame_back(scope).borrow().lookup_local(idx);
-        res
+        self.nth_frame_back(scope).borrow().lookup_local(idx)
     }
     pub fn assign_local(&mut self, idx: usize, value: &Value) -> Option<()> {
         let local = self.locals.get_mut(idx).unwrap();
@@ -133,16 +109,11 @@ impl Frame {
     }
 
     pub fn lookup_arg(&self, idx: usize, scope: usize) -> Option<Value> {
-        if idx == 0 && scope == 0 {
-            return Some(self.get_self());
-        }
-
-        let res = match scope {
-            0 => self.lookup_local_arg(idx),
+        match (idx, scope) {
+            (0, 0) => Some(self.get_self()),
+            (_, 0) => self.lookup_local_arg(idx),
             _ => self.lookup_non_local_arg(idx, scope),
-        };
-
-        res
+        }
     }
 
     pub fn lookup_local_arg(&self, idx: usize) -> Option<Value> {
@@ -158,6 +129,7 @@ impl Frame {
         *val = value.clone();
         return Some(());
     }
+
     pub fn assign_arg(&mut self, idx: usize, scope: usize, value: &Value) -> Option<()> {
         match scope {
             0 => self.assign_arg_local(idx, value),
@@ -166,21 +138,15 @@ impl Frame {
     }
 
     pub fn lookup_field(&self, idx: usize) -> Option<Value> {
-        let self_val = self.get_self();
-
-        let res = match self_val {
+        match self.get_self() {
             Value::Instance(i) => { i.borrow_mut().lookup_local(idx) }
             Value::Class(c) => { c.borrow().class().borrow_mut().lookup_local(idx) }
             v => { panic!("{:?}", &v) }
-        };
-
-        res
+        }
     }
 
     pub fn assign_field(&self, idx: usize, value: &Value) -> Option<()> {
-        let self_val = self.get_self();
-
-        match self_val {
+        match self.get_self() {
             Value::Instance(i) => { i.borrow_mut().assign_local(idx, value.clone()) }
             Value::Class(c) => { c.borrow().class().borrow_mut().assign_local(idx, &value) }
             v => { panic!("{:?}", &v) }
