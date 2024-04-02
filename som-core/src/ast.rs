@@ -219,9 +219,7 @@ pub struct Block {
     /// The names of the locals.
     pub locals: Vec<String>, // todo you too.
     /// Represents the block's body.
-    pub body: Body,
-    /// Unique ID for blocks, to not break shadowing of variables when inlining
-    pub scope: u64
+    pub body: Body
 }
 
 /// Represents a term.

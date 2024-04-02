@@ -1,5 +1,4 @@
 use std::rc::Rc;
-use rand::Rng;
 use som_core::ast::*;
 use som_core::ast::MethodDef::{Generic, InlinedIf, InlinedIfTrueIfFalse, InlinedWhile};
 use som_lexer::Token;
@@ -311,7 +310,6 @@ pub fn block<'a>() -> impl Parser<Expression, &'a [Token], AstGenCtxt> {
             parameters,
             locals,
             body,
-            scope: 424242, // todo fix //{ let mut rand_thread = rand::thread_rng(); rand_thread.gen() } // ugly. what we need is just for each block within a single method to have a different unique ID. e.g. scope level
         }), input, new_genctxt))
     }
 }
@@ -401,41 +399,41 @@ pub fn positional_method_def<'a>() -> impl Parser<MethodDef, &'a [Token], AstGen
         let (body, input, genctxt) = primitive().or(method_body()).parse(input, genctxt)?;
 
         let method_def = match signature.as_str() {
-            // "whileTrue:" => {
-            //     InlinedWhile(GenericMethodDef {
-            //         kind: MethodKind::Positional { parameters },
-            //         signature,
-            //         body,
-            //     }, true)
-            // },
-            // "whileFalse:" => {
-            //     InlinedWhile(GenericMethodDef {
-            //         kind: MethodKind::Positional { parameters },
-            //         signature,
-            //         body,
-            //     }, false)
-            // }
-            // "ifTrue:" => {
-            //     InlinedIf(GenericMethodDef {
-            //         kind: MethodKind::Positional { parameters },
-            //         signature,
-            //         body,
-            //     }, true)
-            // },
-            // "ifFalse:" => {
-            //     InlinedIf(GenericMethodDef {
-            //         kind: MethodKind::Positional { parameters },
-            //         signature,
-            //         body,
-            //     }, false)
-            // },
-            // "ifTrue:ifFalse:" => {
-            //     InlinedIfTrueIfFalse(GenericMethodDef {
-            //         kind: MethodKind::Positional { parameters },
-            //         signature,
-            //         body,
-            //     })
-            // },
+            "whileTrue:" => {
+                InlinedWhile(GenericMethodDef {
+                    kind: MethodKind::Positional { parameters },
+                    signature,
+                    body,
+                }, true)
+            },
+            "whileFalse:" => {
+                InlinedWhile(GenericMethodDef {
+                    kind: MethodKind::Positional { parameters },
+                    signature,
+                    body,
+                }, false)
+            }
+            "ifTrue:" => {
+                InlinedIf(GenericMethodDef {
+                    kind: MethodKind::Positional { parameters },
+                    signature,
+                    body,
+                }, true)
+            },
+            "ifFalse:" => {
+                InlinedIf(GenericMethodDef {
+                    kind: MethodKind::Positional { parameters },
+                    signature,
+                    body,
+                }, false)
+            },
+            "ifTrue:ifFalse:" => {
+                InlinedIfTrueIfFalse(GenericMethodDef {
+                    kind: MethodKind::Positional { parameters },
+                    signature,
+                    body,
+                })
+            },
             _ => Generic(GenericMethodDef {
                 kind: MethodKind::Positional { parameters: parameters.clone() },
                 signature,

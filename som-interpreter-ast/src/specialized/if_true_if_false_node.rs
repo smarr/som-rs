@@ -1,3 +1,4 @@
+use std::rc::Rc;
 use crate::invokable::{Invoke, Return};
 use crate::universe::Universe;
 use crate::value::Value;
@@ -26,13 +27,27 @@ impl Invoke for IfTrueIfFalseNode {
             // TODO: this kinda sucks, right? It's to make the case work where you don't provide a block.
             // Shouldn't this be changed in IfNode too
             match body_block_arg {
-                Value::Block(b) => b.invoke(universe, vec![]),
+                Value::Block(b) => {
+                    universe.with_frame(
+                        Value::BlockSelf(Rc::clone(&b)),
+                        b.block.locals.len(),
+                        0,
+                        |universe| b.invoke(universe, vec![]),
+                    )
+                },
                 a => Return::Local(a.clone()),
             }
         } else {
             // body_block2.invoke(universe, vec![])
             match body_block_arg2 {
-                Value::Block(b) => b.invoke(universe, vec![]),
+                Value::Block(b) => {
+                    universe.with_frame(
+                        Value::BlockSelf(Rc::clone(&b)),
+                        b.block.locals.len(),
+                        0,
+                        |universe| b.invoke(universe, vec![]),
+                    )
+                },
                 a => Return::Local(a.clone()),
             }
         }

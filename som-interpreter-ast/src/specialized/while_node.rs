@@ -1,3 +1,4 @@
+use std::rc::Rc;
 use crate::invokable::{Invoke, Return};
 use crate::universe::Universe;
 use crate::value::Value;
@@ -19,7 +20,14 @@ impl Invoke for WhileNode {
         };
 
         loop {
-            let bool_val = match cond_block.invoke(universe, args.clone()) {
+            let cond_block_return = universe.with_frame(
+                Value::BlockSelf(Rc::clone(&cond_block)),
+                cond_block.block.locals.len(),
+                0,
+                |universe| cond_block.invoke(universe, vec![]),
+            );
+
+            let bool_val = match cond_block_return {
                 Return::Local(Value::Boolean(b)) => b,
                 v => panic!("Invalid, condition block should return a boolean: instead was {:?}.", v)
             };
@@ -27,7 +35,13 @@ impl Invoke for WhileNode {
             if bool_val != self.expected_bool {
                 break Return::Local(Nil)
             } else {
-                let ret_val = body_block.invoke(universe, vec![]);
+                let ret_val = universe.with_frame(
+                    Value::BlockSelf(Rc::clone(&body_block)),
+                    body_block.block.locals.len(),
+                    0,
+                    |universe| body_block.invoke(universe, vec![]),
+                );
+
                 match ret_val {
                     Return::Restart | Return::Local(_) => {},
                     ret @ Return::NonLocal(_, _) => break ret,
