@@ -6,7 +6,6 @@ use som_core::ast::MethodBody;
 use crate::block::Block;
 use crate::evaluate::Evaluate;
 use crate::frame::Frame;
-use crate::frame::FrameKind;
 use crate::method::{Method, MethodKind};
 use crate::universe::Universe;
 use crate::value::Value;
@@ -63,28 +62,28 @@ impl Invoke for Method {
                     (receiver, iter.collect::<Vec<_>>())
                 };
                 // dbg!(&self_value);
-                let holder = match self.holder().upgrade() {
-                    Some(holder) => holder,
-                    None => {
-                        return Return::Exception(
-                            "cannot invoke this method because its holder has been collected"
-                                .to_string(),
-                        );
-                    }
-                };
+                // let holder = match self.holder().upgrade() {
+                //     Some(holder) => holder,
+                //     None => {
+                //         return Return::Exception(
+                //             "cannot invoke this method because its holder has been collected"
+                //                 .to_string(),
+                //         );
+                //     }
+                // };
 
                 let nbr_locals = match &method.body {
                     MethodBody::Body { locals, .. } => {locals.len()}
                     MethodBody::Primitive => unreachable!()
                 };
 
-                let signature = universe.intern_symbol(&self.signature);
+                // let signature = universe.intern_symbol(&self.signature);
                 universe.with_frame(
-                    FrameKind::Method {
-                        holder,
-                        signature,
-                        self_value: self_value.clone(),
-                    },
+                    // FrameKind::Method {
+                    //     holder,
+                    //     signature,
+                    //     self_value: self_value.clone(),
+                    // },
                     self_value,
                     nbr_locals,
                     |universe| method.invoke(universe, params),

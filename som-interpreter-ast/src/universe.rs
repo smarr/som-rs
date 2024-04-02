@@ -10,7 +10,7 @@ use anyhow::{anyhow, Error};
 
 use crate::block::Block;
 use crate::class::Class;
-use crate::frame::{Frame, FrameKind};
+use crate::frame::Frame;
 use crate::interner::{Interned, Interner};
 use crate::invokable::{Invoke, Return};
 use crate::value::Value;
@@ -466,8 +466,16 @@ impl Universe {
 
 impl Universe {
     /// Execute a piece of code within a new stack frame.
-    pub fn with_frame<T>(&mut self, kind: FrameKind, self_value: Value, nbr_locals: usize, func: impl FnOnce(&mut Self) -> T) -> T {
-        let frame = Rc::new(RefCell::new(Frame::from_kind(kind, nbr_locals, self_value)));
+    // pub fn with_frame<T>(&mut self, kind: FrameKind, self_value: Value, nbr_locals: usize, func: impl FnOnce(&mut Self) -> T) -> T {
+    //     let frame = Rc::new(RefCell::new(Frame::from_kind(kind, nbr_locals, self_value)));
+    //     self.frames.push(frame);
+    //     let ret = func(self);
+    //     self.frames.pop();
+    //     ret
+    // }
+
+    pub fn with_frame<T>(&mut self, self_value: Value, nbr_locals: usize, func: impl FnOnce(&mut Self) -> T) -> T {
+        let frame = Rc::new(RefCell::new(Frame::new_frame(nbr_locals, self_value)));
         self.frames.push(frame);
         let ret = func(self);
         self.frames.pop();

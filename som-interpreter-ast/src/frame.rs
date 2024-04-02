@@ -1,38 +1,36 @@
 use std::cell::{RefCell};
 use std::rc::Rc;
 
-use crate::block::Block;
 use crate::class::Class;
-use crate::interner::Interned;
 use crate::value::Value;
 use crate::SOMRef;
 
 /// The kind of a given frame.
 // #[cfg(feature = "frame-debug-info")]
-#[derive(Debug, Clone)]
-pub enum FrameKind {
-    /// A frame created from a block evaluation.
-    Block {
-        /// The block instance for the current frame.
-        block: Rc<Block>,
-    },
-    /// A frame created from a method invocation.
-    Method {
-        /// The holder of the current method (used for lexical self/super).
-        holder: SOMRef<Class>,
-        /// The current method.
-        signature: Interned,
-        /// The self value.
-        self_value: Value,
-    },
-}
+// #[derive(Debug, Clone)]
+// pub enum FrameKind {
+//     /// A frame created from a block evaluation.
+//     Block {
+//         /// The block instance for the current frame.
+//         block: Rc<Block>,
+//     },
+//     /// A frame created from a method invocation.
+//     Method {
+//         /// The holder of the current method (used for lexical self/super).
+//         holder: SOMRef<Class>,
+//         /// The current method.
+//         signature: Interned,
+//         /// The self value.
+//         self_value: Value,
+//     },
+// }
 
 /// Represents a stack frame.
 #[derive(Debug)]
 pub struct Frame {
     /// This frame's kind.
     // #[cfg(feature = "frame-debug-info")]
-    pub kind: FrameKind,
+    // pub kind: FrameKind,
     /// Local variables that get defined within this frame.
     pub locals: Vec<Value>,
     /// Parameters for this frame.
@@ -41,9 +39,18 @@ pub struct Frame {
 
 impl Frame {
     /// Construct a new empty frame from its kind.
-    pub fn from_kind(kind: FrameKind, nbr_locals: usize, self_value: Value) -> Self {
+    // pub fn from_kind(kind: FrameKind, nbr_locals: usize, self_value: Value) -> Self {
+    //     let mut frame = Self {
+    //         kind,
+    //         locals: vec![Value::Nil; nbr_locals],
+    //         params: vec![], // can we statically determine the length to not have to init it later? it's not straightforward as it turns out, but *should* be doable...
+    //     };
+    //     frame.params.push(self_value);
+    //     frame
+    // }
+
+    pub fn new_frame(nbr_locals: usize, self_value: Value) -> Self {
         let mut frame = Self {
-            kind,
             locals: vec![Value::Nil; nbr_locals],
             params: vec![], // can we statically determine the length to not have to init it later? it's not straightforward as it turns out, but *should* be doable...
         };
@@ -96,13 +103,13 @@ impl Frame {
     }
 
     /// Get the signature of the current method.
-    #[cfg(feature = "frame-debug-info")]
-    pub fn get_method_signature(&self) -> Interned {
-        match &self.kind {
-            FrameKind::Method { signature, .. } => *signature,
-            FrameKind::Block { block, .. } => block.frame.borrow().get_method_signature(),
-        }
-    }
+    // #[cfg(feature = "frame-debug-info")]
+    // pub fn get_method_signature(&self) -> Interned {
+    //     match &self.kind {
+    //         FrameKind::Method { signature, .. } => *signature,
+    //         FrameKind::Block { block, .. } => block.frame.borrow().get_method_signature(),
+    //     }
+    // }
 
     #[inline] // not sure if necessary
     pub fn lookup_local(&self, idx: usize) -> Option<Value> {
@@ -208,35 +215,15 @@ impl Frame {
     }
 
     pub fn nth_frame_back(&self, n: usize) -> SOMRef<Frame> {
-        let mut target_frame: Rc<RefCell<Frame>> = match &self.kind {
-            FrameKind::Block { block, .. } => {
-                Rc::clone(&block.frame)
-            }
-            _ => panic!("attempting to access a non local var/arg from a method instead of a block.")
-        };
-
-        for _ in 1..n {
-            target_frame = match &Rc::clone(&target_frame).borrow().kind {
-                FrameKind::Block { block, .. } => {
-                    Rc::clone(&block.frame)
-                }
-                _ => panic!("attempting to access a non local var/arg from a method instead of a block.")
-            };
-        }
-
-        target_frame
-    }
-
-    pub fn nth_frame_back_new(&self, n: usize) -> SOMRef<Frame> {
         let mut target_frame: Rc<RefCell<Frame>> = match self.params.get(0).unwrap() {
-            Value::Block(block) => {
+            Value::BlockSelf(block) => {
                 Rc::clone(&block.frame)
             }
             _ => panic!("attempting to access a non local var/arg from a method instead of a block.")
         };
         for _ in 1..n {
             target_frame = match Rc::clone(&target_frame).borrow().params.get(0).unwrap() {
-                Value::Block(block) => {
+                Value::BlockSelf(block) => {
                     Rc::clone(&block.frame)
                 }
                 _ => panic!("attempting to access a non local var/arg from a method instead of a block.")
@@ -244,7 +231,6 @@ impl Frame {
         }
         target_frame
     }
-
 
         /// Get the method invocation frame for that frame.
     pub fn method_frame(frame: &SOMRef<Frame>) -> SOMRef<Frame> {

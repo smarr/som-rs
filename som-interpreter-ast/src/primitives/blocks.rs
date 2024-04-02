@@ -1,5 +1,4 @@
 use crate::expect_args;
-use crate::frame::FrameKind;
 use crate::invokable::Invoke;
 use crate::invokable::Return;
 use crate::primitives::PrimitiveFn;
@@ -28,9 +27,9 @@ pub mod block1 {
         let block_self = Value::BlockSelf(block.clone());
 
         universe.with_frame(
-            FrameKind::Block {
-                block: block.clone(),
-            },
+            // FrameKind::Block {
+            //     block: block.clone(),
+            // },
             block_self,
             block.block.locals.len(),
             |universe| block.invoke(universe, block_args),
@@ -82,9 +81,9 @@ pub mod block2 {
         let block_self = Value::BlockSelf(block.clone());
 
         universe.with_frame(
-            FrameKind::Block {
-                block: block.clone(),
-            },
+            // FrameKind::Block {
+            //     block: block.clone(),
+            // },
             block_self,
             block.block.locals.len(),
             |universe| block.invoke(universe, block_args),
@@ -130,9 +129,9 @@ pub mod block3 {
         let block_self = Value::BlockSelf(block.clone());
 
         universe.with_frame(
-            FrameKind::Block {
-                block: block.clone(),
-            },
+            // FrameKind::Block {
+            //     block: block.clone(),
+            // },
             block_self,
             block.block.locals.len(),
             |universe| block.invoke(universe, block_args),

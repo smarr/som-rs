@@ -8,7 +8,6 @@ use som_lexer::{Lexer, Token};
 use som_parser::lang;
 
 use som_interpreter_ast::evaluate::Evaluate;
-use som_interpreter_ast::frame::FrameKind;
 use som_interpreter_ast::invokable::Return;
 use som_interpreter_ast::universe::Universe;
 use som_interpreter_ast::value::Value;
@@ -23,7 +22,7 @@ pub fn interactive(universe: &mut Universe, verbose: bool) -> Result<(), Error> 
     let mut counter = 0;
     let mut line = String::new();
     // let mut last_value = Value::Nil;
-    let signature = universe.intern_symbol("run:");
+    // let signature = universe.intern_symbol("run:");
     loop {
         write!(&mut stdout, "({}) SOM Shell | ", counter)?;
         stdout.flush()?;
@@ -75,13 +74,13 @@ pub fn interactive(universe: &mut Universe, verbose: bool) -> Result<(), Error> 
         }
 
         let start = Instant::now();
-        let kind = FrameKind::Method {
-            signature,
-            holder: universe.system_class(),
-            self_value: Value::System,
-        };
+        // let kind = FrameKind::Method {
+        //     signature,
+        //     holder: universe.system_class(),
+        //     self_value: Value::System,
+        // };
         let nbr_locals = 1; // idk. maybe 0? 
-        let output = universe.with_frame(kind, Value::System, nbr_locals, |universe| {
+        let output = universe.with_frame(Value::System, nbr_locals, |universe| {
             // todo: by removing bindings, i likely broke the shell. but i don't really care about the shell, so i'll fix it way later.
             // universe
             //     .current_frame()
