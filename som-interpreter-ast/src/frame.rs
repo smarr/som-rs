@@ -165,53 +165,26 @@ impl Frame {
         }
     }
 
-    pub fn lookup_field(&self, idx: usize, kind: bool) -> Option<Value> {
+    pub fn lookup_field(&self, idx: usize) -> Option<Value> {
         let self_val = self.get_self();
 
-        // todo i am growing more and more confident the "kind" arg is useless. remove it when done with the variable arrays refactorings + frame refactorings
-        let res = match kind {
-            true => {
-                match self_val {
-                    Value::Instance(i) => { i.borrow_mut().lookup_local(idx) }
-                    // Value::Class(c) => { c.borrow_mut().lookup_local(idx) }
-                    v => { panic!("{:?}", &v) }
-                }
-            }
-            false => {
-                match self_val {
-                    // Value::Instance(i) => { i.borrow().class.borrow().class().borrow_mut().lookup_local(idx) }
-                    Value::Class(c) => { c.borrow().class().borrow_mut().lookup_local(idx) }
-                    v => { panic!("{:?}", &v) }
-                }
-            }
+        let res = match self_val {
+            Value::Instance(i) => { i.borrow_mut().lookup_local(idx) }
+            Value::Class(c) => { c.borrow().class().borrow_mut().lookup_local(idx) }
+            v => { panic!("{:?}", &v) }
         };
 
         res
     }
 
-    pub fn assign_field(&self, idx: usize, _kind: bool, value: &Value) -> Option<()> {
+    pub fn assign_field(&self, idx: usize, value: &Value) -> Option<()> {
         let self_val = self.get_self();
 
-        // dbg!(&_kind);
-
-        match _kind {
-            true => {
-                match self_val {
-                    Value::Instance(i) => { i.borrow_mut().assign_local(idx, value.clone()) }
-                    // Value::Class(c) => { c.borrow_mut().assign_local(idx, &value) }
-                    v => { panic!("{:?}", &v) }
-                }
-            }
-            false => {
-                match self_val {
-                    // Value::Instance(i) => { i.borrow().class.borrow().class().borrow_mut().assign_local(idx, &value) }
-                    Value::Class(c) => { c.borrow().class().borrow_mut().assign_local(idx, &value) }
-                    v => { panic!("{:?}", &v) }
-                }
-            }
-        };
-
-        Some(())
+        match self_val {
+            Value::Instance(i) => { i.borrow_mut().assign_local(idx, value.clone()) }
+            Value::Class(c) => { c.borrow().class().borrow_mut().assign_local(idx, &value) }
+            v => { panic!("{:?}", &v) }
+        }
     }
 
     pub fn nth_frame_back(&self, n: usize) -> SOMRef<Frame> {

@@ -27,7 +27,7 @@ pub struct AstGenCtxtData {
     local_names: Vec<String>,
     param_names: Vec<String>,
     class_instance_fields: Vec<String>,
-    class_static_fields: Vec<String>,
+    class_static_fields: Vec<String>, // it's possible the distinction between static/instance fields is useless, but i don't think so.
     current_scope: usize,
     outer_ctxt: Option<AstGenCtxt>,
 }
@@ -37,7 +37,7 @@ pub type AstGenCtxt = Rc<RefCell<AstGenCtxtData>>;
 enum FoundVar {
     Local(usize, usize),
     Argument(usize, usize),
-    Field(usize, bool),
+    Field(usize),
 }
 
 impl Default for AstGenCtxtData {
@@ -124,15 +124,15 @@ impl AstGenCtxtData {
         self.get_local(name)
             .map(|idx| FoundVar::Local(0, idx))
             .or_else(|| self.get_param(name).map(|idx| FoundVar::Argument(0, idx)))
-            .or_else(|| self.get_instance_field(name).map(|idx| FoundVar::Field(idx, true)))
-            .or_else(|| self.get_static_field(name).map(|idx| FoundVar::Field(idx, false)))
+            .or_else(|| self.get_instance_field(name).map(|idx| FoundVar::Field(idx)))
+            .or_else(|| self.get_static_field(name).map(|idx| FoundVar::Field(idx)))
             .or_else(|| {
                 match &self.outer_ctxt.as_ref() {
                     None => None,
                     Some(outer) => outer.borrow().find_var(name).map(|found| match found {
                         FoundVar::Local(up_idx, idx) => FoundVar::Local(up_idx + 1, idx),
                         FoundVar::Argument(up_idx, idx) => FoundVar::Argument(up_idx + 1, idx),
-                        FoundVar::Field(idx, kind) => FoundVar::Field(idx, kind),
+                        FoundVar::Field(idx) => FoundVar::Field(idx),
                     })
                 }
             })
@@ -153,7 +153,7 @@ impl AstGenCtxtData {
                         }
                     },
                     FoundVar::Argument(up_idx, idx) => Expression::ArgRead(up_idx, idx + 1),
-                    FoundVar::Field(idx, kind) => Expression::FieldRead(idx, kind)
+                    FoundVar::Field(idx) => Expression::FieldRead(idx)
                 }
             }
         }
@@ -175,7 +175,7 @@ impl AstGenCtxtData {
                         }
                     },
                     FoundVar::Argument(up_idx, idx) => Expression::ArgWrite(up_idx, idx + 1, expr), // + 1 to adjust for self
-                    FoundVar::Field(idx, kind) => Expression::FieldWrite(idx, kind, expr)
+                    FoundVar::Field(idx) => Expression::FieldWrite(idx, expr)
                 }
             }
         }

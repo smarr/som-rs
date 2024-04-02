@@ -513,8 +513,8 @@ impl Universe {
     }
 
     /// Look up a field.
-    pub fn lookup_field(&self, idx: usize, kind: bool) -> Option<Value> {
-        self.current_frame().borrow().lookup_field(idx, kind)
+    pub fn lookup_field(&self, idx: usize) -> Option<Value> {
+        self.current_frame().borrow().lookup_field(idx)
     }
 
     pub fn lookup_arg(&self, idx: usize, scope: usize) -> Option<Value> {
@@ -542,8 +542,8 @@ impl Universe {
         self.current_frame().borrow_mut().assign_non_local(idx, scope, value)
     }
 
-    pub fn assign_field(&mut self, idx: usize, kind: bool, value: &Value) -> Option<()> {
-        self.current_frame().borrow_mut().assign_field(idx, kind, value)
+    pub fn assign_field(&mut self, idx: usize, value: &Value) -> Option<()> {
+        self.current_frame().borrow_mut().assign_field(idx, value)
     }
 
     pub fn assign_arg(&mut self, idx: usize, scope: usize, value: &Value) -> Option<()> {
