@@ -4,7 +4,6 @@ use std::rc::Rc;
 use som_core::ast;
 
 use crate::block::Block;
-use crate::frame::FrameKind;
 use crate::invokable::{Invoke, Return};
 use crate::universe::Universe;
 use crate::value::Value;
@@ -80,8 +79,8 @@ impl Evaluate for ast::Expression {
                     // Block has escaped its method frame.
                     let instance = frame.borrow().get_self();
                     let frame = universe.current_frame();
-                    let block = match frame.borrow().kind() {
-                        FrameKind::Block { block, .. } => block.clone(),
+                    let block = match frame.borrow().params.get(0) {
+                        Some(Value::BlockSelf(b)) => b.clone(),
                         _ => {
                             // Should never happen, because `universe.current_frame()` would
                             // have been equal to `universe.current_method_frame()`.

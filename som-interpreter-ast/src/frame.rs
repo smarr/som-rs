@@ -52,9 +52,9 @@ impl Frame {
     }
 
     /// Get the frame's kind.
-    pub fn kind(&self) -> &FrameKind {
-        &self.kind
-    }
+    // pub fn kind(&self) -> &FrameKind {
+    //     &self.kind
+    // }
 
     /// Get the self value for this frame.
     pub fn get_self(&self) -> Value {
@@ -146,18 +146,15 @@ impl Frame {
         self.nth_frame_back(scope).borrow().lookup_local_arg(idx)
     }
 
+    pub fn assign_arg_local(&mut self, idx: usize, value: &Value) -> Option<()> {
+        let val =  self.params.get_mut(idx).unwrap();
+        *val = value.clone();
+        return Some(());
+    }
     pub fn assign_arg(&mut self, idx: usize, scope: usize, value: &Value) -> Option<()> {
-        // todo make this one rely on the same logic as the others. but if reading args work, this is likely trivial
-        if let Some(val) = self.params.get_mut(idx) {
-            *val = value.clone();
-            return Some(());
-        } else {
-            return match &mut self.kind {
-                FrameKind::Method { ref mut self_value, .. } => {
-                    self_value.assign_local(idx, value)
-                }
-                FrameKind::Block { block, .. } => block.frame.borrow_mut().assign_arg(idx, scope, value),
-            };
+        match scope {
+            0 => self.assign_arg_local(idx, value),
+            _ => self.nth_frame_back(scope).borrow_mut().assign_arg_local(idx, value)
         }
     }
 
@@ -230,11 +227,31 @@ impl Frame {
         target_frame
     }
 
-    /// Get the method invocation frame for that frame.
+    pub fn nth_frame_back_new(&self, n: usize) -> SOMRef<Frame> {
+        let mut target_frame: Rc<RefCell<Frame>> = match self.params.get(0).unwrap() {
+            Value::Block(block) => {
+                Rc::clone(&block.frame)
+            }
+            _ => panic!("attempting to access a non local var/arg from a method instead of a block.")
+        };
+        for _ in 1..n {
+            target_frame = match Rc::clone(&target_frame).borrow().params.get(0).unwrap() {
+                Value::Block(block) => {
+                    Rc::clone(&block.frame)
+                }
+                _ => panic!("attempting to access a non local var/arg from a method instead of a block.")
+            };
+        }
+        target_frame
+    }
+
+
+        /// Get the method invocation frame for that frame.
     pub fn method_frame(frame: &SOMRef<Frame>) -> SOMRef<Frame> {
-        match frame.borrow().kind() {
-            FrameKind::Block { block, .. } => Frame::method_frame(&block.frame),
-            FrameKind::Method { .. } => frame.clone(),
+        if let Value::BlockSelf(b) = frame.borrow().params.get(0).unwrap() {
+            Frame::method_frame(&b.frame)
+        } else {
+            Rc::clone(frame)
         }
     }
 }

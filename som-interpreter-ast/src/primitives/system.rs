@@ -3,7 +3,6 @@ use std::fs;
 use std::rc::Rc;
 
 use crate::expect_args;
-use crate::frame::FrameKind;
 use crate::invokable::Return;
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
@@ -199,6 +198,7 @@ fn time(universe: &mut Universe, args: Vec<Value>) -> Return {
     }
 }
 
+// this function is unusable after my recent changes to the frame. needs to be fixed when a compilation flag for frame debug info is enabled
 fn print_stack_trace(universe: &mut Universe, args: Vec<Value>) -> Return {
     const SIGNATURE: &str = "System>>#printStackTrace";
 
@@ -209,11 +209,12 @@ fn print_stack_trace(universe: &mut Universe, args: Vec<Value>) -> Return {
         // let signature = frame.borrow().get_method_signature();
         // let signature = universe.lookup_symbol(signature);
         let signature = "we do not support method signatures in stack traces anymore...";
-        let block = match frame.borrow().kind() {
-            FrameKind::Block { .. } => "$block",
-            _ => "",
-        };
-        println!("{}>>#{}{}", class.borrow().name(), signature, block);
+        // let block = match frame.borrow().kind() {
+        //     FrameKind::Block { .. } => "$block",
+        //     _ => "",
+        // };
+        // println!("{}>>#{}{}", class.borrow().name(), signature, block);
+        println!("{}>>#{}", class.borrow().name(), signature);
     }
 
     Return::Local(Value::Boolean(true))
