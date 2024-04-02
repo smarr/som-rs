@@ -34,6 +34,7 @@ pub enum Value {
     Array(SOMRef<Vec<Self>>),
     /// A block value, ready to be evaluated.
     Block(Rc<Block>),
+    BlockSelf(Rc<Block>), // todo not sure this is needed. it's to differentiate block class from block since blocks take themselves as first argument. but there's definitely another way to do this, right
     /// A generic (non-primitive) class instance.
     Instance(SOMRef<Instance>),
     /// A bare class object.
@@ -60,6 +61,7 @@ impl Value {
             Self::Instance(instance) => instance.borrow().class(),
             Self::Class(class) => class.borrow().class(),
             Self::Invokable(invokable) => invokable.class(universe),
+            Self::BlockSelf(_) => unreachable!()
         }
     }
 
@@ -128,6 +130,7 @@ impl Value {
                 .upgrade()
                 .map(|holder| format!("{}>>#{}", holder.borrow().name(), invokable.signature()))
                 .unwrap_or_else(|| format!("??>>#{}", invokable.signature())),
+            Self::BlockSelf(_) => "$blockSelf".to_string(),
         }
     }
 }
@@ -180,7 +183,8 @@ impl fmt::Debug for Value {
                     .map(|holder| format!("{}>>#{}", holder.borrow().name(), val.signature()))
                     .unwrap_or_else(|| format!("??>>#{}", val.signature()));
                 f.debug_tuple("Invokable").field(&signature).finish()
-            }
+            },
+            Self::BlockSelf(_) => f.debug_tuple("$blockSelf").finish()
         }
     }
 }

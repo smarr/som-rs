@@ -66,6 +66,9 @@ impl Hash for Value {
             Value::Invokable(value) => {
                 hasher.write(b"#mthd#");
                 value.hash(hasher);
+            },
+            Value::BlockSelf(_) => {
+                hasher.write(b"#blkself#");
             }
         }
     }

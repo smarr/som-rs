@@ -33,8 +33,8 @@ pub trait Invoke {
 
 impl Invoke for Method {
     fn invoke(&self, universe: &mut Universe, args: Vec<Value>) -> Return {
-        println!("--- Invoking \"{:1}\" ({:2})", &self.signature, &self.holder.upgrade().unwrap().borrow().name);
-        println!("--- ...with args: {:?}", &args);
+        // println!("--- Invoking \"{:1}\" ({:2})", &self.signature, &self.holder.upgrade().unwrap().borrow().name);
+        // println!("--- ...with args: {:?}", &args);
         //
         // if self.signature == "at:" {
         //     dbg!("wow");
@@ -95,7 +95,7 @@ impl Invoke for Method {
                 Return::Exception(format!("unimplemented primitive: {}", name))
             }
         };
-        println!("...exiting {:}.", self.signature);
+        // println!("...exiting {:}.", self.signature);
         match output {
             // Return::Exception(msg) => Return::Exception(format!(
             //     "from {}>>#{}\n{}",
@@ -172,7 +172,9 @@ impl Invoke for ast::MethodDef {
 
 impl Invoke for Block {
     fn invoke(&self, universe: &mut Universe, args: Vec<Value>) -> Return {
-        println!("Invoking a block.");
+        // println!("Invoking a block.");
+        // println!("--- ...with args: {:?}", &args);
+
         // dbg!(&self.block.body);
 
         let current_frame = universe.current_frame();
@@ -183,7 +185,7 @@ impl Invoke for Block {
         // dbg!("--");
 
         let l = self.block.body.evaluate(universe);
-        println!("...exiting a block.");
+        // println!("...exiting a block.");
         l
     }
 }

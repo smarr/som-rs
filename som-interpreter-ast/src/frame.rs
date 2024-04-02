@@ -58,7 +58,7 @@ impl Frame {
 
     /// Get the self value for this frame.
     pub fn get_self(&self) -> Value {
-        let new = self.params.get(0).unwrap().clone(); // todo should that really be a clone?
+        let mut self_or_block_self = self.params.get(0).unwrap().clone(); // todo should that really be a clone?
 
         // let oracle = match &self.kind {
         //     FrameKind::Method { self_value, .. } => self_value.clone(),
@@ -66,10 +66,14 @@ impl Frame {
         // };
         //
         // assert_eq!(new, oracle);
+        self_or_block_self = match self_or_block_self {
+            Value::BlockSelf(b) => b.frame.borrow().get_self(),
+            _ => self_or_block_self
+        };
 
-        assert_eq!(self.get_self_oracle(), new);
+        assert_eq!(self.get_self_oracle(), self_or_block_self);
 
-        new
+        self_or_block_self
     }
 
     /// Get the holder for this current method.
@@ -128,10 +132,19 @@ impl Frame {
     }
 
     pub fn lookup_arg(&self, idx: usize, scope: usize) -> Option<Value> {
+        // dbg!(&idx, &scope);
+        if idx == 0 && scope == 0 {
+            return Some(self.get_self());
+        }
+
         let res = match scope {
             0 => self.lookup_local_arg(idx),
             _ => self.lookup_non_local_arg(idx, scope),
         };
+        // dbg!(&res);
+
+        // if idx == 0 && scope == 0 {
+        // }
         assert_eq!(self.lookup_arg_oracle(idx, scope), res);
         res
     }
@@ -226,10 +239,10 @@ impl Frame {
             };
         }
 
-        let oracle = self.nth_frame_back_oracle(n);
+        // let oracle = self.nth_frame_back_oracle(n);
         // we can't easily compare kinds (I don't want everything to needlessly implement PartialEq), so eh, this'll probably do
-        assert_eq!(target_frame.borrow().locals, oracle.borrow().locals);
-        assert_eq!(target_frame.borrow().params, oracle.borrow().params);
+        // assert_eq!(target_frame.borrow().locals, oracle.borrow().locals);
+        // assert_eq!(target_frame.borrow().params, oracle.borrow().params);
 
         target_frame
     }

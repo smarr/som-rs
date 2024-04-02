@@ -25,7 +25,7 @@ pub mod block1 {
         ]);
 
         // let block_self = block.frame.borrow().get_self();
-        let block_self = Value::Block(block.clone());
+        let block_self = Value::BlockSelf(block.clone());
 
         universe.with_frame(
             FrameKind::Block {
@@ -79,7 +79,7 @@ pub mod block2 {
         ]);
 
         // let block_self = block.frame.borrow().get_self();
-        let block_self = Value::Block(block.clone());
+        let block_self = Value::BlockSelf(block.clone());
 
         universe.with_frame(
             FrameKind::Block {
@@ -127,7 +127,7 @@ pub mod block3 {
         ]);
 
         // let block_self = block.frame.borrow().get_self();
-        let block_self = Value::Block(block.clone());
+        let block_self = Value::BlockSelf(block.clone());
 
         universe.with_frame(
             FrameKind::Block {
