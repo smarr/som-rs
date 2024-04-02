@@ -84,7 +84,8 @@ fn block_test() {
                     })
                 ],
                 full_stopped: true,
-            }
+            },
+            scope: 424242
         }),
     );
 }
@@ -125,7 +126,8 @@ fn expression_test_2() {
                             values: vec![],
                         })],
                         full_stopped: true,
-                    }
+                    },
+                    scope: 424242
                 }),
                 Expression::Block(Block {
                     parameters: vec![],
@@ -139,7 +141,8 @@ fn expression_test_2() {
                             values: vec![],
                         })],
                         full_stopped: false,
-                    }
+                    },
+                    scope: 424242
                 }),
             ],
         }),
@@ -186,7 +189,8 @@ fn primary_test() {
                     })],
                 })],
                 full_stopped: false,
-            }
+            },
+            scope: 424242
         }),
     );
 }

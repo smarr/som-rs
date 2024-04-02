@@ -7,9 +7,11 @@ use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
 use crate::value::Value;
 use crate::{expect_args, SOMRef};
+use crate::value::Value::Nil;
 use crate::class::Class;
 
 pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[
+    ("halt", self::halt, true),
     ("class", self::class, true),
     ("objectSize", self::object_size, true),
     ("hashcode", self::hashcode, true),
@@ -26,6 +28,12 @@ pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[
     ("==", self::eq, true),
 ];
 pub static CLASS_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[];
+
+fn halt(_universe: &mut Universe, _args: Vec<Value>) -> Return{
+    const _: &'static str = "Object>>#halt";
+    println!("HALT"); // so a breakpoint can be put
+    Return::Local(Nil)
+}
 
 fn class(universe: &mut Universe, args: Vec<Value>) -> Return {
     const SIGNATURE: &'static str = "Object>>#class";

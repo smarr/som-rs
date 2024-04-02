@@ -60,29 +60,13 @@ impl Invoke for Method {
                     };
                     (receiver, iter.collect::<Vec<_>>())
                 };
-                // dbg!(&self_value);
-                // let holder = match self.holder().upgrade() {
-                //     Some(holder) => holder,
-                //     None => {
-                //         return Return::Exception(
-                //             "cannot invoke this method because its holder has been collected"
-                //                 .to_string(),
-                //         );
-                //     }
-                // };
 
                 let nbr_locals = match &method.body {
                     MethodBody::Body { locals, .. } => {locals.len()}
                     MethodBody::Primitive => unreachable!()
                 };
 
-                // let signature = universe.intern_symbol(&self.signature);
                 universe.with_frame(
-                    // FrameKind::Method {
-                    //     holder,
-                    //     signature,
-                    //     self_value: self_value.clone(),
-                    // },
                     self_value,
                     nbr_locals,
                     nbr_params,
@@ -90,6 +74,9 @@ impl Invoke for Method {
                 )
             }
             MethodKind::Primitive(func) => func(universe, args),
+            MethodKind::WhileInlined(while_node) => { while_node.invoke(universe, args) }
+            MethodKind::IfInlined(if_node) => { if_node.invoke(universe, args) }
+            MethodKind::IfTrueIfFalseInlined(if_true_if_false_node) => { if_true_if_false_node.invoke(universe, args) },
             MethodKind::NotImplemented(name) => {
                 Return::Exception(format!("unimplemented primitive: {}", name))
             }
@@ -107,7 +94,7 @@ impl Invoke for Method {
     }
 }
 
-impl Invoke for ast::MethodDef {
+impl Invoke for ast::GenericMethodDef {
     fn invoke(&self, universe: &mut Universe, args: Vec<Value>) -> Return {
         let current_frame = universe.current_frame().clone();
         // if &self.signature == "initialize:" {

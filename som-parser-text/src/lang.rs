@@ -445,11 +445,11 @@ pub fn unary_method_def<'a>() -> impl Parser<MethodDef, &'a [char]> {
         let (_, input) = many(spacing()).parse(input)?;
         let (body, input) = primitive().or(method_body()).parse(input)?;
 
-        let method_def = MethodDef {
+        let method_def = MethodDef::Generic(GenericMethodDef {
             kind: MethodKind::Unary,
             signature,
             body,
-        };
+        });
         Some((method_def, input))
     }
 }
@@ -469,11 +469,11 @@ pub fn positional_method_def<'a>() -> impl Parser<MethodDef, &'a [char]> {
         let (body, input) = primitive().or(method_body()).parse(input)?;
 
         let (signature, parameters) = pairs.into_iter().unzip();
-        let method_def = MethodDef {
+        let method_def = MethodDef::Generic(GenericMethodDef {
             kind: MethodKind::Positional { parameters },
             signature,
             body,
-        };
+        });
         Some((method_def, input))
     }
 }
@@ -488,11 +488,11 @@ pub fn operator_method_def<'a>() -> impl Parser<MethodDef, &'a [char]> {
         let (_, input) = many(spacing()).parse(input)?;
         let (body, input) = primitive().or(method_body()).parse(input)?;
 
-        let method_def = MethodDef {
+        let method_def = MethodDef::Generic(GenericMethodDef {
             kind: MethodKind::Operator { rhs },
             signature,
             body,
-        };
+        });
         Some((method_def, input))
     }
 }

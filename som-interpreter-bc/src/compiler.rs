@@ -9,6 +9,7 @@ use indexmap::{IndexMap, IndexSet};
 use num_bigint::BigInt;
 
 use som_core::ast;
+use som_core::ast::MethodDef;
 use som_core::bytecode::Bytecode;
 
 use crate::block::{Block, BlockInfo};
@@ -450,7 +451,7 @@ impl GenCtxt for ClassGenCtxt<'_> {
     }
 }
 
-fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::MethodDef) -> Option<Method> {
+fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::GenericMethodDef) -> Option<Method> {
     // println!("(method) compiling '{}' ...", defn.signature);
 
     let mut ctxt = MethodGenCtxt {
@@ -622,7 +623,14 @@ pub fn compile_class(
         is_static: true,
     }));
 
-    for method in &defn.static_methods {
+    for method_def in &defn.static_methods {
+        let method = match method_def {
+            MethodDef::Generic(v) => v,
+            MethodDef::InlinedWhile(v, _) => v,
+            MethodDef::InlinedIf(v, _) => v,
+            MethodDef::InlinedIfTrueIfFalse(v) => v
+        };
+
         let signature = static_class_ctxt.interner.intern(method.signature.as_str());
         let mut method = compile_method(&mut static_class_ctxt, method)?;
         method.holder = Rc::downgrade(&static_class);
@@ -701,7 +709,14 @@ pub fn compile_class(
         is_static: false,
     }));
 
-    for method in &defn.instance_methods {
+    for method_def in &defn.instance_methods {
+        let method = match method_def {
+            MethodDef::Generic(v) => v,
+            MethodDef::InlinedWhile(v, _) => v,
+            MethodDef::InlinedIf(v, _) => v,
+            MethodDef::InlinedIfTrueIfFalse(v) => v
+        };
+
         let signature = instance_class_ctxt
             .interner
             .intern(method.signature.as_str());

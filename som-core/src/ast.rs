@@ -59,13 +59,21 @@ pub enum MethodKind {
 /// "operator method"    + value = ( self increment: value )
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub struct MethodDef {
+pub struct GenericMethodDef {
     /// The method's kind.
     pub kind: MethodKind,
     /// The method's signature (eg. `println`, `at:put:` or `==`).
     pub signature: String,
     /// The method's body.
     pub body: MethodBody,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum MethodDef {
+    Generic(GenericMethodDef),
+    InlinedWhile(GenericMethodDef, bool),
+    InlinedIf(GenericMethodDef, bool),
+    InlinedIfTrueIfFalse(GenericMethodDef),
 }
 
 /// Represents a method's body.
@@ -212,6 +220,8 @@ pub struct Block {
     pub locals: Vec<String>, // todo you too.
     /// Represents the block's body.
     pub body: Body,
+    /// Unique ID for blocks, to not break shadowing of variables when inlining
+    pub scope: u64
 }
 
 /// Represents a term.

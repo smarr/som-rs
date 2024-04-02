@@ -158,14 +158,14 @@ impl Frame {
             Value::BlockSelf(block) => {
                 Rc::clone(&block.frame)
             }
-            _ => panic!("attempting to access a non local var/arg from a method instead of a block.")
+            v => panic!("attempting to access a non local var/arg from a method instead of a block: self wasn't blockself but {:?}.", v)
         };
         for _ in 1..n {
             target_frame = match Rc::clone(&target_frame).borrow().params.get(0).unwrap() {
                 Value::BlockSelf(block) => {
                     Rc::clone(&block.frame)
                 }
-                _ => panic!("attempting to access a non local var/arg from a method instead of a block.")
+                v => panic!("attempting to access a non local var/arg from a method instead of a block (but the original frame we were in was a block): self wasn't blockself but {:?}.", v)
             };
         }
         target_frame

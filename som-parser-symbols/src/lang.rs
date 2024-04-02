@@ -1,5 +1,7 @@
 use std::rc::Rc;
+use rand::Rng;
 use som_core::ast::*;
+use som_core::ast::MethodDef::{Generic, InlinedIf, InlinedIfTrueIfFalse, InlinedWhile};
 use som_lexer::Token;
 use som_parser_core::combinators::*;
 use som_parser_core::Parser;
@@ -309,6 +311,7 @@ pub fn block<'a>() -> impl Parser<Expression, &'a [Token], AstGenCtxt> {
             parameters,
             locals,
             body,
+            scope: 424242, // todo fix //{ let mut rand_thread = rand::thread_rng(); rand_thread.gen() } // ugly. what we need is just for each block within a single method to have a different unique ID. e.g. scope level
         }), input, new_genctxt))
     }
 }
@@ -380,11 +383,11 @@ pub fn unary_method_def<'a>() -> impl Parser<MethodDef, &'a [Token], AstGenCtxt>
     identifier()
         .and_left(exact(Token::Equal))
         .and(primitive().or(method_body()))
-        .map(|(signature, body)| MethodDef {
+        .map(|(signature, body)| Generic(GenericMethodDef {
             kind: MethodKind::Unary,
             signature,
             body,
-        })
+        }))
 }
 
 pub fn positional_method_def<'a>() -> impl Parser<MethodDef, &'a [Token], AstGenCtxt> {
@@ -397,10 +400,47 @@ pub fn positional_method_def<'a>() -> impl Parser<MethodDef, &'a [Token], AstGen
 
         let (body, input, genctxt) = primitive().or(method_body()).parse(input, genctxt)?;
 
-        let method_def = MethodDef {
-            kind: MethodKind::Positional { parameters: parameters.clone() },
-            signature,
-            body,
+        let method_def = match signature.as_str() {
+            // "whileTrue:" => {
+            //     InlinedWhile(GenericMethodDef {
+            //         kind: MethodKind::Positional { parameters },
+            //         signature,
+            //         body,
+            //     }, true)
+            // },
+            // "whileFalse:" => {
+            //     InlinedWhile(GenericMethodDef {
+            //         kind: MethodKind::Positional { parameters },
+            //         signature,
+            //         body,
+            //     }, false)
+            // }
+            // "ifTrue:" => {
+            //     InlinedIf(GenericMethodDef {
+            //         kind: MethodKind::Positional { parameters },
+            //         signature,
+            //         body,
+            //     }, true)
+            // },
+            // "ifFalse:" => {
+            //     InlinedIf(GenericMethodDef {
+            //         kind: MethodKind::Positional { parameters },
+            //         signature,
+            //         body,
+            //     }, false)
+            // },
+            // "ifTrue:ifFalse:" => {
+            //     InlinedIfTrueIfFalse(GenericMethodDef {
+            //         kind: MethodKind::Positional { parameters },
+            //         signature,
+            //         body,
+            //     })
+            // },
+            _ => Generic(GenericMethodDef {
+                kind: MethodKind::Positional { parameters: parameters.clone() },
+                signature,
+                body,
+            })
         };
 
         Some((method_def, input, genctxt))
@@ -414,11 +454,11 @@ pub fn operator_method_def<'a>() -> impl Parser<MethodDef, &'a [Token], AstGenCt
         genctxt.borrow_mut().add_params(&vec![rhs.clone()]);
 
         primitive().or(method_body())
-            .map(|body| MethodDef {
+            .map(|body| Generic(GenericMethodDef {
                 kind: MethodKind::Operator { rhs: rhs.clone() },
                 signature: op.clone(),
                 body,
-            }).parse(input, genctxt)
+            })).parse(input, genctxt)
     }
 }
 
