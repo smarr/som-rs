@@ -52,7 +52,7 @@ impl Frame {
     pub fn new_frame(nbr_locals: usize, nbr_params: usize, self_value: Value) -> Self {
         let mut frame = Self {
             locals: vec![Value::Nil; nbr_locals],
-            params: Vec::with_capacity(nbr_params), // todo plus one for self. // can we statically determine the length to not have to init it later? it's not straightforward as it turns out, but *should* be doable...
+            params: Vec::with_capacity(nbr_params + 1), // can we add all params now? it's not straightforward as it turns out, but adding some *should* be doable...
         };
         frame.params.push(self_value);
         frame
