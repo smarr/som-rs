@@ -474,6 +474,12 @@ impl Universe {
     //     ret
     // }
 
+    pub fn make_frame(&mut self, self_value: Value, nbr_locals: usize, nbr_params: usize) -> SOMRef<Frame> {
+        let frame = Rc::new(RefCell::new(Frame::new_frame(nbr_locals, nbr_params, self_value)));
+        self.frames.push(Rc::clone(&frame));
+        frame
+    }
+    
     pub fn with_frame<T>(&mut self, self_value: Value, nbr_locals: usize, nbr_params: usize, func: impl FnOnce(&mut Self) -> T) -> T {
         let frame = Rc::new(RefCell::new(Frame::new_frame(nbr_locals, nbr_params, self_value)));
         self.frames.push(frame);

@@ -131,7 +131,7 @@ impl Invoke for ast::GenericMethodDef {
         match &self.body {
             ast::MethodBody::Body { body, .. } => {
                 loop {
-                    match body.evaluate(universe) {
+                    match body.evaluate(Rc::clone(&current_frame), universe) {
                         Return::NonLocal(value, frame) => {
                             if Rc::ptr_eq(&current_frame, &frame) {
                                 break Return::Local(value);
@@ -173,7 +173,7 @@ impl Invoke for Block {
         // dbg!(&self.block.parameters);
         // dbg!("--");
 
-        let l = self.block.body.evaluate(universe);
+        let l = self.block.body.evaluate(Rc::clone(&current_frame), universe);
         // println!("...exiting a block.");
         l
     }

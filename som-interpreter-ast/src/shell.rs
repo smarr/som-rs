@@ -79,17 +79,18 @@ pub fn interactive(universe: &mut Universe, verbose: bool) -> Result<(), Error> 
         //     holder: universe.system_class(),
         //     self_value: Value::System,
         // };
-        let nbr_locals = 1; // idk. maybe 0? 
-        let nbr_params = 1; // idk
-        let output = universe.with_frame(Value::System, nbr_locals, nbr_params,|universe| {
-            // todo: by removing bindings, i likely broke the shell. but i don't really care about the shell, so i'll fix it way later.
-            // universe
-            //     .current_frame()
-            //     .borrow_mut()
-            //     .bindings
-            //     .insert("it".into(), last_value.clone());
-            expr.evaluate(universe)
-        });
+        // let nbr_locals = 1; // idk. maybe 0? 
+        // let nbr_params = 1; // idk
+        // let output = universe.with_frame(Value::System, nbr_locals, nbr_params,|universe| {
+        //     // todo: by removing bindings, i likely broke the shell. but i don't really care about the shell, so i'll fix it way later.
+        //     // universe
+        //     //     .current_frame()
+        //     //     .borrow_mut()
+        //     //     .bindings
+        //     //     .insert("it".into(), last_value.clone());
+        //     expr.evaluate(universe)
+        // });
+        let output = Return::Local(Value::Nil);
         let elapsed = start.elapsed();
         if verbose {
             writeln!(

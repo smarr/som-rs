@@ -176,13 +176,10 @@ fn basic_interpreter_tests() {
         // };
         let nbr_locals = 0;
         let nbr_params = 0;
-        let output = universe.with_frame(
-            // kind,
-                                         Value::System,
-                                         nbr_locals,
-                                         nbr_params,
-                                         |universe| ast.evaluate(universe)
-        );
+        let frame = universe.make_frame(Value::System,
+                                        nbr_locals,
+                                        nbr_params);
+        let output = ast.evaluate(frame, &mut universe);
 
         match &output {
             Return::Local(output) => assert_eq!(output, expected, "unexpected test output value"),
