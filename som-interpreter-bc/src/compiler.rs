@@ -534,8 +534,8 @@ fn compile_block(outer: &mut dyn GenCtxt, defn: &ast::Block) -> Option<Block> {
 
     let mut ctxt = BlockGenCtxt {
         outer,
-        args: defn.parameters.iter().cloned().collect(),
-        locals: defn.locals.iter().cloned().collect(),
+        args: defn.dbg_info.parameters.iter().cloned().collect(),
+        locals: defn.dbg_info.locals.iter().cloned().collect(),
         literals: IndexSet::new(),
         body: None,
     };

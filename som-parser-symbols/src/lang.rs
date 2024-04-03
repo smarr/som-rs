@@ -309,6 +309,11 @@ pub fn block<'a>() -> impl Parser<Expression, &'a [Token], AstGenCtxt> {
         Some((Expression::Block(Block {
             nbr_params: parameters.len(),
             nbr_locals: locals.len(),
+            #[cfg(feature = "block-dbg-info")]
+            dbg_info: BlockDebugInfo {
+                parameters,
+                locals,
+            },
             body,
         }), input, new_genctxt))
     }

@@ -14,9 +14,15 @@ build-and-test-interpreters:
   script:
     # Setup
     - cargo clean
-    - cargo build --release
+    - cargo build --release --bin som-interpreter-ast
+    - lz4 ./target/release/som-interpreter-ast som-interpreter-ast.lz4
 
-    - cargo test
+    - cargo clean
+    - cargo build --release --bin som-interpreter-bc --features="block-dbg-info"
+    - lz4 ./target/release/som-interpreter-bc som-interpreter-bc.lz4
+
+    # running tests with debug info in blocks. this means the ast gets ran with the debug info, but that shouldn't matter.
+    - cargo test --features="block-dbg-info"
 
     # Unit Tests
 #    - PYTHONPATH=src python3 -m pytest
@@ -25,10 +31,6 @@ build-and-test-interpreters:
     # Interpreter
 #    - $RPYTHON --batch src/main_rpython.py
 #    - ./som-bc-interp -cp Smalltalk TestSuite/TestHarness.som
-
-    # Package and Upload
-    - lz4 ./target/release/som-interpreter-ast som-interpreter-ast.lz4
-#    - lz4 ./target/release/som-interpreter-bc som-interpreter-bc.lz4
 
     - |
       sftp tmp-artifacts << EOF

@@ -214,14 +214,21 @@ pub struct BinaryOp {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Block {
-    // pub parameters: Vec<String>,
-    // pub locals: Vec<String>,
+    #[cfg(feature = "block-dbg-info")]
+    pub dbg_info: BlockDebugInfo,
     /// Represents the parameters' names.
     pub nbr_params: usize,
     /// The names of the locals.
     pub nbr_locals: usize,
     /// Represents the block's body.
     pub body: Body
+}
+
+#[cfg(feature = "block-dbg-info")]
+#[derive(Debug, Clone, PartialEq)]
+pub struct BlockDebugInfo {
+    pub parameters: Vec<String>,
+    pub locals: Vec<String>,
 }
 
 /// Represents a term.

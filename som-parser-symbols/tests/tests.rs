@@ -46,7 +46,7 @@ fn expression_test_1() {
                 receiver: Box::new(Expression::GlobalRead(String::from("counter"))),
                 signature: String::from("get"),
                 values: vec![],
-            }))
+            })),
         })
     );
 }
@@ -67,6 +67,11 @@ fn block_test() {
     assert_eq!(
         block,
         Expression::Block(Block {
+            #[cfg(feature = "block-dbg-info")]
+            dbg_info: BlockDebugInfo {
+                parameters: vec![String::from("test")],
+                locals: vec![String::from("local")]
+            },
             nbr_params: 1,
             nbr_locals: 1,
             body: Body {
@@ -94,8 +99,8 @@ fn expression_test_2() {
     let tokens: Vec<Token> = Lexer::new(
         "( 3 == 3 ) ifTrue: [ 'this is correct' println. ] ifFalse: [ 'oh no' println ]",
     )
-    .skip_whitespace(true)
-    .collect();
+        .skip_whitespace(true)
+        .collect();
 
     let result = expression().parse(tokens.as_slice(), AstGenCtxt::default());
 
@@ -114,6 +119,11 @@ fn expression_test_2() {
             signature: String::from("ifTrue:ifFalse:"),
             values: vec![
                 Expression::Block(Block {
+                    #[cfg(feature = "block-dbg-info")]
+                    dbg_info: BlockDebugInfo {
+                        parameters: vec![],
+                        locals: vec![]
+                    },
                     nbr_params: 0,
                     nbr_locals: 0,
                     body: Body {
@@ -128,6 +138,11 @@ fn expression_test_2() {
                     }
                 }),
                 Expression::Block(Block {
+                    #[cfg(feature = "block-dbg-info")]
+                    dbg_info: BlockDebugInfo {
+                        parameters: vec![],
+                        locals: vec![]
+                    },
                     nbr_params: 0,
                     nbr_locals: 0,
                     body: Body {
@@ -161,6 +176,11 @@ fn primary_test() {
     assert_eq!(
         primary,
         Expression::Block(Block {
+            #[cfg(feature = "block-dbg-info")]
+            dbg_info: BlockDebugInfo {
+                parameters: vec![],
+                locals: vec![]
+            },
             nbr_params: 0,
             nbr_locals: 0,
             body: Body {
