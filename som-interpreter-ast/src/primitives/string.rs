@@ -200,7 +200,7 @@ fn prim_substring_from_to(universe: &mut Universe, args: Vec<Value>) -> Return {
         (_, _, _) => return Return::Exception(format!("'{}': wrong types", SIGNATURE)),
     };
 
-    let string = Rc::new(value.chars().skip(from).take(to - from).collect());
+    let string = Rc::new(String::from(&value[from..to]));
 
     Return::Local(Value::String(string))
 }
