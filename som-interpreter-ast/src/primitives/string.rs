@@ -16,6 +16,7 @@ pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[
     ("isDigits", self::is_digits, true),
     ("isWhiteSpace", self::is_whitespace, true),
     ("asSymbol", self::as_symbol, true),
+    ("charAt:", self::char_at, true),
     ("concatenate:", self::concatenate, true),
     ("primSubstringFrom:to:", self::prim_substring_from_to, true),
     ("=", self::eq, true),
@@ -156,6 +157,22 @@ fn as_symbol(universe: &mut Universe, args: Vec<Value>) -> Return {
         Value::Symbol(sym) => Return::Local(Value::Symbol(sym)),
         _ => Return::Exception(format!("'{}': invalid self type", SIGNATURE)),
     }
+}
+
+fn char_at(_universe: &mut Universe, args: Vec<Value>) -> Return {
+    const SIGNATURE: &str = "String>>#charAt:";
+
+    expect_args!(SIGNATURE, args, [
+        s1 => s1,
+        s2 => s2,
+    ]);
+
+    let (value, idx) = match (&s1, s2) {
+        (Value::String(ref value), Value::Integer(i)) => (value, i as usize - 1),
+        _ => panic!()
+    };
+
+    Return::Local(Value::String(Rc::new(String::from(value.chars().nth(idx).unwrap()))))
 }
 
 fn eq(universe: &mut Universe, args: Vec<Value>) -> Return {
