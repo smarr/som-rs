@@ -9,7 +9,9 @@ use indexmap::{IndexMap, IndexSet};
 use num_bigint::BigInt;
 
 use som_core::ast;
-use som_core::ast::MethodDef;
+use som_core::ast::{MethodBody, MethodDef};
+#[cfg(feature = "block-dbg-info")]
+use som_core::ast::BlockDebugInfo;
 use som_core::bytecode::Bytecode;
 
 use crate::block::{Block, BlockInfo};
@@ -83,14 +85,7 @@ impl Hash for Literal {
     }
 }
 
-enum FoundVar {
-    Local(u8, u8),
-    Argument(u8, u8),
-    Field(u8),
-}
-
 trait GenCtxt {
-    fn find_var(&mut self, name: &str) -> Option<FoundVar>;
     fn intern_symbol(&mut self, name: &str) -> Interned;
     fn class_name(&self) -> &str;
 }
@@ -98,38 +93,21 @@ trait GenCtxt {
 trait InnerGenCtxt: GenCtxt {
     fn as_gen_ctxt(&mut self) -> &mut dyn GenCtxt;
     fn push_instr(&mut self, instr: Bytecode);
-    fn push_arg(&mut self, name: String) -> usize;
-    fn push_local(&mut self, name: String) -> usize;
     fn push_literal(&mut self, literal: Literal) -> usize;
     fn remove_dup_popx_pop_sequences(&mut self);
 }
 
 struct BlockGenCtxt<'a> {
     pub outer: &'a mut dyn GenCtxt,
-    pub args: IndexSet<String>,
-    pub locals: IndexSet<String>,
+    pub args_nbr: usize,
+    pub locals_nbr: usize,
     pub literals: IndexSet<Literal>,
     pub body: Option<Vec<Bytecode>>,
+    #[cfg(feature = "block-dbg-info")]
+    pub dbg_info: BlockDebugInfo,
 }
 
 impl GenCtxt for BlockGenCtxt<'_> {
-    fn find_var(&mut self, name: &str) -> Option<FoundVar> {
-        let name = match name {
-            "super" => "self",
-            name => name,
-        };
-        (self.locals.get_index_of(name))
-            .map(|idx| FoundVar::Local(0, idx as u8))
-            .or_else(|| (self.args.get_index_of(name)).map(|idx| FoundVar::Argument(0, idx as u8)))
-            .or_else(|| {
-                self.outer.find_var(name).map(|found| match found {
-                    FoundVar::Local(up_idx, idx) => FoundVar::Local(up_idx + 1, idx),
-                    FoundVar::Argument(up_idx, idx) => FoundVar::Argument(up_idx + 1, idx),
-                    FoundVar::Field(idx) => FoundVar::Field(idx),
-                })
-            })
-    }
-
     fn intern_symbol(&mut self, name: &str) -> Interned {
         self.outer.intern_symbol(name)
     }
@@ -147,16 +125,6 @@ impl InnerGenCtxt for BlockGenCtxt<'_> {
     fn push_instr(&mut self, instr: Bytecode) {
         let body = self.body.get_or_insert_with(|| vec![]);
         body.push(instr);
-    }
-
-    fn push_arg(&mut self, name: String) -> usize {
-        let (idx, _) = self.args.insert_full(name);
-        idx
-    }
-
-    fn push_local(&mut self, name: String) -> usize {
-        let (idx, _) = self.locals.insert_full(name);
-        idx
     }
 
     fn push_literal(&mut self, literal: Literal) -> usize {
@@ -209,10 +177,6 @@ struct MethodGenCtxt<'a> {
 impl MethodGenCtxt<'_> {}
 
 impl GenCtxt for MethodGenCtxt<'_> {
-    fn find_var(&mut self, name: &str) -> Option<FoundVar> {
-        self.inner.find_var(name)
-    }
-
     fn intern_symbol(&mut self, name: &str) -> Interned {
         self.inner.intern_symbol(name)
     }
@@ -229,14 +193,6 @@ impl InnerGenCtxt for MethodGenCtxt<'_> {
 
     fn push_instr(&mut self, instr: Bytecode) {
         self.inner.push_instr(instr)
-    }
-
-    fn push_arg(&mut self, name: String) -> usize {
-        self.inner.push_arg(name)
-    }
-
-    fn push_local(&mut self, name: String) -> usize {
-        self.inner.push_local(name)
     }
 
     fn push_literal(&mut self, literal: Literal) -> usize {
@@ -435,13 +391,6 @@ struct ClassGenCtxt<'a> {
 }
 
 impl GenCtxt for ClassGenCtxt<'_> {
-    fn find_var(&mut self, name: &str) -> Option<FoundVar> {
-        let sym = self.interner.intern(name);
-        self.fields
-            .get_index_of(&sym)
-            .map(|idx| FoundVar::Field(idx as u8))
-    }
-
     fn intern_symbol(&mut self, name: &str) -> Interned {
         self.interner.intern(name)
     }
@@ -458,31 +407,46 @@ fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::GenericMethodDef) -> Opti
         signature: defn.signature.clone(),
         inner: BlockGenCtxt {
             outer,
-            args: {
-                let mut args = IndexSet::new();
-                args.insert(String::from("self"));
-                args
-            },
-            locals: match &defn.body {
-                ast::MethodBody::Primitive => IndexSet::new(),
-                ast::MethodBody::Body { locals, .. } => locals.iter().cloned().collect(),
-            },
+            // args: {
+            //     let mut args = IndexSet::new();
+            //     args.insert(String::from("self"));
+            //     args
+            // },
+            // locals: match &defn.body {
+            //     ast::MethodBody::Primitive => IndexSet::new(),
+            //     ast::MethodBody::Body { locals, .. } => locals.iter().cloned().collect(),
+            // },
             literals: IndexSet::new(),
             body: None,
+            locals_nbr: { 
+                match &defn.body {
+                    MethodBody::Primitive => 0,
+                    MethodBody::Body { locals, .. } => locals.len()
+                }
+            },
+            args_nbr: {
+                match &defn.kind {
+                    ast::MethodKind::Unary => 0, // maybe 1?
+                    ast::MethodKind::Positional { parameters } => parameters.len(),
+                    ast::MethodKind::Operator { .. } => 1
+                }
+            },
+            #[cfg(feature = "block-dbg-info")]
+            dbg_info: todo!(),
         },
     };
 
-    match &defn.kind {
-        ast::MethodKind::Unary => {}
-        ast::MethodKind::Positional { parameters } => {
-            for param in parameters {
-                ctxt.push_arg(param.clone());
-            }
-        }
-        ast::MethodKind::Operator { rhs } => {
-            ctxt.push_arg(rhs.clone());
-        }
-    }
+    // match &defn.kind {
+    //     ast::MethodKind::Unary => {}
+    //     ast::MethodKind::Positional { parameters } => {
+    //         for param in parameters {
+    //             ctxt.push_arg(param.clone());
+    //         }
+    //     }
+    //     ast::MethodKind::Operator { rhs } => {
+    //         ctxt.push_arg(rhs.clone());
+    //     }
+    // }
 
     match &defn.body {
         ast::MethodBody::Primitive => {}
@@ -501,20 +465,15 @@ fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::GenericMethodDef) -> Opti
         kind: match &defn.body {
             ast::MethodBody::Primitive => MethodKind::NotImplemented(defn.signature.clone()),
             ast::MethodBody::Body { .. } => {
-                let locals = {
-                    let locals = std::mem::take(&mut ctxt.inner.locals);
-                    locals
-                        .into_iter()
-                        .map(|name| ctxt.intern_symbol(&name))
-                        .collect()
-                };
+                // let locals = std::mem::take(&mut ctxt.inner.locals);
+                let nbr_locals = ctxt.inner.locals_nbr;
                 let body = ctxt.inner.body.unwrap_or_default();
                 let literals = ctxt.inner.literals.into_iter().collect();
                 let inline_cache = RefCell::new(vec![None; body.len()]);
 
                 MethodKind::Defined(MethodEnv {
                     body,
-                    locals,
+                    nbr_locals,
                     literals,
                     inline_cache,
                 })
@@ -534,8 +493,9 @@ fn compile_block(outer: &mut dyn GenCtxt, defn: &ast::Block) -> Option<Block> {
 
     let mut ctxt = BlockGenCtxt {
         outer,
-        args: defn.dbg_info.parameters.iter().cloned().collect(),
-        locals: defn.dbg_info.locals.iter().cloned().collect(),
+        args_nbr: defn.nbr_params,
+        locals_nbr: defn.nbr_locals,
+        // dbg_info: defn.dbg_info,
         literals: IndexSet::new(),
         body: None,
     };
@@ -551,22 +511,24 @@ fn compile_block(outer: &mut dyn GenCtxt, defn: &ast::Block) -> Option<Block> {
     }
 
     let frame = None;
-    let locals = {
-        let locals = std::mem::take(&mut ctxt.locals);
-        locals
-            .into_iter()
-            .map(|name| ctxt.intern_symbol(&name))
-            .collect()
-    };
+    // let locals = {
+        // let locals = std::mem::take(&mut ctxt.locals);
+        // locals
+        //     .into_iter()
+        //     .map(|name| ctxt.intern_symbol(&name))
+        //     .collect()
+    // };
     let literals = ctxt.literals.into_iter().collect();
     let body = ctxt.body.unwrap_or_default();
-    let nb_params = ctxt.args.len();
+    let nb_locals = ctxt.locals_nbr;
+    let nb_params = ctxt.args_nbr;
     let inline_cache = RefCell::new(vec![None; body.len()]);
 
     let block = Block {
         frame,
         blk_info: Rc::new(BlockInfo {
-            locals,
+            // locals,
+            nb_locals,
             literals,
             body,
             nb_params,

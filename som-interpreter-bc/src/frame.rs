@@ -45,7 +45,8 @@ impl Frame {
     pub fn from_kind(kind: FrameKind) -> Self {
         match &kind {
             FrameKind::Block { block } => {
-                let locals = block.blk_info.locals.iter().map(|_| Value::Nil).collect();
+                // let locals = block.blk_info.locals.iter().map(|_| Value::Nil).collect();
+                let locals = vec![Value::Nil; block.blk_info.nb_locals];
                 let mut frame = Self {
                     kind,
                     locals,
@@ -57,7 +58,8 @@ impl Frame {
             }
             FrameKind::Method { method, .. } => {
                 if let MethodKind::Defined(env) = method.kind() {
-                    let locals = env.locals.iter().map(|_| Value::Nil).collect();
+                    // let locals = env.locals.iter().map(|_| Value::Nil).collect();
+                    let locals = vec![Value::Nil; env.nbr_locals];
                     Self {
                         kind,
                         locals,

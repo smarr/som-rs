@@ -7,19 +7,23 @@ use som_core::bytecode::Bytecode;
 use crate::class::Class;
 use crate::compiler::Literal;
 use crate::frame::FrameKind;
-use crate::interner::Interned;
 use crate::interpreter::Interpreter;
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
 use crate::value::Value;
 use crate::{SOMRef, SOMWeakRef};
 
+#[cfg(feature = "block-dbg-info")]
+use crate::block::BlockDebugInfo;
+
 #[derive(Clone)]
 pub struct MethodEnv {
-    pub locals: Vec<Interned>,
     pub literals: Vec<Literal>,
     pub body: Vec<Bytecode>,
     pub inline_cache: RefCell<Vec<Option<(*const Class, Rc<Method>)>>>,
+    pub nbr_locals: usize,
+    #[cfg(feature = "block-dbg-info")]
+    pub block_debug_info: BlockDebugInfo,
 }
 
 /// The kind of a class method.
@@ -115,7 +119,7 @@ impl fmt::Display for Method {
         match &self.kind {
             MethodKind::Defined(env) => {
                 writeln!(f, "(")?;
-                write!(f, "    <{} locals>", env.locals.len())?;
+                write!(f, "    <{} locals>", env.nbr_locals)?;
                 for bytecode in &env.body {
                     writeln!(f)?;
                     write!(f, "    {}  ", bytecode.padded_name())?;

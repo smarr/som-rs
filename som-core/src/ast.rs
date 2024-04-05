@@ -91,7 +91,7 @@ pub enum MethodBody {
     /// A primitive (meant to be implemented by the VM itself).
     Primitive,
     /// An actual body for the method, with locals.
-    Body { locals: Vec<String>, body: Body },
+    Body { locals: Vec<String>, body: Body }, // todo you don't need the locals outside of debug info!!
 }
 
 /// Represents the contents of a body (within a term or block).
@@ -214,14 +214,15 @@ pub struct BinaryOp {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Block {
-    #[cfg(feature = "block-dbg-info")]
-    pub dbg_info: BlockDebugInfo,
     /// Represents the parameters' names.
     pub nbr_params: usize,
     /// The names of the locals.
     pub nbr_locals: usize,
     /// Represents the block's body.
-    pub body: Body
+    pub body: Body,
+    #[cfg(feature = "block-dbg-info")]
+    /// Debug info for the block: parameters and local variable names
+    pub dbg_info: BlockDebugInfo,
 }
 
 #[cfg(feature = "block-dbg-info")]

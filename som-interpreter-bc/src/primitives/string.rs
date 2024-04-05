@@ -163,7 +163,7 @@ fn as_symbol(interpreter: &mut Interpreter, universe: &mut Universe) {
     }
 }
 
-fn char_at(interpreter: &mut Interpreter, universe: &mut Universe) {
+fn char_at(interpreter: &mut Interpreter, _universe: &mut Universe) {
     const SIGNATURE: &str = "String>>#charAt:";
 
     expect_args!(SIGNATURE, interpreter, [
