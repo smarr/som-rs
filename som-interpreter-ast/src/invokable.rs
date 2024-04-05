@@ -62,7 +62,7 @@ impl Invoke for Method {
                 };
 
                 let nbr_locals = match &method.body {
-                    MethodBody::Body { locals, .. } => {locals.len()}
+                    MethodBody::Body { locals_nbr, .. } => *locals_nbr,
                     MethodBody::Primitive => unreachable!()
                 };
 

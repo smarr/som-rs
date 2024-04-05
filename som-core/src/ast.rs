@@ -91,7 +91,12 @@ pub enum MethodBody {
     /// A primitive (meant to be implemented by the VM itself).
     Primitive,
     /// An actual body for the method, with locals.
-    Body { locals: Vec<String>, body: Body }, // todo you don't need the locals outside of debug info!!
+    Body { 
+        locals_nbr: usize,
+        body: Body,
+        #[cfg(feature = "block-dbg-info")]
+        locals: Vec<String>,
+    },
 }
 
 /// Represents the contents of a body (within a term or block).

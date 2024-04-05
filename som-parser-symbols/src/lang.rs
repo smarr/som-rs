@@ -379,7 +379,12 @@ pub fn method_body<'a>() -> impl Parser<MethodBody, &'a [Token], AstGenCtxt> {
         default(locals()).and(body()),
         exact(Token::EndTerm),
     )
-        .map(|(locals, body)| MethodBody::Body { locals, body })
+        .map(|(locals, body)| MethodBody::Body { 
+            locals_nbr: locals.len(),
+            body,
+            #[cfg(feature = "block-dbg-info")]
+            locals
+        })
 }
 
 pub fn unary_method_def<'a>() -> impl Parser<MethodDef, &'a [Token], AstGenCtxt> {

@@ -421,7 +421,7 @@ fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::GenericMethodDef) -> Opti
             locals_nbr: { 
                 match &defn.body {
                     MethodBody::Primitive => 0,
-                    MethodBody::Body { locals, .. } => locals.len()
+                    MethodBody::Body { locals_nbr, .. } => *locals_nbr
                 }
             },
             args_nbr: {
