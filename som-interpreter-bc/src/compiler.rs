@@ -426,9 +426,9 @@ fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::GenericMethodDef) -> Opti
             },
             args_nbr: {
                 match &defn.kind {
-                    ast::MethodKind::Unary => 0, // maybe 1?
+                    ast::MethodKind::Unary => 1,
                     ast::MethodKind::Positional { parameters } => parameters.len(),
-                    ast::MethodKind::Operator { .. } => 1
+                    ast::MethodKind::Operator { .. } => 2
                 }
             },
             #[cfg(feature = "block-dbg-info")]
