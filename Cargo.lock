@@ -320,7 +320,6 @@ version = "0.1.0"
 name = "som-parser-symbols"
 version = "0.1.0"
 dependencies = [
- "rand",
  "som-core",
  "som-lexer",
  "som-parser-core",

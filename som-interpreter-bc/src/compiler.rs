@@ -16,6 +16,7 @@ use som_core::bytecode::Bytecode;
 
 use crate::block::{Block, BlockInfo};
 use crate::class::{Class, MaybeWeak};
+use crate::inliner::PrimMessageInliner;
 use crate::interner::{Interned, Interner};
 use crate::method::{Method, MethodEnv, MethodKind};
 use crate::primitives;
@@ -85,15 +86,25 @@ impl Hash for Literal {
     }
 }
 
-trait GenCtxt {
+pub trait GenCtxt {
     fn intern_symbol(&mut self, name: &str) -> Interned;
+    fn lookup_symbol(&self, id: Interned) -> &str;
     fn class_name(&self) -> &str;
 }
 
-trait InnerGenCtxt: GenCtxt {
+pub trait InnerGenCtxt: GenCtxt {
     fn as_gen_ctxt(&mut self) -> &mut dyn GenCtxt;
     fn push_instr(&mut self, instr: Bytecode);
-    fn push_literal(&mut self, literal: Literal) -> usize;
+    fn pop_instr(&mut self);
+    fn get_instructions(&self) -> &Vec<Bytecode>;
+    fn get_nbr_locals(&self) -> usize;
+    fn set_nbr_locals(&mut self, nbr_locals: usize);
+    fn get_literal(&self, idx: usize) -> Option<&Literal>;
+    fn push_literal(&mut self, literal: Literal) -> usize; // todo is this needed?
+    fn remove_literal(&mut self, idx: usize) -> Option<Literal>;
+    fn get_cur_instr_idx(&self) -> usize;
+    fn patch_jump(&mut self, idx_to_backpatch: usize, new_val: usize);
+    fn backpatch_jump_to_current(&mut self, idx_to_backpatch: usize);
     fn remove_dup_popx_pop_sequences(&mut self);
 }
 
@@ -112,6 +123,10 @@ impl GenCtxt for BlockGenCtxt<'_> {
         self.outer.intern_symbol(name)
     }
 
+    fn lookup_symbol(&self, id: Interned) -> &str {
+        self.outer.lookup_symbol(id)
+    }
+
     fn class_name(&self) -> &str {
         self.outer.class_name()
     }
@@ -127,23 +142,76 @@ impl InnerGenCtxt for BlockGenCtxt<'_> {
         body.push(instr);
     }
 
+    fn pop_instr(&mut self) {
+        self.body.as_mut().unwrap().pop();
+    }
+
+    fn get_instructions(&self) -> &Vec<Bytecode> {
+        self.body.as_ref().unwrap()
+    }
+
+    fn get_literal(&self, idx: usize) -> Option<&Literal> {
+        self.literals.get_index(idx)
+    }
+
     fn push_literal(&mut self, literal: Literal) -> usize {
         let (idx, _) = self.literals.insert_full(literal);
         idx
     }
 
-    fn remove_dup_popx_pop_sequences(&mut self) {
-        let Some(body) = self.body.as_mut() else {
-            return;
-        };
+    fn remove_literal(&mut self, idx: usize) -> Option<Literal> {
+        self.literals.shift_remove_index(idx)
+    }
 
-        if body.len() < 3 {
+    fn get_cur_instr_idx(&self) -> usize {
+        return self.body.as_ref().unwrap().iter().len();
+    }
+
+    fn backpatch_jump_to_current(&mut self, idx_to_backpatch: usize) {
+        let jump_offset = self.get_cur_instr_idx() - idx_to_backpatch;
+
+        self.body.as_mut().unwrap()[idx_to_backpatch] =
+            match self.body.as_ref().unwrap()[idx_to_backpatch] {
+                Bytecode::Jump(_) => Bytecode::Jump(jump_offset),
+                Bytecode::JumpBackward(_) => Bytecode::JumpBackward(jump_offset),
+                Bytecode::JumpOnTrueTopNil(_) => Bytecode::JumpOnTrueTopNil(jump_offset),
+                Bytecode::JumpOnFalseTopNil(_) => Bytecode::JumpOnFalseTopNil(jump_offset),
+                Bytecode::JumpOnTruePop(_) => Bytecode::JumpOnTruePop(jump_offset),
+                Bytecode::JumpOnFalsePop(_) => Bytecode::JumpOnFalsePop(jump_offset),
+                _ => panic!("Attempting to backpatch a bytecode non jump"),
+            };
+    }
+
+    fn patch_jump(&mut self, idx_to_backpatch: usize, new_val: usize) {
+        self.body.as_mut().unwrap()[idx_to_backpatch] =
+            match self.body.as_ref().unwrap()[idx_to_backpatch] {
+                Bytecode::Jump(_) => Bytecode::Jump(new_val),
+                Bytecode::JumpBackward(_) => Bytecode::JumpBackward(new_val),
+                Bytecode::JumpOnTrueTopNil(_) => Bytecode::JumpOnTrueTopNil(new_val),
+                Bytecode::JumpOnFalseTopNil(_) => Bytecode::JumpOnFalseTopNil(new_val),
+                Bytecode::JumpOnTruePop(_) => Bytecode::JumpOnTruePop(new_val),
+                Bytecode::JumpOnFalsePop(_) => Bytecode::JumpOnFalsePop(new_val),
+                _ => panic!("Attempting to patch a bytecode non jump"),
+            };
+    }
+
+    fn get_nbr_locals(&self) -> usize {
+        self.locals_nbr
+    }
+
+    fn set_nbr_locals(&mut self, nbr_locals: usize) {
+        self.locals_nbr = nbr_locals;
+    }
+
+    fn remove_dup_popx_pop_sequences(&mut self) {
+        if self.body.is_none() || self.body.as_ref().unwrap().len() < 3 {
+            // TODO once behavior is fixed, change to only one mutable borrow at the start like in the old code
             return;
         }
 
         let mut indices_to_remove: Vec<usize> = vec![];
 
-        for (idx, bytecode_win) in body.windows(3).enumerate() {
+        for (idx, bytecode_win) in self.body.as_ref().unwrap().windows(3).enumerate() {
             if matches!(bytecode_win[0], Bytecode::Dup)
                 && matches!(
                     bytecode_win[1],
@@ -151,6 +219,28 @@ impl InnerGenCtxt for BlockGenCtxt<'_> {
                 )
                 && matches!(bytecode_win[2], Bytecode::Pop)
             {
+                let are_bc_jump_targets =
+                    self.body
+                        .as_ref()
+                        .unwrap()
+                        .iter()
+                        .enumerate()
+                        .any(|(maybe_jump_idx, bc)| match bc {
+                            Bytecode::Jump(jump_offset)
+                            | Bytecode::JumpOnTrueTopNil(jump_offset)
+                            | Bytecode::JumpOnFalseTopNil(jump_offset)
+                            | Bytecode::JumpOnTruePop(jump_offset)
+                            | Bytecode::JumpOnFalsePop(jump_offset) => {
+                                let bc_target_idx = maybe_jump_idx + *jump_offset;
+                                bc_target_idx == idx || bc_target_idx == idx + 2
+                            }
+                            _ => false,
+                        });
+
+                if are_bc_jump_targets {
+                    continue;
+                }
+
                 indices_to_remove.push(idx);
                 indices_to_remove.push(idx + 2);
             }
@@ -160,12 +250,66 @@ impl InnerGenCtxt for BlockGenCtxt<'_> {
             return;
         }
 
+        let mut jumps_to_patch = vec![];
+        for (cur_idx, bc) in self.body.as_ref().unwrap().iter().enumerate() {
+            match bc {
+                Bytecode::Jump(jump_offset)
+                | Bytecode::JumpOnTrueTopNil(jump_offset)
+                | Bytecode::JumpOnFalseTopNil(jump_offset)
+                | Bytecode::JumpOnTruePop(jump_offset)
+                | Bytecode::JumpOnFalsePop(jump_offset) => {
+                    if indices_to_remove.contains(&(cur_idx + jump_offset)) {
+                        panic!("should be unreachable");
+                        // let jump_target_in_removes_idx = indices_to_remove
+                        //     .iter()
+                        //     .position(|&v| v == cur_idx + jump_offset)
+                        //     .unwrap();
+                        // indices_to_remove.remove(jump_target_in_removes_idx);
+                        // // indices_to_remove.remove(jump_target_in_removes_idx - 1);
+                        // let to_remove = (jump_target_in_removes_idx,
+                        //                  match jump_target_in_removes_idx % 2 {
+                        //                      0 => jump_target_in_removes_idx + 1,
+                        //                      1 => jump_target_in_removes_idx - 1,
+                        //                      _ => unreachable!()
+                        //                  });
+                        //
+                        // indices_to_remove.retain(|v| *v != to_remove.0 && *v != to_remove.1);
+                        // continue;
+                    }
+
+                    let nbr_to_adjust = indices_to_remove
+                        .iter()
+                        .filter(|&&idx| cur_idx < idx && idx <= cur_idx + jump_offset)
+                        .count();
+                    jumps_to_patch.push((cur_idx, jump_offset - nbr_to_adjust));
+                }
+                Bytecode::JumpBackward(jump_offset) => {
+                    let nbr_to_adjust = indices_to_remove
+                        .iter()
+                        .filter(|&&idx| cur_idx > idx && idx > cur_idx - jump_offset)
+                        .count();
+                    jumps_to_patch.push((cur_idx, jump_offset - nbr_to_adjust));
+                    // It's impossible for a JumpBackward to be generated to point to a duplicated dup/pop/pox sequence, as it stands, and as far as I know.
+                }
+                _ => {}
+            }
+        }
+
+        for (jump_idx, jump_val) in jumps_to_patch {
+            self.patch_jump(jump_idx, jump_val);
+        }
+
+        // dbg!("Before:");
+        // dbg!(self.body.as_ref().unwrap());
         let mut index = 0;
-        body.retain(|_| {
+        self.body.as_mut().unwrap().retain(|_| {
             let is_kept = !indices_to_remove.contains(&index);
             index += 1;
             is_kept
         });
+        // dbg!("After:");
+        // dbg!(self.body.as_ref().unwrap());
+        // dbg!("---");
     }
 }
 
@@ -179,6 +323,10 @@ impl MethodGenCtxt<'_> {}
 impl GenCtxt for MethodGenCtxt<'_> {
     fn intern_symbol(&mut self, name: &str) -> Interned {
         self.inner.intern_symbol(name)
+    }
+
+    fn lookup_symbol(&self, id: Interned) -> &str {
+        self.inner.lookup_symbol(id)
     }
 
     fn class_name(&self) -> &str {
@@ -195,16 +343,52 @@ impl InnerGenCtxt for MethodGenCtxt<'_> {
         self.inner.push_instr(instr)
     }
 
+    fn pop_instr(&mut self) {
+        self.inner.pop_instr();
+    }
+
+    fn get_instructions(&self) -> &Vec<Bytecode> {
+        self.inner.get_instructions()
+    }
+
     fn push_literal(&mut self, literal: Literal) -> usize {
         self.inner.push_literal(literal)
     }
 
+    fn get_literal(&self, idx: usize) -> Option<&Literal> {
+        self.inner.get_literal(idx)
+    }
+
+    fn remove_literal(&mut self, idx: usize) -> Option<Literal> {
+        self.inner.remove_literal(idx)
+    }
+
+    fn get_cur_instr_idx(&self) -> usize {
+        return self.inner.get_cur_instr_idx();
+    }
+
+    fn patch_jump(&mut self, idx_to_backpatch: usize, new_val: usize) {
+        self.inner.patch_jump(idx_to_backpatch, new_val)
+    }
+
+    fn backpatch_jump_to_current(&mut self, idx_to_backpatch: usize) {
+        self.inner.backpatch_jump_to_current(idx_to_backpatch);
+    }
+
     fn remove_dup_popx_pop_sequences(&mut self) {
-        self.inner.remove_dup_popx_pop_sequences()
+        self.inner.remove_dup_popx_pop_sequences();
+    }
+
+    fn get_nbr_locals(&self) -> usize {
+        self.inner.get_nbr_locals()
+    }
+
+    fn set_nbr_locals(&mut self, nbr_locals: usize) {
+        self.inner.set_nbr_locals(nbr_locals)
     }
 }
 
-trait MethodCodegen {
+pub trait MethodCodegen {
     fn codegen(&self, ctxt: &mut dyn InnerGenCtxt) -> Option<()>;
 }
 
@@ -279,7 +463,13 @@ impl MethodCodegen for ast::Expression {
                     ast::Expression::GlobalRead(value) if value == "super" => true,
                     _ => false,
                 };
+
                 message.receiver.codegen(ctxt)?;
+
+                if self.inline_if_possible(ctxt, message).is_some() {
+                    return Some(());
+                }
+
                 message
                     .values
                     .iter()
@@ -395,6 +585,10 @@ impl GenCtxt for ClassGenCtxt<'_> {
         self.interner.intern(name)
     }
 
+    fn lookup_symbol(&self, id: Interned) -> &str {
+        self.interner.lookup(id)
+    }
+
     fn class_name(&self) -> &str {
         self.name.as_str()
     }
@@ -418,7 +612,7 @@ fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::GenericMethodDef) -> Opti
             // },
             literals: IndexSet::new(),
             body: None,
-            locals_nbr: { 
+            locals_nbr: {
                 match &defn.body {
                     MethodBody::Primitive => 0,
                     MethodBody::Body { locals_nbr, .. } => *locals_nbr
@@ -456,10 +650,11 @@ fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::GenericMethodDef) -> Opti
                 ctxt.push_instr(Bytecode::Pop);
             }
             ctxt.push_instr(Bytecode::PushArgument(0, 0));
-            ctxt.push_instr(Bytecode::ReturnLocal);
+            ctxt.push_instr(Bytecode::ReturnLocal); // TODO that returnlocal isn't necessary if there's already a return before
+
+            ctxt.remove_dup_popx_pop_sequences();
         }
     }
-    ctxt.remove_dup_popx_pop_sequences();
 
     let method = Method {
         kind: match &defn.body {
@@ -497,7 +692,7 @@ fn compile_block(outer: &mut dyn GenCtxt, defn: &ast::Block) -> Option<Block> {
         locals_nbr: defn.nbr_locals,
         // dbg_info: defn.dbg_info,
         literals: IndexSet::new(),
-        body: None,
+        body: None
     };
 
     let splitted = defn.body.exprs.split_last();
@@ -509,6 +704,7 @@ fn compile_block(outer: &mut dyn GenCtxt, defn: &ast::Block) -> Option<Block> {
         last.codegen(&mut ctxt)?;
         ctxt.push_instr(Bytecode::ReturnLocal);
     }
+    ctxt.remove_dup_popx_pop_sequences();
 
     let frame = None;
     // let locals = {

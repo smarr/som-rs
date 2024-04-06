@@ -25,6 +25,8 @@ build-and-test-interpreters:
     # Interpreter
 #    - $RPYTHON --batch src/main_rpython.py
 #    - ./som-bc-interp -cp Smalltalk TestSuite/TestHarness.som
+
+    # Package and Upload
     - lz4 ./target/release/som-interpreter-ast som-interpreter-ast.lz4
     - lz4 ./target/release/som-interpreter-bc som-interpreter-bc.lz4
 
