@@ -7,10 +7,9 @@ use std::path::PathBuf;
 use std::rc::Rc;
 
 use anyhow::{bail, Context};
-use structopt::StructOpt;
-
 #[cfg(feature = "jemalloc")]
 use jemallocator::Jemalloc;
+use structopt::StructOpt;
 
 mod shell;
 
@@ -19,9 +18,6 @@ use som_interpreter_bc::interpreter::Interpreter;
 use som_interpreter_bc::method::{Method, MethodKind};
 use som_interpreter_bc::universe::Universe;
 use som_interpreter_bc::value::Value;
-
-#[cfg(feature = "profiler")]
-use som_interpreter_bc::profiler::Profiler;
 
 #[cfg(feature = "jemalloc")]
 #[global_allocator]
@@ -50,13 +46,6 @@ struct Options {
 }
 
 fn main() -> anyhow::Result<()> {
-    let result = run();
-    #[cfg(feature = "profiler")]
-    Profiler::global().drop();
-    result
-}
-
-fn run() -> anyhow::Result<()> {
     let opts: Options = Options::from_args();
 
     let mut interpreter = Interpreter::new();
