@@ -13,7 +13,7 @@ pub struct Block {
     /// Reference to the captured stack frame.
     pub frame: SOMRef<Frame>,
     /// Block definition from the AST.
-    pub block: ast::Block,
+    pub block: ast::Block
 }
 
 impl Block {
@@ -29,7 +29,7 @@ impl Block {
 
     /// Retrieve the number of parameters this block accepts.
     pub fn nb_parameters(&self) -> usize {
-        self.block.parameters.len()
+        self.block.nbr_params
     }
 }
 

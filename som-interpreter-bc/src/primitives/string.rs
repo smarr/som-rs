@@ -16,6 +16,7 @@ pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[
     ("isDigits", self::is_digits, true),
     ("isWhiteSpace", self::is_whitespace, true),
     ("asSymbol", self::as_symbol, true),
+    ("charAt:", self::char_at, true),
     ("concatenate:", self::concatenate, true),
     ("primSubstringFrom:to:", self::prim_substring_from_to, true),
     ("=", self::eq, true),
@@ -162,6 +163,22 @@ fn as_symbol(interpreter: &mut Interpreter, universe: &mut Universe) {
     }
 }
 
+fn char_at(interpreter: &mut Interpreter, _universe: &mut Universe) {
+    const SIGNATURE: &str = "String>>#charAt:";
+
+    expect_args!(SIGNATURE, interpreter, [
+        s1 => s1,
+        s2 => s2,
+    ]);
+
+    let (value, idx) = match (&s1, s2) {
+        (Value::String(ref value), Value::Integer(i)) => (value, i as usize - 1),
+        _ => panic!()
+    };
+    
+    interpreter.stack.push(Value::String(Rc::new(String::from(value.chars().nth(idx).unwrap()))))
+}
+
 fn eq(interpreter: &mut Interpreter, universe: &mut Universe) {
     const SIGNATURE: &str = "String>>#=";
 
@@ -206,7 +223,7 @@ fn prim_substring_from_to(interpreter: &mut Interpreter, universe: &mut Universe
         (_, _, _) => panic!("'{}': wrong types", SIGNATURE),
     };
 
-    let string = Rc::new(value.chars().skip(from).take(to - from).collect());
+    let string = Rc::new(String::from(&value[from..to]));
 
     interpreter.stack.push(Value::String(string))
 }

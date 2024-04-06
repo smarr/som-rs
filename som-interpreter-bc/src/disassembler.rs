@@ -132,6 +132,9 @@ fn disassemble_body(
             Bytecode::Push0 | Bytecode::Push1 | Bytecode::PushNil => {}
         }
     }
+
+    #[cfg(not(feature = "block-dbg-info"))]
+    eprintln!("------- Used disassembler without debug symbols. While it could be possible, it's likely not desired. -------");
 }
 
 trait FrameEnv {
@@ -146,8 +149,14 @@ impl FrameEnv for MethodEnv {
         &self.body
     }
 
+    #[cfg(feature = "block-dbg-info")]
     fn resolve_local(&self, idx: u8) -> Option<Interned> {
-        self.locals.get(usize::from(idx)).copied()
+        self.block_debug_info.locals.get(usize::from(idx)).copied()
+    }
+
+    #[cfg(not(feature = "block-dbg-info"))]
+    fn resolve_local(&self, _idx: u8) -> Option<Interned> {
+        None
     }
 
     fn resolve_literal(&self, idx: u8) -> Option<&Literal> {
@@ -164,8 +173,14 @@ impl FrameEnv for Block {
         &self.blk_info.body
     }
 
+    #[cfg(feature = "block-dbg-info")]
     fn resolve_local(&self, idx: u8) -> Option<Interned> {
-        self.blk_info.locals.get(usize::from(idx)).copied()
+        self.blk_info.block_debug_info.locals.get(usize::from(idx)).copied()
+    }
+
+    #[cfg(not(feature = "block-dbg-info"))]
+    fn resolve_local(&self, _idx: u8) -> Option<Interned> {
+        None
     }
 
     fn resolve_literal(&self, idx: u8) -> Option<&Literal> {

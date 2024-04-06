@@ -1,24 +1,29 @@
 use std::cell::RefCell;
 use std::fmt;
 use std::rc::Rc;
+#[cfg(feature = "block-dbg-info")]
+use som_core::ast::BlockDebugInfo;
 
 use som_core::bytecode::Bytecode;
 
 use crate::class::Class;
 use crate::compiler::Literal;
 use crate::frame::Frame;
-use crate::interner::Interned;
+// use crate::interner::Interned;
 use crate::method::Method;
 use crate::universe::Universe;
 use crate::SOMRef;
 
 #[derive(Clone)]
 pub struct BlockInfo {
-    pub locals: Vec<Interned>,
+    // pub locals: Vec<Interned>,
     pub literals: Vec<Literal>,
     pub body: Vec<Bytecode>,
+    pub nb_locals: usize,
     pub nb_params: usize,
     pub inline_cache: RefCell<Vec<Option<(*const Class, Rc<Method>)>>>,
+    #[cfg(feature = "block-dbg-info")]
+    pub block_debug_info: BlockDebugInfo
 }
 
 /// Represents an executable block.

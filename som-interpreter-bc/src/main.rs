@@ -144,7 +144,7 @@ fn disassemble_class(opts: Options) -> anyhow::Result<()> {
                     "{class}>>#{signature} ({num_locals} locals, {num_literals} literals)",
                     class = file_stem,
                     signature = method.signature(),
-                    num_locals = env.locals.len(),
+                    num_locals = env.nbr_locals,
                     num_literals = env.literals.len(),
                 );
 

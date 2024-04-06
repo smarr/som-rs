@@ -1,5 +1,4 @@
 use crate::expect_args;
-use crate::frame::FrameKind;
 use crate::invokable::Invoke;
 use crate::invokable::Return;
 use crate::primitives::PrimitiveFn;
@@ -19,15 +18,21 @@ pub mod block1 {
     fn value(universe: &mut Universe, args: Vec<Value>) -> Return {
         const SIGNATURE: &str = "Block1>>#value";
 
-        let block_args = args.clone();
-        expect_args!(SIGNATURE, args, [
+        expect_args!(SIGNATURE, &args, [
             Value::Block(block) => block,
         ]);
 
+        // let block_self = block.frame.borrow().get_self();
+        let block_self = Value::BlockSelf(block.clone());
+        let block_args = vec![];
+
         universe.with_frame(
-            FrameKind::Block {
-                block: block.clone(),
-            },
+            // FrameKind::Block {
+            //     block: block.clone(),
+            // },
+            block_self,
+            block.block.nbr_locals,
+            1,
             |universe| block.invoke(universe, block_args),
         )
     }
@@ -67,16 +72,21 @@ pub mod block2 {
     fn value(universe: &mut Universe, args: Vec<Value>) -> Return {
         const SIGNATURE: &str = "Block2>>#value:";
 
-        let block_args = args.clone();
         expect_args!(SIGNATURE, args, [
             Value::Block(block) => block,
-            _,
+            a => a,
         ]);
 
+        let block_self = Value::BlockSelf(block.clone());
+        let block_args = Vec::from([a]);
+
         universe.with_frame(
-            FrameKind::Block {
-                block: block.clone(),
-            },
+            // FrameKind::Block {
+            //     block: block.clone(),
+            // },
+            block_self,
+            block.block.nbr_locals,
+            2,
             |universe| block.invoke(universe, block_args),
         )
     }
@@ -109,17 +119,23 @@ pub mod block3 {
     fn value_with(universe: &mut Universe, args: Vec<Value>) -> Return {
         const SIGNATURE: &str = "Block3>>#value:with:";
 
-        let block_args = args.clone();
         expect_args!(SIGNATURE, args, [
             Value::Block(block) => block,
-            _,
-            _,
+            a => a,
+            b => b,
         ]);
 
+        // let block_self = block.frame.borrow().get_self();
+        let block_self = Value::BlockSelf(block.clone());
+        let block_args = Vec::from([a, b]);
+
         universe.with_frame(
-            FrameKind::Block {
-                block: block.clone(),
-            },
+            // FrameKind::Block {
+            //     block: block.clone(),
+            // },
+            block_self,
+            block.block.nbr_locals,
+            3,
             |universe| block.invoke(universe, block_args),
         )
     }

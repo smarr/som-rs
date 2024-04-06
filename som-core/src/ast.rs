@@ -59,13 +59,21 @@ pub enum MethodKind {
 /// "operator method"    + value = ( self increment: value )
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub struct MethodDef {
+pub struct GenericMethodDef {
     /// The method's kind.
     pub kind: MethodKind,
     /// The method's signature (eg. `println`, `at:put:` or `==`).
     pub signature: String,
     /// The method's body.
     pub body: MethodBody,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum MethodDef {
+    Generic(GenericMethodDef),
+    InlinedWhile(GenericMethodDef, bool),
+    InlinedIf(GenericMethodDef, bool),
+    InlinedIfTrueIfFalse(GenericMethodDef),
 }
 
 /// Represents a method's body.
@@ -83,7 +91,12 @@ pub enum MethodBody {
     /// A primitive (meant to be implemented by the VM itself).
     Primitive,
     /// An actual body for the method, with locals.
-    Body { locals: Vec<String>, body: Body },
+    Body { 
+        locals_nbr: usize,
+        body: Body,
+        #[cfg(feature = "block-dbg-info")]
+        locals: Vec<String>,
+    },
 }
 
 /// Represents the contents of a body (within a term or block).
@@ -125,9 +138,21 @@ pub struct Body {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expression {
     /// A reference to a binding (eg. `counter`).
-    Reference(String),
+    GlobalRead(String),
+    /// Read of a local var.
+    LocalVarRead(usize),
+    /// Read of a nonlocal var.
+    NonLocalVarRead(usize, usize),
+    /// Read of an argument.
+    ArgRead(usize, usize),
+    /// Read of a field.
+    FieldRead(usize),
     /// An assignment to a binding (eg. `counter := 10`).
-    Assignment(String, Box<Expression>),
+    GlobalWrite(String, Box<Expression>),
+    LocalVarWrite(usize, Box<Expression>),
+    NonLocalVarWrite(usize, usize, Box<Expression>),
+    ArgWrite(usize, usize, Box<Expression>),
+    FieldWrite(usize, Box<Expression>),
     /// A message send (eg. `counter incrementBy: 5`).
     Message(Message),
     /// A binary operation (eg. `counter <= 5`).
@@ -195,11 +220,21 @@ pub struct BinaryOp {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Block {
     /// Represents the parameters' names.
-    pub parameters: Vec<String>,
+    pub nbr_params: usize,
     /// The names of the locals.
-    pub locals: Vec<String>,
+    pub nbr_locals: usize,
     /// Represents the block's body.
     pub body: Body,
+    #[cfg(feature = "block-dbg-info")]
+    /// Debug info for the block: parameters and local variable names
+    pub dbg_info: BlockDebugInfo,
+}
+
+#[cfg(feature = "block-dbg-info")]
+#[derive(Debug, Clone, PartialEq)]
+pub struct BlockDebugInfo {
+    pub parameters: Vec<String>,
+    pub locals: Vec<String>,
 }
 
 /// Represents a term.

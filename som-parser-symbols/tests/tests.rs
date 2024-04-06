@@ -2,6 +2,7 @@ use som_core::ast::*;
 use som_lexer::{Lexer, Token};
 use som_parser_core::combinators::*;
 use som_parser_core::Parser;
+use som_parser_symbols::AstGenCtxt;
 use som_parser_symbols::lang::*;
 
 #[test]
@@ -10,10 +11,10 @@ fn literal_tests() {
         .skip_whitespace(true)
         .collect();
 
-    let result = many(literal()).parse(tokens.as_slice());
+    let result = many(literal()).parse(tokens.as_slice(), AstGenCtxt::default());
 
     assert!(result.is_some(), "input did not parse successfully");
-    let (literals, rest) = result.unwrap();
+    let (literals, rest, _) = result.unwrap();
     assert!(rest.is_empty(), "input did not parse in its entirety");
 
     let mut iter = literals.into_iter();
@@ -30,10 +31,10 @@ fn expression_test_1() {
         .skip_whitespace(true)
         .collect();
 
-    let result = expression().parse(tokens.as_slice());
+    let result = expression().parse(tokens.as_slice(), AstGenCtxt::default());
 
     assert!(result.is_some(), "input did not parse successfully");
-    let (expression, rest) = result.unwrap();
+    let (expression, rest, _) = result.unwrap();
     assert!(rest.is_empty(), "input did not parse in its entirety");
 
     assert_eq!(
@@ -42,10 +43,10 @@ fn expression_test_1() {
             op: String::from("+"),
             lhs: Box::new(Expression::Literal(Literal::Integer(3))),
             rhs: Box::new(Expression::Message(Message {
-                receiver: Box::new(Expression::Reference(String::from("counter"))),
+                receiver: Box::new(Expression::GlobalRead(String::from("counter"))),
                 signature: String::from("get"),
                 values: vec![],
-            }))
+            })),
         })
     );
 }
@@ -57,27 +58,32 @@ fn block_test() {
             .skip_whitespace(true)
             .collect();
 
-    let result = block().parse(tokens.as_slice());
+    let result = block().parse(tokens.as_slice(), AstGenCtxt::default());
 
     assert!(result.is_some(), "input did not parse successfully");
-    let (block, rest) = result.unwrap();
+    let (block, rest, _) = result.unwrap();
     assert!(rest.is_empty(), "input did not parse in its entirety");
 
     assert_eq!(
         block,
         Expression::Block(Block {
-            parameters: vec![String::from("test")],
-            locals: vec![String::from("local")],
+            #[cfg(feature = "block-dbg-info")]
+            dbg_info: BlockDebugInfo {
+                parameters: vec![String::from("test")],
+                locals: vec![String::from("local")]
+            },
+            nbr_params: 1,
+            nbr_locals: 1,
             body: Body {
                 exprs: vec![
-                    Expression::Assignment(
-                        String::from("local"),
+                    Expression::LocalVarWrite(
+                        0,
                         Box::new(Expression::Literal(Literal::String(String::from(
                             "this is correct"
                         ))))
                     ),
                     Expression::Message(Message {
-                        receiver: Box::new(Expression::Reference(String::from("local"))),
+                        receiver: Box::new(Expression::LocalVarRead(0)),
                         signature: String::from("println"),
                         values: vec![],
                     })
@@ -93,13 +99,13 @@ fn expression_test_2() {
     let tokens: Vec<Token> = Lexer::new(
         "( 3 == 3 ) ifTrue: [ 'this is correct' println. ] ifFalse: [ 'oh no' println ]",
     )
-    .skip_whitespace(true)
-    .collect();
+        .skip_whitespace(true)
+        .collect();
 
-    let result = expression().parse(tokens.as_slice());
+    let result = expression().parse(tokens.as_slice(), AstGenCtxt::default());
 
     assert!(result.is_some(), "input did not parse successfully");
-    let (expression, rest) = result.unwrap();
+    let (expression, rest, _) = result.unwrap();
     assert!(rest.is_empty(), "input did not parse in its entirety");
 
     assert_eq!(
@@ -113,8 +119,13 @@ fn expression_test_2() {
             signature: String::from("ifTrue:ifFalse:"),
             values: vec![
                 Expression::Block(Block {
-                    parameters: vec![],
-                    locals: vec![],
+                    #[cfg(feature = "block-dbg-info")]
+                    dbg_info: BlockDebugInfo {
+                        parameters: vec![],
+                        locals: vec![]
+                    },
+                    nbr_params: 0,
+                    nbr_locals: 0,
                     body: Body {
                         exprs: vec![Expression::Message(Message {
                             receiver: Box::new(Expression::Literal(Literal::String(String::from(
@@ -127,8 +138,13 @@ fn expression_test_2() {
                     }
                 }),
                 Expression::Block(Block {
-                    parameters: vec![],
-                    locals: vec![],
+                    #[cfg(feature = "block-dbg-info")]
+                    dbg_info: BlockDebugInfo {
+                        parameters: vec![],
+                        locals: vec![]
+                    },
+                    nbr_params: 0,
+                    nbr_locals: 0,
                     body: Body {
                         exprs: vec![Expression::Message(Message {
                             receiver: Box::new(Expression::Literal(Literal::String(String::from(
@@ -151,34 +167,39 @@ fn primary_test() {
         .skip_whitespace(true)
         .collect();
 
-    let result = primary().parse(tokens.as_slice());
+    let result = primary().parse(tokens.as_slice(), AstGenCtxt::default());
 
     assert!(result.is_some(), "input did not parse successfully");
-    let (primary, rest) = result.unwrap();
+    let (primary, rest, _) = result.unwrap();
     assert!(rest.is_empty(), "input did not parse in its entirety");
 
     assert_eq!(
         primary,
         Expression::Block(Block {
-            parameters: vec![],
-            locals: vec![],
+            #[cfg(feature = "block-dbg-info")]
+            dbg_info: BlockDebugInfo {
+                parameters: vec![],
+                locals: vec![]
+            },
+            nbr_params: 0,
+            nbr_locals: 0,
             body: Body {
                 exprs: vec![Expression::Message(Message {
-                    receiver: Box::new(Expression::Reference(String::from("self"))),
+                    receiver: Box::new(Expression::ArgRead(0, 0)),
                     signature: String::from("fib:"),
                     values: vec![Expression::BinaryOp(BinaryOp {
                         op: String::from("+"),
                         lhs: Box::new(Expression::BinaryOp(BinaryOp {
                             op: String::from("-"),
-                            lhs: Box::new(Expression::Reference(String::from("n"))),
+                            lhs: Box::new(Expression::GlobalRead(String::from("n"))),
                             rhs: Box::new(Expression::Literal(Literal::Integer(1))),
                         })),
                         rhs: Box::new(Expression::Message(Message {
-                            receiver: Box::new(Expression::Reference(String::from("self"))),
+                            receiver: Box::new(Expression::ArgRead(0, 0)),
                             signature: String::from("fib:"),
                             values: vec![Expression::BinaryOp(BinaryOp {
                                 op: String::from("-"),
-                                lhs: Box::new(Expression::Reference(String::from("n"))),
+                                lhs: Box::new(Expression::GlobalRead(String::from("n"))),
                                 rhs: Box::new(Expression::Literal(Literal::Integer(2))),
                             })],
                         }))

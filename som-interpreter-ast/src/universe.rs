@@ -1,5 +1,4 @@
 use std::cell::RefCell;
-use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::fs;
 use std::io;
@@ -11,7 +10,7 @@ use anyhow::{anyhow, Error};
 
 use crate::block::Block;
 use crate::class::Class;
-use crate::frame::{Frame, FrameKind};
+use crate::frame::Frame;
 use crate::interner::{Interned, Interner};
 use crate::invokable::{Invoke, Return};
 use crate::value::Value;
@@ -299,7 +298,7 @@ impl Universe {
             let class = Class::from_class_def(defn).map_err(Error::msg)?;
             set_super_class(&class, &super_class, &self.core.metaclass_class);
 
-            fn has_duplicated_field(class: &SOMRef<Class>) -> Option<(String, (String, String))> {
+            /*fn has_duplicated_field(class: &SOMRef<Class>) -> Option<(String, (String, String))> {
                 let super_class_iterator = std::iter::successors(Some(class.clone()), |class| {
                     class.borrow().super_class()
                 });
@@ -319,9 +318,9 @@ impl Universe {
                     }
                 }
                 return None;
-            }
+            }*/
 
-            if let Some((field, (c1, c2))) = has_duplicated_field(&class) {
+            /*if let Some((field, (c1, c2))) = has_duplicated_field(&class) {
                 return Err(anyhow!(
                     "the field named '{}' is defined more than once (by '{}' and '{}', where the latter inherits from the former)",
                     field, c1, c2,
@@ -333,7 +332,7 @@ impl Universe {
                     "the field named '{}' is defined more than once (by '{}' and '{}', where the latter inherits from the former)",
                     field, c1, c2,
                 ));
-            }
+            }*/
 
             self.globals.insert(
                 class.borrow().name().to_string(),
@@ -467,8 +466,16 @@ impl Universe {
 
 impl Universe {
     /// Execute a piece of code within a new stack frame.
-    pub fn with_frame<T>(&mut self, kind: FrameKind, func: impl FnOnce(&mut Self) -> T) -> T {
-        let frame = Rc::new(RefCell::new(Frame::from_kind(kind)));
+    // pub fn with_frame<T>(&mut self, kind: FrameKind, self_value: Value, nbr_locals: usize, func: impl FnOnce(&mut Self) -> T) -> T {
+    //     let frame = Rc::new(RefCell::new(Frame::from_kind(kind, nbr_locals, self_value)));
+    //     self.frames.push(frame);
+    //     let ret = func(self);
+    //     self.frames.pop();
+    //     ret
+    // }
+
+    pub fn with_frame<T>(&mut self, self_value: Value, nbr_locals: usize, nbr_params: usize, func: impl FnOnce(&mut Self) -> T) -> T {
+        let frame = Rc::new(RefCell::new(Frame::new_frame(nbr_locals, nbr_params, self_value)));
         self.frames.push(frame);
         let ret = func(self);
         self.frames.pop();
@@ -496,16 +503,22 @@ impl Universe {
     }
 
     /// Search for a local binding.
-    pub fn lookup_local(&self, name: impl AsRef<str>) -> Option<Value> {
-        let name = name.as_ref();
-        match name {
-            "self" | "super" => {
-                let frame = self.current_frame();
-                let self_value = frame.borrow().get_self();
-                Some(self_value)
-            }
-            name => self.current_frame().borrow().lookup_local(name),
-        }
+    pub fn lookup_local(&self, idx: usize) -> Option<Value> {
+        self.current_frame().borrow().lookup_local(idx)
+    }
+
+    /// Look up a variable we know to have been defined in another scope.
+    pub fn lookup_non_local(&self, idx: usize, target_scope: usize) -> Option<Value> {
+        self.current_frame().borrow().lookup_non_local(idx, target_scope)
+    }
+
+    /// Look up a field.
+    pub fn lookup_field(&self, idx: usize) -> Option<Value> {
+        self.current_frame().borrow().lookup_field(idx)
+    }
+
+    pub fn lookup_arg(&self, idx: usize, scope: usize) -> Option<Value> {
+        self.current_frame().borrow().lookup_arg(idx, scope)
     }
 
     /// Returns whether a global binding of the specified name exists.
@@ -521,14 +534,26 @@ impl Universe {
     }
 
     /// Assign a value to a local binding.
-    pub fn assign_local(&mut self, name: impl AsRef<str>, value: Value) -> Option<()> {
-        self.current_frame().borrow_mut().assign_local(name, value)
+    pub fn assign_local(&mut self, idx: usize, value: &Value) -> Option<()> {
+        self.current_frame().borrow_mut().assign_local(idx, value)
+    }
+
+    pub fn assign_non_local(&mut self, idx: usize, scope: usize, value: &Value) -> Option<()> {
+        self.current_frame().borrow_mut().assign_non_local(idx, scope, value)
+    }
+
+    pub fn assign_field(&mut self, idx: usize, value: &Value) -> Option<()> {
+        self.current_frame().borrow_mut().assign_field(idx, value)
+    }
+
+    pub fn assign_arg(&mut self, idx: usize, scope: usize, value: &Value) -> Option<()> {
+        self.current_frame().borrow_mut().assign_arg(idx, scope, value)
     }
 
     /// Assign a value to a global binding.
-    pub fn assign_global(&mut self, name: impl AsRef<str>, value: Value) -> Option<()> {
+    pub fn assign_global(&mut self, name: impl AsRef<str>, value: &Value) -> Option<()> {
         self.globals
-            .insert(name.as_ref().to_string(), value)
+            .insert(name.as_ref().to_string(), value.clone())
             .map(|_| ())
     }
 }
@@ -544,16 +569,18 @@ impl Universe {
     /// Call `doesNotUnderstand:` on the given value, if it is defined.
     pub fn does_not_understand(
         &mut self,
-        value: Value,
+        _value: Value,
         symbol: impl AsRef<str>,
-        args: Vec<Value>,
+        _args: Vec<Value>,
     ) -> Option<Return> {
-        let initialize = value.lookup_method(self, "doesNotUnderstand:arguments:")?;
-        let sym = self.intern_symbol(symbol.as_ref());
-        let sym = Value::Symbol(sym);
-        let args = Value::Array(Rc::new(RefCell::new(args)));
+        // let initialize = value.lookup_method(self, "doesNotUnderstand:arguments:")?;
+        // let sym = self.intern_symbol(symbol.as_ref());
+        // let sym = Value::Symbol(sym);
+        // let args = Value::Array(Rc::new(RefCell::new(args)));
 
-        Some(initialize.invoke(self, vec![value, sym, args]))
+        eprintln!("Couldn't invoke {}; exiting.", symbol.as_ref());
+        std::process::exit(1);
+        // Some(initialize.invoke(self, vec![value, sym, args]))
     }
 
     /// Call `unknownGlobal:` on the given value, if it is defined.

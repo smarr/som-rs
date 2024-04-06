@@ -8,8 +8,10 @@ use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
 use crate::value::Value;
 use crate::{expect_args, SOMRef};
+use crate::value::Value::Nil;
 
 pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[
+    ("halt", self::halt, true),
     ("class", self::class, true),
     ("objectSize", self::object_size, true),
     ("hashcode", self::hashcode, true),
@@ -26,6 +28,12 @@ pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[
     ("==", self::eq, true),
 ];
 pub static CLASS_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[];
+
+fn halt(_universe: &mut Universe, _args: Vec<Value>) -> Return{
+    const _: &'static str = "Object>>#halt";
+    println!("HALT"); // so a breakpoint can be put
+    Return::Local(Nil)
+}
 
 fn class(universe: &mut Universe, args: Vec<Value>) -> Return {
     const SIGNATURE: &'static str = "Object>>#class";
@@ -225,7 +233,7 @@ fn inst_var_at(universe: &mut Universe, args: Vec<Value>) -> Return {
     let locals = gather_locals(universe, object.class(universe));
     let local = locals
         .get(index)
-        .and_then(|local| object.lookup_local(local))
+        .and_then(|local| object.lookup_local(*local))
         .unwrap_or(Value::Nil);
 
     Return::Local(local)
@@ -248,18 +256,20 @@ fn inst_var_at_put(universe: &mut Universe, args: Vec<Value>) -> Return {
     let locals = gather_locals(universe, object.class(universe));
     let local = locals
         .get(index)
-        .and_then(|local| object.assign_local(local, value.clone()).map(|_| value))
+        .and_then(|local| object.assign_local(*local, &value).map(|_| value))
         .unwrap_or(Value::Nil);
 
     Return::Local(local)
 }
 
-fn gather_locals(universe: &mut Universe, class: SOMRef<Class>) -> Vec<String> {
-    let mut fields = match class.borrow().super_class() {
+fn gather_locals(universe: &mut Universe, class: SOMRef<Class>) -> Vec<usize> {
+    let fields = match class.borrow().super_class() {
         Some(super_class) => gather_locals(universe, super_class),
         None => Vec::new(),
     };
-    fields.extend(class.borrow().locals.keys().cloned());
+    // fields.extend(class.borrow().locals.keys().cloned());
+    // fields.extend(class.borrow().locals.clone());
+    // todo idk maybe
     fields
 }
 

@@ -34,6 +34,7 @@ pub enum Value {
     Array(SOMRef<Vec<Self>>),
     /// A block value, ready to be evaluated.
     Block(Rc<Block>),
+    BlockSelf(Rc<Block>), // todo not sure this is needed. it's to differentiate block class from block since blocks take themselves as first argument. but there's definitely another way to do this, right
     /// A generic (non-primitive) class instance.
     Instance(SOMRef<Instance>),
     /// A bare class object.
@@ -60,6 +61,7 @@ impl Value {
             Self::Instance(instance) => instance.borrow().class(),
             Self::Class(class) => class.borrow().class(),
             Self::Invokable(invokable) => invokable.class(universe),
+            Self::BlockSelf(_) => unreachable!()
         }
     }
 
@@ -73,19 +75,19 @@ impl Value {
     }
 
     /// Search for a local binding within this value.
-    pub fn lookup_local(&self, name: impl AsRef<str>) -> Option<Self> {
+    pub fn lookup_local(&self, idx: usize) -> Option<Self> {
         match self {
-            Self::Instance(instance) => instance.borrow().lookup_local(name),
-            Self::Class(class) => class.borrow().lookup_local(name),
+            Self::Instance(instance) => instance.borrow().lookup_local(idx),
+            Self::Class(class) => class.borrow().lookup_local(idx),
             _ => None,
         }
     }
 
     /// Assign a value to a local binding within this value.
-    pub fn assign_local(&mut self, name: impl AsRef<str>, value: Self) -> Option<()> {
+    pub fn assign_local(&mut self, idx: usize, value: &Self) -> Option<()> {
         match self {
-            Self::Instance(instance) => instance.borrow_mut().assign_local(name, value),
-            Self::Class(class) => class.borrow_mut().assign_local(name, value),
+            Self::Instance(instance) => instance.borrow_mut().assign_local(idx, value.clone()),
+            Self::Class(class) => class.borrow_mut().assign_local(idx, value),
             _ => None,
         }
     }
@@ -128,6 +130,7 @@ impl Value {
                 .upgrade()
                 .map(|holder| format!("{}>>#{}", holder.borrow().name(), invokable.signature()))
                 .unwrap_or_else(|| format!("??>>#{}", invokable.signature())),
+            Self::BlockSelf(_) => "$blockSelf".to_string(),
         }
     }
 }
@@ -180,7 +183,8 @@ impl fmt::Debug for Value {
                     .map(|holder| format!("{}>>#{}", holder.borrow().name(), val.signature()))
                     .unwrap_or_else(|| format!("??>>#{}", val.signature()));
                 f.debug_tuple("Invokable").field(&signature).finish()
-            }
+            },
+            Self::BlockSelf(_) => f.debug_tuple("$blockSelf").finish()
         }
     }
 }

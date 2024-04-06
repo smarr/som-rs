@@ -4,12 +4,15 @@ use std::rc::{Rc, Weak};
 
 use indexmap::IndexMap;
 
-use som_core::ast::{ClassDef, MethodBody};
+use som_core::ast::{ClassDef, MethodBody, MethodDef};
 
 use crate::method::{Method, MethodKind};
 use crate::primitives;
 use crate::value::Value;
 use crate::{SOMRef, SOMWeakRef};
+use crate::specialized::if_node::IfNode;
+use crate::specialized::if_true_if_false_node::IfTrueIfFalseNode;
+use crate::specialized::while_node::WhileNode;
 
 /// A reference that may be either weak or owned/strong.
 #[derive(Debug, Clone)]
@@ -31,7 +34,7 @@ pub struct Class {
     // TODO: Should probably be `Option<SOMRef<Class>>`.
     pub super_class: SOMWeakRef<Class>,
     /// The class' locals.
-    pub locals: IndexMap<String, Value>,
+    pub locals: Vec<Value>,
     /// The class' methods/invokables.
     pub methods: IndexMap<String, Rc<Method>>,
     /// Is this class a static one ?
@@ -71,7 +74,7 @@ impl Class {
             name: format!("{} class", defn.name),
             class: MaybeWeak::Weak(Weak::new()),
             super_class: Weak::new(),
-            locals: static_locals,
+            locals: vec![Value::Nil; static_locals.len()],
             methods: IndexMap::new(),
             is_static: true,
         }));
@@ -80,7 +83,7 @@ impl Class {
             name: defn.name.clone(),
             class: MaybeWeak::Strong(static_class.clone()),
             super_class: Weak::new(),
-            locals: instance_locals,
+            locals: vec![Value::Nil; instance_locals.len()],
             methods: IndexMap::new(),
             is_static: false,
         }));
@@ -89,17 +92,22 @@ impl Class {
             .static_methods
             .iter()
             .map(|method| {
-                let signature = method.signature.clone();
-                let kind = match method.body {
-                    MethodBody::Primitive => MethodKind::NotImplemented(signature.clone()),
-                    MethodBody::Body { .. } => MethodKind::Defined(method.clone()),
-                };
-                let method = Method {
-                    kind,
-                    signature: signature.clone(),
-                    holder: Rc::downgrade(&static_class),
-                };
-                (signature, Rc::new(method))
+                match method {
+                    MethodDef::Generic(method) => {
+                        let signature = method.signature.clone();
+                        let kind = match method.body {
+                            MethodBody::Primitive => MethodKind::NotImplemented(signature.clone()),
+                            MethodBody::Body { .. } => MethodKind::Defined(method.clone()),
+                        };
+                        let method = Method {
+                            kind,
+                            signature: signature.clone(),
+                            holder: Rc::downgrade(&static_class),
+                        };
+                        (signature, Rc::new(method))
+                    }
+                    _ => panic!("Unreachable, I believe?") // inlinedwhile, inlinedif, etc.
+                }
             })
             .collect();
 
@@ -124,18 +132,29 @@ impl Class {
         let mut instance_methods: IndexMap<String, Rc<Method>> = defn
             .instance_methods
             .iter()
-            .map(|method| {
-                let signature = method.signature.clone();
-                let kind = match method.body {
-                    MethodBody::Primitive => MethodKind::NotImplemented(signature.clone()),
-                    MethodBody::Body { .. } => MethodKind::Defined(method.clone()),
-                };
-                let method = Method {
-                    kind,
-                    signature: signature.clone(),
-                    holder: Rc::downgrade(&instance_class),
-                };
-                (signature, Rc::new(method))
+            .map(|method_def| {
+                match method_def {
+                    MethodDef::Generic(method) | MethodDef::InlinedWhile(method, _) |
+                    MethodDef::InlinedIf(method, _) | MethodDef::InlinedIfTrueIfFalse(method) => {
+                        let signature = method.signature.clone();
+                        let kind = match method_def {
+                            MethodDef::Generic(_) => {
+                                match method.body {
+                                    MethodBody::Primitive => MethodKind::NotImplemented(signature.clone()),
+                                    MethodBody::Body { .. } => MethodKind::Defined(method.clone())}
+                            },
+                            MethodDef::InlinedWhile(_, exp_bool) => MethodKind::WhileInlined(WhileNode { expected_bool: *exp_bool }),
+                            MethodDef::InlinedIf(_, exp_bool) => MethodKind::IfInlined(IfNode { expected_bool: *exp_bool }),
+                            MethodDef::InlinedIfTrueIfFalse(_) => MethodKind::IfTrueIfFalseInlined(IfTrueIfFalseNode {}),
+                        };
+                        let method = Method {
+                            kind,
+                            signature: signature.clone(),
+                            holder: Rc::downgrade(&instance_class),
+                        };
+                        (signature, Rc::new(method))
+                    }
+                }
             })
             .collect();
 
@@ -210,23 +229,22 @@ impl Class {
     }
 
     /// Search for a local binding.
-    pub fn lookup_local(&self, name: impl AsRef<str>) -> Option<Value> {
-        let name = name.as_ref();
-        self.locals.get(name).cloned().or_else(|| {
+    pub fn lookup_local(&self, idx: usize) -> Option<Value> {
+        self.locals.get(idx).cloned().or_else(|| {
             let super_class = self.super_class()?;
-            let local = super_class.borrow_mut().lookup_local(name)?;
+            let local = super_class.borrow_mut().lookup_local(idx)?;
             Some(local)
         })
     }
 
     /// Assign a value to a local binding.
-    pub fn assign_local(&mut self, name: impl AsRef<str>, value: Value) -> Option<()> {
-        if let Some(local) = self.locals.get_mut(name.as_ref()) {
-            *local = value;
+    pub fn assign_local(&mut self, idx: usize, value: &Value) -> Option<()> {
+        if let Some(local) = self.locals.get_mut(idx) {
+            *local = value.clone();
             return Some(());
         }
         let super_class = self.super_class()?;
-        super_class.borrow_mut().assign_local(name, value)?;
+        super_class.borrow_mut().assign_local(idx, value)?;
         Some(())
     }
 }
@@ -235,7 +253,7 @@ impl fmt::Debug for Class {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("Class")
             .field("name", &self.name)
-            .field("locals", &self.locals.keys())
+            .field("fields", &self.locals.len())
             // .field("class", &self.class)
             // .field("super_class", &self.super_class)
             .finish()

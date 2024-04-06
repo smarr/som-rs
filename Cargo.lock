@@ -272,6 +272,9 @@ dependencies = [
 [[package]]
 name = "som-core"
 version = "0.1.0"
+dependencies = [
+ "rand",
+]
 
 [[package]]
 name = "som-interpreter-ast"
@@ -317,16 +320,9 @@ version = "0.1.0"
 name = "som-parser-symbols"
 version = "0.1.0"
 dependencies = [
+ "rand",
  "som-core",
  "som-lexer",
- "som-parser-core",
-]
-
-[[package]]
-name = "som-parser-text"
-version = "0.1.0"
-dependencies = [
- "som-core",
  "som-parser-core",
 ]
 

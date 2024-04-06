@@ -4,7 +4,6 @@ use std::rc::Rc;
 use som_core::ast;
 
 use crate::block::Block;
-use crate::frame::FrameKind;
 use crate::invokable::{Invoke, Return};
 use crate::universe::Universe;
 use crate::value::Value;
@@ -27,15 +26,43 @@ pub trait Evaluate {
 impl Evaluate for ast::Expression {
     fn evaluate(&self, universe: &mut Universe) -> Return {
         match self {
-            Self::Assignment(name, expr) => {
+            Self::LocalVarWrite(idx, expr) => {
+                // TODO: this doesn't call the fastest path for evaluate, still has to dispatch the right expr even though it's always a var write. potential minor speedup there
                 let value = propagate!(expr.evaluate(universe));
-                universe
-                    .assign_local(name, value.clone())
+                universe.assign_local(*idx, &value)
+                    .map(|_| Return::Local(value))
+                    .unwrap_or_else(||
+                        Return::Exception(format!("local var write: idx '{}' not found", idx)))
+            },
+            Self::NonLocalVarWrite(scope, idx, expr) => {
+                let value = propagate!(expr.evaluate(universe));
+                universe.assign_non_local(*idx, *scope, &value)
+                    .map(|_| Return::Local(value))
+                    .unwrap_or_else(||
+                        Return::Exception(format!("non local var write: idx '{}' not found", idx)))
+            },
+            Self::FieldWrite(idx, expr) => {
+                let value = propagate!(expr.evaluate(universe));
+                universe.assign_field(*idx, &value)
+                    .map(|_| Return::Local(value))
+                    .unwrap_or_else(||
+                        Return::Exception(format!("field write: idx '{}' not found", idx)))
+            },
+            Self::ArgWrite(scope, idx, expr) => {
+                let value = propagate!(expr.evaluate(universe));
+                universe.assign_arg(*idx, *scope, &value)
+                    .map(|_| Return::Local(value))
+                    .unwrap_or_else(||
+                        Return::Exception(format!("arg write: idx '{}', scope '{}' not found", idx, scope)))
+            },
+            Self::GlobalWrite(name, expr) => {
+                let value = propagate!(expr.evaluate(universe));
+                universe.assign_global(name, &value)
                     .map(|_| Return::Local(value))
                     .unwrap_or_else(|| {
-                        Return::Exception(format!("variable '{}' not found to assign to", name))
+                        Return::Exception(format!("global variable '{}' not found to assign to", name))
                     })
-            }
+            },
             Self::BinaryOp(bin_op) => bin_op.evaluate(universe),
             Self::Block(blk) => blk.evaluate(universe),
             Self::Exit(expr) => {
@@ -52,8 +79,8 @@ impl Evaluate for ast::Expression {
                     // Block has escaped its method frame.
                     let instance = frame.borrow().get_self();
                     let frame = universe.current_frame();
-                    let block = match frame.borrow().kind() {
-                        FrameKind::Block { block, .. } => block.clone(),
+                    let block = match frame.borrow().params.get(0) {
+                        Some(Value::BlockSelf(b)) => b.clone(),
                         _ => {
                             // Should never happen, because `universe.current_frame()` would
                             // have been equal to `universe.current_method_frame()`.
@@ -72,15 +99,41 @@ impl Evaluate for ast::Expression {
                 }
             }
             Self::Literal(literal) => literal.evaluate(universe),
-            Self::Reference(name) => (universe.lookup_local(name))
-                .or_else(|| universe.lookup_global(name))
+            Self::LocalVarRead(idx) => {
+                universe.lookup_local(*idx)
+                    .map(|v| Return::Local(v.clone()))
+                    .unwrap_or_else(||
+                        Return::Exception(format!("local var read: idx '{}' not found", idx)))
+            },
+            Self::NonLocalVarRead(scope, idx) => {
+                universe.lookup_non_local(*idx, *scope)
+                    .map(Return::Local)
+                    .unwrap_or_else(|| {
+                        Return::Exception(format!("non local var read: idx '{}' not found", idx))
+                    })
+            },
+            Self::FieldRead(idx) => {
+                universe.lookup_field(*idx)
+                    .map(Return::Local)
+                    .unwrap_or_else(|| {
+                        Return::Exception(format!("field read: idx '{}' not found", idx))
+                    })
+            },
+            Self::ArgRead(scope, idx) => {
+                universe.lookup_arg(*idx, *scope)
+                    .map(Return::Local)
+                    .unwrap_or_else(|| {
+                        Return::Exception(format!("arg read: idx '{}', scope '{}' not found", idx, scope))
+                    })
+            },
+            Self::GlobalRead(name) => universe.lookup_global(name)
                 .map(Return::Local)
                 .or_else(|| {
                     let frame = universe.current_frame();
                     let self_value = frame.borrow().get_self();
                     universe.unknown_global(self_value, name.as_str())
                 })
-                .unwrap_or_else(|| Return::Exception(format!("variable '{}' not found", name))),
+                .unwrap_or_else(|| Return::Exception(format!("global variable '{}' not found", name))),
             Self::Message(msg) => msg.evaluate(universe),
         }
     }
@@ -89,7 +142,7 @@ impl Evaluate for ast::Expression {
 impl Evaluate for ast::BinaryOp {
     fn evaluate(&self, universe: &mut Universe) -> Return {
         let (lhs, invokable) = match self.lhs.as_ref() {
-            ast::Expression::Reference(ident) if ident == "super" => {
+            ast::Expression::GlobalRead(ident) if ident == "super" => {
                 let frame = universe.current_frame();
                 let lhs = frame.borrow().get_self();
                 let holder = frame.borrow().get_method_holder();
@@ -186,7 +239,7 @@ impl Evaluate for ast::Message {
             //     let invokable = holder.borrow().lookup_method(&self.signature);
             //     (receiver, invokable)
             // }
-            ast::Expression::Reference(ident) if ident == "super" => {
+            ast::Expression::GlobalRead(ident) if ident == "super" => {
                 let frame = universe.current_frame();
                 let receiver = frame.borrow().get_self();
                 let holder = frame.borrow().get_method_holder();

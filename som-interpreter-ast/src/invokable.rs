@@ -1,11 +1,11 @@
 use std::rc::Rc;
 
 use som_core::ast;
+use som_core::ast::MethodBody;
 
 use crate::block::Block;
 use crate::evaluate::Evaluate;
 use crate::frame::Frame;
-use crate::frame::FrameKind;
 use crate::method::{Method, MethodKind};
 use crate::universe::Universe;
 use crate::value::Value;
@@ -32,42 +32,56 @@ pub trait Invoke {
 
 impl Invoke for Method {
     fn invoke(&self, universe: &mut Universe, args: Vec<Value>) -> Return {
+        // println!("--- Invoking \"{:1}\" ({:2})", &self.signature, &self.holder.upgrade().unwrap().borrow().name);
+        // println!("--- ...with args: {:?}", &args);
+        //
+        //
+        // if !universe.frames.is_empty() {
+        //     match &universe.current_method_frame().as_ref().borrow().kind {
+        //         FrameKind::Block { .. } => {}
+        //         FrameKind::Method { signature, holder, .. } => {
+        //             println!("We're in {:?} ({:?})", universe.lookup_symbol(signature.clone()),
+        //                      holder.borrow().name)
+        //         }
+        //     }
+        // }
+
         let output = match self.kind() {
             MethodKind::Defined(method) => {
+                let nbr_params = args.len();
+
                 let (self_value, params) = {
                     let mut iter = args.into_iter();
                     let receiver = match iter.next() {
                         Some(receiver) => receiver,
                         None => {
-                            return Return::Exception("missing receiver for invocation".to_string())
+                            return Return::Exception("missing receiver for invocation".to_string());
                         }
                     };
                     (receiver, iter.collect::<Vec<_>>())
                 };
-                let holder = match self.holder().upgrade() {
-                    Some(holder) => holder,
-                    None => {
-                        return Return::Exception(
-                            "cannot invoke this method because its holder has been collected"
-                                .to_string(),
-                        )
-                    }
+
+                let nbr_locals = match &method.body {
+                    MethodBody::Body { locals_nbr, .. } => *locals_nbr,
+                    MethodBody::Primitive => unreachable!()
                 };
-                let signature = universe.intern_symbol(&self.signature);
+
                 universe.with_frame(
-                    FrameKind::Method {
-                        holder,
-                        signature,
-                        self_value,
-                    },
+                    self_value,
+                    nbr_locals,
+                    nbr_params,
                     |universe| method.invoke(universe, params),
                 )
             }
             MethodKind::Primitive(func) => func(universe, args),
+            MethodKind::WhileInlined(while_node) => { while_node.invoke(universe, args) }
+            MethodKind::IfInlined(if_node) => { if_node.invoke(universe, args) }
+            MethodKind::IfTrueIfFalseInlined(if_true_if_false_node) => { if_true_if_false_node.invoke(universe, args) },
             MethodKind::NotImplemented(name) => {
                 Return::Exception(format!("unimplemented primitive: {}", name))
             }
         };
+        // println!("...exiting {:}.", self.signature);
         match output {
             // Return::Exception(msg) => Return::Exception(format!(
             //     "from {}>>#{}\n{}",
@@ -80,16 +94,25 @@ impl Invoke for Method {
     }
 }
 
-impl Invoke for ast::MethodDef {
+impl Invoke for ast::GenericMethodDef {
     fn invoke(&self, universe: &mut Universe, args: Vec<Value>) -> Return {
         let current_frame = universe.current_frame().clone();
+        // if &self.signature == "initialize:" {
+        //     dbg!(&self.body);
+        // std::process::exit(1);
+        // }
+        // if self.signature == "link" {
+        //     dbg!(&self.body);
+        // }
+
+
         match &self.kind {
             ast::MethodKind::Unary => {}
-            ast::MethodKind::Positional { parameters } => current_frame
+            ast::MethodKind::Positional { .. } => current_frame
                 .borrow_mut()
-                .bindings
-                .extend(parameters.iter().cloned().zip(args)),
-            ast::MethodKind::Operator { rhs } => {
+                .params
+                .extend(args),
+            ast::MethodKind::Operator { .. } => {
                 let rhs_value = match args.into_iter().next() {
                     Some(value) => value,
                     None => {
@@ -101,16 +124,12 @@ impl Invoke for ast::MethodDef {
                 };
                 current_frame
                     .borrow_mut()
-                    .bindings
-                    .insert(rhs.clone(), rhs_value);
+                    .params
+                    .push(rhs_value);
             }
         }
         match &self.body {
-            ast::MethodBody::Body { locals, body } => {
-                current_frame
-                    .borrow_mut()
-                    .bindings
-                    .extend(locals.iter().cloned().zip(std::iter::repeat(Value::Nil)));
+            ast::MethodBody::Body { body, .. } => {
                 loop {
                     match body.evaluate(universe) {
                         Return::NonLocal(value, frame) => {
@@ -142,21 +161,20 @@ impl Invoke for ast::MethodDef {
 
 impl Invoke for Block {
     fn invoke(&self, universe: &mut Universe, args: Vec<Value>) -> Return {
+        // println!("Invoking a block.");
+        // println!("--- ...with args: {:?}", &args);
+
+        // dbg!(&self.block.body);
+
         let current_frame = universe.current_frame();
-        current_frame.borrow_mut().bindings.extend(
-            self.block
-                .parameters
-                .iter()
-                .cloned()
-                .zip(args.into_iter().skip(1)),
-        );
-        current_frame.borrow_mut().bindings.extend(
-            self.block
-                .locals
-                .iter()
-                .cloned()
-                .zip(std::iter::repeat(Value::Nil)),
-        );
-        self.block.body.evaluate(universe)
+        current_frame.borrow_mut().params.extend(args);
+
+        // dbg!(&current_frame.borrow_mut().params);
+        // dbg!(&self.block.parameters);
+        // dbg!("--");
+
+        let l = self.block.body.evaluate(universe);
+        // println!("...exiting a block.");
+        l
     }
 }

@@ -16,6 +16,8 @@ build-and-test-interpreters:
     - cargo clean
     - cargo build --release
 
+    - cargo test
+
     # Unit Tests
 #    - PYTHONPATH=src python3 -m pytest
 #    - ./som.sh -cp Smalltalk TestSuite/TestHarness.som
@@ -23,8 +25,6 @@ build-and-test-interpreters:
     # Interpreter
 #    - $RPYTHON --batch src/main_rpython.py
 #    - ./som-bc-interp -cp Smalltalk TestSuite/TestHarness.som
-
-    # Package and Upload
     - lz4 ./target/release/som-interpreter-ast som-interpreter-ast.lz4
     - lz4 ./target/release/som-interpreter-bc som-interpreter-bc.lz4
 
