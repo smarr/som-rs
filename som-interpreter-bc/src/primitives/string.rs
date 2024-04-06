@@ -16,7 +16,7 @@ pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[
     ("isDigits", self::is_digits, true),
     ("isWhiteSpace", self::is_whitespace, true),
     ("asSymbol", self::as_symbol, true),
-    // ("charAt:", self::char_at, true),
+    ("charAt:", self::char_at, true),
     ("concatenate:", self::concatenate, true),
     ("primSubstringFrom:to:", self::prim_substring_from_to, true),
     ("=", self::eq, true),
@@ -223,8 +223,7 @@ fn prim_substring_from_to(interpreter: &mut Interpreter, universe: &mut Universe
         (_, _, _) => panic!("'{}': wrong types", SIGNATURE),
     };
 
-    // let string = Rc::new(String::from(&value[from..to]));
-    let string = Rc::new(value.chars().skip(from).take(to - from).collect());
+    let string = Rc::new(String::from(&value[from..to]));
 
     interpreter.stack.push(Value::String(string))
 }

@@ -46,11 +46,10 @@ impl Frame {
         match &kind {
             FrameKind::Block { block } => {
                 // let locals = block.blk_info.locals.iter().map(|_| Value::Nil).collect();
-                let locals = vec![Value::Nil; block.blk_info.nb_locals];
                 let mut frame = Self {
-                    kind,
-                    locals,
+                    locals: vec![Value::Nil; block.blk_info.nb_locals],
                     args: vec![],
+                    kind,
                     bytecode_idx: 0,
                 };
                 frame.args.push(frame.get_self());
@@ -59,11 +58,10 @@ impl Frame {
             FrameKind::Method { method, .. } => {
                 if let MethodKind::Defined(env) = method.kind() {
                     // let locals = env.locals.iter().map(|_| Value::Nil).collect();
-                    let locals = vec![Value::Nil; env.nbr_locals];
                     Self {
-                        kind,
-                        locals,
+                        locals: vec![Value::Nil; env.nbr_locals],
                         args: vec![],
+                        kind,
                         bytecode_idx: 0,
                     }
                 } else {
