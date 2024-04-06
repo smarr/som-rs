@@ -100,7 +100,7 @@ pub trait InnerGenCtxt: GenCtxt {
     fn get_nbr_locals(&self) -> usize;
     fn set_nbr_locals(&mut self, nbr_locals: usize);
     fn get_literal(&self, idx: usize) -> Option<&Literal>;
-    fn push_literal(&mut self, literal: Literal) -> usize; // todo is this needed?
+    fn push_literal(&mut self, literal: Literal) -> usize;
     fn remove_literal(&mut self, idx: usize) -> Option<Literal>;
     fn get_cur_instr_idx(&self) -> usize;
     fn patch_jump(&mut self, idx_to_backpatch: usize, new_val: usize);
@@ -205,13 +205,14 @@ impl InnerGenCtxt for BlockGenCtxt<'_> {
 
     fn remove_dup_popx_pop_sequences(&mut self) {
         if self.body.is_none() || self.body.as_ref().unwrap().len() < 3 {
-            // TODO once behavior is fixed, change to only one mutable borrow at the start like in the old code
             return;
         }
+        
+        let body = self.body.as_mut().unwrap();
 
         let mut indices_to_remove: Vec<usize> = vec![];
 
-        for (idx, bytecode_win) in self.body.as_ref().unwrap().windows(3).enumerate() {
+        for (idx, bytecode_win) in body.windows(3).enumerate() {
             if matches!(bytecode_win[0], Bytecode::Dup)
                 && matches!(
                     bytecode_win[1],
@@ -220,9 +221,7 @@ impl InnerGenCtxt for BlockGenCtxt<'_> {
                 && matches!(bytecode_win[2], Bytecode::Pop)
             {
                 let are_bc_jump_targets =
-                    self.body
-                        .as_ref()
-                        .unwrap()
+                    body
                         .iter()
                         .enumerate()
                         .any(|(maybe_jump_idx, bc)| match bc {
@@ -251,7 +250,7 @@ impl InnerGenCtxt for BlockGenCtxt<'_> {
         }
 
         let mut jumps_to_patch = vec![];
-        for (cur_idx, bc) in self.body.as_ref().unwrap().iter().enumerate() {
+        for (cur_idx, bc) in body.iter().enumerate() {
             match bc {
                 Bytecode::Jump(jump_offset)
                 | Bytecode::JumpOnTrueTopNil(jump_offset)
@@ -294,22 +293,18 @@ impl InnerGenCtxt for BlockGenCtxt<'_> {
                 _ => {}
             }
         }
-
+        
         for (jump_idx, jump_val) in jumps_to_patch {
             self.patch_jump(jump_idx, jump_val);
         }
 
-        // dbg!("Before:");
-        // dbg!(self.body.as_ref().unwrap());
         let mut index = 0;
         self.body.as_mut().unwrap().retain(|_| {
             let is_kept = !indices_to_remove.contains(&index);
             index += 1;
             is_kept
         });
-        // dbg!("After:");
-        // dbg!(self.body.as_ref().unwrap());
-        // dbg!("---");
+
     }
 }
 

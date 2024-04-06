@@ -79,13 +79,7 @@ impl PrimMessageInliner for ast::Expression {
     fn inline_compiled_block(&self, ctxt: &mut dyn InnerGenCtxt, block: &BlockInfo) -> Option<()> {
         let nbr_locals_pre_inlining = ctxt.get_nbr_locals();
         
-        ctxt.set_nbr_locals(ctxt.get_nbr_locals() + block.nb_locals); // todo likely maybe -1 to adjust for self
-        
-        // let og_scope = rand_thread.gen(); // does this matter? should it be the exact same as the original compiled block? i'm thinking it's fine like this?
-        // for block_local_intern_id in &block.locals {
-        //     let symbol_str = ctxt.lookup_symbol(*block_local_intern_id);
-        //     ctxt.push_local(String::from(symbol_str), og_scope);
-        // }
+        ctxt.set_nbr_locals(ctxt.get_nbr_locals() + block.nb_locals);
 
         // last is always ReturnLocal, so it gets ignored
         if let Some((_, body)) = block.body.split_last() {
