@@ -18,7 +18,7 @@ const INT_0: Value = Value::Integer(0);
 const INT_1: Value = Value::Integer(1);
 
 macro_rules! send {
-    ($interp:expr, $universe:expr, $frame:expr, $lit_idx:expr, $nb_params:expr, $bytecode_idx:expr) => {{
+    ($interp:expr, $universe:expr, $frame:expr, $lit_idx:expr, $nb_params:expr) => {{
         let literal = $frame.borrow().lookup_constant($lit_idx as usize).unwrap();
         let Literal::Symbol(symbol) = literal else {
             return None;
@@ -33,14 +33,14 @@ macro_rules! send {
         let method = {
             let receiver = $interp.stack.iter().nth_back(nb_params)?;
             let receiver_class = receiver.class($universe);
-            resolve_method($frame, &receiver_class, symbol, $bytecode_idx)
+            resolve_method($frame, &receiver_class, symbol, $interp.bytecode_idx_new)
         };
         do_send($interp, $universe, method, symbol, nb_params as usize);
     }};
 }
 
 macro_rules! super_send {
-    ($interp:expr, $universe:expr, $frame_expr:expr, $lit_idx:expr, $nb_params:expr, $bytecode_idx:expr) => {{
+    ($interp:expr, $universe:expr, $frame_expr:expr, $lit_idx:expr, $nb_params:expr) => {{
         let literal = $frame_expr
             .borrow()
             .lookup_constant($lit_idx as usize)
@@ -58,7 +58,7 @@ macro_rules! super_send {
         let method = {
             let holder = $frame_expr.borrow().get_method_holder();
             let super_class = holder.borrow().super_class().unwrap();
-            resolve_method($frame_expr, &super_class, symbol, $bytecode_idx)
+            resolve_method($frame_expr, &super_class, symbol, $interp.bytecode_idx_new)
         };
         do_send($interp, $universe, method, symbol, nb_params as usize);
     }};
@@ -71,6 +71,7 @@ pub struct Interpreter {
     pub stack: Vec<Value>,
     /// The time record of the interpreter's creation.
     pub start_time: Instant,
+    pub bytecode_idx_new: usize
 }
 
 impl Interpreter {
@@ -79,12 +80,14 @@ impl Interpreter {
             frames: vec![],
             stack: vec![],
             start_time: Instant::now(),
+            bytecode_idx_new: 0
         }
     }
 
     pub fn push_frame(&mut self, kind: FrameKind) -> SOMRef<Frame> {
         let frame = Rc::new(RefCell::new(Frame::from_kind(kind)));
         self.frames.push(frame.clone());
+        self.bytecode_idx_new = 0;
         frame
     }
 
@@ -98,12 +101,12 @@ impl Interpreter {
 
     pub fn run(&mut self, universe: &mut Universe) -> Option<Value> {
         loop {
-            let frame = match self.current_frame() {
+            let frame = match self.current_frame().cloned() {
                 Some(frame) => frame,
                 None => return Some(self.stack.pop().unwrap_or(Value::Nil)),
             };
 
-            let bytecode_idx = frame.borrow().bytecode_idx;
+            // let bytecode_idx = frame.borrow().bytecode_idx;
             let opt_bytecode = frame.borrow().get_current_bytecode();
             let bytecode = match opt_bytecode {
                 Some(bytecode) => bytecode,
@@ -113,9 +116,20 @@ impl Interpreter {
                     continue;
                 }
             };
+            // dbg!(&bytecode_idx);
+            // dbg!(&self.bytecode_idx_new);
+
+            // if bytecode_idx == 8 && bytecode == Send2(1) {
+            //     dbg!("wow");
+            // }
 
             frame.borrow_mut().bytecode_idx += 1;
+            self.bytecode_idx_new += 1;
+            
+            assert_eq!(frame.borrow_mut().bytecode_idx, self.bytecode_idx_new);
 
+            // dbg!(&bytecode);
+            
             match bytecode {
                 Bytecode::Halt => {
                     return Some(Value::Nil);
@@ -173,22 +187,22 @@ impl Interpreter {
                 }
                 Bytecode::PushConstant(idx) => {
                     let literal = frame.borrow().lookup_constant(idx as usize).unwrap();
-                    let value = convert_literal(frame, literal).unwrap();
+                    let value = convert_literal(&frame, literal).unwrap();
                     self.stack.push(value);
                 }
                 Bytecode::PushConstant0 => {
                     let literal = frame.borrow().lookup_constant(0).unwrap();
-                    let value = convert_literal(frame, literal).unwrap();
+                    let value = convert_literal(&frame, literal).unwrap();
                     self.stack.push(value);
                 }
                 Bytecode::PushConstant1 => {
                     let literal = frame.borrow().lookup_constant(1).unwrap();
-                    let value = convert_literal(frame, literal).unwrap();
+                    let value = convert_literal(&frame, literal).unwrap();
                     self.stack.push(value);
                 }
                 Bytecode::PushConstant2 => {
                     let literal = frame.borrow().lookup_constant(2).unwrap();
-                    let value = convert_literal(frame, literal).unwrap();
+                    let value = convert_literal(&frame, literal).unwrap();
                     self.stack.push(value);
                 }
                 Bytecode::PushGlobal(idx) => {
@@ -263,32 +277,37 @@ impl Interpreter {
                     }
                 }
                 Bytecode::Send1(idx) => {
-                    send! {self, universe, frame, idx, Some(0), bytecode_idx} // Send1 => receiver + 0 args, so we pass Some(0)
+                    send! {self, universe, &frame, idx, Some(0)} // Send1 => receiver + 0 args, so we pass Some(0)
                 }
                 Bytecode::Send2(idx) => {
-                    send! {self, universe, frame, idx, Some(1), bytecode_idx}
+                    send! {self, universe, &frame, idx, Some(1)}
                 }
                 Bytecode::Send3(idx) => {
-                    send! {self, universe, frame, idx, Some(2), bytecode_idx}
+                    send! {self, universe, &frame, idx, Some(2)}
                 }
                 Bytecode::SendN(idx) => {
-                    send! {self, universe, frame, idx, None, bytecode_idx}
+                    send! {self, universe, &frame, idx, None}
                 }
                 Bytecode::SuperSend1(idx) => {
-                    super_send! {self, universe, frame, idx, Some(0), bytecode_idx}
+                    super_send! {self, universe, &frame, idx, Some(0)}
                 }
                 Bytecode::SuperSend2(idx) => {
-                    super_send! {self, universe, frame, idx, Some(1), bytecode_idx}
+                    super_send! {self, universe, &frame, idx, Some(1)}
                 }
                 Bytecode::SuperSend3(idx) => {
-                    super_send! {self, universe, frame, idx, Some(2), bytecode_idx}
+                    super_send! {self, universe, &frame, idx, Some(2)}
                 }
                 Bytecode::SuperSendN(idx) => {
-                    super_send! {self, universe, frame, idx, None, bytecode_idx}
+                    super_send! {self, universe, &frame, idx, None}
                 }
                 Bytecode::ReturnLocal => {
                     let value = self.stack.pop().unwrap();
                     self.pop_frame();
+                    // println!("...returning (local)");
+                    match self.current_frame().cloned() {
+                        None => {} // eh we're at the end of the program anyway
+                        Some(f) => {self.bytecode_idx_new = f.borrow().bytecode_idx;}
+                    }
                     self.stack.push(value);
                 }
                 Bytecode::ReturnNonLocal => {
@@ -301,9 +320,18 @@ impl Interpreter {
                         .rev()
                         .position(|live_frame| Rc::ptr_eq(&live_frame, &method_frame));
 
+                    // println!("...returning (non local)");
+
                     if let Some(count) = escaped_frames {
                         (0..count).for_each(|_| self.pop_frame());
                         self.pop_frame();
+                        match self.current_frame().cloned() {
+                            None => {}
+                            Some(f) => {
+                                // dbg!(f.borrow().bytecode_idx);
+                                self.bytecode_idx_new = f.borrow().bytecode_idx;
+                            }
+                        }
                         self.stack.push(value);
                     } else {
                         // Block has escaped its method frame.
@@ -325,10 +353,12 @@ impl Interpreter {
                 Bytecode::Jump(offset) => {
                     let frame = self.current_frame()?;
                     frame.clone().borrow_mut().bytecode_idx += offset - 1;
+                    self.bytecode_idx_new += offset - 1;
                 }
                 Bytecode::JumpBackward(offset) => {
                     let frame = self.current_frame()?;
                     frame.clone().borrow_mut().bytecode_idx -= offset + 1;
+                    self.bytecode_idx_new -= offset + 1;
                 }
                 Bytecode::JumpOnTrueTopNil(offset) => {
                     let condition_result = self.stack.last()?;
@@ -337,6 +367,7 @@ impl Interpreter {
                         Value::Boolean(true) => {
                             let frame = self.current_frame()?;
                             frame.clone().borrow_mut().bytecode_idx += offset - 1; // minus one because it gets incremented by one already every loop
+                            self.bytecode_idx_new += offset - 1;
                             *self.stack.last_mut()? = Value::Nil;
                         }
                         Value::Boolean(false) => {
@@ -352,6 +383,7 @@ impl Interpreter {
                         Value::Boolean(false) => {
                             let frame = self.current_frame()?;
                             frame.clone().borrow_mut().bytecode_idx += offset - 1;
+                            self.bytecode_idx_new += offset - 1;
                             *self.stack.last_mut()? = Value::Nil;
                         }
                         Value::Boolean(true) => {
@@ -367,6 +399,7 @@ impl Interpreter {
                         Value::Boolean(true) => {
                             let frame = self.current_frame()?;
                             frame.clone().borrow_mut().bytecode_idx += offset - 1;
+                            self.bytecode_idx_new += offset - 1;
                         }
                         Value::Boolean(false) => {}
                         _ => panic!("Jump condition did not evaluate to boolean"),
@@ -379,6 +412,7 @@ impl Interpreter {
                         Value::Boolean(false) => {
                             let frame = self.current_frame()?;
                             frame.clone().borrow_mut().bytecode_idx += offset - 1;
+                            self.bytecode_idx_new += offset - 1;
                         }
                         Value::Boolean(true) => {}
                         _ => panic!("Jump condition did not evaluate to boolean"),
@@ -392,7 +426,7 @@ impl Interpreter {
             universe: &mut Universe,
             method: Option<Rc<Method>>,
             symbol: Interned,
-            nb_params: usize,
+            nb_params: usize
         ) {
             let Some(method) = method else {
                 let mut args = Vec::with_capacity(nb_params + 1);
@@ -415,6 +449,8 @@ impl Interpreter {
 
             match method.kind() {
                 MethodKind::Defined(_) => {
+                    // println!("Invoking {:?}", &method.signature);
+
                     let mut args = Vec::with_capacity(nb_params + 1);
 
                     for _ in 0..nb_params {
@@ -433,8 +469,19 @@ impl Interpreter {
                         holder,
                     });
                     frame.borrow_mut().args = args;
+                    interpreter.bytecode_idx_new = 0;
                 }
                 MethodKind::Primitive(func) => {
+                   /* unsafe {
+                        let x = std::mem::transmute::<PrimitiveFn, usize>(*func) == std::mem::transmute::<PrimitiveFn, usize>(crate::primitives::block1::restart);
+                        if x {
+                            panic!("ok so this can be reached actually");
+                        }
+                    }
+
+                    if *func as usize == crate::primitives::block1::restart as usize {
+                        dbg!("wow");
+                    }*/
                     func(interpreter, universe);
                 }
                 MethodKind::NotImplemented(err) => {

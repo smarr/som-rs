@@ -29,13 +29,14 @@ pub mod block1 {
         interpreter.push_frame(kind);
     }
 
-    fn restart(interpreter: &mut Interpreter, _: &mut Universe) {
+    pub fn restart(interpreter: &mut Interpreter, _: &mut Universe) {
         const SIGNATURE: &str = "Block>>#restart";
 
         expect_args!(SIGNATURE, interpreter, [Value::Block(_)]);
 
         let frame = interpreter.current_frame().expect("no current frame");
         frame.borrow_mut().bytecode_idx = 0;
+        interpreter.bytecode_idx_new = 0;
     }
 
     /// Search for an instance primitive matching the given signature.
