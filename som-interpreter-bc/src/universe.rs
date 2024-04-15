@@ -572,6 +572,8 @@ impl Universe {
             self_value: value.clone(),
         };
 
+        interpreter.current_frame().unwrap().borrow_mut().bytecode_idx = interpreter.bytecode_idx_new;
+        
         let frame = interpreter.push_frame(kind);
         frame.borrow_mut().args.push(value);
         frame.borrow_mut().args.push(Value::Symbol(name));
