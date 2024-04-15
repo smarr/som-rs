@@ -121,9 +121,26 @@ impl Frame {
         }
     }
 
-    /// Get the current bytecode for the current method.
-    pub fn get_current_bytecode(&self) -> Option<Bytecode> {
-        self.get_bytecode(self.bytecode_idx)
+    // /// Get the current bytecode for the current method.
+    // pub fn get_current_bytecode(&self) -> Option<Bytecode> {
+    //     self.get_bytecode(self.bytecode_idx)
+    // }
+
+    /// Get the bytecode at idx N. TODO should NOT exist! bytecodes ought to be managed by the interpreter directly.
+    pub fn get_bytecode_at(&self, idx: usize) -> Option<Bytecode> {
+        self.get_bytecode(idx)
+    }
+
+    /// Get all bytecodes.
+    pub fn get_bytecodes(&self) -> Option<&Vec<Bytecode>> {
+        match &self.kind {
+            FrameKind::Method { method, .. } => match method.kind() {
+                MethodKind::Defined(env) => Some(&env.body),
+                MethodKind::Primitive(_) => None,
+                MethodKind::NotImplemented(_) => None,
+            },
+            FrameKind::Block { block, .. } => Some(&block.blk_info.body),
+        }
     }
 
     pub fn lookup_constant(&self, idx: usize) -> Option<Literal> {

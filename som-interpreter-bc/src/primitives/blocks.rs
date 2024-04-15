@@ -34,8 +34,7 @@ pub mod block1 {
 
         expect_args!(SIGNATURE, interpreter, [Value::Block(_)]);
 
-        let frame = interpreter.current_frame().expect("no current frame");
-        frame.borrow_mut().bytecode_idx = 0;
+        // let frame = interpreter.current_frame().expect("no current frame");
         interpreter.bytecode_idx_new = 0;
     }
 

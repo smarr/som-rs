@@ -527,6 +527,7 @@ impl Universe {
     }
 
     /// Call `doesNotUnderstand:` on the given value, if it is defined.
+    #[allow(unreachable_code, unused_variables)]
     pub fn does_not_understand(
         &mut self,
         interpreter: &mut Interpreter,
@@ -534,6 +535,7 @@ impl Universe {
         symbol: Interned,
         args: Vec<Value>,
     ) -> Option<()> {
+        panic!("does not understand: {:?}", self.interner.lookup(symbol));
         let method_name = self.intern_symbol("doesNotUnderstand:arguments:");
         let method = value.lookup_method(self, method_name)?;
 

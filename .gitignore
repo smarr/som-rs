@@ -18,3 +18,8 @@
 # Rebench stuff
 payload.json
 rebench.data
+
+# perf stuff + interps i keep around for perf stuff
+*.data
+som-interp-ast
+som-interp-bc

@@ -93,6 +93,14 @@ impl Interpreter {
 
     pub fn pop_frame(&mut self) {
         self.frames.pop();
+
+        // todo you can pop several frames in a row and this operation can sometimes be useless. if we keep this here, maybe make a fn pop_n_frames()?
+        match self.current_frame().cloned() {
+            None => {}
+            Some(f) => {
+                self.bytecode_idx_new = f.borrow().bytecode_idx;
+            }
+        };
     }
 
     pub fn current_frame(&self) -> Option<&SOMRef<Frame>> {
@@ -107,7 +115,9 @@ impl Interpreter {
             };
 
             // let bytecode_idx = frame.borrow().bytecode_idx;
-            let opt_bytecode = frame.borrow().get_current_bytecode();
+            // let opt_bytecode = frame.borrow().get_current_bytecode();
+            let opt_bytecode = frame.borrow().get_bytecode_at(self.bytecode_idx_new);
+
             let bytecode = match opt_bytecode {
                 Some(bytecode) => bytecode,
                 None => {
@@ -116,20 +126,19 @@ impl Interpreter {
                     continue;
                 }
             };
-            // dbg!(&bytecode_idx);
+
             // dbg!(&self.bytecode_idx_new);
+            // dbg!(&bytecode);
+            // dbg!(&self.current_frame().unwrap().borrow().get_bytecodes());
 
             // if bytecode_idx == 8 && bytecode == Send2(1) {
             //     dbg!("wow");
             // }
 
-            frame.borrow_mut().bytecode_idx += 1;
+            // frame.borrow_mut().bytecode_idx += 1;
             self.bytecode_idx_new += 1;
             
-            assert_eq!(frame.borrow_mut().bytecode_idx, self.bytecode_idx_new);
 
-            // dbg!(&bytecode);
-            
             match bytecode {
                 Bytecode::Halt => {
                     return Some(Value::Nil);
@@ -304,10 +313,15 @@ impl Interpreter {
                     let value = self.stack.pop().unwrap();
                     self.pop_frame();
                     // println!("...returning (local)");
-                    match self.current_frame().cloned() {
-                        None => {} // eh we're at the end of the program anyway
-                        Some(f) => {self.bytecode_idx_new = f.borrow().bytecode_idx;}
-                    }
+                    // todo only handle bytecode idx writes here?
+                    // match self.current_frame().cloned() {
+                    //     None => {} // eh we're at the end of the program anyway
+                    //     Some(f) => {
+                    //         self.bytecode_idx_new = f.borrow().bytecode_idx;
+                    //         // println!("returned with idx: {:?}", self.bytecode_idx_new); // todo remove all debug
+                    //         // println!("prev: {:?}", self.current_frame().unwrap().borrow().get_bytecode_at(self.bytecode_idx_new - 1));
+                    //     }
+                    // };
                     self.stack.push(value);
                 }
                 Bytecode::ReturnNonLocal => {
@@ -325,13 +339,13 @@ impl Interpreter {
                     if let Some(count) = escaped_frames {
                         (0..count).for_each(|_| self.pop_frame());
                         self.pop_frame();
-                        match self.current_frame().cloned() {
-                            None => {}
-                            Some(f) => {
-                                // dbg!(f.borrow().bytecode_idx);
-                                self.bytecode_idx_new = f.borrow().bytecode_idx;
-                            }
-                        }
+                        // match self.current_frame().cloned() {
+                        //     None => {}
+                        //     Some(f) => {
+                        //         self.bytecode_idx_new = f.borrow().bytecode_idx;
+                        //         // println!("returned (non local) with idx: {:?}", self.bytecode_idx_new);
+                        //     }
+                        // };
                         self.stack.push(value);
                     } else {
                         // Block has escaped its method frame.
@@ -351,13 +365,9 @@ impl Interpreter {
                     }
                 }
                 Bytecode::Jump(offset) => {
-                    let frame = self.current_frame()?;
-                    frame.clone().borrow_mut().bytecode_idx += offset - 1;
-                    self.bytecode_idx_new += offset - 1;
+                    self.bytecode_idx_new += offset - 1; // minus one because it gets incremented by one already every loop
                 }
                 Bytecode::JumpBackward(offset) => {
-                    let frame = self.current_frame()?;
-                    frame.clone().borrow_mut().bytecode_idx -= offset + 1;
                     self.bytecode_idx_new -= offset + 1;
                 }
                 Bytecode::JumpOnTrueTopNil(offset) => {
@@ -365,8 +375,6 @@ impl Interpreter {
 
                     match condition_result {
                         Value::Boolean(true) => {
-                            let frame = self.current_frame()?;
-                            frame.clone().borrow_mut().bytecode_idx += offset - 1; // minus one because it gets incremented by one already every loop
                             self.bytecode_idx_new += offset - 1;
                             *self.stack.last_mut()? = Value::Nil;
                         }
@@ -381,8 +389,6 @@ impl Interpreter {
 
                     match condition_result {
                         Value::Boolean(false) => {
-                            let frame = self.current_frame()?;
-                            frame.clone().borrow_mut().bytecode_idx += offset - 1;
                             self.bytecode_idx_new += offset - 1;
                             *self.stack.last_mut()? = Value::Nil;
                         }
@@ -397,8 +403,6 @@ impl Interpreter {
 
                     match condition_result {
                         Value::Boolean(true) => {
-                            let frame = self.current_frame()?;
-                            frame.clone().borrow_mut().bytecode_idx += offset - 1;
                             self.bytecode_idx_new += offset - 1;
                         }
                         Value::Boolean(false) => {}
@@ -410,8 +414,6 @@ impl Interpreter {
 
                     match condition_result {
                         Value::Boolean(false) => {
-                            let frame = self.current_frame()?;
-                            frame.clone().borrow_mut().bytecode_idx += offset - 1;
                             self.bytecode_idx_new += offset - 1;
                         }
                         Value::Boolean(true) => {}
@@ -447,9 +449,13 @@ impl Interpreter {
                 return;
             };
 
+            // println!("Invoking {:?}", &method.signature);
+            
+            // we store the current bytecode idx to be able to correctly restore the bytecode state when we pop frames
+            interpreter.current_frame().unwrap().borrow_mut().bytecode_idx = interpreter.bytecode_idx_new;
+
             match method.kind() {
                 MethodKind::Defined(_) => {
-                    // println!("Invoking {:?}", &method.signature);
 
                     let mut args = Vec::with_capacity(nb_params + 1);
 
