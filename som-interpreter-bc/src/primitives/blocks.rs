@@ -35,7 +35,7 @@ pub mod block1 {
         expect_args!(SIGNATURE, interpreter, [Value::Block(_)]);
 
         // let frame = interpreter.current_frame().expect("no current frame");
-        interpreter.bytecode_idx_new = 0;
+        interpreter.bytecode_idx = 0;
     }
 
     /// Search for an instance primitive matching the given signature.

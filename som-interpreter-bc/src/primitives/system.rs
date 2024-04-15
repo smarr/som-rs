@@ -212,7 +212,7 @@ fn print_stack_trace(interpreter: &mut Interpreter, _: &mut Universe) {
     for frame in &interpreter.frames {
         let class = frame.borrow().get_method_holder();
         let method = frame.borrow().get_method();
-        let bytecode_idx = interpreter.bytecode_idx_new;
+        let bytecode_idx = interpreter.bytecode_idx;
         let block = match frame.borrow().kind() {
             FrameKind::Block { .. } => "$block",
             _ => "",

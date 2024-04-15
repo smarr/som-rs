@@ -33,7 +33,7 @@ macro_rules! send {
         let method = {
             let receiver = $interp.stack.iter().nth_back(nb_params)?;
             let receiver_class = receiver.class($universe);
-            resolve_method($frame, &receiver_class, symbol, $interp.bytecode_idx_new)
+            resolve_method($frame, &receiver_class, symbol, $interp.bytecode_idx)
         };
         do_send($interp, $universe, method, symbol, nb_params as usize);
     }};
@@ -58,7 +58,7 @@ macro_rules! super_send {
         let method = {
             let holder = $frame_expr.borrow().get_method_holder();
             let super_class = holder.borrow().super_class().unwrap();
-            resolve_method($frame_expr, &super_class, symbol, $interp.bytecode_idx_new)
+            resolve_method($frame_expr, &super_class, symbol, $interp.bytecode_idx)
         };
         do_send($interp, $universe, method, symbol, nb_params as usize);
     }};
@@ -71,7 +71,8 @@ pub struct Interpreter {
     pub stack: Vec<Value>,
     /// The time record of the interpreter's creation.
     pub start_time: Instant,
-    pub bytecode_idx_new: usize
+    /// The current bytecode index.
+    pub bytecode_idx: usize
 }
 
 impl Interpreter {
@@ -80,27 +81,33 @@ impl Interpreter {
             frames: vec![],
             stack: vec![],
             start_time: Instant::now(),
-            bytecode_idx_new: 0
+            bytecode_idx: 0
         }
     }
 
     pub fn push_frame(&mut self, kind: FrameKind) -> SOMRef<Frame> {
         let frame = Rc::new(RefCell::new(Frame::from_kind(kind)));
         self.frames.push(frame.clone());
-        self.bytecode_idx_new = 0;
+        self.bytecode_idx = 0;
         frame
     }
 
     pub fn pop_frame(&mut self) {
         self.frames.pop();
 
-        // todo you can pop several frames in a row and this operation can sometimes be useless. if we keep this here, maybe make a fn pop_n_frames()?
-        match self.current_frame().cloned() {
-            None => {}
-            Some(f) => {
-                self.bytecode_idx_new = f.borrow().bytecode_idx;
-            }
-        };
+        if let Some(frame_ref) = self.current_frame() {
+            let bytecode_idx = frame_ref.borrow().bytecode_idx;
+            self.bytecode_idx = bytecode_idx;
+        }
+    }
+
+    pub fn pop_n_frames(&mut self, n: usize) {
+        (0..n).for_each(|_| {self.frames.pop();} );
+
+        if let Some(frame_ref) = self.current_frame() {
+            let bytecode_idx = frame_ref.borrow().bytecode_idx;
+            self.bytecode_idx = bytecode_idx;
+        }
     }
 
     pub fn current_frame(&self) -> Option<&SOMRef<Frame>> {
@@ -116,7 +123,7 @@ impl Interpreter {
 
             // let bytecode_idx = frame.borrow().bytecode_idx;
             // let opt_bytecode = frame.borrow().get_current_bytecode();
-            let opt_bytecode = frame.borrow().get_bytecode_at(self.bytecode_idx_new);
+            let opt_bytecode = frame.borrow().get_bytecode_at(self.bytecode_idx);
 
             let bytecode = match opt_bytecode {
                 Some(bytecode) => bytecode,
@@ -127,7 +134,6 @@ impl Interpreter {
                 }
             };
 
-            // dbg!(&self.bytecode_idx_new);
             // dbg!(&bytecode);
             // dbg!(&self.current_frame().unwrap().borrow().get_bytecodes());
 
@@ -136,7 +142,7 @@ impl Interpreter {
             // }
 
             // frame.borrow_mut().bytecode_idx += 1;
-            self.bytecode_idx_new += 1;
+            self.bytecode_idx += 1;
             
 
             match bytecode {
@@ -337,8 +343,7 @@ impl Interpreter {
                     // println!("...returning (non local)");
 
                     if let Some(count) = escaped_frames {
-                        (0..count).for_each(|_| self.pop_frame());
-                        self.pop_frame();
+                        self.pop_n_frames(count + 1);
                         // match self.current_frame().cloned() {
                         //     None => {}
                         //     Some(f) => {
@@ -365,17 +370,17 @@ impl Interpreter {
                     }
                 }
                 Bytecode::Jump(offset) => {
-                    self.bytecode_idx_new += offset - 1; // minus one because it gets incremented by one already every loop
+                    self.bytecode_idx += offset - 1; // minus one because it gets incremented by one already every loop
                 }
                 Bytecode::JumpBackward(offset) => {
-                    self.bytecode_idx_new -= offset + 1;
+                    self.bytecode_idx -= offset + 1;
                 }
                 Bytecode::JumpOnTrueTopNil(offset) => {
                     let condition_result = self.stack.last()?;
 
                     match condition_result {
                         Value::Boolean(true) => {
-                            self.bytecode_idx_new += offset - 1;
+                            self.bytecode_idx += offset - 1;
                             *self.stack.last_mut()? = Value::Nil;
                         }
                         Value::Boolean(false) => {
@@ -389,7 +394,7 @@ impl Interpreter {
 
                     match condition_result {
                         Value::Boolean(false) => {
-                            self.bytecode_idx_new += offset - 1;
+                            self.bytecode_idx += offset - 1;
                             *self.stack.last_mut()? = Value::Nil;
                         }
                         Value::Boolean(true) => {
@@ -403,7 +408,7 @@ impl Interpreter {
 
                     match condition_result {
                         Value::Boolean(true) => {
-                            self.bytecode_idx_new += offset - 1;
+                            self.bytecode_idx += offset - 1;
                         }
                         Value::Boolean(false) => {}
                         _ => panic!("Jump condition did not evaluate to boolean"),
@@ -414,7 +419,7 @@ impl Interpreter {
 
                     match condition_result {
                         Value::Boolean(false) => {
-                            self.bytecode_idx_new += offset - 1;
+                            self.bytecode_idx += offset - 1;
                         }
                         Value::Boolean(true) => {}
                         _ => panic!("Jump condition did not evaluate to boolean"),
@@ -452,7 +457,7 @@ impl Interpreter {
             // println!("Invoking {:?}", &method.signature);
             
             // we store the current bytecode idx to be able to correctly restore the bytecode state when we pop frames
-            interpreter.current_frame().unwrap().borrow_mut().bytecode_idx = interpreter.bytecode_idx_new;
+            interpreter.current_frame().unwrap().borrow_mut().bytecode_idx = interpreter.bytecode_idx;
 
             match method.kind() {
                 MethodKind::Defined(_) => {
@@ -475,7 +480,7 @@ impl Interpreter {
                         holder,
                     });
                     frame.borrow_mut().args = args;
-                    interpreter.bytecode_idx_new = 0;
+                    interpreter.bytecode_idx = 0;
                 }
                 MethodKind::Primitive(func) => {
                    /* unsafe {
