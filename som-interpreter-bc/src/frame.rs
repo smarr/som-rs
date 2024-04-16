@@ -108,28 +108,11 @@ impl Frame {
             FrameKind::Block { block, .. } => block.frame.as_ref().unwrap().borrow().get_method(),
         }
     }
-
-    /// Get the bytecode at the specified index for the current method.
-    pub fn get_bytecode(&self, idx: usize) -> Option<Bytecode> {
-        match &self.kind {
-            FrameKind::Method { method, .. } => match method.kind() {
-                MethodKind::Defined(env) => env.body.get(idx).copied(),
-                MethodKind::Primitive(_) => None,
-                MethodKind::NotImplemented(_) => None,
-            },
-            FrameKind::Block { block, .. } => block.blk_info.body.get(idx).copied(),
-        }
-    }
-
+    
     // /// Get the current bytecode for the current method.
     // pub fn get_current_bytecode(&self) -> Option<Bytecode> {
     //     self.get_bytecode(self.bytecode_idx)
     // }
-
-    /// Get the bytecode at idx N. TODO should NOT exist! bytecodes ought to be managed by the interpreter directly.
-    pub fn get_bytecode_at(&self, idx: usize) -> Option<Bytecode> {
-        self.get_bytecode(idx)
-    }
 
     /// Get all bytecodes.
     pub fn get_bytecodes(&self) -> Option<&Vec<Bytecode>> {

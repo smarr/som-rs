@@ -72,7 +72,9 @@ pub struct Interpreter {
     /// The time record of the interpreter's creation.
     pub start_time: Instant,
     /// The current bytecode index.
-    pub bytecode_idx: usize
+    pub bytecode_idx: usize,
+    /// All bytecodes in the current frame. TODO make ref
+    pub bytecodes: Vec<Bytecode>
 }
 
 impl Interpreter {
@@ -81,7 +83,8 @@ impl Interpreter {
             frames: vec![],
             stack: vec![],
             start_time: Instant::now(),
-            bytecode_idx: 0
+            bytecode_idx: 0,
+            bytecodes: vec![]
         }
     }
 
@@ -89,24 +92,31 @@ impl Interpreter {
         let frame = Rc::new(RefCell::new(Frame::from_kind(kind)));
         self.frames.push(frame.clone());
         self.bytecode_idx = 0;
+        self.bytecodes = frame.borrow().get_bytecodes().unwrap().clone();
         frame
     }
 
     pub fn pop_frame(&mut self) {
         self.frames.pop();
 
-        if let Some(frame_ref) = self.current_frame() {
-            let bytecode_idx = frame_ref.borrow().bytecode_idx;
-            self.bytecode_idx = bytecode_idx;
+        match self.current_frame().cloned() {
+            None => {}
+            Some(f) => {
+                self.bytecode_idx = f.borrow().bytecode_idx;
+                self.bytecodes = f.borrow().get_bytecodes().unwrap().clone();
+            }
         }
     }
 
     pub fn pop_n_frames(&mut self, n: usize) {
         (0..n).for_each(|_| {self.frames.pop();} );
 
-        if let Some(frame_ref) = self.current_frame() {
-            let bytecode_idx = frame_ref.borrow().bytecode_idx;
-            self.bytecode_idx = bytecode_idx;
+        match self.current_frame().cloned() {
+            None => {}
+            Some(f) => {
+                self.bytecode_idx = f.borrow().bytecode_idx;
+                self.bytecodes = f.borrow().get_bytecodes().unwrap().clone();
+            }
         }
     }
 
@@ -115,6 +125,8 @@ impl Interpreter {
     }
 
     pub fn run(&mut self, universe: &mut Universe) -> Option<Value> {
+        self.bytecodes = self.current_frame().cloned().unwrap().borrow().get_bytecodes().unwrap().clone();
+
         loop {
             let frame = match self.current_frame().cloned() {
                 Some(frame) => frame,
@@ -122,11 +134,10 @@ impl Interpreter {
             };
 
             // let bytecode_idx = frame.borrow().bytecode_idx;
-            // let opt_bytecode = frame.borrow().get_current_bytecode();
-            let opt_bytecode = frame.borrow().get_bytecode_at(self.bytecode_idx);
+            let opt_bytecode = self.bytecodes.get(self.bytecode_idx);
 
             let bytecode = match opt_bytecode {
-                Some(bytecode) => bytecode,
+                Some(bytecode) => *bytecode,
                 None => {
                     self.pop_frame();
                     self.stack.push(Value::Nil);
@@ -136,10 +147,6 @@ impl Interpreter {
 
             // dbg!(&bytecode);
             // dbg!(&self.current_frame().unwrap().borrow().get_bytecodes());
-
-            // if bytecode_idx == 8 && bytecode == Send2(1) {
-            //     dbg!("wow");
-            // }
 
             // frame.borrow_mut().bytecode_idx += 1;
             self.bytecode_idx += 1;
@@ -453,14 +460,13 @@ impl Interpreter {
 
                 return;
             };
-
-            // println!("Invoking {:?}", &method.signature);
             
             // we store the current bytecode idx to be able to correctly restore the bytecode state when we pop frames
             interpreter.current_frame().unwrap().borrow_mut().bytecode_idx = interpreter.bytecode_idx;
 
             match method.kind() {
                 MethodKind::Defined(_) => {
+                    // println!("Invoking {:?}", &method.signature);
 
                     let mut args = Vec::with_capacity(nb_params + 1);
 
@@ -480,19 +486,9 @@ impl Interpreter {
                         holder,
                     });
                     frame.borrow_mut().args = args;
-                    interpreter.bytecode_idx = 0;
                 }
                 MethodKind::Primitive(func) => {
-                   /* unsafe {
-                        let x = std::mem::transmute::<PrimitiveFn, usize>(*func) == std::mem::transmute::<PrimitiveFn, usize>(crate::primitives::block1::restart);
-                        if x {
-                            panic!("ok so this can be reached actually");
-                        }
-                    }
-
-                    if *func as usize == crate::primitives::block1::restart as usize {
-                        dbg!("wow");
-                    }*/
+                    // println!("Invoking prim. {:?}", &method.signature);
                     func(interpreter, universe);
                 }
                 MethodKind::NotImplemented(err) => {
