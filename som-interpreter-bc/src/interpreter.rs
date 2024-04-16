@@ -78,13 +78,23 @@ pub struct Interpreter {
 }
 
 impl Interpreter {
-    pub fn new() -> Self {
+    // pub fn new() -> Self {
+    //     Self {
+    //         frames: vec![],
+    //         stack: vec![],
+    //         start_time: Instant::now(),
+    //         bytecode_idx: 0,
+    //         bytecodes: vec![]
+    //     }
+    // }
+
+    pub fn new_from_frame(frame: SOMRef<Frame>) -> Self {
         Self {
-            frames: vec![],
+            frames: vec![Rc::clone(&frame); 1],
             stack: vec![],
             start_time: Instant::now(),
             bytecode_idx: 0,
-            bytecodes: vec![]
+            bytecodes: frame.borrow().get_bytecodes().cloned().unwrap()
         }
     }
 

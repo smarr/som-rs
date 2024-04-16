@@ -1,7 +1,9 @@
+use std::cell::RefCell;
 use std::path::PathBuf;
+use std::rc::Rc;
 
 use som_interpreter_bc::compiler;
-use som_interpreter_bc::frame::FrameKind;
+use som_interpreter_bc::frame::{Frame, FrameKind};
 use som_interpreter_bc::interpreter::Interpreter;
 use som_interpreter_bc::universe::Universe;
 use som_interpreter_bc::value::Value;
@@ -158,7 +160,6 @@ fn basic_interpreter_tests() {
     ];
 
     for (counter, (expr, expected)) in tests.iter().enumerate() {
-        let mut interpreter = Interpreter::new();
         println!("testing: '{}'", expr);
 
         let line = format!(
@@ -203,7 +204,7 @@ fn basic_interpreter_tests() {
             holder: class.clone(),
             self_value: Value::Class(class),
         };
-        interpreter.push_frame(kind);
+        let mut interpreter = Interpreter::new_from_frame(Rc::new(RefCell::new(Frame::from_kind(kind))));
         if let Some(output) = interpreter.run(&mut universe) {
             assert_eq!(&output, expected, "unexpected test output value");
         }

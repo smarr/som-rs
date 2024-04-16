@@ -14,7 +14,6 @@ use structopt::StructOpt;
 mod shell;
 
 use som_interpreter_bc::disassembler::disassemble_method_body;
-use som_interpreter_bc::interpreter::Interpreter;
 use som_interpreter_bc::method::{Method, MethodKind};
 use som_interpreter_bc::universe::Universe;
 use som_interpreter_bc::value::Value;
@@ -48,15 +47,16 @@ struct Options {
 fn main() -> anyhow::Result<()> {
     let opts: Options = Options::from_args();
 
-    let mut interpreter = Interpreter::new();
+    // let mut interpreter = Interpreter::new();
 
     if opts.disassemble {
         return disassemble_class(opts);
     }
 
     let Some(file) = opts.file else {
-        let mut universe = Universe::with_classpath(opts.classpath)?;
-        return shell::interactive(&mut interpreter, &mut universe, opts.verbose);
+        panic!("I deactivated the shell out of laziness. Can be re-enabled");
+        // let mut universe = Universe::with_classpath(opts.classpath)?;
+        // return shell::interactive(&mut interpreter, &mut universe, opts.verbose);
     };
 
     let file_stem = file
@@ -78,8 +78,8 @@ fn main() -> anyhow::Result<()> {
         .map(Value::String)
         .collect();
 
-    universe
-        .initialize(&mut interpreter, args)
+    let mut interpreter = universe
+        .initialize(args)
         .expect("issue running program");
 
     interpreter.run(&mut universe);

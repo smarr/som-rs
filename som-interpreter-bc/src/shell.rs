@@ -14,6 +14,7 @@ use som_interpreter_bc::universe::Universe;
 use som_interpreter_bc::value::Value;
 
 /// Launches an interactive Read-Eval-Print-Loop within the given universe.
+#[allow(dead_code)]
 pub fn interactive(
     interpreter: &mut Interpreter,
     universe: &mut Universe,

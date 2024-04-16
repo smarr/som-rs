@@ -10,7 +10,7 @@ use anyhow::{anyhow, Error};
 use crate::block::Block;
 use crate::class::Class;
 use crate::compiler;
-use crate::frame::FrameKind;
+use crate::frame::{Frame, FrameKind};
 use crate::interner::{Interned, Interner};
 use crate::interpreter::Interpreter;
 use crate::value::Value;
@@ -582,7 +582,7 @@ impl Universe {
     }
 
     /// Call `System>>#initialize:` with the given name, if it is defined.
-    pub fn initialize(&mut self, interpreter: &mut Interpreter, args: Vec<Value>) -> Option<()> {
+    pub fn initialize(&mut self, args: Vec<Value>) -> Option<Interpreter> {
         let method_name = self.interner.intern("initialize:");
         let method = Value::System.lookup_method(self, method_name)?;
 
@@ -592,12 +592,14 @@ impl Universe {
             self_value: Value::System,
         };
 
-        let frame = interpreter.push_frame(kind);
+        let frame = Rc::new(RefCell::new(Frame::from_kind(kind)));
+        let interpreter = Interpreter::new_from_frame(Rc::clone(&frame));
+        // let frame = interpreter.push_frame(kind);
         frame.borrow_mut().args.push(Value::System);
         let args = Value::Array(Rc::new(RefCell::new(args)));
         frame.borrow_mut().args.push(args);
 
-        Some(())
+        Some(interpreter)
     }
 }
 
