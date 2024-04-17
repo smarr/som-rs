@@ -31,7 +31,9 @@ pub enum FrameKind {
 /// Represents a stack frame.
 pub struct Frame {
     /// This frame's kind.
-    pub kind: FrameKind,
+    pub kind: FrameKind, // todo this has gotta go
+    /// The bytecodes associated with the frame.
+    pub bytecodes: Vec<Bytecode>,
     /// The arguments within this frame.
     pub args: Vec<Value>,
     /// The bindings within this frame.
@@ -50,8 +52,9 @@ impl Frame {
                 let mut frame = Self {
                     locals,
                     args: vec![],
-                    kind,
+                    bytecodes: block.blk_info.body.clone(),
                     bytecode_idx: 0,
+                    kind,
                 };
                 frame.args.push(frame.get_self());
                 frame
@@ -63,14 +66,16 @@ impl Frame {
                     Self {
                         locals,
                         args: vec![],
-                        kind,
+                        bytecodes: env.body.clone(),
                         bytecode_idx: 0,
+                        kind,
                     }
                 } else {
                     Self {
                         kind,
                         locals: vec![],
                         args: vec![],
+                        bytecodes: vec![],
                         bytecode_idx: 0,
                     }
                 }
@@ -114,25 +119,8 @@ impl Frame {
     //     self.get_bytecode(self.bytecode_idx)
     // }
 
-    /// Get all bytecodes.
-    fn get_bytecodes(&self) -> Option<&Vec<Bytecode>> {
-        match &self.kind {
-            FrameKind::Method { method, .. } => match method.kind() {
-                MethodKind::Defined(env) => Some(&env.body),
-                MethodKind::Primitive(_) => None,
-                MethodKind::NotImplemented(_) => None,
-            },
-            FrameKind::Block { block, .. } => Some(&block.blk_info.body),
-        }
-    }
-
     pub fn get_bytecode(&self, idx: usize) -> Option<Bytecode> {
-        self.get_bytecodes().and_then(|bc| {
-            match bc.get(idx) {
-                None => None,
-                Some(b) => Some(*b)
-            }
-        })
+        self.bytecodes.get(idx).cloned()
     }
 
     pub fn lookup_constant(&self, idx: usize) -> Option<Literal> {
