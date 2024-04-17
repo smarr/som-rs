@@ -7,7 +7,7 @@ use som_core::bytecode::Bytecode;
 use crate::block::Block;
 use crate::class::Class;
 use crate::compiler::Literal;
-use crate::frame::{Frame};
+use crate::frame::{Frame, FrameKind};
 use crate::interner::Interned;
 use crate::method::{Method, MethodKind};
 use crate::universe::Universe;
@@ -161,7 +161,7 @@ impl Interpreter {
             }
 
             let frame = Rc::clone(&self.current_frame);
-            
+
             // Actually safe, there's always a reference to the current bytecodes. Need unsafe because we want to store a ref for quick access in perf-critical code
             let opt_bytecode = unsafe { (*self.current_bytecodes).get(self.bytecode_idx) };
 
@@ -448,7 +448,7 @@ impl Interpreter {
             match method.kind() {
                 MethodKind::Defined(_) => {
                     // eprintln!("Invoking {:?} (in {:?})", &method.signature, &method.holder.upgrade().unwrap().borrow().name);
-                    
+
                     let args = interpreter.stack.split_off(interpreter.stack.len() - nb_params - 1);
                     interpreter.push_method_frame(method, args);
                 }
@@ -468,7 +468,6 @@ impl Interpreter {
             }
         }
 
-        #[allow(unused_variables)]
         fn resolve_method(
             frame: &SOMRef<Frame>,
             class: &SOMRef<Class>,
