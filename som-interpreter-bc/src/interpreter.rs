@@ -73,8 +73,6 @@ pub struct Interpreter {
     pub start_time: Instant,
     /// The current bytecode index.
     pub bytecode_idx: usize,
-    /// All bytecodes in the current frame. TODO make ref
-    pub bytecodes: Vec<Bytecode>,
     /// The current frame.
     pub current_frame: SOMRef<Frame>
 }
@@ -96,7 +94,6 @@ impl Interpreter {
             stack: vec![],
             start_time: Instant::now(),
             bytecode_idx: 0,
-            bytecodes: frame.borrow().get_bytecodes().cloned().unwrap(),
             current_frame: Rc::clone(&frame)
         }
     }
@@ -105,7 +102,6 @@ impl Interpreter {
         let frame = Rc::new(RefCell::new(Frame::from_kind(kind)));
         self.frames.push(frame.clone());
         self.bytecode_idx = 0;
-        self.bytecodes = frame.borrow().get_bytecodes().unwrap().clone();
         self.current_frame = Rc::clone(&frame);
         frame
     }
@@ -117,7 +113,6 @@ impl Interpreter {
             None => {}
             Some(f) => {
                 self.bytecode_idx = f.borrow().bytecode_idx;
-                self.bytecodes = f.borrow().get_bytecodes().unwrap().clone();
                 self.current_frame = Rc::clone(&f);
             }
         }
@@ -130,15 +125,12 @@ impl Interpreter {
             None => {}
             Some(f) => {
                 self.bytecode_idx = f.borrow().bytecode_idx;
-                self.bytecodes = f.borrow().get_bytecodes().unwrap().clone();
                 self.current_frame = Rc::clone(&f);
             }
         }
     }
 
     pub fn run(&mut self, universe: &mut Universe) -> Option<Value> {
-        self.bytecodes = self.current_frame.borrow().get_bytecodes().unwrap().clone();
-
         loop {
             if self.frames.is_empty() {
                 return Some(self.stack.pop().unwrap_or(Value::Nil));
@@ -147,10 +139,10 @@ impl Interpreter {
             let frame = Rc::clone(&self.current_frame);
 
             // let bytecode_idx = frame.borrow().bytecode_idx;
-            let opt_bytecode = self.bytecodes.get(self.bytecode_idx);
+            let opt_bytecode = frame.borrow().get_bytecode(self.bytecode_idx);
 
             let bytecode = match opt_bytecode {
-                Some(bytecode) => *bytecode,
+                Some(bytecode) => bytecode,
                 None => {
                     self.pop_frame();
                     self.stack.push(Value::Nil);

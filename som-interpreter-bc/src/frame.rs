@@ -115,7 +115,7 @@ impl Frame {
     // }
 
     /// Get all bytecodes.
-    pub fn get_bytecodes(&self) -> Option<&Vec<Bytecode>> {
+    fn get_bytecodes(&self) -> Option<&Vec<Bytecode>> {
         match &self.kind {
             FrameKind::Method { method, .. } => match method.kind() {
                 MethodKind::Defined(env) => Some(&env.body),
@@ -124,6 +124,15 @@ impl Frame {
             },
             FrameKind::Block { block, .. } => Some(&block.blk_info.body),
         }
+    }
+
+    pub fn get_bytecode(&self, idx: usize) -> Option<Bytecode> {
+        self.get_bytecodes().and_then(|bc| {
+            match bc.get(idx) {
+                None => None,
+                Some(b) => Some(*b)
+            }
+        })
     }
 
     pub fn lookup_constant(&self, idx: usize) -> Option<Literal> {
