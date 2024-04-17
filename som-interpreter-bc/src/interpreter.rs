@@ -74,7 +74,9 @@ pub struct Interpreter {
     /// The current bytecode index.
     pub bytecode_idx: usize,
     /// All bytecodes in the current frame. TODO make ref
-    pub bytecodes: Vec<Bytecode>
+    pub bytecodes: Vec<Bytecode>,
+    /// The current frame.
+    pub current_frame: SOMRef<Frame>
 }
 
 impl Interpreter {
@@ -94,7 +96,8 @@ impl Interpreter {
             stack: vec![],
             start_time: Instant::now(),
             bytecode_idx: 0,
-            bytecodes: frame.borrow().get_bytecodes().cloned().unwrap()
+            bytecodes: frame.borrow().get_bytecodes().cloned().unwrap(),
+            current_frame: Rc::clone(&frame)
         }
     }
 
@@ -103,17 +106,19 @@ impl Interpreter {
         self.frames.push(frame.clone());
         self.bytecode_idx = 0;
         self.bytecodes = frame.borrow().get_bytecodes().unwrap().clone();
+        self.current_frame = Rc::clone(&frame);
         frame
     }
 
     pub fn pop_frame(&mut self) {
         self.frames.pop();
 
-        match self.current_frame().cloned() {
+        match self.frames.last().cloned() {
             None => {}
             Some(f) => {
                 self.bytecode_idx = f.borrow().bytecode_idx;
                 self.bytecodes = f.borrow().get_bytecodes().unwrap().clone();
+                self.current_frame = Rc::clone(&f);
             }
         }
     }
@@ -121,27 +126,25 @@ impl Interpreter {
     pub fn pop_n_frames(&mut self, n: usize) {
         (0..n).for_each(|_| {self.frames.pop();} );
 
-        match self.current_frame().cloned() {
+        match self.frames.last().cloned() {
             None => {}
             Some(f) => {
                 self.bytecode_idx = f.borrow().bytecode_idx;
                 self.bytecodes = f.borrow().get_bytecodes().unwrap().clone();
+                self.current_frame = Rc::clone(&f);
             }
         }
     }
 
-    pub fn current_frame(&self) -> Option<&SOMRef<Frame>> {
-        self.frames.last()
-    }
-
     pub fn run(&mut self, universe: &mut Universe) -> Option<Value> {
-        self.bytecodes = self.current_frame().cloned().unwrap().borrow().get_bytecodes().unwrap().clone();
+        self.bytecodes = self.current_frame.borrow().get_bytecodes().unwrap().clone();
 
         loop {
-            let frame = match self.current_frame().cloned() {
-                Some(frame) => frame,
-                None => return Some(self.stack.pop().unwrap_or(Value::Nil)),
-            };
+            if self.frames.is_empty() {
+                return Some(self.stack.pop().unwrap_or(Value::Nil));
+            }
+
+            let frame = Rc::clone(&self.current_frame);
 
             // let bytecode_idx = frame.borrow().bytecode_idx;
             let opt_bytecode = self.bytecodes.get(self.bytecode_idx);
@@ -264,7 +267,7 @@ impl Interpreter {
                 }
                 Bytecode::PopLocal(up_idx, idx) => {
                     let value = self.stack.pop().unwrap();
-                    let mut from = self.current_frame().unwrap().clone();
+                    let mut from = Rc::clone(&self.current_frame);
                     for _ in 0..up_idx {
                         let temp = match from.borrow().kind() {
                             FrameKind::Block { block } => block.frame.clone().unwrap(),
@@ -278,7 +281,7 @@ impl Interpreter {
                 }
                 Bytecode::PopArgument(up_idx, idx) => {
                     let value = self.stack.pop().unwrap();
-                    let mut from = self.current_frame().unwrap().clone();
+                    let mut from = Rc::clone(&self.current_frame);
                     for _ in 0..up_idx {
                         let temp = match from.borrow().kind() {
                             FrameKind::Block { block } => block.frame.clone().unwrap(),
@@ -296,7 +299,7 @@ impl Interpreter {
                 }
                 Bytecode::PopField(idx) => {
                     let value = self.stack.pop().unwrap();
-                    let frame = self.current_frame().unwrap();
+                    let frame = Rc::clone(&self.current_frame);
                     let holder = frame.borrow().get_method_holder();
                     if holder.borrow().is_static {
                         holder
@@ -349,7 +352,7 @@ impl Interpreter {
                 }
                 Bytecode::ReturnNonLocal => {
                     let value = self.stack.pop().unwrap();
-                    let frame = self.current_frame().unwrap();
+                    let frame = Rc::clone(&self.current_frame);
                     let method_frame = Frame::method_frame(&frame);
                     let escaped_frames = self
                         .frames
@@ -472,7 +475,7 @@ impl Interpreter {
             };
             
             // we store the current bytecode idx to be able to correctly restore the bytecode state when we pop frames
-            interpreter.current_frame().unwrap().borrow_mut().bytecode_idx = interpreter.bytecode_idx;
+            interpreter.current_frame.borrow_mut().bytecode_idx = interpreter.bytecode_idx;
 
             match method.kind() {
                 MethodKind::Defined(_) => {
