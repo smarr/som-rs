@@ -328,9 +328,11 @@ pub fn term<'a>() -> impl Parser<Expression, &'a [Token], AstGenCtxt> {
 }
 
 pub fn exit<'a>() -> impl Parser<Expression, &'a [Token], AstGenCtxt> {
-    exact(Token::Exit)
-        .and_right(statement())
-        .map(|expr| Expression::Exit(Box::new(expr)))
+    move |input: &'a [Token], genctxt: AstGenCtxt| {
+        let (expr, input, genctxt) = exact(Token::Exit).and_right(statement()).parse(input, Rc::clone(&genctxt))?;
+        let cur_scope = genctxt.borrow().get_method_scope();
+        Some((Expression::Exit(Box::new(expr), cur_scope), input, genctxt))
+    }
 }
 
 pub fn expression<'a>() -> impl Parser<Expression, &'a [Token], AstGenCtxt> {

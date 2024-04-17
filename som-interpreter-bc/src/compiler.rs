@@ -16,7 +16,7 @@ use som_core::bytecode::Bytecode;
 
 use crate::block::{Block, BlockInfo};
 use crate::class::{Class, MaybeWeak};
-use crate::inliner::PrimMessageInliner;
+// use crate::inliner::PrimMessageInliner;
 use crate::interner::{Interned, Interner};
 use crate::method::{Method, MethodEnv, MethodKind};
 use crate::primitives;
@@ -461,9 +461,10 @@ impl MethodCodegen for ast::Expression {
 
                 message.receiver.codegen(ctxt)?;
 
-                if self.inline_if_possible(ctxt, message).is_some() {
-                    return Some(());
-                }
+                // todo reenable
+                // if self.inline_if_possible(ctxt, message).is_some() {
+                //     return Some(());
+                // }
 
                 message
                     .values
@@ -510,9 +511,13 @@ impl MethodCodegen for ast::Expression {
                 }
                 Some(())
             }
-            ast::Expression::Exit(expr) => {
+            ast::Expression::Exit(expr, scope) => {
                 expr.codegen(ctxt)?;
-                ctxt.push_instr(Bytecode::ReturnNonLocal);
+
+                match scope {
+                    0 => ctxt.push_instr(Bytecode::ReturnLocal),
+                    _ => ctxt.push_instr(Bytecode::ReturnNonLocal(*scope as u8)),
+                }
                 Some(())
             }
             ast::Expression::Literal(literal) => {

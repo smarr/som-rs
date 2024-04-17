@@ -157,8 +157,8 @@ pub enum Expression {
     Message(Message),
     /// A binary operation (eg. `counter <= 5`).
     BinaryOp(BinaryOp),
-    /// An exit operation (eg. `^counter`).
-    Exit(Box<Expression>),
+    /// An exit operation (eg. `^counter`). Second argument is the scope level to differentiate local and nonlocal returns
+    Exit(Box<Expression>, usize),
     /// A literal (eg. `'foo'`, `10`, `#foo`, ...).
     Literal(Literal),
     /// A block (eg. `[ :value | counter incrementBy: value ]`).

@@ -155,7 +155,7 @@ impl Interpreter {
 
             // frame.borrow_mut().bytecode_idx += 1;
             self.bytecode_idx += 1;
-            
+
 
             match bytecode {
                 Bytecode::Halt => {
@@ -346,7 +346,7 @@ impl Interpreter {
                     // };
                     self.stack.push(value);
                 }
-                Bytecode::ReturnNonLocal => {
+                Bytecode::ReturnNonLocal(up_idx) => {
                     let value = self.stack.pop().unwrap();
                     let frame = Rc::clone(&self.current_frame);
                     let method_frame = Frame::method_frame(&frame);
@@ -359,6 +359,7 @@ impl Interpreter {
                     // println!("...returning (non local)");
 
                     if let Some(count) = escaped_frames {
+                        // assert_eq!(up_idx as usize, count);
                         self.pop_n_frames(count + 1);
                         // match self.current_frame().cloned() {
                         //     None => {}
@@ -469,13 +470,13 @@ impl Interpreter {
 
                 return;
             };
-            
+
             // we store the current bytecode idx to be able to correctly restore the bytecode state when we pop frames
             interpreter.current_frame.borrow_mut().bytecode_idx = interpreter.bytecode_idx;
 
             match method.kind() {
                 MethodKind::Defined(_) => {
-                    // println!("Invoking {:?}", &method.signature);
+                    eprintln!("Invoking {:?}", &method.signature);
 
                     let mut args = Vec::with_capacity(nb_params + 1);
 
@@ -497,7 +498,7 @@ impl Interpreter {
                     frame.borrow_mut().args = args;
                 }
                 MethodKind::Primitive(func) => {
-                    // println!("Invoking prim. {:?}", &method.signature);
+                    eprintln!("Invoking prim {:?}", &method.signature);
                     func(interpreter, universe);
                 }
                 MethodKind::NotImplemented(err) => {

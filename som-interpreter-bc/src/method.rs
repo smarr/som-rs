@@ -184,7 +184,7 @@ impl fmt::Display for Method {
                             write!(f, "index: {}", idx)?;
                         }
                         Bytecode::ReturnLocal => {}
-                        Bytecode::ReturnNonLocal => {}
+                        Bytecode::ReturnNonLocal(_) => {}
                         Bytecode::JumpOnFalseTopNil(idx) => {
                             write!(f, "index: {}", idx)?;
                         }

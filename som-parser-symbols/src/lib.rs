@@ -180,6 +180,20 @@ impl AstGenCtxtData {
             }
         }
     }
+
+    pub fn get_method_scope_rec(&self, acc: usize) -> usize {
+        match &self.kind {
+            AstGenCtxtType::Class => unreachable!(),
+            AstGenCtxtType::Method => acc,
+            AstGenCtxtType::Block => {
+                self.outer_ctxt.as_ref().unwrap().borrow().get_method_scope_rec(acc + 1)
+            }
+        }
+    }
+    
+    pub fn get_method_scope(&self) -> usize {
+        self.get_method_scope_rec(0)
+    }
 }
 
 

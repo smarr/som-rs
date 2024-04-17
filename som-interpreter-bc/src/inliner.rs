@@ -181,35 +181,11 @@ impl PrimMessageInliner for ast::Expression {
                             }
                         };
                     }
-                    Bytecode::ReturnNonLocal => {
-                        // TODO: this commented out code is incomplete, but it doesn't really affect performance
-                        // Incomplete because Send{1|2|..} get turned to ReturnNonLocal when in 99% of cases, they should be "ReturnLocal"s
-                        // and maybe some other cases that I forget
-                        // But I don't observe any speedup from turning those nonlocal rets to local rets and deactivating the ONE broken benchmark, so... who cares, I guess?
-                        // to be fair, always returning nonlocal instead of using this more elaborate code loses, like, 2% on SOME benchmarks
-                        // but this commented out code also breaks in some rare cases and it's not worth it to fix it because eventually:
-                        // ReturnNonLocal should eventually get a scope as argument, which will make fixing this case super simple ("ReturnNonLocal(scope - 1), or ReturnLocal if scope is 1")
-
-                        // match ctxt.get_instructions().last()? {
-                        //     Bytecode::Push0 | Bytecode::Push1 | Bytecode::PushNil | Bytecode::PushGlobal(_) => ctxt.push_instr(Bytecode::ReturnNonLocal),
-                        //     Bytecode::PushLocal(up_idx, _) | Bytecode::PopLocal(up_idx, _) |
-                        //     Bytecode::PushArgument(up_idx, _) | Bytecode::PopArgument(up_idx, _) => {
-                        //         match up_idx {
-                        //             0 => ctxt.push_instr(Bytecode::ReturnLocal),
-                        //             _ => ctxt.push_instr(Bytecode::ReturnNonLocal)
-                        //         }
-                        //     },
-                        //     Bytecode::PushField(_) | Bytecode::PopField(_) => {
-                        //         match ctxt.current_scope() {
-                        //             0 => ctxt.push_instr(Bytecode::ReturnLocal),
-                        //             _ => ctxt.push_instr(Bytecode::ReturnNonLocal)
-                        //         }
-                        //     },
-                        //     _ => {
-                        //         ctxt.push_instr(Bytecode::ReturnNonLocal)
-                        //     }
-                        // }
-                        ctxt.push_instr(Bytecode::ReturnNonLocal)
+                    Bytecode::ReturnNonLocal(scope) => {
+                        match scope - 1 {
+                            0 => ctxt.push_instr(Bytecode::ReturnLocal),
+                            new_scope => ctxt.push_instr(Bytecode::ReturnNonLocal(new_scope))
+                        }
                     }
                     Bytecode::ReturnLocal => {}
                     // Bytecode::Jump(idx) => ctxt.push_instr(Bytecode::Jump(idx + idx_start_inlining)),

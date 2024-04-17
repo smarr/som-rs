@@ -8,7 +8,9 @@ use crate::method::MethodEnv;
 use crate::universe::Universe;
 
 pub fn disassemble_method_body(universe: &Universe, class: &Class, env: &MethodEnv) {
-    disassemble_body(universe, class, 1, &mut vec![env])
+    disassemble_body(universe, class, 1, &mut vec![env]);
+    #[cfg(not(feature = "block-dbg-info"))]
+    eprintln!("------- Used disassembler without debug symbols. While it could be possible, it's likely not desired. -------");
 }
 
 fn disassemble_body(
@@ -138,8 +140,8 @@ fn disassemble_body(
             Bytecode::ReturnLocal => {
                 println!();
             }
-            Bytecode::ReturnNonLocal => {
-                println!();
+            Bytecode::ReturnNonLocal(up_idx) => {
+                println!(" {}", up_idx);
             }
             Bytecode::Jump(idx)
             | Bytecode::JumpOnFalsePop(idx)
@@ -156,9 +158,6 @@ fn disassemble_body(
             }
         }
     }
-
-    #[cfg(not(feature = "block-dbg-info"))]
-    eprintln!("------- Used disassembler without debug symbols. While it could be possible, it's likely not desired. -------");
 }
 
 trait FrameEnv {
