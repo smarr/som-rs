@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use std::rc::Rc;
 
 use som_core::bytecode::Bytecode;
@@ -31,7 +32,8 @@ pub enum FrameKind {
 /// Represents a stack frame.
 pub struct Frame {
     /// This frame's kind.
-    pub kind: FrameKind, // todo this has gotta go
+    #[cfg(feature = "frame-debug-info")]
+    pub kind: FrameKind,
     /// The bytecodes associated with the frame.
     pub bytecodes: Vec<Bytecode>,
     /// The arguments within this frame.
@@ -53,8 +55,7 @@ impl Frame {
                     locals,
                     args: vec![],
                     bytecodes: block.blk_info.body.clone(),
-                    bytecode_idx: 0,
-                    kind,
+                    bytecode_idx: 0
                 };
                 frame.args.push(frame.get_self());
                 frame
@@ -68,11 +69,9 @@ impl Frame {
                         args: vec![],
                         bytecodes: env.body.clone(),
                         bytecode_idx: 0,
-                        kind,
                     }
                 } else {
                     Self {
-                        kind,
                         locals: vec![],
                         args: vec![],
                         bytecodes: vec![],
@@ -83,6 +82,7 @@ impl Frame {
         }
     }
 
+    #[cfg(feature = "frame-debug-info")]
     /// Get the frame's kind.
     pub fn kind(&self) -> &FrameKind {
         &self.kind
@@ -90,35 +90,36 @@ impl Frame {
 
     /// Get the self value for this frame.
     pub fn get_self(&self) -> Value {
-        match &self.kind {
-            FrameKind::Method { self_value, .. } => self_value.clone(),
-            FrameKind::Block { block, .. } => block.frame.as_ref().unwrap().borrow().get_self(),
+        // match &self.kind {
+        //     FrameKind::Method { self_value, .. } => self_value.clone(),
+        //     FrameKind::Block { block, .. } => block.frame.as_ref().unwrap().borrow().get_self(),
+        // }
+        match self.args.get(0).unwrap() {
+            Value::BlockSelf(b) => Rc::clone(&b.frame.unwrap()).borrow().get_self(),
+            s => s.clone()
         }
     }
 
     /// Get the holder for this current method.
     pub fn get_method_holder(&self) -> SOMRef<Class> {
-        match &self.kind {
-            FrameKind::Method { holder, .. } => holder.clone(),
-            FrameKind::Block { block, .. } => {
-                block.frame.as_ref().unwrap().borrow().get_method_holder()
-            }
-        }
+        todo!()
+        // match &self.kind {
+        //     FrameKind::Method { holder, .. } => holder.clone(),
+        //     FrameKind::Block { block, .. } => {
+        //         block.frame.as_ref().unwrap().borrow().get_method_holder()
+        //     }
+        // }
     }
 
     /// Get the current method itself.
     pub fn get_method(&self) -> Rc<Method> {
-        match &self.kind {
-            FrameKind::Method { method, .. } => method.clone(),
-            FrameKind::Block { block, .. } => block.frame.as_ref().unwrap().borrow().get_method(),
-        }
+        todo!()
+        // match &self.kind {
+        //     FrameKind::Method { method, .. } => method.clone(),
+        //     FrameKind::Block { block, .. } => block.frame.as_ref().unwrap().borrow().get_method(),
+        // }
     }
     
-    // /// Get the current bytecode for the current method.
-    // pub fn get_current_bytecode(&self) -> Option<Bytecode> {
-    //     self.get_bytecode(self.bytecode_idx)
-    // }
-
     pub fn get_bytecode(&self, idx: usize) -> Option<Bytecode> {
         self.bytecodes.get(idx).cloned()
     }
@@ -192,5 +193,23 @@ impl Frame {
             FrameKind::Block { block, .. } => Frame::method_frame(block.frame.as_ref().unwrap()),
             FrameKind::Method { .. } => frame.clone(),
         }
+    }
+
+    pub fn nth_frame_back(&self, n: usize) -> SOMRef<Frame> {
+        let mut target_frame: Rc<RefCell<Frame>> = match self.args.get(0).unwrap() {
+            Value::BlockSelf(block) => {
+                Rc::clone(&block.frame.unwrap())
+            }
+            v => panic!("attempting to access a non local var/arg from a method instead of a block: self wasn't blockself but {:?}.", v)
+        };
+        for _ in 1..n {
+            target_frame = match Rc::clone(&target_frame).borrow().args.get(0).unwrap() {
+                Value::BlockSelf(block) => {
+                    Rc::clone(&block.frame.unwrap())
+                }
+                v => panic!("attempting to access a non local var/arg from a method instead of a block (but the original frame we were in was a block): self wasn't blockself but {:?}.", v)
+            };
+        }
+        target_frame
     }
 }

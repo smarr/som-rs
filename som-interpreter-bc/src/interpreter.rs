@@ -166,30 +166,32 @@ impl Interpreter {
                     self.stack.push(value);
                 }
                 Bytecode::PushLocal(up_idx, idx) => {
-                    let mut from = frame.clone();
-                    for _ in 0..up_idx {
-                        let temp = match from.borrow().kind() {
-                            FrameKind::Block { block } => block.frame.clone().unwrap(),
-                            FrameKind::Method { .. } => {
-                                panic!("requested local from non-existing frame")
-                            }
-                        };
-                        from = temp;
-                    }
+                    // let mut from = frame.clone();
+                    // for _ in 0..up_idx {
+                    //     let temp = match from.borrow().kind() {
+                    //         FrameKind::Block { block } => block.frame.clone().unwrap(),
+                    //         FrameKind::Method { .. } => {
+                    //             panic!("requested local from non-existing frame")
+                    //         }
+                    //     };
+                    //     from = temp;
+                    // }
+                    let from = frame.borrow().nth_frame_back(up_idx as usize);
                     let value = from.borrow().lookup_local(idx as usize).unwrap();
                     self.stack.push(value);
                 }
                 Bytecode::PushArgument(up_idx, idx) => {
-                    let mut from = frame.clone();
-                    for _ in 0..up_idx {
-                        let temp = match from.borrow().kind() {
-                            FrameKind::Block { block } => block.frame.clone().unwrap(),
-                            FrameKind::Method { .. } => {
-                                panic!("requested local from non-existing frame")
-                            }
-                        };
-                        from = temp;
-                    }
+                    // let mut from = frame.clone();
+                    // for _ in 0..up_idx {
+                    //     let temp = match from.borrow().kind() {
+                    //         FrameKind::Block { block } => block.frame.clone().unwrap(),
+                    //         FrameKind::Method { .. } => {
+                    //             panic!("requested local from non-existing frame")
+                    //         }
+                    //     };
+                    //     from = temp;
+                    // }
+                    let from = frame.borrow().nth_frame_back(up_idx as usize);
                     let value = from.borrow().lookup_argument(idx as usize).unwrap();
                     self.stack.push(value);
                 }
@@ -259,30 +261,32 @@ impl Interpreter {
                 }
                 Bytecode::PopLocal(up_idx, idx) => {
                     let value = self.stack.pop().unwrap();
-                    let mut from = Rc::clone(&self.current_frame);
-                    for _ in 0..up_idx {
-                        let temp = match from.borrow().kind() {
-                            FrameKind::Block { block } => block.frame.clone().unwrap(),
-                            FrameKind::Method { .. } => {
-                                panic!("requested local from non-existing frame")
-                            }
-                        };
-                        from = temp;
-                    }
+                    // let mut from = Rc::clone(&self.current_frame);
+                    // for _ in 0..up_idx {
+                    //     let temp = match from.borrow().kind() {
+                    //         FrameKind::Block { block } => block.frame.clone().unwrap(),
+                    //         FrameKind::Method { .. } => {
+                    //             panic!("requested local from non-existing frame")
+                    //         }
+                    //     };
+                    //     from = temp;
+                    // }
+                    let from = frame.borrow().nth_frame_back(up_idx as usize);
                     from.borrow_mut().assign_local(idx as usize, value).unwrap();
                 }
                 Bytecode::PopArgument(up_idx, idx) => {
                     let value = self.stack.pop().unwrap();
-                    let mut from = Rc::clone(&self.current_frame);
-                    for _ in 0..up_idx {
-                        let temp = match from.borrow().kind() {
-                            FrameKind::Block { block } => block.frame.clone().unwrap(),
-                            FrameKind::Method { .. } => {
-                                panic!("requested local from non-existing frame")
-                            }
-                        };
-                        from = temp;
-                    }
+                    // let mut from = Rc::clone(&self.current_frame);
+                    // for _ in 0..up_idx {
+                    //     let temp = match from.borrow().kind() {
+                    //         FrameKind::Block { block } => block.frame.clone().unwrap(),
+                    //         FrameKind::Method { .. } => {
+                    //             panic!("requested local from non-existing frame")
+                    //         }
+                    //     };
+                    //     from = temp;
+                    // }
+                    let from = frame.borrow().nth_frame_back(up_idx as usize);
                     from.borrow_mut()
                         .args
                         .get_mut(idx as usize)
@@ -332,7 +336,7 @@ impl Interpreter {
                     self.pop_frame();
                     // println!("...returning (local)");
                     // todo only handle bytecode idx writes here?
-                    // match self.current_frame().cloned() {
+                    // match self.current_frame().cloned() {i
                     //     None => {} // eh we're at the end of the program anyway
                     //     Some(f) => {
                     //         self.bytecode_idx_new = f.borrow().bytecode_idx;

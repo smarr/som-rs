@@ -98,6 +98,7 @@ impl Frame {
     pub fn lookup_non_local(&self, idx: usize, scope: usize) -> Option<Value> {
         self.nth_frame_back(scope).borrow().lookup_local(idx)
     }
+    
     pub fn assign_local(&mut self, idx: usize, value: &Value) -> Option<()> {
         let local = self.locals.get_mut(idx).unwrap();
         *local = value.clone();

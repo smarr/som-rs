@@ -34,6 +34,8 @@ pub enum Value {
     Array(SOMRef<Vec<Self>>),
     /// A block value, ready to be evaluated.
     Block(Rc<Block>),
+    /// Like in the AST, we store a special value "blockself" to differentiate it from a block class since blocks take themselves as first argument. TODO remove and do without somehow.
+    BlockSelf(Rc<Block>),
     /// A generic (non-primitive) class instance.
     Instance(SOMRef<Instance>),
     /// A bare class object.
