@@ -32,7 +32,7 @@ pub enum FrameKind {
 /// Represents a stack frame.
 pub struct Frame {
     /// This frame's kind.
-    #[cfg(feature = "frame-debug-info")]
+    // #[cfg(feature = "frame-debug-info")]
     pub kind: FrameKind,
     /// The bytecodes associated with the frame.
     pub bytecodes: Vec<Bytecode>,
@@ -40,6 +40,8 @@ pub struct Frame {
     pub args: Vec<Value>,
     /// The bindings within this frame.
     pub locals: Vec<Value>,
+    /// Literals/constants associated with the frame.
+    pub literals: Vec<Literal>,
     /// Bytecode index.
     pub bytecode_idx: usize,
 }
@@ -51,38 +53,43 @@ impl Frame {
             FrameKind::Block { block } => {
                 // let locals = block.blk_info.locals.iter().map(|_| Value::Nil).collect();
                 let locals =  (0..block.blk_info.nb_locals).map(|_| Value::Nil).collect();
-                let mut frame = Self {
+                let frame = Self {
                     locals,
-                    args: vec![],
+                    args: vec![Value::BlockSelf(Rc::clone(&block))],
+                    literals: block.blk_info.literals.clone(),
                     bytecodes: block.blk_info.body.clone(),
-                    bytecode_idx: 0
+                    bytecode_idx: 0,
+                    kind
                 };
-                frame.args.push(frame.get_self());
                 frame
             }
-            FrameKind::Method { method, .. } => {
+            FrameKind::Method { method, self_value, .. } => {
                 if let MethodKind::Defined(env) = method.kind() {
                     // let locals = env.locals.iter().map(|_| Value::Nil).collect();
                     let locals =  (0..env.nbr_locals).map(|_| Value::Nil).collect();
                     Self {
                         locals,
                         args: vec![],
+                        literals: env.literals.clone(),
                         bytecodes: env.body.clone(),
                         bytecode_idx: 0,
+                        kind
                     }
                 } else {
                     Self {
                         locals: vec![],
                         args: vec![],
+                        literals: vec![],
                         bytecodes: vec![],
                         bytecode_idx: 0,
+                        kind
                     }
                 }
             }
         }
     }
 
-    #[cfg(feature = "frame-debug-info")]
+    // #[cfg(feature = "frame-debug-info")]
     /// Get the frame's kind.
     pub fn kind(&self) -> &FrameKind {
         &self.kind
@@ -90,25 +97,30 @@ impl Frame {
 
     /// Get the self value for this frame.
     pub fn get_self(&self) -> Value {
-        // match &self.kind {
-        //     FrameKind::Method { self_value, .. } => self_value.clone(),
-        //     FrameKind::Block { block, .. } => block.frame.as_ref().unwrap().borrow().get_self(),
+        // match self.args.get(0).unwrap() {
+        //     Value::BlockSelf(b) => Rc::clone(&b.frame.unwrap()).borrow().get_self(),
+        //     s => s.clone()
         // }
+
         match self.args.get(0).unwrap() {
-            Value::BlockSelf(b) => Rc::clone(&b.frame.unwrap()).borrow().get_self(),
+            Value::BlockSelf(b) => {
+                let block_frame = b.frame.as_ref().unwrap().clone();
+                let x = block_frame.borrow().get_self();
+                x
+            },
             s => s.clone()
         }
     }
 
     /// Get the holder for this current method.
     pub fn get_method_holder(&self) -> SOMRef<Class> {
-        todo!()
-        // match &self.kind {
-        //     FrameKind::Method { holder, .. } => holder.clone(),
-        //     FrameKind::Block { block, .. } => {
-        //         block.frame.as_ref().unwrap().borrow().get_method_holder()
-        //     }
-        // }
+        // todo!()
+        match &self.kind {
+            FrameKind::Method { holder, .. } => holder.clone(),
+            FrameKind::Block { block, .. } => {
+                block.frame.as_ref().unwrap().borrow().get_method_holder()
+            }
+        }
     }
 
     /// Get the current method itself.
@@ -125,14 +137,7 @@ impl Frame {
     }
 
     pub fn lookup_constant(&self, idx: usize) -> Option<Literal> {
-        match self.kind() {
-            FrameKind::Block { block } => block.blk_info.literals.get(idx).cloned(),
-            FrameKind::Method { method, .. } => match method.kind() {
-                MethodKind::Defined(env) => env.literals.get(idx).cloned(),
-                MethodKind::Primitive(_) => None,
-                MethodKind::NotImplemented(_) => None,
-            },
-        }
+        self.literals.get(idx).cloned()
     }
 
     pub fn lookup_argument(&self, idx: usize) -> Option<Value> {
@@ -187,6 +192,7 @@ impl Frame {
         self.locals.get_mut(idx).map(|local| *local = value)
     }
 
+//    #[cfg(feature = "frame-debug-info")]
     /// Get the method invocation frame for that frame.
     pub fn method_frame(frame: &SOMRef<Frame>) -> SOMRef<Frame> {
         match frame.borrow().kind() {
@@ -195,17 +201,17 @@ impl Frame {
         }
     }
 
-    pub fn nth_frame_back(&self, n: usize) -> SOMRef<Frame> {
+    pub fn nth_frame_back(&self, n: u8) -> SOMRef<Frame> {
         let mut target_frame: Rc<RefCell<Frame>> = match self.args.get(0).unwrap() {
             Value::BlockSelf(block) => {
-                Rc::clone(&block.frame.unwrap())
+                Rc::clone(&block.frame.as_ref().unwrap())
             }
             v => panic!("attempting to access a non local var/arg from a method instead of a block: self wasn't blockself but {:?}.", v)
         };
         for _ in 1..n {
             target_frame = match Rc::clone(&target_frame).borrow().args.get(0).unwrap() {
                 Value::BlockSelf(block) => {
-                    Rc::clone(&block.frame.unwrap())
+                    Rc::clone(&block.frame.as_ref().unwrap())
                 }
                 v => panic!("attempting to access a non local var/arg from a method instead of a block (but the original frame we were in was a block): self wasn't blockself but {:?}.", v)
             };

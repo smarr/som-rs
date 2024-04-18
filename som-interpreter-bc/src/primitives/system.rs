@@ -213,10 +213,14 @@ fn print_stack_trace(interpreter: &mut Interpreter, _: &mut Universe) {
         let class = frame.borrow().get_method_holder();
         let method = frame.borrow().get_method();
         let bytecode_idx = interpreter.bytecode_idx;
-        let block = match frame.borrow().kind() {
+        #[cfg(feature = "frame-debug-info")]
+            let block = match frame.borrow().kind() {
             FrameKind::Block { .. } => "$block",
             _ => "",
         };
+        #[cfg(not(feature = "frame-debug-info"))]
+        let block = "maybe block - no debug info available";
+
         println!(
             "{}>>#{}{} @bi: {}",
             class.borrow().name(),

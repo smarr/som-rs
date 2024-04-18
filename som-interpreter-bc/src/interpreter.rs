@@ -176,7 +176,7 @@ impl Interpreter {
                     //     };
                     //     from = temp;
                     // }
-                    let from = frame.borrow().nth_frame_back(up_idx as usize);
+                    let from = frame.borrow().nth_frame_back(up_idx);
                     let value = from.borrow().lookup_local(idx as usize).unwrap();
                     self.stack.push(value);
                 }
@@ -191,9 +191,13 @@ impl Interpreter {
                     //     };
                     //     from = temp;
                     // }
-                    let from = frame.borrow().nth_frame_back(up_idx as usize);
-                    let value = from.borrow().lookup_argument(idx as usize).unwrap();
-                    self.stack.push(value);
+                    if up_idx == 0 && idx == 0 {
+                        self.stack.push(frame.borrow().get_self());
+                    } else {
+                        let from = frame.borrow().nth_frame_back(up_idx);
+                        let value = from.borrow().lookup_argument(idx as usize).unwrap();
+                        self.stack.push(value);
+                    }
                 }
                 Bytecode::PushField(idx) => {
                     let holder = frame.borrow().get_method_holder();
@@ -271,7 +275,7 @@ impl Interpreter {
                     //     };
                     //     from = temp;
                     // }
-                    let from = frame.borrow().nth_frame_back(up_idx as usize);
+                    let from = frame.borrow().nth_frame_back(up_idx);
                     from.borrow_mut().assign_local(idx as usize, value).unwrap();
                 }
                 Bytecode::PopArgument(up_idx, idx) => {
@@ -286,7 +290,7 @@ impl Interpreter {
                     //     };
                     //     from = temp;
                     // }
-                    let from = frame.borrow().nth_frame_back(up_idx as usize);
+                    let from = frame.borrow().nth_frame_back(up_idx);
                     from.borrow_mut()
                         .args
                         .get_mut(idx as usize)
@@ -346,10 +350,11 @@ impl Interpreter {
                     // };
                     self.stack.push(value);
                 }
-                Bytecode::ReturnNonLocal(up_idx) => {
+                Bytecode::ReturnNonLocal(_up_idx) => {
                     let value = self.stack.pop().unwrap();
                     let frame = Rc::clone(&self.current_frame);
                     let method_frame = Frame::method_frame(&frame);
+                    // let method_frame = frame.borrow().nth_frame_back(up_idx);
                     let escaped_frames = self
                         .frames
                         .iter()
@@ -370,7 +375,9 @@ impl Interpreter {
                         // };
                         self.stack.push(value);
                     } else {
-                        // Block has escaped its method frame.
+                        todo!("not sure how to handle the escapedBlock: case yet");
+
+                        /*// Block has escaped its method frame.
                         let instance = frame.borrow().get_self();
                         let block = match frame.borrow().kind() {
                             FrameKind::Block { block, .. } => block.clone(),
@@ -380,10 +387,11 @@ impl Interpreter {
                                 panic!("A method frame has escaped itself ??");
                             }
                         };
+                        
                         // TODO: should we call `doesNotUnderstand:` here ?
                         universe.escaped_block(self, instance, block).expect(
                             "A block has escaped and `escapedBlock:` is not defined on receiver",
-                        );
+                        );*/
                     }
                 }
                 Bytecode::Jump(offset) => {
@@ -513,13 +521,15 @@ impl Interpreter {
             }
         }
 
+        #[allow(unused_variables)]
         fn resolve_method(
             frame: &SOMRef<Frame>,
             class: &SOMRef<Class>,
             signature: Interned,
             bytecode_idx: usize,
         ) -> Option<Rc<Method>> {
-            match frame.borrow().kind() {
+            return class.borrow().lookup_method(signature); // todo handle inline caching
+            /*match frame.borrow().kind() {
                 FrameKind::Block { block } => {
                     let mut inline_cache = block.blk_info.inline_cache.borrow_mut();
 
@@ -568,7 +578,7 @@ impl Interpreter {
                         class.borrow().lookup_method(signature)
                     }
                 }
-            }
+            }*/
         }
 
         fn convert_literal(frame: &SOMRef<Frame>, literal: Literal) -> Option<Value> {

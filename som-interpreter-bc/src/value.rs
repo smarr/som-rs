@@ -62,6 +62,7 @@ impl Value {
             Self::Instance(instance) => instance.borrow().class(),
             Self::Class(class) => class.borrow().class(),
             Self::Invokable(invokable) => invokable.class(universe),
+            Self::BlockSelf(_block) => unreachable!("I think it should be unreachable?"),
         }
     }
 
@@ -116,6 +117,7 @@ impl Value {
                 format!("#({})", strings.join(" "))
             }
             Self::Block(block) => format!("instance of Block{}", block.nb_parameters() + 1),
+            Self::BlockSelf(_block) => format!("$blockSelf special variable"),
             Self::Instance(instance) => format!(
                 "instance of {} class",
                 instance.borrow().class().borrow().name(),
@@ -169,6 +171,7 @@ impl fmt::Debug for Value {
             Self::String(val) => f.debug_tuple("String").field(val).finish(),
             Self::Array(val) => f.debug_tuple("Array").field(&val.borrow()).finish(),
             Self::Block(val) => f.debug_tuple("Block").field(val).finish(),
+            Self::BlockSelf(val) => f.debug_tuple("BlockSelf").field(val).finish(),
             Self::Instance(val) => f.debug_tuple("Instance").field(&val.borrow()).finish(),
             Self::Class(val) => f.debug_tuple("Class").field(&val.borrow()).finish(),
             Self::Invokable(val) => {
