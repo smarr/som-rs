@@ -9,7 +9,7 @@ use indexmap::{IndexMap, IndexSet};
 use num_bigint::BigInt;
 
 use som_core::ast;
-use som_core::ast::{MethodBody, MethodDef};
+use som_core::ast::{Expression, MethodBody, MethodDef};
 #[cfg(feature = "block-dbg-info")]
 use som_core::ast::BlockDebugInfo;
 use som_core::bytecode::Bytecode;
@@ -500,13 +500,17 @@ impl MethodCodegen for ast::Expression {
                     _ => false,
                 };
                 message.lhs.codegen(ctxt)?;
-                message.rhs.codegen(ctxt)?;
-                let sym = ctxt.intern_symbol(message.op.as_str());
-                let idx = ctxt.push_literal(Literal::Symbol(sym));
-                if super_send {
-                    ctxt.push_instr(Bytecode::SuperSend2(idx as u8));
+                if message.op == "+" && *message.rhs == Expression::Literal(ast::Literal::Integer(1)) {
+                    ctxt.push_instr(Bytecode::Inc)
                 } else {
-                    ctxt.push_instr(Bytecode::Send2(idx as u8));
+                    message.rhs.codegen(ctxt)?;
+                    let sym = ctxt.intern_symbol(message.op.as_str());
+                    let idx = ctxt.push_literal(Literal::Symbol(sym));
+                    if super_send {
+                        ctxt.push_instr(Bytecode::SuperSend2(idx as u8));
+                    } else {
+                        ctxt.push_instr(Bytecode::Send2(idx as u8));
+                    }
                 }
                 Some(())
             }

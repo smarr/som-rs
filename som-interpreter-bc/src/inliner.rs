@@ -209,6 +209,7 @@ impl PrimMessageInliner for ast::Expression {
                     // explicitly listing other bytecode out to account for the fact that new BC could be introduced and mess things up if we handled it with a _ case
                     Bytecode::Halt
                     | Bytecode::Dup
+                    | Bytecode::Inc
                     | Bytecode::Push0
                     | Bytecode::Push1
                     | Bytecode::PushNil

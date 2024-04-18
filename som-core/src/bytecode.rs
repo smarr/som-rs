@@ -14,6 +14,7 @@ pub enum Bytecode {
     PushConstant1,
     PushConstant2,
     PushGlobal(u8),
+    Inc,
     Push0,
     Push1,
     PushNil,
@@ -48,6 +49,7 @@ impl Bytecode {
         match self {
             Self::Halt               => "HALT",
             Self::Dup                => "DUP",
+            Self::Inc                => "INC",
             Self::PushLocal(_, _)    => "PUSH_LOCAL",
             Self::PushArgument(_, _) => "PUSH_ARGUMENT",
             Self::PushField(_)       => "PUSH_FIELD",
@@ -90,6 +92,7 @@ impl Bytecode {
         match self {
             Self::Halt               => "HALT            ",
             Self::Dup                => "DUP             ",
+            Self::Inc                => "INC             ",
             Self::PushLocal(_, _)    => "PUSH_LOCAL      ",
             Self::PushArgument(_, _) => "PUSH_ARGUMENT   ",
             Self::PushField(_)       => "PUSH_FIELD      ",
@@ -126,9 +129,10 @@ impl Bytecode {
     }
 }
 
-pub static NAMES: [&str; 28] = [
+pub static NAMES: [&str; 29] = [
     "HALT",
     "DUP",
+    "INC",
     "PUSH_LOCAL",
     "PUSH_ARGUMENT",
     "PUSH_FIELD",
@@ -157,9 +161,10 @@ pub static NAMES: [&str; 28] = [
     "RETURN_NON_LOCAL",
 ];
 
-pub static PADDED_NAMES: [&str; 28] = [
+pub static PADDED_NAMES: [&str; 29] = [
     "HALT            ",
     "DUP             ",
+    "INC             ",
     "PUSH_LOCAL      ",
     "PUSH_ARGUMENT   ",
     "PUSH_FIELD      ",
@@ -194,6 +199,7 @@ impl fmt::Display for Bytecode {
         match self {
             Self::Halt                      => write!(f, "HALT"),
             Self::Dup                       => write!(f, "DUP"),
+            Self::Inc                       => write!(f, "INC"),
             Self::PushLocal(up_idx, idx)    => write!(f, "PUSH_LOCAL {}, {}", up_idx, idx),
             Self::PushArgument(up_idx, idx) => write!(f, "PUSH_ARGUMENT {}, {}", up_idx, idx),
             Self::PushField(idx)            => write!(f, "PUSH_FIELD {}", idx),
