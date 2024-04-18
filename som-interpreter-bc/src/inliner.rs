@@ -210,6 +210,7 @@ impl PrimMessageInliner for ast::Expression {
                     Bytecode::Halt
                     | Bytecode::Dup
                     | Bytecode::Inc
+                    | Bytecode::Dec
                     | Bytecode::Push0
                     | Bytecode::Push1
                     | Bytecode::PushNil
