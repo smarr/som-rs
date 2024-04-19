@@ -62,7 +62,7 @@ impl Value {
             Self::Instance(instance) => instance.borrow().class(),
             Self::Class(class) => class.borrow().class(),
             Self::Invokable(invokable) => invokable.class(universe),
-            Self::BlockSelf(_block) => unreachable!("I think it should be unreachable?"),
+            Self::BlockSelf(_) => unreachable!("no reason to ever ever call class() on a blockself special var"),
         }
     }
 

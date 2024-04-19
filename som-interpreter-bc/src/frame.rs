@@ -63,13 +63,13 @@ impl Frame {
                 };
                 frame
             }
-            FrameKind::Method { method, self_value, .. } => {
+            FrameKind::Method { method, .. } => {
                 if let MethodKind::Defined(env) = method.kind() {
                     // let locals = env.locals.iter().map(|_| Value::Nil).collect();
                     let locals =  (0..env.nbr_locals).map(|_| Value::Nil).collect();
                     Self {
                         locals,
-                        args: vec![], //todo might as well initialize it with self_value there right?
+                        args: vec![],
                         literals: env.literals.clone(),
                         bytecodes: env.body.clone(),
                         bytecode_idx: 0,
