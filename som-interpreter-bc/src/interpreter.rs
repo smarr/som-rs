@@ -206,6 +206,16 @@ impl Interpreter {
                     };
                 }
                 Bytecode::PushLocal(up_idx, idx) => {
+                    // let mut from = frame.clone();
+                    // for _ in 0..up_idx {
+                    //     let temp = match from.borrow().kind() {
+                    //         FrameKind::Block { block } => block.frame.clone().unwrap(),
+                    //         FrameKind::Method { .. } => {
+                    //             panic!("requested local from non-existing frame")
+                    //         }
+                    //     };
+                    //     from = temp;
+                    // }
                     let from = Frame::nth_frame_back(frame, up_idx);
                     let value = from.borrow().lookup_local(idx as usize).unwrap();
                     self.stack.push(value);
@@ -283,11 +293,31 @@ impl Interpreter {
                 }
                 Bytecode::PopLocal(up_idx, idx) => {
                     let value = self.stack.pop().unwrap();
+                    // let mut from = Rc::clone(&self.current_frame);
+                    // for _ in 0..up_idx {
+                    //     let temp = match from.borrow().kind() {
+                    //         FrameKind::Block { block } => block.frame.clone().unwrap(),
+                    //         FrameKind::Method { .. } => {
+                    //             panic!("requested local from non-existing frame")
+                    //         }
+                    //     };
+                    //     from = temp;
+                    // }
                     let from = Frame::nth_frame_back(frame, up_idx);
                     from.borrow_mut().assign_local(idx as usize, value).unwrap();
                 }
                 Bytecode::PopArgument(up_idx, idx) => {
                     let value = self.stack.pop().unwrap();
+                    // let mut from = Rc::clone(&self.current_frame);
+                    // for _ in 0..up_idx {
+                    //     let temp = match from.borrow().kind() {
+                    //         FrameKind::Block { block } => block.frame.clone().unwrap(),
+                    //         FrameKind::Method { .. } => {
+                    //             panic!("requested local from non-existing frame")
+                    //         }
+                    //     };
+                    //     from = temp;
+                    // }
                     let from = Frame::nth_frame_back(frame, up_idx);
                     from.borrow_mut()
                         .args
@@ -330,10 +360,21 @@ impl Interpreter {
                 Bytecode::ReturnLocal => {
                     let value = self.stack.pop().unwrap();
                     self.pop_frame();
+                    // println!("...returning (local)");
+                    // todo only handle bytecode idx writes here?
+                    // match self.current_frame().cloned() {i
+                    //     None => {} // eh we're at the end of the program anyway
+                    //     Some(f) => {
+                    //         self.bytecode_idx_new = f.borrow().bytecode_idx;
+                    //         // println!("returned with idx: {:?}", self.bytecode_idx_new); // todo remove all debug
+                    //         // println!("prev: {:?}", self.current_frame().unwrap().borrow().get_bytecode_at(self.bytecode_idx_new - 1));
+                    //     }
+                    // };
                     self.stack.push(value);
                 }
                 Bytecode::ReturnNonLocal(up_idx) => {
                     let value = self.stack.pop().unwrap();
+                    // let method_frame = Frame::method_frame(&frame);
                     let method_frame = Frame::nth_frame_back(Rc::clone(&frame), up_idx);
                     let escaped_frames = self
                         .frames
@@ -341,13 +382,22 @@ impl Interpreter {
                         .rev()
                         .position(|live_frame| Rc::ptr_eq(&live_frame, &method_frame));
 
+                    // println!("...returning (non local)");
+
                     if let Some(count) = escaped_frames {
                         // assert_eq!(up_idx as usize, count);
                         self.pop_n_frames(count + 1);
+                        // match self.current_frame().cloned() {
+                        //     None => {}
+                        //     Some(f) => {
+                        //         self.bytecode_idx_new = f.borrow().bytecode_idx;
+                        //         // println!("returned (non local) with idx: {:?}", self.bytecode_idx_new);
+                        //     }
+                        // };
                         self.stack.push(value);
                     } else {
                         // NB: I did some changes there with the blockself bits and i'm not positive it works the same as before, but it should.
-
+                        
                         // Block has escaped its method frame.
                         let instance = frame.borrow().get_self();
                         let block = match frame.borrow().args.first().unwrap() {
@@ -358,7 +408,7 @@ impl Interpreter {
                                 panic!("A method frame has escaped itself ??");
                             }
                         };
-
+                        
                         universe.escaped_block(self, instance, block).expect(
                             "A block has escaped and `escapedBlock:` is not defined on receiver",
                         );
