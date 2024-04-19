@@ -2,7 +2,9 @@ use std::convert::TryFrom;
 use std::fs;
 use std::rc::Rc;
 
+#[cfg(feature = "frame-debug-info")]
 use crate::frame::FrameKind;
+
 use crate::interpreter::Interpreter;
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
@@ -204,6 +206,12 @@ fn time(interpreter: &mut Interpreter, _: &mut Universe) {
     }
 }
 
+#[cfg(not(feature = "frame-debug-info"))]
+fn print_stack_trace(_interpreter: &mut Interpreter, _: &mut Universe) {
+    panic!("attempting to print a stack trace without having frame debug info, which is possible in a limited way, but likely not intended")
+}
+
+#[cfg(feature = "frame-debug-info")]
 fn print_stack_trace(interpreter: &mut Interpreter, _: &mut Universe) {
     const SIGNATURE: &str = "System>>#printStackTrace";
 
@@ -213,13 +221,10 @@ fn print_stack_trace(interpreter: &mut Interpreter, _: &mut Universe) {
         let class = frame.borrow().get_method_holder();
         let method = frame.borrow().get_method();
         let bytecode_idx = interpreter.bytecode_idx;
-        #[cfg(feature = "frame-debug-info")]
-            let block = match frame.borrow().kind() {
+        let block = match frame.borrow().kind() {
             FrameKind::Block { .. } => "$block",
             _ => "",
         };
-        #[cfg(not(feature = "frame-debug-info"))]
-        let block = "maybe block - no debug info available";
 
         println!(
             "{}>>#{}{} @bi: {}",

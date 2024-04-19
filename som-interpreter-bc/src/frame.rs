@@ -63,7 +63,7 @@ impl Frame {
                 };
                 frame
             }
-            FrameKind::Method { method, .. } => {
+            FrameKind::Method { method, self_value, .. } => {
                 if let MethodKind::Defined(env) = method.kind() {
                     // let locals = env.locals.iter().map(|_| Value::Nil).collect();
                     let locals =  (0..env.nbr_locals).map(|_| Value::Nil).collect();
@@ -89,7 +89,7 @@ impl Frame {
         }
     }
 
-    // #[cfg(feature = "frame-debug-info")]
+    #[cfg(feature = "frame-debug-info")]
     /// Get the frame's kind.
     pub fn kind(&self) -> &FrameKind {
         &self.kind
@@ -114,22 +114,29 @@ impl Frame {
 
     /// Get the holder for this current method.
     pub fn get_method_holder(&self) -> SOMRef<Class> {
-        // todo!()
         match &self.kind {
             FrameKind::Method { holder, .. } => holder.clone(),
             FrameKind::Block { block, .. } => {
                 block.frame.as_ref().unwrap().borrow().get_method_holder()
             }
         }
+
+        // todo that version should be the correct one
+        // let ours = match self.get_self() {
+        //     Value::Class(c) => c,
+        //     v => panic!("self value not a class, but {:?}", v)
+        // };
+        // 
+        // ours.clone().borrow().class()
     }
 
+    #[cfg(feature = "frame-debug-info")]
     /// Get the current method itself.
     pub fn get_method(&self) -> Rc<Method> {
-        todo!()
-        // match &self.kind {
-        //     FrameKind::Method { method, .. } => method.clone(),
-        //     FrameKind::Block { block, .. } => block.frame.as_ref().unwrap().borrow().get_method(),
-        // }
+        match &self.kind {
+            FrameKind::Method { method, .. } => method.clone(),
+            FrameKind::Block { block, .. } => block.frame.as_ref().unwrap().borrow().get_method(),
+        }
     }
     
     pub fn get_bytecode(&self, idx: usize) -> Option<Bytecode> {
@@ -147,58 +154,11 @@ impl Frame {
     /// Search for a local binding.
     pub fn lookup_local(&self, idx: usize) -> Option<Value> {
         self.locals.get(idx).cloned()
-        // if let Some(value) = self.locals.get(idx).cloned() {
-        //     return Some(value);
-        // }
-        // match &self.kind {
-        //     FrameKind::Method {
-        //         self_value, holder, ..
-        //     } => {
-        //         if holder.borrow().is_static {
-        //             holder.borrow().lookup_local(idx)
-        //         } else {
-        //             self_value.lookup_local(idx)
-        //         }
-        //     }
-        //     FrameKind::Block { block, .. } => {
-        //         block.frame.as_ref().unwrap().borrow().lookup_local(idx)
-        //     }
-        // }
     }
 
     /// Assign to a local binding.
     pub fn assign_local(&mut self, idx: usize, value: Value) -> Option<()> {
-        // if let Some(local) = self.locals.get_mut(idx) {
-        //     *local = value;
-        //     return Some(());
-        // }
-        // match &mut self.kind {
-        //     FrameKind::Method {
-        //         self_value, holder, ..
-        //     } => {
-        //         if holder.borrow().is_static {
-        //             holder.borrow_mut().assign_local(idx, value)
-        //         } else {
-        //             self_value.assign_local(idx, value)
-        //         }
-        //     }
-        //     FrameKind::Block { block, .. } => block
-        //         .frame
-        //         .as_ref()
-        //         .unwrap()
-        //         .borrow_mut()
-        //         .assign_local(idx, value),
-        // }
         self.locals.get_mut(idx).map(|local| *local = value)
-    }
-
-//    #[cfg(feature = "frame-debug-info")]
-    /// Get the method invocation frame for that frame.
-    pub fn method_frame(frame: &SOMRef<Frame>) -> SOMRef<Frame> {
-        match frame.borrow().kind() {
-            FrameKind::Block { block, .. } => Frame::method_frame(block.frame.as_ref().unwrap()),
-            FrameKind::Method { .. } => frame.clone(),
-        }
     }
 
     pub fn nth_frame_back(current_frame: SOMRef<Frame>, n: u8) -> SOMRef<Frame> {
@@ -206,16 +166,16 @@ impl Frame {
             return current_frame;
         }
 
-        let mut target_frame: Rc<RefCell<Frame>> = match current_frame.borrow().args.get(0).unwrap() {
+        let mut target_frame: Rc<RefCell<Frame>> = match current_frame.borrow().args.first().unwrap() {
             Value::BlockSelf(block) => {
-                Rc::clone(&block.frame.as_ref().unwrap())
+                Rc::clone(block.frame.as_ref().unwrap())
             }
             v => panic!("attempting to access a non local var/arg from a method instead of a block: self wasn't blockself but {:?}.", v)
         };
         for _ in 1..n {
-            target_frame = match Rc::clone(&target_frame).borrow().args.get(0).unwrap() {
+            target_frame = match Rc::clone(&target_frame).borrow().args.first().unwrap() {
                 Value::BlockSelf(block) => {
-                    Rc::clone(&block.frame.as_ref().unwrap())
+                    Rc::clone(block.frame.as_ref().unwrap())
                 }
                 v => panic!("attempting to access a non local var/arg from a method instead of a block (but the original frame we were in was a block): self wasn't blockself but {:?}.", v)
             };

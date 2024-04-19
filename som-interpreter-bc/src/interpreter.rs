@@ -191,7 +191,7 @@ impl Interpreter {
                     //     };
                     //     from = temp;
                     // }
-                    if up_idx == 0 && idx == 0 {
+                    if up_idx == 0 && idx == 0 { // todo remove
                         self.stack.push(frame.borrow().get_self());
                     } else {
                         let from = Frame::nth_frame_back(frame, up_idx);
@@ -350,11 +350,10 @@ impl Interpreter {
                     // };
                     self.stack.push(value);
                 }
-                Bytecode::ReturnNonLocal(_up_idx) => {
+                Bytecode::ReturnNonLocal(up_idx) => {
                     let value = self.stack.pop().unwrap();
-                    let frame = Rc::clone(&self.current_frame);
-                    let method_frame = Frame::method_frame(&frame);
-                    // let method_frame = frame.borrow().nth_frame_back(up_idx);
+                    // let method_frame = Frame::method_frame(&frame);
+                    let method_frame = Frame::nth_frame_back(Rc::clone(&frame), up_idx);
                     let escaped_frames = self
                         .frames
                         .iter()
@@ -375,12 +374,12 @@ impl Interpreter {
                         // };
                         self.stack.push(value);
                     } else {
-                        todo!("not sure how to handle the escapedBlock: case yet");
-
-                        /*// Block has escaped its method frame.
+                        // NB: I did some changes there with the blockself bits and i'm not positive it works the same as before, but it should.
+                        
+                        // Block has escaped its method frame.
                         let instance = frame.borrow().get_self();
-                        let block = match frame.borrow().kind() {
-                            FrameKind::Block { block, .. } => block.clone(),
+                        let block = match frame.borrow().args.first().unwrap() {
+                            Value::BlockSelf(block) => block.clone(),
                             _ => {
                                 // Should never happen, because `universe.current_frame()` would
                                 // have been equal to `universe.current_method_frame()`.
@@ -388,10 +387,9 @@ impl Interpreter {
                             }
                         };
                         
-                        // TODO: should we call `doesNotUnderstand:` here ?
                         universe.escaped_block(self, instance, block).expect(
                             "A block has escaped and `escapedBlock:` is not defined on receiver",
-                        );*/
+                        );
                     }
                 }
                 Bytecode::Jump(offset) => {
