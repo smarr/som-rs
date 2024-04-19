@@ -65,7 +65,7 @@ impl Evaluate for ast::Expression {
             },
             Self::BinaryOp(bin_op) => bin_op.evaluate(universe),
             Self::Block(blk) => blk.evaluate(universe),
-            Self::Exit(expr, scope) => {
+            Self::Exit(expr, _scope) => {
                 let value = propagate!(expr.evaluate(universe));
                 let frame = universe.current_method_frame();
                 let has_not_escaped = universe
@@ -74,10 +74,12 @@ impl Evaluate for ast::Expression {
                     .rev()
                     .any(|live_frame| Rc::ptr_eq(&live_frame, &frame));
                 if has_not_escaped {
-                    match scope {
-                        0 => Return::Local(value),
-                        _ => Return::NonLocal(value, frame)
-                    }
+                    Return::NonLocal(value, frame)
+                    // todo i thought this code would work, but it doesn't! can and should be fixed.
+                    // match scope {
+                    //     0 => Return::Local(value),
+                    //     _ => Return::NonLocal(value, frame)
+                    // }
                 } else {
                     // Block has escaped its method frame.
                     let instance = frame.borrow().get_self();
