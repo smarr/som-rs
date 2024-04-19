@@ -63,13 +63,13 @@ impl Frame {
                 };
                 frame
             }
-            FrameKind::Method { method, self_value, .. } => {
+            FrameKind::Method { method, .. } => {
                 if let MethodKind::Defined(env) = method.kind() {
                     // let locals = env.locals.iter().map(|_| Value::Nil).collect();
                     let locals =  (0..env.nbr_locals).map(|_| Value::Nil).collect();
                     Self {
                         locals,
-                        args: vec![],
+                        args: vec![], //todo might as well initialize it with self_value there right?
                         literals: env.literals.clone(),
                         bytecodes: env.body.clone(),
                         bytecode_idx: 0,
@@ -201,8 +201,12 @@ impl Frame {
         }
     }
 
-    pub fn nth_frame_back(&self, n: u8) -> SOMRef<Frame> {
-        let mut target_frame: Rc<RefCell<Frame>> = match self.args.get(0).unwrap() {
+    pub fn nth_frame_back(current_frame: SOMRef<Frame>, n: u8) -> SOMRef<Frame> {
+        if n == 0 {
+            return current_frame;
+        }
+
+        let mut target_frame: Rc<RefCell<Frame>> = match current_frame.borrow().args.get(0).unwrap() {
             Value::BlockSelf(block) => {
                 Rc::clone(&block.frame.as_ref().unwrap())
             }

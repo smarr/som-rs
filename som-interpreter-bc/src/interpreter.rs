@@ -176,7 +176,7 @@ impl Interpreter {
                     //     };
                     //     from = temp;
                     // }
-                    let from = frame.borrow().nth_frame_back(up_idx);
+                    let from = Frame::nth_frame_back(frame, up_idx);
                     let value = from.borrow().lookup_local(idx as usize).unwrap();
                     self.stack.push(value);
                 }
@@ -194,7 +194,7 @@ impl Interpreter {
                     if up_idx == 0 && idx == 0 {
                         self.stack.push(frame.borrow().get_self());
                     } else {
-                        let from = frame.borrow().nth_frame_back(up_idx);
+                        let from = Frame::nth_frame_back(frame, up_idx);
                         let value = from.borrow().lookup_argument(idx as usize).unwrap();
                         self.stack.push(value);
                     }
@@ -275,7 +275,7 @@ impl Interpreter {
                     //     };
                     //     from = temp;
                     // }
-                    let from = frame.borrow().nth_frame_back(up_idx);
+                    let from = Frame::nth_frame_back(frame, up_idx);
                     from.borrow_mut().assign_local(idx as usize, value).unwrap();
                 }
                 Bytecode::PopArgument(up_idx, idx) => {
@@ -290,7 +290,7 @@ impl Interpreter {
                     //     };
                     //     from = temp;
                     // }
-                    let from = frame.borrow().nth_frame_back(up_idx);
+                    let from = Frame::nth_frame_back(frame, up_idx);
                     from.borrow_mut()
                         .args
                         .get_mut(idx as usize)
@@ -484,7 +484,7 @@ impl Interpreter {
 
             match method.kind() {
                 MethodKind::Defined(_) => {
-                    eprintln!("Invoking {:?}", &method.signature);
+                    // eprintln!("Invoking {:?}", &method.signature);
 
                     let mut args = Vec::with_capacity(nb_params + 1);
 
@@ -506,7 +506,7 @@ impl Interpreter {
                     frame.borrow_mut().args = args;
                 }
                 MethodKind::Primitive(func) => {
-                    eprintln!("Invoking prim {:?}", &method.signature);
+                    // eprintln!("Invoking prim {:?}", &method.signature);
                     func(interpreter, universe);
                 }
                 MethodKind::NotImplemented(err) => {

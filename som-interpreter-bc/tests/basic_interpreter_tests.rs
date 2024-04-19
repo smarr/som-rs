@@ -205,6 +205,7 @@ fn basic_interpreter_tests() {
             self_value: Value::Class(class),
         };
         let mut interpreter = Interpreter::new_from_frame(Rc::new(RefCell::new(Frame::from_kind(kind))));
+        interpreter.current_frame.borrow_mut().args.push(Value::System);
         if let Some(output) = interpreter.run(&mut universe) {
             assert_eq!(&output, expected, "unexpected test output value");
         }
