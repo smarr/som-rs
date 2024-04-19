@@ -171,7 +171,7 @@ impl Interpreter {
                     self.stack.push(value);
                 }
                 Bytecode::PushArgument(up_idx, idx) => {
-                    if up_idx == 0 && idx == 0 { // todo is this avoidable? ask stefan, perhaps
+                    if up_idx == 0 && idx == 0 { // todo opt: is this avoidable? ask stefan, perhaps
                         self.stack.push(frame.borrow().get_self());
                     } else {
                         let from = Frame::nth_frame_back(frame, up_idx);
@@ -180,14 +180,12 @@ impl Interpreter {
                     }
                 }
                 Bytecode::PushField(idx) => {
-                    let holder = frame.borrow().get_method_holder();
-                    let value = if holder.borrow().is_static {
-                        holder.borrow_mut().lookup_local(idx as usize).unwrap()
-                    } else {
-                        let self_value = frame.borrow().get_self();
-                        self_value.lookup_local(idx as usize).unwrap()
+                    let value = match frame.borrow().get_self() {
+                        Value::Instance(i) => { i.borrow_mut().lookup_local(idx as usize) }
+                        Value::Class(c) => { c.borrow().class().borrow_mut().lookup_local(idx as usize) }
+                        v => { panic!("trying to read a field from a {:?}", &v) }
                     };
-                    self.stack.push(value);
+                    self.stack.push(value.unwrap());
                 }
                 Bytecode::PushBlock(idx) => {
                     let literal = frame.borrow().lookup_constant(idx as usize).unwrap();
@@ -259,17 +257,11 @@ impl Interpreter {
                 }
                 Bytecode::PopField(idx) => {
                     let value = self.stack.pop().unwrap();
-                    let frame = Rc::clone(&self.current_frame);
-                    let holder = frame.borrow().get_method_holder();
-                    if holder.borrow().is_static {
-                        holder
-                            .borrow_mut()
-                            .assign_local(idx as usize, value)
-                            .unwrap();
-                    } else {
-                        let mut self_value = frame.borrow().get_self();
-                        self_value.assign_local(idx as usize, value).unwrap();
-                    }
+                    match frame.borrow_mut().get_self() {
+                        Value::Instance(i) => { i.borrow_mut().assign_local(idx as usize, value) }
+                        Value::Class(c) => { c.borrow().class().borrow_mut().assign_local(idx as usize, value) }
+                        v => { panic!("{:?}", &v) }
+                    };
                 }
                 Bytecode::Send1(idx) => {
                     send! {self, universe, &frame, idx, Some(0)} // Send1 => receiver + 0 args, so we pass Some(0)

@@ -31,9 +31,6 @@ pub enum FrameKind {
 
 /// Represents a stack frame.
 pub struct Frame {
-    /// This frame's kind.
-    // #[cfg(feature = "frame-debug-info")]
-    pub kind: FrameKind,
     /// The bytecodes associated with the frame.
     pub bytecodes: Vec<Bytecode>,
     /// The arguments within this frame.
@@ -44,6 +41,9 @@ pub struct Frame {
     pub literals: Vec<Literal>,
     /// Bytecode index.
     pub bytecode_idx: usize,
+    /// This frame's kind.
+    #[cfg(feature = "frame-debug-info")]
+    pub kind: FrameKind,
 }
 
 impl Frame {
@@ -59,6 +59,7 @@ impl Frame {
                     literals: block.blk_info.literals.clone(),
                     bytecodes: block.blk_info.body.clone(),
                     bytecode_idx: 0,
+                    #[cfg(feature = "frame-debug-info")]
                     kind
                 };
                 frame
@@ -73,6 +74,7 @@ impl Frame {
                         literals: env.literals.clone(),
                         bytecodes: env.body.clone(),
                         bytecode_idx: 0,
+                        #[cfg(feature = "frame-debug-info")]
                         kind
                     }
                 } else {
@@ -82,6 +84,7 @@ impl Frame {
                         literals: vec![],
                         bytecodes: vec![],
                         bytecode_idx: 0,
+                        #[cfg(feature = "frame-debug-info")]
                         kind
                     }
                 }
@@ -97,12 +100,7 @@ impl Frame {
 
     /// Get the self value for this frame.
     pub fn get_self(&self) -> Value {
-        // match self.args.get(0).unwrap() {
-        //     Value::BlockSelf(b) => Rc::clone(&b.frame.unwrap()).borrow().get_self(),
-        //     s => s.clone()
-        // }
-
-        match self.args.get(0).unwrap() {
+        match self.args.first().unwrap() {
             Value::BlockSelf(b) => {
                 let block_frame = b.frame.as_ref().unwrap().clone();
                 let x = block_frame.borrow().get_self();
@@ -114,20 +112,12 @@ impl Frame {
 
     /// Get the holder for this current method.
     pub fn get_method_holder(&self) -> SOMRef<Class> {
-        match &self.kind {
-            FrameKind::Method { holder, .. } => holder.clone(),
-            FrameKind::Block { block, .. } => {
-                block.frame.as_ref().unwrap().borrow().get_method_holder()
-            }
-        }
+        let ours = match self.get_self() {
+            Value::Class(c) => c,
+            v => panic!("self value not a class, but {:?}", v)
+        };
 
-        // todo that version should be the correct one
-        // let ours = match self.get_self() {
-        //     Value::Class(c) => c,
-        //     v => panic!("self value not a class, but {:?}", v)
-        // };
-        // 
-        // ours.clone().borrow().class()
+        ours.clone().borrow().class()
     }
 
     #[cfg(feature = "frame-debug-info")]
