@@ -76,7 +76,7 @@ pub struct Interpreter {
     /// The current frame.
     pub current_frame: SOMRef<Frame>,
     /// Pointer to the frame's bytecodes, to not have to read them from the frame directly
-    pub current_bytecodes: *mut Vec<Bytecode>
+    pub current_bytecodes: *const Vec<Bytecode>
 }
 
 impl Interpreter {
@@ -97,7 +97,7 @@ impl Interpreter {
             start_time: Instant::now(),
             bytecode_idx: 0,
             current_frame: Rc::clone(&frame),
-            current_bytecodes: &mut frame.borrow_mut().bytecodes as *mut Vec<Bytecode>
+            current_bytecodes: &frame.borrow_mut().bytecodes as *const Vec<Bytecode>
         }
     }
 
@@ -105,7 +105,7 @@ impl Interpreter {
         let frame = Rc::new(RefCell::new(Frame::from_kind(kind)));
         self.frames.push(frame.clone());
         self.bytecode_idx = 0;
-        self.current_bytecodes = &mut frame.borrow_mut().bytecodes as *mut Vec<Bytecode>;
+        self.current_bytecodes = &frame.borrow_mut().bytecodes as *const Vec<Bytecode>;
         self.current_frame = Rc::clone(&frame);
         frame
     }
@@ -118,7 +118,7 @@ impl Interpreter {
             Some(f) => {
                 self.bytecode_idx = f.borrow().bytecode_idx;
                 self.current_frame = Rc::clone(&f);
-                self.current_bytecodes = &mut f.borrow_mut().bytecodes as *mut Vec<Bytecode>;
+                self.current_bytecodes = &f.borrow_mut().bytecodes as *const Vec<Bytecode>;
             }
         }
     }
@@ -131,7 +131,7 @@ impl Interpreter {
             Some(f) => {
                 self.bytecode_idx = f.borrow().bytecode_idx;
                 self.current_frame = Rc::clone(&f);
-                self.current_bytecodes = &mut f.borrow_mut().bytecodes as *mut Vec<Bytecode>;
+                self.current_bytecodes = &f.borrow_mut().bytecodes as *const Vec<Bytecode>;
             }
         }
     }
