@@ -23,7 +23,7 @@ pub mod block1 {
         ]);
 
         // let block_self = block.frame.borrow().get_self();
-        let block_self = Value::BlockSelf(block.clone());
+        let block_self = Value::Block(block.clone());
         let block_args = vec![];
 
         universe.with_frame(
@@ -77,7 +77,7 @@ pub mod block2 {
             a => a,
         ]);
 
-        let block_self = Value::BlockSelf(block.clone());
+        let block_self = Value::Block(block.clone());
         let block_args = Vec::from([a]);
 
         universe.with_frame(
@@ -126,7 +126,7 @@ pub mod block3 {
         ]);
 
         // let block_self = block.frame.borrow().get_self();
-        let block_self = Value::BlockSelf(block.clone());
+        let block_self = Value::Block(block.clone());
         let block_args = Vec::from([a, b]);
 
         universe.with_frame(

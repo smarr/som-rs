@@ -85,7 +85,7 @@ impl Evaluate for ast::Expression {
                     let instance = frame.borrow().get_self();
                     let frame = universe.current_frame();
                     let block = match frame.borrow().params.get(0) {
-                        Some(Value::BlockSelf(b)) => b.clone(),
+                        Some(Value::Block(b)) => b.clone(),
                         _ => {
                             // Should never happen, because `universe.current_frame()` would
                             // have been equal to `universe.current_method_frame()`.

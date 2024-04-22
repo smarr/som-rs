@@ -15,9 +15,15 @@ pub mod block1 {
     ];
     pub static CLASS_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[];
 
+    // FYI: me removing the expect_args! bits in all these was NOT a speedup! 
+    // So these changes can be safely reverted. But I'm keeping juuuust in case there's a miiiild speedup I guess
     fn value(interpreter: &mut Interpreter, _: &mut Universe) {
         // const SIGNATURE: &str = "Block1>>#value";
 
+        // expect_args!(SIGNATURE, interpreter, [
+        //     Value::BlockSelf(block) => block,
+        // ]);
+        
         match interpreter.stack.pop() {
             Some(Value::Block(block)) => interpreter.push_block_frame(Rc::clone(&block), vec![Value::Block(block)]),
             _ => panic!("Expected a blockself when calling a block")

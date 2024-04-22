@@ -67,9 +67,6 @@ impl Hash for Value {
                 hasher.write(b"#mthd#");
                 value.hash(hasher);
             },
-            Value::BlockSelf(_) => {
-                hasher.write(b"#blkself#");
-            }
         }
     }
 }

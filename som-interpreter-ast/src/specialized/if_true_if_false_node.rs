@@ -29,7 +29,7 @@ impl Invoke for IfTrueIfFalseNode {
             match body_block_arg {
                 Value::Block(b) => {
                     universe.with_frame(
-                        Value::BlockSelf(Rc::clone(&b)),
+                        Value::Block(Rc::clone(&b)),
                         b.block.nbr_locals,
                         0,
                         |universe| b.invoke(universe, vec![]),
@@ -42,7 +42,7 @@ impl Invoke for IfTrueIfFalseNode {
             match body_block_arg2 {
                 Value::Block(b) => {
                     universe.with_frame(
-                        Value::BlockSelf(Rc::clone(&b)),
+                        Value::Block(Rc::clone(&b)),
                         b.block.nbr_locals,
                         0,
                         |universe| b.invoke(universe, vec![]),
