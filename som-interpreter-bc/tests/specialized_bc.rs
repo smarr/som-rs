@@ -124,7 +124,7 @@ fn send_bytecodes() {
 
         run = (
             1 abs.
-            1 + 1.
+            1 + 2.
             self send: 1 three: 1.
             self send: 1 with: 1 four: 1.
         )
@@ -134,13 +134,14 @@ fn send_bytecodes() {
     let bytecodes = get_bytecodes_from_method(class_txt, "run");
     expect_bytecode_sequence(&bytecodes, &[Push1, Send1(0)]);
 
-    expect_bytecode_sequence(&bytecodes, &[Push1, Push1, Send2(1)]);
+    // we do a "+ 2" to not have the bytecode INC replace a Send2.
+    expect_bytecode_sequence(&bytecodes, &[Push1, PushConstant1, Send2(2)]);
 
-    expect_bytecode_sequence(&bytecodes, &[PushArgument(0, 0), Push1, Push1, Send3(2)]);
+    expect_bytecode_sequence(&bytecodes, &[PushArgument(0, 0), Push1, Push1, Send3(3)]);
 
     expect_bytecode_sequence(
         &bytecodes,
-        &[PushArgument(0, 0), Push1, Push1, Push1, SendN(3)],
+        &[PushArgument(0, 0), Push1, Push1, Push1, SendN(4)],
     );
 }
 

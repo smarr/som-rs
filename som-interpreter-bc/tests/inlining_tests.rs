@@ -161,19 +161,17 @@ fn while_true_false_inlining_ok() {
 
     let bytecodes = get_bytecodes_from_method(class_txt, "run");
 
-    dbg!(&bytecodes);
     expect_bytecode_sequence(
         &bytecodes,
         &[
             PushLocal(0, 0),
             PushConstant1,
             Send2(2),
-            JumpOnFalsePop(6),
+            JumpOnFalsePop(5),
             PushLocal(0, 0),
-            Push1,
-            Send2(3),
+            Inc,
             PopLocal(0, 0),
-            JumpBackward(8),
+            JumpBackward(7),
         ],
     );
 
