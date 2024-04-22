@@ -74,7 +74,9 @@ pub struct Interpreter {
     /// The current bytecode index.
     pub bytecode_idx: usize,
     /// The current frame.
-    pub current_frame: SOMRef<Frame>
+    pub current_frame: SOMRef<Frame>,
+    /// Pointer to the frame's bytecodes, to not have to read them from the frame directly
+    pub current_bytecodes: *mut Vec<Bytecode>
 }
 
 impl Interpreter {
@@ -94,7 +96,8 @@ impl Interpreter {
             stack: vec![],
             start_time: Instant::now(),
             bytecode_idx: 0,
-            current_frame: Rc::clone(&frame)
+            current_frame: Rc::clone(&frame),
+            current_bytecodes: &mut frame.borrow_mut().bytecodes as *mut Vec<Bytecode>
         }
     }
 
@@ -102,6 +105,7 @@ impl Interpreter {
         let frame = Rc::new(RefCell::new(Frame::from_kind(kind)));
         self.frames.push(frame.clone());
         self.bytecode_idx = 0;
+        self.current_bytecodes = &mut frame.borrow_mut().bytecodes as *mut Vec<Bytecode>;
         self.current_frame = Rc::clone(&frame);
         frame
     }
@@ -114,6 +118,7 @@ impl Interpreter {
             Some(f) => {
                 self.bytecode_idx = f.borrow().bytecode_idx;
                 self.current_frame = Rc::clone(&f);
+                self.current_bytecodes = &mut f.borrow_mut().bytecodes as *mut Vec<Bytecode>;
             }
         }
     }
@@ -126,6 +131,7 @@ impl Interpreter {
             Some(f) => {
                 self.bytecode_idx = f.borrow().bytecode_idx;
                 self.current_frame = Rc::clone(&f);
+                self.current_bytecodes = &mut f.borrow_mut().bytecodes as *mut Vec<Bytecode>;
             }
         }
     }
@@ -137,12 +143,12 @@ impl Interpreter {
             }
 
             let frame = Rc::clone(&self.current_frame);
-
-            // let bytecode_idx = frame.borrow().bytecode_idx;
-            let opt_bytecode = frame.borrow().get_bytecode(self.bytecode_idx);
+            
+            // Actually safe, there's always a reference to the current bytecodes. Need unsafe because we want to store a ref for quick access in perf-critical code
+            let opt_bytecode = unsafe { (*self.current_bytecodes).get(self.bytecode_idx) };
 
             let bytecode = match opt_bytecode {
-                Some(bytecode) => bytecode,
+                Some(bytecode) => *bytecode,
                 None => {
                     self.pop_frame();
                     self.stack.push(Value::Nil);

@@ -129,9 +129,10 @@ impl Frame {
         }
     }
     
-    pub fn get_bytecode(&self, idx: usize) -> Option<Bytecode> {
-        self.bytecodes.get(idx).cloned()
-    }
+    // Don't even need this function. We store a pointer to the bytecode in the interpreter directly.
+    // pub fn get_bytecode(&self, idx: usize) -> Option<Bytecode> {
+    //     self.bytecodes.get(idx).cloned()
+    // }
 
     pub fn lookup_constant(&self, idx: usize) -> Option<Literal> {
         self.literals.get(idx).cloned()
