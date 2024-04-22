@@ -8,7 +8,6 @@ use som_lexer::{Lexer, Token};
 use som_parser::lang;
 
 use som_interpreter_bc::compiler;
-use som_interpreter_bc::frame::FrameKind;
 use som_interpreter_bc::interpreter::Interpreter;
 use som_interpreter_bc::universe::Universe;
 use som_interpreter_bc::value::Value;
@@ -111,12 +110,7 @@ pub fn interactive(
             .lookup_method(method_name)
             .expect("method not found ??");
         let start = Instant::now();
-        let kind = FrameKind::Method {
-            method,
-            holder: class.clone(),
-            self_value: Value::Class(class),
-        };
-        let frame = interpreter.push_frame(kind);
+        let frame = interpreter.push_method_frame(method);
         frame.borrow_mut().args.push(Value::System);
         frame.borrow_mut().args.push(last_value.clone());
         if let Some(value) = interpreter.run(universe) {

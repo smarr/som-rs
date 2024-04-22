@@ -7,7 +7,7 @@ use som_core::bytecode::Bytecode;
 use crate::block::Block;
 use crate::class::Class;
 use crate::compiler::Literal;
-use crate::frame::{Frame, FrameKind};
+use crate::frame::{Frame};
 use crate::interner::Interned;
 use crate::method::{Method, MethodKind};
 use crate::universe::Universe;
@@ -90,25 +90,43 @@ impl Interpreter {
     //     }
     // }
 
-    pub fn new_from_frame(frame: SOMRef<Frame>) -> Self {
+    pub fn new(base_frame: SOMRef<Frame>) -> Self {
         Self {
-            frames: vec![Rc::clone(&frame); 1],
+            frames: vec![Rc::clone(&base_frame); 1],
             stack: vec![],
             start_time: Instant::now(),
             bytecode_idx: 0,
-            current_frame: Rc::clone(&frame),
-            current_bytecodes: frame.borrow_mut().bytecodes
+            current_frame: Rc::clone(&base_frame),
+            current_bytecodes: base_frame.borrow_mut().bytecodes
         }
     }
 
-    pub fn push_frame(&mut self, kind: FrameKind) -> SOMRef<Frame> {
-        let frame = Rc::new(RefCell::new(Frame::from_kind(kind)));
+    pub fn push_method_frame(&mut self, method: Rc<Method>) -> SOMRef<Frame> {
+        let frame = Rc::new(RefCell::new(Frame::from_method(method)));
         self.frames.push(frame.clone());
         self.bytecode_idx = 0;
         self.current_bytecodes = frame.borrow_mut().bytecodes;
         self.current_frame = Rc::clone(&frame);
         frame
     }
+
+    pub fn push_block_frame(&mut self, block: Rc<Block>) -> SOMRef<Frame> {
+        let frame = Rc::new(RefCell::new(Frame::from_block(block)));
+        self.frames.push(frame.clone());
+        self.bytecode_idx = 0;
+        self.current_bytecodes = frame.borrow_mut().bytecodes;
+        self.current_frame = Rc::clone(&frame);
+        frame
+    }
+    
+    // pub fn push_frame(&mut self, kind: FrameKind) -> SOMRef<Frame> {
+    //     let frame = Rc::new(RefCell::new(Frame::from_kind(kind)));
+    //     self.frames.push(frame.clone());
+    //     self.bytecode_idx = 0;
+    //     self.current_bytecodes = frame.borrow_mut().bytecodes;
+    //     self.current_frame = Rc::clone(&frame);
+    //     frame
+    // }
 
     pub fn pop_frame(&mut self) {
         self.frames.pop();
@@ -434,12 +452,7 @@ impl Interpreter {
 
                     args.reverse();
 
-                    let holder = method.holder.upgrade().unwrap();
-                    let frame = interpreter.push_frame(FrameKind::Method {
-                        self_value,
-                        method,
-                        holder,
-                    });
+                    let frame = interpreter.push_method_frame(method);
                     frame.borrow_mut().args = args;
                 }
                 MethodKind::Primitive(func) => {

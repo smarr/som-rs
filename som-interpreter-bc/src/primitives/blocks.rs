@@ -1,4 +1,3 @@
-use crate::frame::FrameKind;
 use crate::interpreter::Interpreter;
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
@@ -22,11 +21,7 @@ pub mod block1 {
             Value::Block(block) => block,
         ]);
 
-        let kind = FrameKind::Block {
-            block: block.clone(),
-        };
-
-        interpreter.push_frame(kind);
+        interpreter.push_block_frame(block);
     }
 
     pub fn restart(interpreter: &mut Interpreter, _: &mut Universe) {
@@ -69,12 +64,8 @@ pub mod block2 {
             Value::Block(block) => block,
             argument => argument,
         ]);
-
-        let kind = FrameKind::Block {
-            block: block.clone(),
-        };
-
-        let frame = interpreter.push_frame(kind);
+        
+        let frame = interpreter.push_block_frame(block);
         frame.borrow_mut().args.push(argument);
     }
 
@@ -112,11 +103,8 @@ pub mod block3 {
             argument2 => argument2,
         ]);
 
-        let kind = FrameKind::Block {
-            block: block.clone(),
-        };
-
-        let frame = interpreter.push_frame(kind);
+        let frame = interpreter.push_block_frame(block);
+        
         frame.borrow_mut().args.push(argument1);
         frame.borrow_mut().args.push(argument2);
     }

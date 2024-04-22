@@ -10,7 +10,7 @@ use anyhow::{anyhow, Error};
 use crate::block::Block;
 use crate::class::Class;
 use crate::compiler;
-use crate::frame::{Frame, FrameKind};
+use crate::frame::Frame;
 use crate::interner::{Interned, Interner};
 use crate::interpreter::Interpreter;
 use crate::value::Value;
@@ -512,14 +512,9 @@ impl Universe {
         let method_name = self.intern_symbol("escapedBlock:");
         let method = value.lookup_method(self, method_name)?;
 
-        let holder = method.holder().upgrade().unwrap();
-        let kind = FrameKind::Method {
-            method,
-            holder,
-            self_value: value.clone(),
-        };
+        // let holder = method.holder().upgrade().unwrap();
 
-        let frame = interpreter.push_frame(kind);
+        let frame = interpreter.push_method_frame(method);
         frame.borrow_mut().args.push(value);
         frame.borrow_mut().args.push(Value::Block(block));
 
@@ -539,14 +534,9 @@ impl Universe {
         let method_name = self.intern_symbol("doesNotUnderstand:arguments:");
         let method = value.lookup_method(self, method_name)?;
 
-        let holder = method.holder().upgrade().unwrap();
-        let kind = FrameKind::Method {
-            method,
-            holder,
-            self_value: value.clone(),
-        };
+        // let holder = method.holder().upgrade().unwrap();
 
-        let frame = interpreter.push_frame(kind);
+        let frame = interpreter.push_method_frame(method);
         frame.borrow_mut().args.push(value);
         frame.borrow_mut().args.push(Value::Symbol(symbol));
         let args = Value::Array(Rc::new(RefCell::new(args)));
@@ -565,16 +555,11 @@ impl Universe {
         let method_name = self.intern_symbol("unknownGlobal:");
         let method = value.lookup_method(self, method_name)?;
 
-        let holder = method.holder().upgrade().unwrap();
-        let kind = FrameKind::Method {
-            method,
-            holder,
-            self_value: value.clone(),
-        };
+        // let holder = method.holder().upgrade().unwrap();
 
         interpreter.current_frame.borrow_mut().bytecode_idx = interpreter.bytecode_idx;
         
-        let frame = interpreter.push_frame(kind);
+        let frame = interpreter.push_method_frame(method);
         frame.borrow_mut().args.push(value);
         frame.borrow_mut().args.push(Value::Symbol(name));
 
@@ -586,14 +571,9 @@ impl Universe {
         let method_name = self.interner.intern("initialize:");
         let method = Value::System.lookup_method(self, method_name)?;
 
-        let kind = FrameKind::Method {
-            method,
-            holder: self.system_class(),
-            self_value: Value::System,
-        };
 
-        let frame = Rc::new(RefCell::new(Frame::from_kind(kind)));
-        let interpreter = Interpreter::new_from_frame(Rc::clone(&frame));
+        let frame = Rc::new(RefCell::new(Frame::from_method(method)));
+        let interpreter = Interpreter::new(Rc::clone(&frame));
         // let frame = interpreter.push_frame(kind);
         frame.borrow_mut().args.push(Value::System);
         let args = Value::Array(Rc::new(RefCell::new(args)));
