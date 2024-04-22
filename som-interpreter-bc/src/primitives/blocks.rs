@@ -16,13 +16,12 @@ pub mod block1 {
     pub static CLASS_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[];
 
     fn value(interpreter: &mut Interpreter, _: &mut Universe) {
-        const SIGNATURE: &str = "Block1>>#value";
+        // const SIGNATURE: &str = "Block1>>#value";
 
-        expect_args!(SIGNATURE, interpreter, [
-            Value::Block(block) => block,
-        ]);
-
-        interpreter.push_block_frame(Rc::clone(&block), vec![Value::BlockSelf(block)]);
+        match interpreter.stack.pop() {
+            Some(Value::Block(block)) => interpreter.push_block_frame(Rc::clone(&block), vec![Value::Block(block)]),
+            _ => panic!("Expected a blockself when calling a block")
+        };
     }
 
     pub fn restart(interpreter: &mut Interpreter, _: &mut Universe) {
@@ -60,14 +59,19 @@ pub mod block2 {
     pub static CLASS_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[];
 
     fn value(interpreter: &mut Interpreter, _: &mut Universe) {
-        const SIGNATURE: &str = "Block2>>#value:";
+        // const SIGNATURE: &str = "Block2>>#value:";
 
-        expect_args!(SIGNATURE, interpreter, [
-            Value::Block(block) => block,
-            argument => argument,
-        ]);
-
-        interpreter.push_block_frame(Rc::clone(&block), vec![Value::BlockSelf(block), argument]);
+        // expect_args!(SIGNATURE, interpreter, [
+        //     Value::BlockSelf(block) => block,
+        //     argument => argument,
+        // ]);
+        
+        let args = interpreter.stack.split_off(interpreter.stack.len() - 2);
+        
+        match args.first() {
+            Some(Value::Block(block)) => interpreter.push_block_frame(Rc::clone(&block), args),
+            _ => panic!("Expected a blockself when calling a block")
+        };
     }
 
     /// Search for an instance primitive matching the given signature.
@@ -97,15 +101,20 @@ pub mod block3 {
     pub static CLASS_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[];
 
     fn value_with(interpreter: &mut Interpreter, _: &mut Universe) {
-        const SIGNATURE: &str = "Block3>>#value:with:";
+        // const SIGNATURE: &str = "Block3>>#value:with:";
+        // 
+        // expect_args!(SIGNATURE, interpreter, [
+        //     Value::BlockSelf(block) => block,
+        //     argument1 => argument1,
+        //     argument2 => argument2,
+        // ]);
 
-        expect_args!(SIGNATURE, interpreter, [
-            Value::Block(block) => block,
-            argument1 => argument1,
-            argument2 => argument2,
-        ]);
+        let args = interpreter.stack.split_off(interpreter.stack.len() - 3);
 
-        interpreter.push_block_frame(Rc::clone(&block), vec![Value::BlockSelf(block), argument1, argument2]);
+        match args.first() {
+            Some(Value::Block(block)) => interpreter.push_block_frame(Rc::clone(&block), args),
+            _ => panic!("Expected a blockself when calling a block")
+        };
     }
 
     /// Search for an instance primitive matching the given signature.

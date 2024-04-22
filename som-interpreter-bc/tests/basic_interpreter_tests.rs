@@ -199,8 +199,7 @@ fn basic_interpreter_tests() {
             .borrow()
             .lookup_method(method_name)
             .expect("method not found ??");
-        let mut interpreter = Interpreter::new(Rc::new(RefCell::new(Frame::from_method(method))));
-        interpreter.current_frame.borrow_mut().args.push(Value::System);
+        let mut interpreter = Interpreter::new(Rc::new(RefCell::new(Frame::from_method(method, vec![Value::System]))));
         if let Some(output) = interpreter.run(&mut universe) {
             assert_eq!(&output, expected, "unexpected test output value");
         }

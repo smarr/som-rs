@@ -55,10 +55,6 @@ impl Hash for Value {
                 hasher.write(b"#blk#");
                 value.hash(hasher);
             }
-            Value::BlockSelf(value) => {
-                hasher.write(b"#blkself#");
-                value.hash(hasher);
-            }
             Value::Class(value) => {
                 hasher.write(b"#cls#");
                 value.borrow().hash(hasher);

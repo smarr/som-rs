@@ -118,7 +118,7 @@ impl Interpreter {
         self.current_frame = Rc::clone(&frame);
         frame
     }
-    
+
     // pub fn push_frame(&mut self, kind: FrameKind) -> SOMRef<Frame> {
     //     let frame = Rc::new(RefCell::new(Frame::from_kind(kind)));
     //     self.frames.push(frame.clone());
@@ -335,7 +335,7 @@ impl Interpreter {
                         // Block has escaped its method frame.
                         let instance = frame.borrow().get_self();
                         let block = match frame.borrow().args.first().unwrap() {
-                            Value::BlockSelf(block) => block.clone(),
+                            Value::Block(block) => block.clone(),
                             _ => {
                                 // Should never happen, because `universe.current_frame()` would
                                 // have been equal to `universe.current_method_frame()`.
@@ -461,7 +461,7 @@ impl Interpreter {
             let mut inline_cache = unsafe {
                 (*frame.borrow_mut().inline_cache).borrow_mut()
             };
-            
+
             // SAFETY: this access is actually safe because the bytecode compiler
             // makes sure the cache has as many entries as there are bytecode instructions,
             // therefore we can avoid doing any redundant bounds checks here.

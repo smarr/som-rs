@@ -86,7 +86,7 @@ impl Frame {
                 let locals =  (0..block.blk_info.nb_locals).map(|_| Value::Nil).collect();
                 let frame = Self {
                     locals,
-                    args: vec![Value::BlockSelf(Rc::clone(&block))],
+                    args: vec![Value::Block(Rc::clone(&block))],
                     literals: &block.blk_info.literals,
                     bytecodes: &block.blk_info.body,
                     bytecode_idx: 0,
@@ -129,7 +129,7 @@ impl Frame {
     /// Get the self value for this frame.
     pub fn get_self(&self) -> Value {
         match self.args.first().unwrap() {
-            Value::BlockSelf(b) => {
+            Value::Block(b) => {
                 let block_frame = b.frame.as_ref().unwrap().clone();
                 let x = block_frame.borrow().get_self();
                 x
@@ -186,14 +186,14 @@ impl Frame {
         }
 
         let mut target_frame: Rc<RefCell<Frame>> = match current_frame.borrow().args.first().unwrap() {
-            Value::BlockSelf(block) => {
+            Value::Block(block) => {
                 Rc::clone(block.frame.as_ref().unwrap())
             }
             v => panic!("attempting to access a non local var/arg from a method instead of a block: self wasn't blockself but {:?}.", v)
         };
         for _ in 1..n {
             target_frame = match Rc::clone(&target_frame).borrow().args.first().unwrap() {
-                Value::BlockSelf(block) => {
+                Value::Block(block) => {
                     Rc::clone(block.frame.as_ref().unwrap())
                 }
                 v => panic!("attempting to access a non local var/arg from a method instead of a block (but the original frame we were in was a block): self wasn't blockself but {:?}.", v)

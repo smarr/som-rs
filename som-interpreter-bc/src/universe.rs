@@ -527,9 +527,9 @@ impl Universe {
         panic!("does not understand: {:?}", self.interner.lookup(symbol));
         let method_name = self.intern_symbol("doesNotUnderstand:arguments:");
         let method = value.lookup_method(self, method_name)?;
-        
+
         interpreter.push_method_frame(method, vec![value, Value::Symbol(symbol), Value::Array(Rc::new(RefCell::new(args)))]);
-        
+
         Some(())
     }
 
@@ -542,10 +542,10 @@ impl Universe {
     ) -> Option<()> {
         let method_name = self.intern_symbol("unknownGlobal:");
         let method = value.lookup_method(self, method_name)?;
-        
+
         interpreter.current_frame.borrow_mut().bytecode_idx = interpreter.bytecode_idx;
         interpreter.push_method_frame(method, vec![value, Value::Symbol(name)]);
-        
+
         Some(())
     }
 
