@@ -500,10 +500,10 @@ impl MethodCodegen for ast::Expression {
                     _ => false,
                 };
                 message.lhs.codegen(ctxt)?;
-                if (message.op == "+" || message.op == "-") && *message.rhs == Expression::Literal(ast::Literal::Integer(1)) {
+                if (message.op == "+") && *message.rhs == Expression::Literal(ast::Literal::Integer(1)) {
                     match message.op.as_str() {
                         "+" => ctxt.push_instr(Bytecode::Inc), // also i was considering handling the "+ X" arbitrary case, maybe.,
-                        "-" => ctxt.push_instr(Bytecode::Dec),
+                        // "-" => ctxt.push_instr(Bytecode::Dec),
                         _ => unreachable!()
                     };
                 } else {

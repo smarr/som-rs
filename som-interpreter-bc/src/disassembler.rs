@@ -46,9 +46,9 @@ fn disassemble_body(
             Bytecode::Inc => {
                 println!();
             }
-            Bytecode::Dec => {
-                println!();
-            }
+            // Bytecode::Dec => {
+            //     println!();
+            // }
             Bytecode::PushLocal(up_idx, idx) | Bytecode::PopLocal(up_idx, idx) => {
                 print!(" {up_idx}, {idx}");
                 let maybe_local = (env.iter().rev().nth(usize::from(up_idx)))

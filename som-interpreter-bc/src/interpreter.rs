@@ -196,13 +196,13 @@ impl Interpreter {
                         _ => panic!("Invalid type")
                     };
                 }
-                Bytecode::Dec => {
+                /*Bytecode::Dec => {
                     match self.stack.last_mut().unwrap() {
                         Value::Integer(v) => {*v -= 1}
                         Value::BigInteger(v) => {*v -= 1}
                         _ => panic!("Invalid type")
                     };
-                }
+                }*/
                 Bytecode::PushLocal(up_idx, idx) => {
                     let from = Frame::nth_frame_back(frame, up_idx);
                     let value = from.borrow().lookup_local(idx as usize).unwrap();
