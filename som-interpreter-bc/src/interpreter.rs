@@ -192,7 +192,8 @@ impl Interpreter {
                 Bytecode::Inc => {
                     match self.stack.last_mut().unwrap() {
                         Value::Integer(v) => {*v += 1}
-                        Value::BigInteger(v) => {*v += 1} // i was considering also handling the double/float case, but eh
+                        Value::BigInteger(v) => {*v += 1}
+                        Value::Double(v) => {*v += 1.0}
                         _ => panic!("Invalid type")
                     };
                 }
@@ -200,6 +201,7 @@ impl Interpreter {
                     match self.stack.last_mut().unwrap() {
                         Value::Integer(v) => {*v -= 1}
                         Value::BigInteger(v) => {*v -= 1}
+                        Value::Double(v) => {*v -= 1.0}
                         _ => panic!("Invalid type")
                     };
                 }
