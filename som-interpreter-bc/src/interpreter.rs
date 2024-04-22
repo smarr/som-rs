@@ -92,7 +92,7 @@ impl Interpreter {
 
     pub fn new(base_frame: SOMRef<Frame>) -> Self {
         Self {
-            frames: vec![Rc::clone(&base_frame); 1],
+            frames: vec![Rc::clone(&base_frame)],
             stack: vec![],
             start_time: Instant::now(),
             bytecode_idx: 0,
@@ -103,6 +103,15 @@ impl Interpreter {
 
     pub fn push_method_frame(&mut self, method: Rc<Method>) -> SOMRef<Frame> {
         let frame = Rc::new(RefCell::new(Frame::from_method(method)));
+        self.frames.push(frame.clone());
+        self.bytecode_idx = 0;
+        self.current_bytecodes = frame.borrow_mut().bytecodes;
+        self.current_frame = Rc::clone(&frame);
+        frame
+    }
+
+    pub fn push_method_frame_args(&mut self, method: Rc<Method>, args: Vec<Value>) -> SOMRef<Frame> {
+        let frame = Rc::new(RefCell::new(Frame::from_method_with_args(method, args)));
         self.frames.push(frame.clone());
         self.bytecode_idx = 0;
         self.current_bytecodes = frame.borrow_mut().bytecodes;
@@ -441,19 +450,23 @@ impl Interpreter {
                     // eprintln!("Invoking {:?}", &method.signature);
 
                     // todo opt: hey instead of using a temp vector we could init frames from a slice from the stack! could be a mild speedup.
-                    let mut args = Vec::with_capacity(nb_params + 1);
-
-                    for _ in 0..nb_params {
-                        let arg = interpreter.stack.pop().unwrap();
-                        args.push(arg);
-                    }
-                    let self_value = interpreter.stack.pop().unwrap();
-                    args.push(self_value.clone());
-
-                    args.reverse();
-
-                    let frame = interpreter.push_method_frame(method);
-                    frame.borrow_mut().args = args;
+                    // let mut args = Vec::with_capacity(nb_params + 1);
+                    
+                    let args = interpreter.stack.split_off(interpreter.stack.len() - nb_params - 1);
+                    
+                    // for _ in 0..nb_params {
+                    //     let arg = interpreter.stack.pop().unwrap();
+                    //     args.push(arg);
+                    // }
+                    // let self_value = interpreter.stack.pop().unwrap();
+                    // args.push(self_value.clone());
+                    // 
+                    // args.reverse();
+                    // dbg!(&args);
+                    // dbg!();
+                    
+                    // let frame = interpreter.push_method_frame(method);
+                    interpreter.push_method_frame_args(method, args);
                 }
                 MethodKind::Primitive(func) => {
                     // eprintln!("Invoking prim {:?}", &method.signature);

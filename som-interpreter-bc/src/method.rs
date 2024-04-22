@@ -177,13 +177,15 @@ impl fmt::Display for Method {
                         }
                         Bytecode::ReturnLocal => {}
                         Bytecode::ReturnNonLocal(_) => {}
-                        Bytecode::JumpOnFalseTopNil(idx) => {
+                        Bytecode::Jump(idx) 
+                        | Bytecode::JumpBackward(idx) 
+                        | Bytecode::JumpOnTruePop(idx)
+                        | Bytecode::JumpOnFalsePop(idx)
+                        | Bytecode::JumpOnFalseTopNil(idx)
+                        | Bytecode::JumpOnTrueTopNil(idx) => {
                             write!(f, "index: {}", idx)?;
                         }
-                        Bytecode::JumpOnTrueTopNil(idx) => {
-                            write!(f, "index: {}", idx)?;
-                        }
-                        _ => write!(f, "No display for this bytecode, TODO.")?, // I am lazy
+                        Bytecode::Halt => {}
                     }
                 }
                 Ok(())

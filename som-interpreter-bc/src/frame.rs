@@ -77,6 +77,22 @@ impl Frame {
         }
     }
 
+    pub fn from_method_with_args(method: Rc<Method>, args: Vec<Value>) -> Self {
+        match method.kind() {
+            MethodKind::Defined(env) => {
+                Self {
+                    locals: (0..env.nbr_locals).map(|_| Value::Nil).collect(),
+                    args,
+                    literals: &env.literals,
+                    bytecodes: &env.body,
+                    bytecode_idx: 0,
+                    inline_cache: std::ptr::addr_of!(env.inline_cache),
+                }
+            }
+            _ => unreachable!()
+        }
+    }
+
     #[cfg(feature = "frame-debug-info")]
     /// Construct a new empty frame from its kind.
     pub fn from_kind(kind: FrameKind) -> Self {
