@@ -97,7 +97,7 @@ impl Interpreter {
             start_time: Instant::now(),
             bytecode_idx: 0,
             current_frame: Rc::clone(&frame),
-            current_bytecodes: std::ptr::addr_of!(frame.borrow_mut().bytecodes)
+            current_bytecodes: frame.borrow_mut().bytecodes
         }
     }
 
@@ -105,7 +105,7 @@ impl Interpreter {
         let frame = Rc::new(RefCell::new(Frame::from_kind(kind)));
         self.frames.push(frame.clone());
         self.bytecode_idx = 0;
-        self.current_bytecodes = std::ptr::addr_of!(frame.borrow_mut().bytecodes);
+        self.current_bytecodes = frame.borrow_mut().bytecodes;
         self.current_frame = Rc::clone(&frame);
         frame
     }
@@ -118,7 +118,7 @@ impl Interpreter {
             Some(f) => {
                 self.bytecode_idx = f.borrow().bytecode_idx;
                 self.current_frame = Rc::clone(&f);
-                self.current_bytecodes = std::ptr::addr_of!(f.borrow_mut().bytecodes);
+                self.current_bytecodes = f.borrow_mut().bytecodes;
             }
         }
     }
@@ -131,7 +131,7 @@ impl Interpreter {
             Some(f) => {
                 self.bytecode_idx = f.borrow().bytecode_idx;
                 self.current_frame = Rc::clone(&f);
-                self.current_bytecodes = std::ptr::addr_of!(f.borrow_mut().bytecodes);
+                self.current_bytecodes = f.borrow_mut().bytecodes;
             }
         }
     }

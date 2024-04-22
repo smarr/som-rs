@@ -32,13 +32,13 @@ pub enum FrameKind {
 /// Represents a stack frame.
 pub struct Frame {
     /// The bytecodes associated with the frame.
-    pub bytecodes: Vec<Bytecode>,
+    pub bytecodes: *const Vec<Bytecode>,
+    /// Literals/constants associated with the frame.
+    pub literals: *const Vec<Literal>,
     /// The arguments within this frame.
     pub args: Vec<Value>,
     /// The bindings within this frame.
     pub locals: Vec<Value>,
-    /// Literals/constants associated with the frame.
-    pub literals: Vec<Literal>,
     /// Bytecode index.
     pub bytecode_idx: usize,
     /// Inline cache associated with the frame.
@@ -58,8 +58,8 @@ impl Frame {
                 let frame = Self {
                     locals,
                     args: vec![Value::BlockSelf(Rc::clone(&block))],
-                    literals: block.blk_info.literals.clone(),
-                    bytecodes: block.blk_info.body.clone(),
+                    literals: &block.blk_info.literals,
+                    bytecodes: &block.blk_info.body,
                     bytecode_idx: 0,
                     inline_cache: std::ptr::addr_of!(block.blk_info.inline_cache),
                     #[cfg(feature = "frame-debug-info")]
@@ -74,8 +74,8 @@ impl Frame {
                     Self {
                         locals,
                         args: vec![],
-                        literals: env.literals.clone(),
-                        bytecodes: env.body.clone(),
+                        literals: &env.literals,
+                        bytecodes: &env.body,
                         bytecode_idx: 0,
                         inline_cache: std::ptr::addr_of!(env.inline_cache),
                         #[cfg(feature = "frame-debug-info")]
@@ -85,9 +85,9 @@ impl Frame {
                     Self {
                         locals: vec![],
                         args: vec![],
-                        literals: vec![],
-                        bytecodes: vec![],
-                        inline_cache: 0 as *mut RefCell<Vec<Option<(*const Class, Rc<Method>)>>>, // TODO inline cache is never accessed so this will never fail.. right?
+                        literals: std::ptr::null(), // todo this is totally safe haha i think
+                        bytecodes: std::ptr::null(), // yeah ditto
+                        inline_cache: std::ptr::null(), // inline cache is never accessed in prims so this will never fail.. right?
                         bytecode_idx: 0,
                         #[cfg(feature = "frame-debug-info")]
                         kind
@@ -140,7 +140,7 @@ impl Frame {
     // }
 
     pub fn lookup_constant(&self, idx: usize) -> Option<Literal> {
-        self.literals.get(idx).cloned()
+        unsafe { (*self.literals).get(idx).cloned() }
     }
 
     pub fn lookup_argument(&self, idx: usize) -> Option<Value> {
