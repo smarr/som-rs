@@ -86,14 +86,6 @@ impl Method {
     ) {
         match self.kind() {
             MethodKind::Defined(_) => {
-                // let holder = self.holder().upgrade().unwrap();
-                // let kind = FrameKind::Method {
-                //     method: self,
-                //     holder,
-                //     self_value: receiver.clone(),
-                // };
-                // 
-                // let frame = interpreter.push_frame(kind);
                 let frame = interpreter.push_method_frame(self);
                 frame.borrow_mut().args.push(receiver);
                 frame.borrow_mut().args.append(&mut args);

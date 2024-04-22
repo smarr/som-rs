@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use std::rc::Rc;
 
 use som_interpreter_bc::compiler;
-use som_interpreter_bc::frame::{Frame, FrameKind};
+use som_interpreter_bc::frame::Frame;
 use som_interpreter_bc::interpreter::Interpreter;
 use som_interpreter_bc::universe::Universe;
 use som_interpreter_bc::value::Value;
@@ -199,12 +199,7 @@ fn basic_interpreter_tests() {
             .borrow()
             .lookup_method(method_name)
             .expect("method not found ??");
-        let kind = FrameKind::Method {
-            method,
-            holder: class.clone(),
-            self_value: Value::Class(class),
-        };
-        let mut interpreter = Interpreter::new(Rc::new(RefCell::new(Frame::from_kind(kind))));
+        let mut interpreter = Interpreter::new(Rc::new(RefCell::new(Frame::from_method(method))));
         interpreter.current_frame.borrow_mut().args.push(Value::System);
         if let Some(output) = interpreter.run(&mut universe) {
             assert_eq!(&output, expected, "unexpected test output value");
