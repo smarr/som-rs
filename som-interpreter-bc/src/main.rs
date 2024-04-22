@@ -120,13 +120,16 @@ fn disassemble_class(opts: Options) -> anyhow::Result<()> {
     let class = universe.load_class(file_stem)?;
 
     let methods: Vec<Rc<Method>> = if opts.args.is_empty() {
-        class.borrow().methods.values().cloned().collect()
+        class.borrow().methods.values().cloned()
+            .chain(class.borrow().class().borrow().methods.values().cloned())
+            .collect::<Vec<Rc<Method>>>()
     } else {
         opts.args
             .iter()
             .filter_map(|signature| {
                 let symbol = universe.intern_symbol(signature);
-                let maybe_method = class.borrow().methods.get(&symbol).cloned();
+                let maybe_method = class.borrow().methods.get(&symbol).cloned()
+                    .or_else(|| class.borrow().class().borrow().methods.get(&symbol).cloned());
 
                 if maybe_method.is_none() {
                     eprintln!("No method named `{signature}` found in class `{file_stem}`.");
