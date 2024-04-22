@@ -465,7 +465,28 @@ impl Interpreter {
             signature: Interned,
             bytecode_idx: usize,
         ) -> Option<Rc<Method>> {
-            return class.borrow().lookup_method(signature); // todo handle inline caching
+            let mut inline_cache = unsafe {
+                (*frame.borrow_mut().inline_cache).borrow_mut()
+            };
+            
+            // SAFETY: this access is actually safe because the bytecode compiler
+            // makes sure the cache has as many entries as there are bytecode instructions,
+            // therefore we can avoid doing any redundant bounds checks here.
+            let maybe_found = unsafe { inline_cache.get_unchecked_mut(bytecode_idx) };
+
+            match maybe_found {
+                Some((receiver, method)) if *receiver == class.as_ptr() => {
+                    Some(Rc::clone(method))
+                }
+                place @ None => {
+                    let found = class.borrow().lookup_method(signature);
+                    *place = found
+                        .clone()
+                        .map(|method| (class.as_ptr() as *const _, method));
+                    found
+                }
+                _ => class.borrow().lookup_method(signature),
+            }
             /*match frame.borrow().kind() {
                 FrameKind::Block { block } => {
                     let mut inline_cache = block.blk_info.inline_cache.borrow_mut();

@@ -41,6 +41,8 @@ pub struct Frame {
     pub literals: Vec<Literal>,
     /// Bytecode index.
     pub bytecode_idx: usize,
+    /// Inline cache associated with the frame.
+    pub inline_cache: *const RefCell<Vec<Option<(*const Class, Rc<Method>)>>>,
     /// This frame's kind.
     #[cfg(feature = "frame-debug-info")]
     pub kind: FrameKind,
@@ -59,6 +61,7 @@ impl Frame {
                     literals: block.blk_info.literals.clone(),
                     bytecodes: block.blk_info.body.clone(),
                     bytecode_idx: 0,
+                    inline_cache: std::ptr::addr_of!(block.blk_info.inline_cache),
                     #[cfg(feature = "frame-debug-info")]
                     kind
                 };
@@ -74,6 +77,7 @@ impl Frame {
                         literals: env.literals.clone(),
                         bytecodes: env.body.clone(),
                         bytecode_idx: 0,
+                        inline_cache: std::ptr::addr_of!(env.inline_cache),
                         #[cfg(feature = "frame-debug-info")]
                         kind
                     }
@@ -83,6 +87,7 @@ impl Frame {
                         args: vec![],
                         literals: vec![],
                         bytecodes: vec![],
+                        inline_cache: 0 as *mut RefCell<Vec<Option<(*const Class, Rc<Method>)>>>, // TODO inline cache is never accessed so this will never fail.. right?
                         bytecode_idx: 0,
                         #[cfg(feature = "frame-debug-info")]
                         kind
