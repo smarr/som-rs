@@ -50,10 +50,10 @@ pub struct Frame {
 }
 
 impl Frame {
-    pub fn from_block(block: Rc<Block>) -> Self {
+    pub fn from_block(block: Rc<Block>, args: Vec<Value>) -> Self {
         Self {
             locals: (0..block.blk_info.nb_locals).map(|_| Value::Nil).collect(),
-            args: vec![Value::BlockSelf(Rc::clone(&block))],
+            args,
             literals: &block.blk_info.literals,
             bytecodes: &block.blk_info.body,
             bytecode_idx: 0,
@@ -61,23 +61,7 @@ impl Frame {
         }
     }
 
-    pub fn from_method(method: Rc<Method>) -> Self {
-        match method.kind() {
-            MethodKind::Defined(env) => {
-                Self {
-                    locals: (0..env.nbr_locals).map(|_| Value::Nil).collect(),
-                    args: vec![],
-                    literals: &env.literals,
-                    bytecodes: &env.body,
-                    bytecode_idx: 0,
-                    inline_cache: std::ptr::addr_of!(env.inline_cache),
-                }
-            }
-            _ => unreachable!()
-        }
-    }
-
-    pub fn from_method_with_args(method: Rc<Method>, args: Vec<Value>) -> Self {
+    pub fn from_method(method: Rc<Method>, args: Vec<Value>) -> Self {
         match method.kind() {
             MethodKind::Defined(env) => {
                 Self {

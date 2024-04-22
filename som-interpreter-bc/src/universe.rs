@@ -511,13 +511,7 @@ impl Universe {
     ) -> Option<()> {
         let method_name = self.intern_symbol("escapedBlock:");
         let method = value.lookup_method(self, method_name)?;
-
-        // let holder = method.holder().upgrade().unwrap();
-
-        let frame = interpreter.push_method_frame(method);
-        frame.borrow_mut().args.push(value);
-        frame.borrow_mut().args.push(Value::Block(block));
-
+        interpreter.push_method_frame(method, vec![value, Value::Block(block)]);
         Some(())
     }
 
@@ -533,15 +527,9 @@ impl Universe {
         panic!("does not understand: {:?}", self.interner.lookup(symbol));
         let method_name = self.intern_symbol("doesNotUnderstand:arguments:");
         let method = value.lookup_method(self, method_name)?;
-
-        // let holder = method.holder().upgrade().unwrap();
-
-        let frame = interpreter.push_method_frame(method);
-        frame.borrow_mut().args.push(value);
-        frame.borrow_mut().args.push(Value::Symbol(symbol));
-        let args = Value::Array(Rc::new(RefCell::new(args)));
-        frame.borrow_mut().args.push(args);
-
+        
+        interpreter.push_method_frame(method, vec![value, Value::Symbol(symbol), Value::Array(Rc::new(RefCell::new(args)))]);
+        
         Some(())
     }
 
@@ -554,15 +542,10 @@ impl Universe {
     ) -> Option<()> {
         let method_name = self.intern_symbol("unknownGlobal:");
         let method = value.lookup_method(self, method_name)?;
-
-        // let holder = method.holder().upgrade().unwrap();
-
-        interpreter.current_frame.borrow_mut().bytecode_idx = interpreter.bytecode_idx;
         
-        let frame = interpreter.push_method_frame(method);
-        frame.borrow_mut().args.push(value);
-        frame.borrow_mut().args.push(Value::Symbol(name));
-
+        interpreter.current_frame.borrow_mut().bytecode_idx = interpreter.bytecode_idx;
+        interpreter.push_method_frame(method, vec![value, Value::Symbol(name)]);
+        
         Some(())
     }
 
@@ -572,12 +555,8 @@ impl Universe {
         let method = Value::System.lookup_method(self, method_name)?;
 
 
-        let frame = Rc::new(RefCell::new(Frame::from_method(method)));
+        let frame = Rc::new(RefCell::new(Frame::from_method(method, vec![Value::System, Value::Array(Rc::new(RefCell::new(args)))])));
         let interpreter = Interpreter::new(Rc::clone(&frame));
-        // let frame = interpreter.push_frame(kind);
-        frame.borrow_mut().args.push(Value::System);
-        let args = Value::Array(Rc::new(RefCell::new(args)));
-        frame.borrow_mut().args.push(args);
 
         Some(interpreter)
     }

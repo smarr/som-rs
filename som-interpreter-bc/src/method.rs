@@ -86,9 +86,9 @@ impl Method {
     ) {
         match self.kind() {
             MethodKind::Defined(_) => {
-                let frame = interpreter.push_method_frame(self);
-                frame.borrow_mut().args.push(receiver);
-                frame.borrow_mut().args.append(&mut args);
+                let mut frame_args = vec![receiver];
+                frame_args.append(&mut args);
+                interpreter.push_method_frame(self, frame_args);
             }
             MethodKind::Primitive(func) => {
                 interpreter.stack.push(receiver);

@@ -110,9 +110,7 @@ pub fn interactive(
             .lookup_method(method_name)
             .expect("method not found ??");
         let start = Instant::now();
-        let frame = interpreter.push_method_frame(method);
-        frame.borrow_mut().args.push(Value::System);
-        frame.borrow_mut().args.push(last_value.clone());
+        interpreter.push_method_frame(method, vec![Value::System, last_value.clone()]);
         if let Some(value) = interpreter.run(universe) {
             writeln!(
                 &mut stdout,

@@ -6,6 +6,7 @@ use crate::{expect_args, reverse};
 
 /// Primitives for the **Block** and **Block1** class.
 pub mod block1 {
+    use std::rc::Rc;
     use super::*;
 
     pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[
@@ -21,7 +22,7 @@ pub mod block1 {
             Value::Block(block) => block,
         ]);
 
-        interpreter.push_block_frame(block);
+        interpreter.push_block_frame(Rc::clone(&block), vec![Value::BlockSelf(block)]);
     }
 
     pub fn restart(interpreter: &mut Interpreter, _: &mut Universe) {
@@ -52,6 +53,7 @@ pub mod block1 {
 
 /// Primitives for the **Block2** class.
 pub mod block2 {
+    use std::rc::Rc;
     use super::*;
 
     pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[("value:", self::value, true)];
@@ -64,9 +66,8 @@ pub mod block2 {
             Value::Block(block) => block,
             argument => argument,
         ]);
-        
-        let frame = interpreter.push_block_frame(block);
-        frame.borrow_mut().args.push(argument);
+
+        interpreter.push_block_frame(Rc::clone(&block), vec![Value::BlockSelf(block), argument]);
     }
 
     /// Search for an instance primitive matching the given signature.
@@ -88,6 +89,7 @@ pub mod block2 {
 
 /// Primitives for the **Block3** class.
 pub mod block3 {
+    use std::rc::Rc;
     use super::*;
 
     pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] =
@@ -103,10 +105,7 @@ pub mod block3 {
             argument2 => argument2,
         ]);
 
-        let frame = interpreter.push_block_frame(block);
-        
-        frame.borrow_mut().args.push(argument1);
-        frame.borrow_mut().args.push(argument2);
+        interpreter.push_block_frame(Rc::clone(&block), vec![Value::BlockSelf(block), argument1, argument2]);
     }
 
     /// Search for an instance primitive matching the given signature.

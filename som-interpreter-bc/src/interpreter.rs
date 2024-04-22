@@ -101,8 +101,8 @@ impl Interpreter {
         }
     }
 
-    pub fn push_method_frame(&mut self, method: Rc<Method>) -> SOMRef<Frame> {
-        let frame = Rc::new(RefCell::new(Frame::from_method(method)));
+    pub fn push_method_frame(&mut self, method: Rc<Method>, args: Vec<Value>) -> SOMRef<Frame> {
+        let frame = Rc::new(RefCell::new(Frame::from_method(method, args)));
         self.frames.push(frame.clone());
         self.bytecode_idx = 0;
         self.current_bytecodes = frame.borrow_mut().bytecodes;
@@ -110,17 +110,8 @@ impl Interpreter {
         frame
     }
 
-    pub fn push_method_frame_args(&mut self, method: Rc<Method>, args: Vec<Value>) -> SOMRef<Frame> {
-        let frame = Rc::new(RefCell::new(Frame::from_method_with_args(method, args)));
-        self.frames.push(frame.clone());
-        self.bytecode_idx = 0;
-        self.current_bytecodes = frame.borrow_mut().bytecodes;
-        self.current_frame = Rc::clone(&frame);
-        frame
-    }
-
-    pub fn push_block_frame(&mut self, block: Rc<Block>) -> SOMRef<Frame> {
-        let frame = Rc::new(RefCell::new(Frame::from_block(block)));
+    pub fn push_block_frame(&mut self, block: Rc<Block>, args: Vec<Value>) -> SOMRef<Frame> {
+        let frame = Rc::new(RefCell::new(Frame::from_block(block, args)));
         self.frames.push(frame.clone());
         self.bytecode_idx = 0;
         self.current_bytecodes = frame.borrow_mut().bytecodes;
@@ -424,15 +415,8 @@ impl Interpreter {
             nb_params: usize
         ) {
             let Some(method) = method else {
-                let mut args = Vec::with_capacity(nb_params + 1);
-
-                for _ in 0..nb_params {
-                    let arg = interpreter.stack.pop().unwrap();
-                    args.push(arg);
-                }
+                let args = interpreter.stack.split_off(interpreter.stack.len() - nb_params);
                 let self_value = interpreter.stack.pop().unwrap();
-
-                args.reverse();
 
                 universe.does_not_understand(interpreter, self_value, symbol, args)
                     .expect(
@@ -448,25 +432,8 @@ impl Interpreter {
             match method.kind() {
                 MethodKind::Defined(_) => {
                     // eprintln!("Invoking {:?}", &method.signature);
-
-                    // todo opt: hey instead of using a temp vector we could init frames from a slice from the stack! could be a mild speedup.
-                    // let mut args = Vec::with_capacity(nb_params + 1);
-                    
                     let args = interpreter.stack.split_off(interpreter.stack.len() - nb_params - 1);
-                    
-                    // for _ in 0..nb_params {
-                    //     let arg = interpreter.stack.pop().unwrap();
-                    //     args.push(arg);
-                    // }
-                    // let self_value = interpreter.stack.pop().unwrap();
-                    // args.push(self_value.clone());
-                    // 
-                    // args.reverse();
-                    // dbg!(&args);
-                    // dbg!();
-                    
-                    // let frame = interpreter.push_method_frame(method);
-                    interpreter.push_method_frame_args(method, args);
+                    interpreter.push_method_frame(method, args);
                 }
                 MethodKind::Primitive(func) => {
                     // eprintln!("Invoking prim {:?}", &method.signature);
