@@ -188,7 +188,6 @@ impl PrimMessageInliner for ast::Expression {
                         }
                     }
                     Bytecode::ReturnLocal => {}
-                    // Bytecode::Jump(idx) => ctxt.push_instr(Bytecode::Jump(idx + idx_start_inlining)),
                     Bytecode::Jump(idx) => ctxt.push_instr(Bytecode::Jump(*idx)),
                     Bytecode::JumpBackward(idx) => ctxt.push_instr(Bytecode::JumpBackward(*idx)),
                     Bytecode::JumpOnTruePop(idx) => ctxt.push_instr(Bytecode::JumpOnTruePop(*idx)),
@@ -271,6 +270,12 @@ impl PrimMessageInliner for ast::Expression {
                         _ => unreachable!(),
                     }
                 }
+                Bytecode::ReturnNonLocal(scope) => {
+                    match scope - 1 {
+                        0 => Bytecode::ReturnLocal,
+                        new_scope => Bytecode::ReturnNonLocal(new_scope)
+                    }
+                }
                 Bytecode::PushBlock(block_idx) => {
                     let inner_lit = orig_block
                         .blk_info
@@ -294,7 +299,6 @@ impl PrimMessageInliner for ast::Expression {
 
                     Bytecode::PushBlock(*block_idx)
                 }
-                // Bytecode::ReturnNonLocal => Bytecode::ReturnNonLocal,
                 _ => b.clone(),
             })
             .collect();
