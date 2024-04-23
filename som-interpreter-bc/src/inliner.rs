@@ -19,34 +19,43 @@ pub enum OrAndChoice {
 
 // TODO some of those should return Result types and throw errors instead, most likely.
 pub trait PrimMessageInliner {
-    fn inline_if_possible(&self, ctxt: &mut dyn InnerGenCtxt, message: &ast::Message)
-        -> Option<()>;
+    /// Starts inlining a function if it's on the list of inlinable functions.
+    fn inline_if_possible(&self, ctxt: &mut dyn InnerGenCtxt, message: &ast::Message) -> Option<()>;
+    /// Inlines an expression. If this results in a PushBlock, calls `inline_last_push_block_bc(...)` to inline the block.
+    fn inline_expression(&self, ctxt: &mut dyn InnerGenCtxt, expression: &ast::Expression) -> Option<()>;
+    /// Gets the last bytecode, assumes it to be a PushBlock, removes it and inlines the block - a set of operations for which there is a redundant need.
+    fn inline_last_push_block_bc(&self, ctxt: &mut dyn InnerGenCtxt) -> Option<()>;
+    /// Inlines a compiled block into the current scope.
+    fn inline_compiled_block(&self, ctxt: &mut dyn InnerGenCtxt, block: &BlockInfo) -> Option<()>;
+    /// When inlining a block, adapt its potential children blocks to account for the inlining changes.
     fn adapt_block_after_outer_inlined(
         &self,
         ctxt: &mut dyn InnerGenCtxt,
         block_body: &Block,
         adjust_scope_by: usize,
     ) -> Block;
-    fn inline_compiled_block(&self, ctxt: &mut dyn InnerGenCtxt, block: &BlockInfo) -> Option<()>;
-    fn inline_last_push_block_bc(&self, ctxt: &mut dyn InnerGenCtxt) -> Option<()>;
+    /// Inlines `ifTrue:` and `ifFalse:`.
     fn inline_if_true_or_if_false(
         &self,
         ctxt: &mut dyn InnerGenCtxt,
         message: &ast::Message,
         jump_type: JumpType,
     ) -> Option<()>;
+    /// Inlines `ifTrue:ifFalse:`.
     fn inline_if_true_if_false(
         &self,
         ctxt: &mut dyn InnerGenCtxt,
         message: &ast::Message,
         jump_type: JumpType,
     ) -> Option<()>;
+    /// Inlines `whileTrue:` and `whileFalse:`.
     fn inline_while(
         &self,
         ctxt: &mut dyn InnerGenCtxt,
         message: &ast::Message,
         jump_type: JumpType,
     ) -> Option<()>;
+    /// Inlines `and:` and `or:`.
     fn inline_or_and(
         &self,
         ctxt: &mut dyn InnerGenCtxt,
@@ -61,7 +70,7 @@ impl PrimMessageInliner for ast::Expression {
         ctxt: &mut dyn InnerGenCtxt,
         message: &ast::Message,
     ) -> Option<()> {
-        let has_inlined = match message.signature.as_str() {
+        match message.signature.as_str() {
             "ifTrue:" => self.inline_if_true_or_if_false(ctxt, message, JumpOnFalse),
             "ifFalse:" => self.inline_if_true_or_if_false(ctxt, message, JumpOnTrue),
             "ifTrue:ifFalse:" => self.inline_if_true_if_false(ctxt, message, JumpOnFalse),
@@ -72,8 +81,7 @@ impl PrimMessageInliner for ast::Expression {
             "and:" => self.inline_or_and(ctxt, message, And),
             // TODO: to:do, maybe others i'm forgetting
             _ => None,
-        };
-        has_inlined
+        }
     }
 
     fn inline_compiled_block(&self, ctxt: &mut dyn InnerGenCtxt, block: &BlockInfo) -> Option<()> {
@@ -239,6 +247,14 @@ impl PrimMessageInliner for ast::Expression {
         }
     }
 
+    fn inline_expression(&self, ctxt: &mut dyn InnerGenCtxt, expression: &ast::Expression) -> Option<()> {
+        expression.codegen(ctxt)?;
+        match ctxt.get_instructions().last()? {
+            Bytecode::PushBlock(_) => self.inline_last_push_block_bc(ctxt),
+            _ => Some(())
+        }
+    }
+
     fn adapt_block_after_outer_inlined(
         &self,
         ctxt: &mut dyn InnerGenCtxt,
@@ -339,8 +355,7 @@ impl PrimMessageInliner for ast::Expression {
         message: &ast::Message,
         jump_type: JumpType,
     ) -> Option<()> {
-        if message.values.len() != 1// || !matches!(message.values.get(0)?, ast::Expression::Block(_))
-        {
+        if message.values.len() != 1 {
             return None;
         }
 
@@ -350,12 +365,7 @@ impl PrimMessageInliner for ast::Expression {
             JumpOnTrue => ctxt.push_instr(Bytecode::JumpOnTrueTopNil(0)),
         }
 
-        // we need to compile the block before inlining it, and we haven't encountered/compiled it yet
-        message.values.get(0)?.codegen(ctxt)?;
-
-        if matches!(message.values.get(0)?, ast::Expression::Block(_)) {
-            self.inline_last_push_block_bc(ctxt); // inline if it's a PushBlock. otherwise, the bytecode is already in the right scope.
-        }
+        self.inline_expression(ctxt, message.values.get(0)?);
 
         // todo i think Recurse took a big hit when i started inlining any expression instead of just blocks. needs investigating
         // wrt previous todo comment: likely super outdated. but until proven, i'm keeping it as a reminder.
@@ -372,10 +382,7 @@ impl PrimMessageInliner for ast::Expression {
         message: &ast::Message,
         jump_type: JumpType,
     ) -> Option<()> {
-        if message.values.len() != 2
-            // || !matches!(message.values.get(0)?, ast::Expression::Block(_))
-            // || !matches!(message.values.get(1)?, ast::Expression::Block(_))
-        {
+        if message.values.len() != 2 {
             return None;
         }
 
@@ -385,22 +392,14 @@ impl PrimMessageInliner for ast::Expression {
             JumpOnTrue => ctxt.push_instr(Bytecode::JumpOnTruePop(0)),
         }
 
-        message.values.get(0)?.codegen(ctxt)?;
-
-        if matches!(message.values.get(0)?, ast::Expression::Block(_)) {
-            self.inline_last_push_block_bc(ctxt);
-        }
+        self.inline_expression(ctxt, message.values.get(0)?);
 
         let middle_jump_idx = ctxt.get_cur_instr_idx();
         ctxt.push_instr(Bytecode::Jump(0));
 
         ctxt.backpatch_jump_to_current(start_jump_idx);
 
-        message.values.get(1)?.codegen(ctxt)?;
-
-        if matches!(message.values.get(1)?, ast::Expression::Block(_)) {
-            self.inline_last_push_block_bc(ctxt);
-        }
+        self.inline_expression(ctxt, message.values.get(1)?);
 
         ctxt.backpatch_jump_to_current(middle_jump_idx);
 
@@ -413,15 +412,13 @@ impl PrimMessageInliner for ast::Expression {
         message: &ast::Message,
         jump_type: JumpType,
     ) -> Option<()> {
-        if message.values.len() != 1
-            // || !matches!(message.values.get(0)?, ast::Expression::Block(_))
-            // || !matches!(ctxt.get_instructions().last(), Some(Bytecode::PushBlock(_)))
-        {
+        if message.values.len() != 1 {
             return None;
         }
 
         let idx_before_condition = ctxt.get_cur_instr_idx();
 
+        // by the time we see it's a "whileTrue:" or a "whileFalse:", there's already been a PushBlock. It's always got to be a PushBlock, I believe.
         self.inline_last_push_block_bc(ctxt);
 
         let cond_jump_idx = ctxt.get_cur_instr_idx();
@@ -429,11 +426,8 @@ impl PrimMessageInliner for ast::Expression {
             JumpOnFalse => ctxt.push_instr(Bytecode::JumpOnFalsePop(0)),
             JumpOnTrue => ctxt.push_instr(Bytecode::JumpOnTruePop(0)),
         }
-
-        message.values.get(0)?.codegen(ctxt)?;
-        if matches!(ctxt.get_instructions().last(), Some(Bytecode::PushBlock(_))) {
-            self.inline_last_push_block_bc(ctxt);
-        }
+        
+        self.inline_expression(ctxt, message.values.get(0)?);
 
         // we push a POP, unless the body of the loop is empty.
         match message.values.get(0).unwrap() {
@@ -464,9 +458,7 @@ impl PrimMessageInliner for ast::Expression {
         message: &ast::Message,
         or_and_choice: OrAndChoice,
     ) -> Option<()> {
-        if message.values.len() != 1
-            // || !matches!(message.values.get(0)?, ast::Expression::Block(_))
-        {
+        if message.values.len() != 1 {
             return None;
         }
 
@@ -477,10 +469,7 @@ impl PrimMessageInliner for ast::Expression {
             And => ctxt.push_instr(Bytecode::JumpOnFalsePop(0)),
         }
 
-        message.values.get(0)?.codegen(ctxt)?;
-        if matches!(message.values.get(0)?, ast::Expression::Block(_)) {
-            self.inline_last_push_block_bc(ctxt);
-        }
+        self.inline_expression(ctxt, message.values.get(0)?);
 
         let skip_return_true_idx = ctxt.get_cur_instr_idx();
         ctxt.push_instr(Bytecode::Jump(0));
