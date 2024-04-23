@@ -114,7 +114,7 @@ impl PrimMessageInliner for ast::Expression {
                     | Bytecode::SendN(lit_idx) => {
                         match block.literals.get(*lit_idx as usize)? {
                             Literal::Symbol(interned) => {
-                                // TODO does this push duplicate literals? I think it doesn't?
+                                // I'm 99% sure this doesn't push duplicate literals. But it miiiight?
                                 let idx = ctxt.push_literal(Literal::Symbol(*interned));
 
                                 match block_bc {
@@ -139,9 +139,7 @@ impl PrimMessageInliner for ast::Expression {
                     Bytecode::PushBlock(block_idx) => {
                         match block.literals.get(*block_idx as usize)? {
                             Literal::Block(inner_block) => {
-                                // let new_block = inner_block.as_ref().clone();
-                                let new_block =
-                                    self.adapt_block_after_outer_inlined(ctxt, &inner_block, 1);
+                                let new_block = self.adapt_block_after_outer_inlined(ctxt, &inner_block, 1);
                                 let idx = ctxt.push_literal(Literal::Block(Rc::from(new_block)));
                                 ctxt.push_instr(Bytecode::PushBlock(idx as u8));
                             }
@@ -200,6 +198,7 @@ impl PrimMessageInliner for ast::Expression {
                     Bytecode::JumpOnFalseTopNil(idx) => {
                         ctxt.push_instr(Bytecode::JumpOnFalseTopNil(*idx))
                     }
+                    // explicitly listing other bytecode out to account for the fact that new BC could be introduced and mess things up if we handled it with a _ case
                     Bytecode::Halt
                     | Bytecode::Dup
                     | Bytecode::Push0
@@ -212,7 +211,7 @@ impl PrimMessageInliner for ast::Expression {
                     | Bytecode::SuperSend2(_)
                     | Bytecode::SuperSend3(_)
                     | Bytecode::SuperSendN(_) => {
-                        ctxt.push_instr(*block_bc) // explicitly listing them out to account for the fact that new BC could be introduced and mess things up if we handled it with a _ case
+                        ctxt.push_instr(*block_bc) 
                     }
                 }
             }
@@ -340,7 +339,7 @@ impl PrimMessageInliner for ast::Expression {
         message: &ast::Message,
         jump_type: JumpType,
     ) -> Option<()> {
-        if message.values.len() != 1 || !matches!(message.values.get(0)?, ast::Expression::Block(_))
+        if message.values.len() != 1// || !matches!(message.values.get(0)?, ast::Expression::Block(_))
         {
             return None;
         }
@@ -354,14 +353,14 @@ impl PrimMessageInliner for ast::Expression {
         // we need to compile the block before inlining it, and we haven't encountered/compiled it yet
         message.values.get(0)?.codegen(ctxt)?;
 
-        self.inline_last_push_block_bc(ctxt);
-
-        // dbg!(ctxt.get_instructions());
+        if matches!(message.values.get(0)?, ast::Expression::Block(_)) {
+            self.inline_last_push_block_bc(ctxt); // inline if it's a PushBlock. otherwise, the bytecode is already in the right scope.
+        }
 
         // todo i think Recurse took a big hit when i started inlining any expression instead of just blocks. needs investigating
         // wrt previous todo comment: likely super outdated. but until proven, i'm keeping it as a reminder.
-
-        //         self.inline_expr(ctxt, message.values.get(0)?);
+        // todo: now that we ACTUALLY inline any ol expression, delete this after we run benchmarks.
+        
         ctxt.backpatch_jump_to_current(jump_idx);
 
         Some(())
@@ -374,8 +373,8 @@ impl PrimMessageInliner for ast::Expression {
         jump_type: JumpType,
     ) -> Option<()> {
         if message.values.len() != 2
-            || !matches!(message.values.get(0)?, ast::Expression::Block(_))
-            || !matches!(message.values.get(1)?, ast::Expression::Block(_))
+            // || !matches!(message.values.get(0)?, ast::Expression::Block(_))
+            // || !matches!(message.values.get(1)?, ast::Expression::Block(_))
         {
             return None;
         }
@@ -388,8 +387,9 @@ impl PrimMessageInliner for ast::Expression {
 
         message.values.get(0)?.codegen(ctxt)?;
 
-        self.inline_last_push_block_bc(ctxt);
-        // self.inline_compiled_block(ctxt, cond_block_ref.as_ref().blk_info.as_ref());
+        if matches!(message.values.get(0)?, ast::Expression::Block(_)) {
+            self.inline_last_push_block_bc(ctxt);
+        }
 
         let middle_jump_idx = ctxt.get_cur_instr_idx();
         ctxt.push_instr(Bytecode::Jump(0));
@@ -398,9 +398,9 @@ impl PrimMessageInliner for ast::Expression {
 
         message.values.get(1)?.codegen(ctxt)?;
 
-        // self.inline_expr(ctxt, message.values.get(1)?);
-        // self.inline_compiled_block(ctxt, cond_block2_ref.as_ref().blk_info.as_ref());
-        self.inline_last_push_block_bc(ctxt);
+        if matches!(message.values.get(1)?, ast::Expression::Block(_)) {
+            self.inline_last_push_block_bc(ctxt);
+        }
 
         ctxt.backpatch_jump_to_current(middle_jump_idx);
 
@@ -414,8 +414,8 @@ impl PrimMessageInliner for ast::Expression {
         jump_type: JumpType,
     ) -> Option<()> {
         if message.values.len() != 1
-            || !matches!(message.values.get(0)?, ast::Expression::Block(_))
-            || !matches!(ctxt.get_instructions().last(), Some(Bytecode::PushBlock(_)))
+            // || !matches!(message.values.get(0)?, ast::Expression::Block(_))
+            // || !matches!(ctxt.get_instructions().last(), Some(Bytecode::PushBlock(_)))
         {
             return None;
         }
@@ -431,7 +431,9 @@ impl PrimMessageInliner for ast::Expression {
         }
 
         message.values.get(0)?.codegen(ctxt)?;
-        self.inline_last_push_block_bc(ctxt);
+        if matches!(ctxt.get_instructions().last(), Some(Bytecode::PushBlock(_))) {
+            self.inline_last_push_block_bc(ctxt);
+        }
 
         // we push a POP, unless the body of the loop is empty.
         match message.values.get(0).unwrap() {
@@ -462,7 +464,8 @@ impl PrimMessageInliner for ast::Expression {
         message: &ast::Message,
         or_and_choice: OrAndChoice,
     ) -> Option<()> {
-        if message.values.len() != 1 || !matches!(message.values.get(0)?, ast::Expression::Block(_))
+        if message.values.len() != 1
+            // || !matches!(message.values.get(0)?, ast::Expression::Block(_))
         {
             return None;
         }
@@ -475,7 +478,9 @@ impl PrimMessageInliner for ast::Expression {
         }
 
         message.values.get(0)?.codegen(ctxt)?;
-        self.inline_last_push_block_bc(ctxt);
+        if matches!(message.values.get(0)?, ast::Expression::Block(_)) {
+            self.inline_last_push_block_bc(ctxt);
+        }
 
         let skip_return_true_idx = ctxt.get_cur_instr_idx();
         ctxt.push_instr(Bytecode::Jump(0));
