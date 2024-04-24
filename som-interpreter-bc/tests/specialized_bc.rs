@@ -191,7 +191,6 @@ fn return_self_bytecode_implicit() {
     );
 }
 
-#[ignore] // todo don't ignore
 #[test]
 fn return_self_bytecode_explicit() {
     let class_txt_explicit_return = "Foo = (
@@ -204,7 +203,7 @@ fn return_self_bytecode_explicit() {
     let bytecodes = get_bytecodes_from_method(class_txt_explicit_return, "run");
 
     dbg!(&bytecodes);
-    assert!(bytecodes.len() == 1);
+    assert_eq!(bytecodes.len(), 1);
     expect_bytecode_sequence(
         &bytecodes,
         &[ReturnSelf],

@@ -194,6 +194,9 @@ impl PrimMessageInliner for ast::Expression {
                         }
                     }
                     Bytecode::ReturnLocal => {}
+                    Bytecode::ReturnSelf => {
+                        panic!("ReturnSelf found in block. I think this should be impossible");
+                    }
                     Bytecode::Jump(idx) => ctxt.push_instr(Bytecode::Jump(*idx)),
                     Bytecode::JumpBackward(idx) => ctxt.push_instr(Bytecode::JumpBackward(*idx)),
                     Bytecode::JumpOnTruePop(idx) => ctxt.push_instr(Bytecode::JumpOnTruePop(*idx)),
@@ -206,8 +209,6 @@ impl PrimMessageInliner for ast::Expression {
                     Bytecode::JumpOnFalseTopNil(idx) => {
                         ctxt.push_instr(Bytecode::JumpOnFalseTopNil(*idx))
                     }
-                    Bytecode::ReturnSelf => {todo!("not sure. is this even reachable?")}
-                    // explicitly listing other bytecode out to account for the fact that new BC could be introduced and mess things up if we handled it with a _ case
                     Bytecode::Halt
                     | Bytecode::Dup
                     | Bytecode::Inc

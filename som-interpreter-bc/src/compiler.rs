@@ -207,7 +207,7 @@ impl InnerGenCtxt for BlockGenCtxt<'_> {
         if self.body.is_none() || self.body.as_ref().unwrap().len() < 3 {
             return;
         }
-        
+
         let body = self.body.as_mut().unwrap();
 
         let mut indices_to_remove: Vec<usize> = vec![];
@@ -293,7 +293,7 @@ impl InnerGenCtxt for BlockGenCtxt<'_> {
                 _ => {}
             }
         }
-        
+
         for (jump_idx, jump_val) in jumps_to_patch {
             self.patch_jump(jump_idx, jump_val);
         }
@@ -304,7 +304,6 @@ impl InnerGenCtxt for BlockGenCtxt<'_> {
             index += 1;
             is_kept
         });
-
     }
 }
 
@@ -438,7 +437,6 @@ impl MethodCodegen for ast::Expression {
                 Some(())
             }
             ast::Expression::FieldWrite(idx, expr) => {
-                // todo take kind into account here too
                 expr.codegen(ctxt)?;
                 ctxt.push_instr(Bytecode::Dup);
                 ctxt.push_instr(Bytecode::PopField(*idx as u8));
@@ -519,11 +517,12 @@ impl MethodCodegen for ast::Expression {
                 Some(())
             }
             ast::Expression::Exit(expr, scope) => {
-                expr.codegen(ctxt)?;
-
-                match scope {
-                    0 => ctxt.push_instr(Bytecode::ReturnLocal),
-                    _ => ctxt.push_instr(Bytecode::ReturnNonLocal(*scope as u8)),
+                match expr.as_ref() {
+                    Expression::ArgRead(0, 0) => ctxt.push_instr(Bytecode::ReturnSelf),
+                    _ => {
+                        expr.codegen(ctxt)?;
+                        ctxt.push_instr(Bytecode::ReturnNonLocal(*scope as u8));
+                    }
                 }
                 Some(())
             }
@@ -656,7 +655,42 @@ fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::GenericMethodDef) -> Opti
                 expr.codegen(&mut ctxt)?;
                 ctxt.push_instr(Bytecode::Pop);
             }
-            ctxt.push_instr(Bytecode::ReturnSelf); // TODO that isn't necessary if there's already a return before
+
+            // todo clean this up. deserves its own function really
+            // Only add a ReturnSelf at the end of a method if needed: i.e. there's no existing return, and if there is, that it can't be jumped over.
+            if !body.exprs.is_empty() {
+                match ctxt.get_instructions().iter().nth_back(1) { // going back two BC to skip the POP.
+                    Some(Bytecode::ReturnLocal) | Some(Bytecode::ReturnNonLocal) | Some(Bytecode::ReturnSelf) => {
+                        let idx_of_pop_before_potential_return_self = ctxt.get_instructions().len() - 1;
+
+                        if !ctxt.get_instructions().iter().enumerate().any(|(bc_idx, bc)| {
+                            match bc {
+                                Bytecode::Jump(jump_idx)
+                                | Bytecode::JumpOnTrueTopNil(jump_idx)
+                                | Bytecode::JumpOnFalseTopNil(jump_idx)
+                                | Bytecode::JumpOnTruePop(jump_idx)
+                                | Bytecode::JumpOnFalsePop(jump_idx)
+                                => {
+                                    bc_idx + jump_idx >= idx_of_pop_before_potential_return_self
+                                }
+                                _ => false
+                            }
+                        })
+                        {
+                            ctxt.pop_instr(); // remove the POP.
+                        } else {
+                            ctxt.push_instr(Bytecode::ReturnSelf)
+                        }
+                        ;
+                    }
+                    _ => ctxt.push_instr(Bytecode::ReturnSelf)
+                }
+            } else {
+                ctxt.push_instr(Bytecode::ReturnSelf)
+            }
+
+            // ctxt.push_instr(Bytecode::ReturnSelf);
+
             ctxt.remove_dup_popx_pop_sequences();
         }
     }
@@ -697,7 +731,7 @@ fn compile_block(outer: &mut dyn GenCtxt, defn: &ast::Block) -> Option<Block> {
         locals_nbr: defn.nbr_locals,
         // dbg_info: defn.dbg_info,
         literals: IndexSet::new(),
-        body: None
+        body: None,
     };
 
     let splitted = defn.body.exprs.split_last();
@@ -713,11 +747,11 @@ fn compile_block(outer: &mut dyn GenCtxt, defn: &ast::Block) -> Option<Block> {
 
     let frame = None;
     // let locals = {
-        // let locals = std::mem::take(&mut ctxt.locals);
-        // locals
-        //     .into_iter()
-        //     .map(|name| ctxt.intern_symbol(&name))
-        //     .collect()
+    // let locals = std::mem::take(&mut ctxt.locals);
+    // locals
+    //     .into_iter()
+    //     .map(|name| ctxt.intern_symbol(&name))
+    //     .collect()
     // };
     let literals = ctxt.literals.into_iter().collect();
     let body = ctxt.body.unwrap_or_default();
