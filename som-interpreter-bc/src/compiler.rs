@@ -656,9 +656,7 @@ fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::GenericMethodDef) -> Opti
                 expr.codegen(&mut ctxt)?;
                 ctxt.push_instr(Bytecode::Pop);
             }
-            ctxt.push_instr(Bytecode::PushArgument(0, 0));
-            ctxt.push_instr(Bytecode::ReturnLocal); // TODO that returnlocal isn't necessary if there's already a return before
-
+            ctxt.push_instr(Bytecode::ReturnSelf); // TODO that isn't necessary if there's already a return before
             ctxt.remove_dup_popx_pop_sequences();
         }
     }

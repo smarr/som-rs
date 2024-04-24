@@ -75,8 +75,7 @@ fn if_true_or_false_inlining_ok() {
             PushGlobal(1),
             ReturnLocal,
             Pop,
-            PushArgument(0, 0),
-            ReturnLocal,
+            ReturnSelf,
         ],
     );
 
@@ -99,8 +98,7 @@ fn if_true_or_false_inlining_ok() {
             PushGlobal(1),
             ReturnLocal,
             Pop,
-            PushArgument(0, 0),
-            ReturnLocal,
+            ReturnSelf,
         ],
     );
 }
@@ -122,8 +120,7 @@ fn if_true_if_false_inlining_ok() {
             PushGlobal(1),
             ReturnLocal,
             Pop,
-            PushArgument(0, 0),
-            ReturnLocal,
+            ReturnSelf,
         ],
     );
 
@@ -142,8 +139,7 @@ fn if_true_if_false_inlining_ok() {
             PushGlobal(0),
             ReturnLocal,
             Pop,
-            PushArgument(0, 0),
-            ReturnLocal,
+            ReturnSelf,
         ],
     );
 }

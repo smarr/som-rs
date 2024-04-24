@@ -206,6 +206,7 @@ impl PrimMessageInliner for ast::Expression {
                     Bytecode::JumpOnFalseTopNil(idx) => {
                         ctxt.push_instr(Bytecode::JumpOnFalseTopNil(*idx))
                     }
+                    Bytecode::ReturnSelf => {todo!("not sure. is this even reachable?")}
                     // explicitly listing other bytecode out to account for the fact that new BC could be introduced and mess things up if we handled it with a _ case
                     Bytecode::Halt
                     | Bytecode::Dup
@@ -221,7 +222,7 @@ impl PrimMessageInliner for ast::Expression {
                     | Bytecode::SuperSend2(_)
                     | Bytecode::SuperSend3(_)
                     | Bytecode::SuperSendN(_) => {
-                        ctxt.push_instr(*block_bc) 
+                        ctxt.push_instr(*block_bc)
                     }
                 }
             }
@@ -368,7 +369,7 @@ impl PrimMessageInliner for ast::Expression {
         }
 
         self.inline_expression(ctxt, message.values.get(0)?);
-        
+
         ctxt.backpatch_jump_to_current(jump_idx);
 
         Some(())
@@ -426,7 +427,7 @@ impl PrimMessageInliner for ast::Expression {
             JumpOnFalse => ctxt.push_instr(Bytecode::JumpOnFalsePop(0)),
             JumpOnTrue => ctxt.push_instr(Bytecode::JumpOnTruePop(0)),
         }
-        
+
         self.inline_expression(ctxt, message.values.get(0)?);
 
         // we push a POP, unless the body of the loop is empty.

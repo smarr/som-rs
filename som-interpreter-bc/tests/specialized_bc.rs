@@ -174,6 +174,43 @@ fn super_send_bytecodes() {
     );
 }
 
+#[test]
+fn return_self_bytecode_implicit() {
+    let class_txt_implicit_return = "Foo = (
+        run = (
+            42.
+        )
+    )
+    ";
+
+    let bytecodes = get_bytecodes_from_method(class_txt_implicit_return, "run");
+
+    expect_bytecode_sequence(
+        &bytecodes,
+        &[PushConstant0, Pop, ReturnSelf],
+    );
+}
+
+#[ignore] // todo don't ignore
+#[test]
+fn return_self_bytecode_explicit() {
+    let class_txt_explicit_return = "Foo = (
+        run = (
+            ^ self.
+        )
+    )
+    ";
+
+    let bytecodes = get_bytecodes_from_method(class_txt_explicit_return, "run");
+
+    dbg!(&bytecodes);
+    assert!(bytecodes.len() == 1);
+    expect_bytecode_sequence(
+        &bytecodes,
+        &[ReturnSelf],
+    );
+}
+
 #[ignore]
 #[test]
 fn something_jump_bug_popx() {
@@ -205,8 +242,7 @@ fn something_jump_bug_popx() {
         Send1(1),
         ReturnNonLocal(1),
         Pop,
-        PushArgument(0, 0),
-        ReturnLocal,
+        ReturnSelf,
     ];
 
     let expected_bytecodes: &[Bytecode] = &[
@@ -218,8 +254,7 @@ fn something_jump_bug_popx() {
         Send1(1),
         ReturnNonLocal(1),
         Pop,
-        PushArgument(0, 0),
-        ReturnLocal,
+        ReturnSelf,
     ];
 
     expect_bytecode_sequence(&bytecodes, expected_bytecodes);

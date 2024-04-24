@@ -31,6 +31,7 @@ pub enum Bytecode {
     SuperSend2(u8),
     SuperSend3(u8),
     SuperSendN(u8),
+    ReturnSelf,
     ReturnLocal,
     ReturnNonLocal(u8),
     Jump(usize),
@@ -76,6 +77,7 @@ impl Bytecode {
             Self::SuperSend2(_)       => "SUPER_SEND_2",
             Self::SuperSend3(_)       => "SUPER_SEND_3",
             Self::SuperSendN(_)       => "SUPER_SEND_N",
+            Self::ReturnSelf          => "RETURN_SELF",
             Self::ReturnLocal        => "RETURN_LOCAL",
             Self::ReturnNonLocal(_)    => "RETURN_NON_LOCAL",
             Self::Jump(_)              => "JUMP",
@@ -120,6 +122,7 @@ impl Bytecode {
             Self::SuperSend2(_)      => "SUPER_SEND_2    ",
             Self::SuperSend3(_)      => "SUPER_SEND_3    ",
             Self::SuperSendN(_)      => "SUPER_SEND_N    ",
+            Self::ReturnSelf         => "RETURN_SELF     ",
             Self::ReturnLocal        => "RETURN_LOCAL    ",
             Self::ReturnNonLocal(_)    => "RETURN_NON_LOCAL",
             Self::Jump(_)              => "JUMP                   ",
@@ -132,7 +135,7 @@ impl Bytecode {
     }
 }
 
-pub static NAMES: [&str; 29] = [
+pub static NAMES: [&str; 30] = [
     "HALT",
     "DUP",
     "INC",
@@ -160,11 +163,12 @@ pub static NAMES: [&str; 29] = [
     "SUPER_SEND_2",
     "SUPER_SEND_3",
     "SUPER_SEND_N",
+    "RETURN_SELF",
     "RETURN_LOCAL",
     "RETURN_NON_LOCAL",
 ];
 
-pub static PADDED_NAMES: [&str; 29] = [
+pub static PADDED_NAMES: [&str; 30] = [
     "HALT            ",
     "DUP             ",
     "INC             ",
@@ -192,6 +196,7 @@ pub static PADDED_NAMES: [&str; 29] = [
     "SUPER_SEND_2    ",
     "SUPER_SEND_3    ",
     "SUPER_SEND_N    ",
+    "RETURN_SELF     ",
     "RETURN_LOCAL    ",
     "RETURN_NON_LOCAL",
 ];
@@ -228,6 +233,7 @@ impl fmt::Display for Bytecode {
             Self::SuperSend2(idx)            => write!(f, "SUPER_SEND_2 {}", idx),
             Self::SuperSend3(idx)            => write!(f, "SUPER_SEND_3 {}", idx),
             Self::SuperSendN(idx)            => write!(f, "SUPER_SEND_N {}", idx),
+            Self::ReturnSelf                    => write!(f, "RETURN_SELF", ),
             Self::ReturnLocal               => write!(f, "RETURN_LOCAL", ),
             Self::ReturnNonLocal(scope)      => write!(f, "RETURN_NON_LOCAL {}", scope),
             Self::Jump(idx)             => write!(f, "JUMP {}", idx),

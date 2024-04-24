@@ -143,7 +143,7 @@ fn disassemble_body(
                 };
                 println!(" (#{0})", universe.lookup_symbol(*signature));
             }
-            Bytecode::ReturnLocal => {
+            Bytecode::ReturnLocal | Bytecode::ReturnSelf => {
                 println!();
             }
             Bytecode::ReturnNonLocal(up_idx) => {
