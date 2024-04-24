@@ -62,6 +62,12 @@ pub trait PrimMessageInliner {
         message: &ast::Message,
         or_and_choice: OrAndChoice,
     ) -> Option<()>;
+    /// Inlines `to:do`.
+    fn inline_to_do(
+        &self,
+        ctxt: &mut dyn InnerGenCtxt,
+        message: &ast::Message,
+    ) -> Option<()>;
 }
 
 impl PrimMessageInliner for ast::Expression {
@@ -79,14 +85,14 @@ impl PrimMessageInliner for ast::Expression {
             "whileFalse:" => self.inline_while(ctxt, message, JumpOnTrue),
             "or:" | "||" => self.inline_or_and(ctxt, message, Or),
             "and:" | "&&" => self.inline_or_and(ctxt, message, And),
-            // TODO: to:do, maybe others i'm forgetting
+            // "to:do:" => self.inline_to_do(ctxt, message), // todo (haha lol haha)
             _ => None,
         }
     }
 
     fn inline_compiled_block(&self, ctxt: &mut dyn InnerGenCtxt, block: &BlockInfo) -> Option<()> {
         let nbr_locals_pre_inlining = ctxt.get_nbr_locals();
-        
+
         ctxt.set_nbr_locals(ctxt.get_nbr_locals() + block.nb_locals);
 
         // last is always ReturnLocal, so it gets ignored
@@ -235,7 +241,7 @@ impl PrimMessageInliner for ast::Expression {
     fn inline_last_push_block_bc(&self, ctxt: &mut dyn InnerGenCtxt) -> Option<()> {
         let block_idx = match ctxt.get_instructions().last()? {
             Bytecode::PushBlock(val) => *val,
-            _ => panic!("function expects last bytecode to be a PUSH_BLOCK."),
+            bc => panic!("inlining function expects last bytecode to be a PUSH_BLOCK, instead it was {}.", bc),
         };
         ctxt.pop_instr(); // removing the PUSH_BLOCK
 
@@ -408,6 +414,42 @@ impl PrimMessageInliner for ast::Expression {
         Some(())
     }
 
+    fn inline_or_and(
+        &self,
+        ctxt: &mut dyn InnerGenCtxt,
+        message: &ast::Message,
+        or_and_choice: OrAndChoice,
+    ) -> Option<()> {
+        if message.values.len() != 1 || !matches!(message.values.get(0)?, ast::Expression::Block(_)) {
+            return None;
+        }
+
+        let skip_cond_jump_idx = ctxt.get_cur_instr_idx();
+
+        match or_and_choice {
+            Or => ctxt.push_instr(Bytecode::JumpOnTruePop(0)),
+            And => ctxt.push_instr(Bytecode::JumpOnFalsePop(0)),
+        }
+
+        self.inline_expression(ctxt, message.values.get(0)?);
+
+        let skip_return_true_idx = ctxt.get_cur_instr_idx();
+        ctxt.push_instr(Bytecode::Jump(0));
+
+        ctxt.backpatch_jump_to_current(skip_cond_jump_idx);
+
+        let name = match or_and_choice {
+            Or => ctxt.intern_symbol("true"),
+            And => ctxt.intern_symbol("false"),
+        };
+        let idx = ctxt.push_literal(Literal::Symbol(name));
+        ctxt.push_instr(Bytecode::PushGlobal(idx as u8));
+
+        ctxt.backpatch_jump_to_current(skip_return_true_idx);
+
+        Some(())
+    }
+
     fn inline_while(
         &self,
         ctxt: &mut dyn InnerGenCtxt,
@@ -451,39 +493,44 @@ impl PrimMessageInliner for ast::Expression {
         Some(())
     }
 
-    fn inline_or_and(
+    fn inline_to_do(
         &self,
         ctxt: &mut dyn InnerGenCtxt,
         message: &ast::Message,
-        or_and_choice: OrAndChoice,
     ) -> Option<()> {
-        if message.values.len() != 1 || !matches!(message.values.get(0)?, ast::Expression::Block(_)) { // TODO: there's some speedups available on 2-3 benchmarks by inlining not just blocks. might be easy
+        // to: limit do: block = (
+        //         self to: limit by: 1 do: block
+        // )
+
+        if message.values.len() != 2 {
             return None;
         }
 
-        let skip_cond_jump_idx = ctxt.get_cur_instr_idx();
+        // stack state at this point: "1" is on it. or some pushinteger probably? idk
 
-        match or_and_choice {
-            Or => ctxt.push_instr(Bytecode::JumpOnTruePop(0)),
-            And => ctxt.push_instr(Bytecode::JumpOnFalsePop(0)),
-        }
+        message.values.get(0)?.codegen(ctxt);
+        message.values.get(1)?.codegen(ctxt);
+        dbg!(ctxt.get_instructions());
 
-        self.inline_expression(ctxt, message.values.get(0)?);
+        let limit_expr = message.values.get(0)?; // in practice it's always a self read so an argread(0,0)
+        let block_expr = message.values.get(1)?;
 
-        let skip_return_true_idx = ctxt.get_cur_instr_idx();
-        ctxt.push_instr(Bytecode::Jump(0));
+        let _idx_before_condition = ctxt.get_cur_instr_idx();
 
-        ctxt.backpatch_jump_to_current(skip_cond_jump_idx);
+        dbg!(&message.values);
 
-        let name = match or_and_choice {
-            Or => ctxt.intern_symbol("true"),
-            And => ctxt.intern_symbol("false"),
-        };
-        let idx = ctxt.push_literal(Literal::Symbol(name));
-        ctxt.push_instr(Bytecode::PushGlobal(idx as u8));
+        // condition goes here
 
-        ctxt.backpatch_jump_to_current(skip_return_true_idx);
+        let cond_jump_idx = ctxt.get_cur_instr_idx();
+        ctxt.push_instr(Bytecode::JumpOnFalsePop(0));
 
-        Some(())
+        self.inline_expression(ctxt, block_expr);
+
+        limit_expr.codegen(ctxt)?;
+        ctxt.push_instr(Bytecode::Inc);
+
+        ctxt.backpatch_jump_to_current(cond_jump_idx);
+
+        todo!()
     }
 }
