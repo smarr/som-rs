@@ -443,12 +443,8 @@ impl PrimMessageInliner for ast::Expression {
             ctxt.get_cur_instr_idx() - idx_before_condition + 1,
         ));
         ctxt.backpatch_jump_to_current(cond_jump_idx);
-        
-        // todo enable pushnil after we fix towers
-        // ctxt.push_instr(Bytecode::PushNil);
-        let name = ctxt.intern_symbol("nil");
-        let idx = ctxt.push_literal(Literal::Symbol(name));
-        ctxt.push_instr(Bytecode::PushGlobal(idx as u8));
+
+        ctxt.push_instr(Bytecode::PushNil);
 
         Some(())
     }
