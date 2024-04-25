@@ -517,13 +517,20 @@ impl MethodCodegen for ast::Expression {
                 Some(())
             }
             ast::Expression::Exit(expr, scope) => {
-                match expr.as_ref() {
-                    Expression::ArgRead(0, 0) => ctxt.push_instr(Bytecode::ReturnSelf),
-                    _ => {
-                        expr.codegen(ctxt)?;
-                        ctxt.push_instr(Bytecode::ReturnNonLocal(*scope as u8));
-                    }
-                }
+                expr.codegen(ctxt)?;
+                
+                match scope {
+                    0 => {
+                        match expr.as_ref() {
+                            Expression::ArgRead(0, 0) => ctxt.push_instr(Bytecode::ReturnSelf),
+                            _ => {
+                                ctxt.push_instr(Bytecode::ReturnLocal)
+                            }
+                        }
+                    },
+                    _ => ctxt.push_instr(Bytecode::ReturnNonLocal(*scope as u8))
+                };
+                
                 Some(())
             }
             ast::Expression::Literal(literal) => {
@@ -655,12 +662,12 @@ fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::GenericMethodDef) -> Opti
                 expr.codegen(&mut ctxt)?;
                 ctxt.push_instr(Bytecode::Pop);
             }
-
+            
             // todo clean this up. deserves its own function really
             // Only add a ReturnSelf at the end of a method if needed: i.e. there's no existing return, and if there is, that it can't be jumped over.
             if !body.exprs.is_empty() {
                 match ctxt.get_instructions().iter().nth_back(1) { // going back two BC to skip the POP.
-                    Some(Bytecode::ReturnLocal) | Some(Bytecode::ReturnNonLocal) | Some(Bytecode::ReturnSelf) => {
+                    Some(Bytecode::ReturnLocal) | Some(Bytecode::ReturnNonLocal(_)) | Some(Bytecode::ReturnSelf) => {
                         let idx_of_pop_before_potential_return_self = ctxt.get_instructions().len() - 1;
 
                         if !ctxt.get_instructions().iter().enumerate().any(|(bc_idx, bc)| {

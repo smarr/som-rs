@@ -195,7 +195,7 @@ impl PrimMessageInliner for ast::Expression {
                     }
                     Bytecode::ReturnLocal => {}
                     Bytecode::ReturnSelf => {
-                        panic!("ReturnSelf found in block. I think this should be impossible");
+                        panic!("Inlining found a ReturnSelf in a block, which should be impossible.");
                     }
                     Bytecode::Jump(idx) => ctxt.push_instr(Bytecode::Jump(*idx)),
                     Bytecode::JumpBackward(idx) => ctxt.push_instr(Bytecode::JumpBackward(*idx)),

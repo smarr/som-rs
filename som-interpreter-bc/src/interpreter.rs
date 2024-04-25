@@ -358,7 +358,7 @@ impl Interpreter {
                     super_send! {self, universe, &frame, idx, None}
                 }
                 Bytecode::ReturnSelf => {
-                    let self_val = self.current_frame().unwrap().borrow().args.get(0).unwrap().clone();
+                    let self_val = self.current_frame.borrow().args.get(0).unwrap().clone();
                     self.pop_frame();
                     self.stack.push(self_val);
                 }

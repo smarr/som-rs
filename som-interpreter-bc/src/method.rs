@@ -175,6 +175,7 @@ impl fmt::Display for Method {
                         }
                         Bytecode::ReturnLocal => {}
                         Bytecode::ReturnNonLocal(_) => {}
+                        Bytecode::ReturnSelf => {}
                         Bytecode::Jump(idx) 
                         | Bytecode::JumpBackward(idx) 
                         | Bytecode::JumpOnTruePop(idx)
