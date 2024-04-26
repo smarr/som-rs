@@ -64,7 +64,6 @@ fn if_true_or_false_inlining_ok() {
 
     let bytecodes = get_bytecodes_from_method(class_txt, "run");
 
-    dbg!(&bytecodes);
     expect_bytecode_sequence(
         &bytecodes,
         &[

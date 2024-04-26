@@ -610,7 +610,35 @@ impl GenCtxt for ClassGenCtxt<'_> {
 }
 
 fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::GenericMethodDef) -> Option<Method> {
-    // println!("(method) compiling '{}' ...", defn.signature);
+    /// Only add a ReturnSelf at the end of a method if needed: i.e. there's no existing return, and if there is, that it can't be jumped over.
+    fn should_add_return_self(ctxt: &mut MethodGenCtxt, body: &ast::Body) -> bool {
+        if body.exprs.is_empty() {
+            return true
+        }
+
+        // going back two BC to skip the POP added after each expr.codegen(...).
+        match ctxt.get_instructions().iter().nth_back(1) {
+            // if the last BC is a return, we check whether it can be skipped over. if so, we add a ReturnSelf
+            Some(Bytecode::ReturnLocal) | Some(Bytecode::ReturnNonLocal(_)) | Some(Bytecode::ReturnSelf) => {
+                let idx_of_pop_before_potential_return_self = ctxt.get_instructions().len() - 1;
+
+                ctxt.get_instructions().iter().enumerate().any(|(bc_idx, bc)| {
+                    match bc {
+                        Bytecode::Jump(jump_idx)
+                        | Bytecode::JumpOnTrueTopNil(jump_idx)
+                        | Bytecode::JumpOnFalseTopNil(jump_idx)
+                        | Bytecode::JumpOnTruePop(jump_idx)
+                        | Bytecode::JumpOnFalsePop(jump_idx)
+                        => {
+                            bc_idx + jump_idx >= idx_of_pop_before_potential_return_self
+                        }
+                        _ => false
+                    }
+                })
+            }
+            _ => true
+        }
+    }
 
     let mut ctxt = MethodGenCtxt {
         signature: defn.signature.clone(),
@@ -665,40 +693,11 @@ fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::GenericMethodDef) -> Opti
                 ctxt.push_instr(Bytecode::Pop);
             }
             
-            // todo clean this up. deserves its own function really
-            // Only add a ReturnSelf at the end of a method if needed: i.e. there's no existing return, and if there is, that it can't be jumped over.
-            if !body.exprs.is_empty() {
-                match ctxt.get_instructions().iter().nth_back(1) { // going back two BC to skip the POP.
-                    Some(Bytecode::ReturnLocal) | Some(Bytecode::ReturnNonLocal(_)) | Some(Bytecode::ReturnSelf) => {
-                        let idx_of_pop_before_potential_return_self = ctxt.get_instructions().len() - 1;
-
-                        if !ctxt.get_instructions().iter().enumerate().any(|(bc_idx, bc)| {
-                            match bc {
-                                Bytecode::Jump(jump_idx)
-                                | Bytecode::JumpOnTrueTopNil(jump_idx)
-                                | Bytecode::JumpOnFalseTopNil(jump_idx)
-                                | Bytecode::JumpOnTruePop(jump_idx)
-                                | Bytecode::JumpOnFalsePop(jump_idx)
-                                => {
-                                    bc_idx + jump_idx >= idx_of_pop_before_potential_return_self
-                                }
-                                _ => false
-                            }
-                        })
-                        {
-                            ctxt.pop_instr(); // remove the POP.
-                        } else {
-                            ctxt.push_instr(Bytecode::ReturnSelf)
-                        }
-                        ;
-                    }
-                    _ => ctxt.push_instr(Bytecode::ReturnSelf)
-                }
+            if should_add_return_self(&mut ctxt, body) {
+                ctxt.push_instr(Bytecode::ReturnSelf);
             } else {
-                ctxt.push_instr(Bytecode::ReturnSelf)
-            }
-
-            // ctxt.push_instr(Bytecode::ReturnSelf);
+                ctxt.pop_instr(); // we can otherwise remove the then-redundant final POP (since it's after an unavoidable "Return" type bytecode.
+            };
 
             ctxt.remove_dup_popx_pop_sequences();
         }
