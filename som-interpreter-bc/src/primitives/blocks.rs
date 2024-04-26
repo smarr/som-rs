@@ -14,20 +14,20 @@ pub mod block1 {
         ("restart", self::restart, false),
     ];
     pub static CLASS_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[];
-
-    // FYI: me removing the expect_args! bits in all these was NOT a speedup! 
-    // So these changes can be safely reverted. But I'm keeping juuuust in case there's a miiiild speedup I guess
+    
     fn value(interpreter: &mut Interpreter, _: &mut Universe) {
-        // const SIGNATURE: &str = "Block1>>#value";
+        const SIGNATURE: &str = "Block1>>#value";
 
-        // expect_args!(SIGNATURE, interpreter, [
-        //     Value::BlockSelf(block) => block,
-        // ]);
+        expect_args!(SIGNATURE, interpreter, [
+            Value::Block(block) => block,
+        ]);
+
+        interpreter.push_block_frame(Rc::clone(&block), vec![]);
         
-        match interpreter.stack.pop() {
-            Some(Value::Block(block)) => interpreter.push_block_frame(Rc::clone(&block), vec![Value::Block(block)]),
-            _ => panic!("Expected a blockself when calling a block")
-        };
+        // match interpreter.stack.pop() {
+        //     Some(Value::Block(block)) => interpreter.push_block_frame(Rc::clone(&block), vec![Value::Block(block)]),
+        //     _ => panic!("Expected a blockself when calling a block")
+        // };
     }
 
     pub fn restart(interpreter: &mut Interpreter, _: &mut Universe) {
@@ -65,19 +65,23 @@ pub mod block2 {
     pub static CLASS_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[];
 
     fn value(interpreter: &mut Interpreter, _: &mut Universe) {
-        // const SIGNATURE: &str = "Block2>>#value:";
+        const SIGNATURE: &str = "Block2>>#value:";
 
-        // expect_args!(SIGNATURE, interpreter, [
-        //     Value::BlockSelf(block) => block,
-        //     argument => argument,
-        // ]);
+        expect_args!(SIGNATURE, interpreter, [
+            Value::Block(block) => block,
+            argument => argument,
+        ]);
+
+        interpreter.push_block_frame(Rc::clone(&block), vec![argument]);
         
-        let args = interpreter.stack.split_off(interpreter.stack.len() - 2);
+        // NB: what follows is a potentially sliiiiightly faster way of handling things, but didn't lead to visible speedups, so eh.
         
-        match args.first() {
-            Some(Value::Block(block)) => interpreter.push_block_frame(Rc::clone(&block), args),
-            _ => panic!("Expected a blockself when calling a block")
-        };
+        // let args = interpreter.stack.split_off(interpreter.stack.len() - 2);
+        
+        // match args.first() {
+        //     Some(Value::Block(block)) => interpreter.push_block_frame(Rc::clone(&block), args),
+        //     _ => panic!("Expected a blockself when calling a block")
+        // };
     }
 
     /// Search for an instance primitive matching the given signature.
@@ -107,20 +111,22 @@ pub mod block3 {
     pub static CLASS_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[];
 
     fn value_with(interpreter: &mut Interpreter, _: &mut Universe) {
-        // const SIGNATURE: &str = "Block3>>#value:with:";
-        // 
-        // expect_args!(SIGNATURE, interpreter, [
-        //     Value::BlockSelf(block) => block,
-        //     argument1 => argument1,
-        //     argument2 => argument2,
-        // ]);
+        const SIGNATURE: &str = "Block3>>#value:with:";
+        
+        expect_args!(SIGNATURE, interpreter, [
+            Value::Block(block) => block,
+            argument1 => argument1,
+            argument2 => argument2,
+        ]);
 
-        let args = interpreter.stack.split_off(interpreter.stack.len() - 3);
+        interpreter.push_block_frame(Rc::clone(&block), vec![argument1, argument2]);
 
-        match args.first() {
-            Some(Value::Block(block)) => interpreter.push_block_frame(Rc::clone(&block), args),
-            _ => panic!("Expected a blockself when calling a block")
-        };
+        // let args = interpreter.stack.split_off(interpreter.stack.len() - 3);
+
+        // match args.first() {
+        //     Some(Value::Block(block)) => interpreter.push_block_frame(Rc::clone(&block), args),
+        //     _ => panic!("Expected a blockself when calling a block")
+        // };
     }
 
     /// Search for an instance primitive matching the given signature.
