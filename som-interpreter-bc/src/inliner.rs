@@ -355,7 +355,7 @@ impl PrimMessageInliner for ast::Expression {
         message: &ast::Message,
         jump_type: JumpType,
     ) -> Option<()> {
-        if message.values.len() != 1 {
+        if message.values.len() != 1 { // || !matches!(message.values.get(0)?, ast::Expression::Block(_)) {
             return None;
         }
 
@@ -383,6 +383,8 @@ impl PrimMessageInliner for ast::Expression {
         jump_type: JumpType,
     ) -> Option<()> {
         if message.values.len() != 2 {
+            // || !matches!(message.values.get(0)?, ast::Expression::Block(_))
+            // || !matches!(message.values.get(1)?, ast::Expression::Block(_)) {
             return None;
         }
 
@@ -412,13 +414,13 @@ impl PrimMessageInliner for ast::Expression {
         message: &ast::Message,
         jump_type: JumpType,
     ) -> Option<()> {
-        if message.values.len() != 1 {
+        if message.values.len() != 1 { //|| !matches!(message.values.get(0)?, ast::Expression::Block(_)) {
             return None;
         }
 
         let idx_before_condition = ctxt.get_cur_instr_idx();
 
-        // by the time we see it's a "whileTrue:" or a "whileFalse:", there's already been a PushBlock. It's always got to be a PushBlock, I believe.
+        // by the time we see it's a "whileTrue:" or a "whileFalse:", there's already been a PushBlock, since they're methods defined on Block
         self.inline_last_push_block_bc(ctxt);
 
         let cond_jump_idx = ctxt.get_cur_instr_idx();
@@ -455,7 +457,7 @@ impl PrimMessageInliner for ast::Expression {
         message: &ast::Message,
         or_and_choice: OrAndChoice,
     ) -> Option<()> {
-        if message.values.len() != 1 {
+        if message.values.len() != 1 { // || !matches!(message.values.get(0)?, ast::Expression::Block(_)) {
             return None;
         }
 

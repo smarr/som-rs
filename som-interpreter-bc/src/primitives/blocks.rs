@@ -22,7 +22,7 @@ pub mod block1 {
             Value::Block(block) => block,
         ]);
 
-        interpreter.push_block_frame(Rc::clone(&block), vec![]);
+        interpreter.push_block_frame(Rc::clone(&block), vec![Value::Block(block)]);
         
         // match interpreter.stack.pop() {
         //     Some(Value::Block(block)) => interpreter.push_block_frame(Rc::clone(&block), vec![Value::Block(block)]),
@@ -72,7 +72,7 @@ pub mod block2 {
             argument => argument,
         ]);
 
-        interpreter.push_block_frame(Rc::clone(&block), vec![argument]);
+        interpreter.push_block_frame(Rc::clone(&block), vec![Value::Block(block), argument]);
         
         // NB: what follows is a potentially sliiiiightly faster way of handling things, but didn't lead to visible speedups, so eh.
         
@@ -119,7 +119,7 @@ pub mod block3 {
             argument2 => argument2,
         ]);
 
-        interpreter.push_block_frame(Rc::clone(&block), vec![argument1, argument2]);
+        interpreter.push_block_frame(Rc::clone(&block), vec![Value::Block(block), argument1, argument2]);
 
         // let args = interpreter.stack.split_off(interpreter.stack.len() - 3);
 
