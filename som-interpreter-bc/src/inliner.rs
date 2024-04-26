@@ -355,7 +355,7 @@ impl PrimMessageInliner for ast::Expression {
         message: &ast::Message,
         jump_type: JumpType,
     ) -> Option<()> {
-        if message.values.len() != 1 || !matches!(message.values.get(0)?, ast::Expression::Block(_)) {
+        if message.values.len() != 1 { // || !matches!(message.values.get(0)?, ast::Expression::Block(_)) {
             return None;
         }
 
