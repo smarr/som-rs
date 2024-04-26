@@ -231,6 +231,31 @@ fn or_and_inlining_ok() {
     );
 }
 
+// todo
+#[ignore]
+#[test]
+fn or_and_no_block_inlining_ok() {
+    let class_txt = "Foo = ( run = (
+            ^(left  isNil || [ (left  value <  value) && left check ]) &&
+             (right isNil || [ (right value >= value) && right check ])
+    ))
+    ";
+
+    let bytecodes = get_bytecodes_from_method(class_txt, "run");
+    dbg!(&bytecodes);
+    expect_bytecode_sequence(
+        &bytecodes,
+        &[
+            PushGlobal(0),
+            JumpOnTruePop(3),
+            PushGlobal(1),
+            Jump(2),
+            PushGlobal(0),
+            ReturnLocal,
+        ],
+    );
+}
+
 #[test]
 fn inlining_pyramid() {
     let class_txt = "Foo = ( run = (

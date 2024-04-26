@@ -355,7 +355,7 @@ impl PrimMessageInliner for ast::Expression {
         message: &ast::Message,
         jump_type: JumpType,
     ) -> Option<()> {
-        if message.values.len() != 1 { // || !matches!(message.values.get(0)?, ast::Expression::Block(_)) {
+        if message.values.len() != 1 || !matches!(message.values.get(0)?, ast::Expression::Block(_)) {
             return None;
         }
 
@@ -366,10 +366,6 @@ impl PrimMessageInliner for ast::Expression {
         }
 
         self.inline_expression(ctxt, message.values.get(0)?);
-
-        // todo i think Recurse took a big hit when i started inlining any expression instead of just blocks. needs investigating
-        // wrt previous todo comment: likely super outdated. but until proven, i'm keeping it as a reminder.
-        // todo: now that we ACTUALLY inline any ol expression, delete this after we run benchmarks.
         
         ctxt.backpatch_jump_to_current(jump_idx);
 
@@ -382,9 +378,9 @@ impl PrimMessageInliner for ast::Expression {
         message: &ast::Message,
         jump_type: JumpType,
     ) -> Option<()> {
-        if message.values.len() != 2 {
-            // || !matches!(message.values.get(0)?, ast::Expression::Block(_))
-            // || !matches!(message.values.get(1)?, ast::Expression::Block(_)) {
+        if message.values.len() != 2
+             || !matches!(message.values.get(0)?, ast::Expression::Block(_))
+             || !matches!(message.values.get(1)?, ast::Expression::Block(_)) {
             return None;
         }
 
@@ -414,7 +410,7 @@ impl PrimMessageInliner for ast::Expression {
         message: &ast::Message,
         jump_type: JumpType,
     ) -> Option<()> {
-        if message.values.len() != 1 { //|| !matches!(message.values.get(0)?, ast::Expression::Block(_)) {
+        if message.values.len() != 1 || !matches!(message.values.get(0)?, ast::Expression::Block(_)) {
             return None;
         }
 
