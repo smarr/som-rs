@@ -7,7 +7,7 @@ use som_core::bytecode::Bytecode;
 use crate::block::Block;
 use crate::class::Class;
 use crate::compiler::Literal;
-use crate::frame::{Frame, FrameKind};
+use crate::frame::Frame;
 use crate::interner::Interned;
 use crate::method::{Method, MethodKind};
 use crate::universe::Universe;
