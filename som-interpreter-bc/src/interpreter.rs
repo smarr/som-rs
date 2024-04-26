@@ -431,7 +431,8 @@ impl Interpreter {
 
             match method.kind() {
                 MethodKind::Defined(_) => {
-                    // eprintln!("Invoking {:?}", &method.signature);
+                    // eprintln!("Invoking {:?} (in {:?})", &method.signature, &method.holder.upgrade().unwrap().borrow().name);
+                    
                     let args = interpreter.stack.split_off(interpreter.stack.len() - nb_params - 1);
                     interpreter.push_method_frame(method, args);
                 }

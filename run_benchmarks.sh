@@ -1,6 +1,6 @@
 #!/bin/bash
 
-BENCHMARKS=("Bounce" "Mandelbrot" "List" "Permute" "Queens" "QuickSort" "Sieve" "Fannkuch" "JsonSmall" "DeltaBlue" "Richards" "Towers")
+BENCHMARKS=("Bounce" "Mandelbrot" "TreeSort" "List" "Permute" "Queens" "QuickSort" "Sieve" "Fannkuch" "JsonSmall" "DeltaBlue" "Richards" "Towers")
 EXE=som-interpreter-bc
 
 for bench in "${BENCHMARKS[@]}"
