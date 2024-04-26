@@ -453,7 +453,7 @@ impl PrimMessageInliner for ast::Expression {
         message: &ast::Message,
         or_and_choice: OrAndChoice,
     ) -> Option<()> {
-        if message.values.len() != 1 || !matches!(message.values.get(0)?, ast::Expression::Block(_)) {
+        if message.values.len() != 1 {// || !matches!(message.values.get(0)?, ast::Expression::Block(_)) {
             return None;
         }
 
