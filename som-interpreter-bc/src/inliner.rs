@@ -410,7 +410,7 @@ impl PrimMessageInliner for ast::Expression {
         message: &ast::Message,
         jump_type: JumpType,
     ) -> Option<()> {
-        if message.values.len() != 1 || !matches!(message.values.get(0)?, ast::Expression::Block(_)) {
+        if message.values.len() != 1 || !matches!(message.values.get(0)?, ast::Expression::Block(_)) { // I guess it doesn't have to be a block, but really, it is in all our benchmarks
             return None;
         }
 
@@ -453,7 +453,7 @@ impl PrimMessageInliner for ast::Expression {
         message: &ast::Message,
         or_and_choice: OrAndChoice,
     ) -> Option<()> {
-        if message.values.len() != 1 {// || !matches!(message.values.get(0)?, ast::Expression::Block(_)) {
+        if message.values.len() != 1 || !matches!(message.values.get(0)?, ast::Expression::Block(_)) { // TODO: there's some speedups available on 2-3 benchmarks by inlining not just blocks. might be easy
             return None;
         }
 

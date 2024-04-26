@@ -231,7 +231,7 @@ fn or_and_inlining_ok() {
     );
 }
 
-// todo
+// test for if we decide to inline or/and not just when it's blocks. part of a breaking benchmark (TreeSort) when we do inline more than just blocks with or/and
 #[ignore]
 #[test]
 fn or_and_no_block_inlining_ok() {
