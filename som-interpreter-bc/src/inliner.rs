@@ -77,8 +77,8 @@ impl PrimMessageInliner for ast::Expression {
             "ifFalse:ifTrue:" => self.inline_if_true_if_false(ctxt, message, JumpOnTrue),
             "whileTrue:" => self.inline_while(ctxt, message, JumpOnFalse),
             "whileFalse:" => self.inline_while(ctxt, message, JumpOnTrue),
-            "or:" => self.inline_or_and(ctxt, message, Or),
-            "and:" => self.inline_or_and(ctxt, message, And),
+            "or:" | "||" => self.inline_or_and(ctxt, message, Or),
+            "and:" | "&&" => self.inline_or_and(ctxt, message, And),
             // TODO: to:do, maybe others i'm forgetting
             _ => None,
         }
