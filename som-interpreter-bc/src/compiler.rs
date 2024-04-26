@@ -517,18 +517,20 @@ impl MethodCodegen for ast::Expression {
                 Some(())
             }
             ast::Expression::Exit(expr, scope) => {
-                expr.codegen(ctxt)?;
-                
                 match scope {
                     0 => {
                         match expr.as_ref() {
                             Expression::ArgRead(0, 0) => ctxt.push_instr(Bytecode::ReturnSelf),
                             _ => {
+                                expr.codegen(ctxt)?;
                                 ctxt.push_instr(Bytecode::ReturnLocal)
                             }
                         }
                     },
-                    _ => ctxt.push_instr(Bytecode::ReturnNonLocal(*scope as u8))
+                    _ => {
+                        expr.codegen(ctxt)?;
+                        ctxt.push_instr(Bytecode::ReturnNonLocal(*scope as u8));
+                    }
                 };
                 
                 Some(())

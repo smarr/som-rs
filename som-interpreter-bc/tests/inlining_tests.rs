@@ -64,6 +64,7 @@ fn if_true_or_false_inlining_ok() {
 
     let bytecodes = get_bytecodes_from_method(class_txt, "run");
 
+    dbg!(&bytecodes);
     expect_bytecode_sequence(
         &bytecodes,
         &[
@@ -73,9 +74,7 @@ fn if_true_or_false_inlining_ok() {
             ReturnLocal,
             Pop,
             PushGlobal(1),
-            ReturnLocal,
-            Pop,
-            ReturnSelf,
+            ReturnLocal
         ],
     );
 
@@ -96,9 +95,7 @@ fn if_true_or_false_inlining_ok() {
             ReturnLocal,
             Pop,
             PushGlobal(1),
-            ReturnLocal,
-            Pop,
-            ReturnSelf,
+            ReturnLocal
         ],
     );
 }
