@@ -34,7 +34,7 @@ pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[
     ("to:do:", self::to_do, true),
     ("to:by:do:", self::to_by_do, true),
     ("downTo:do:", self::down_to_do, true),
-    // ("downTo:by:do:", self::to_by_do, true),
+    ("downTo:by:do:", self::down_to_by_do, true),
 ];
 
 pub static CLASS_PRIMITIVES: &[(&str, PrimitiveFn, bool)] =
@@ -616,6 +616,23 @@ fn down_to_do(interpreter: &mut Interpreter, _: &mut Universe) {
     ]);
 
     for i in end..=start {
+        interpreter.push_ugly_to_do_block_frame(Rc::clone(&blk), vec![Value::Block(Rc::clone(&blk)), Value::Integer(i)]);
+    }
+
+    interpreter.stack.push(Value::Integer(start));
+}
+
+fn down_to_by_do(interpreter: &mut Interpreter, _: &mut Universe) {
+    const SIGNATURE: &str = "Integer>>downTo:by:do:";
+
+    expect_args!(SIGNATURE, interpreter, [
+        Value::Integer(start) => start,
+        Value::Integer(step) => step,
+        Value::Integer(end) => end,
+        Value::Block(blk) => blk,
+    ]);
+    
+    for i in (start..=end).step_by(step as usize) {
         interpreter.push_ugly_to_do_block_frame(Rc::clone(&blk), vec![Value::Block(Rc::clone(&blk)), Value::Integer(i)]);
     }
 
