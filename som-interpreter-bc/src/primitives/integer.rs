@@ -623,6 +623,7 @@ fn down_to_do(interpreter: &mut Interpreter, _: &mut Universe) {
     interpreter.stack.push(Value::Integer(start));
 }
 
+// NB: this guy isn't a speedup, it's never used in our benchmarks as far as I'm aware.
 fn down_to_by_do(interpreter: &mut Interpreter, _: &mut Universe) {
     const SIGNATURE: &str = "Integer>>downTo:by:do:";
 
@@ -640,6 +641,7 @@ fn down_to_by_do(interpreter: &mut Interpreter, _: &mut Universe) {
     interpreter.stack.push(Value::Integer(start));
 }
 
+// NB: also not a speedup, also unused.
 fn times_repeat(interpreter: &mut Interpreter, _: &mut Universe) {
     const SIGNATURE: &str = "Integer>>timesRepeat:";
 
