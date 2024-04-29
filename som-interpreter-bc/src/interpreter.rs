@@ -76,7 +76,7 @@ pub struct Interpreter {
     /// The current frame.
     pub current_frame: SOMRef<Frame>,
     /// Pointer to the frame's bytecodes, to not have to read them from the frame directly
-    pub current_bytecodes: *const Vec<Bytecode>
+    pub current_bytecodes: *const Vec<Bytecode>,
 }
 
 impl Interpreter {
@@ -97,7 +97,7 @@ impl Interpreter {
             start_time: Instant::now(),
             bytecode_idx: 0,
             current_frame: Rc::clone(&base_frame),
-            current_bytecodes: base_frame.borrow_mut().bytecodes
+            current_bytecodes: base_frame.borrow_mut().bytecodes,
         }
     }
 
@@ -142,7 +142,7 @@ impl Interpreter {
     }
 
     pub fn pop_n_frames(&mut self, n: usize) {
-        (0..n).for_each(|_| {self.frames.pop();} );
+        (0..n).for_each(|_| { self.frames.pop(); });
 
         match self.frames.last().cloned() {
             None => {}
@@ -191,17 +191,17 @@ impl Interpreter {
                 }
                 Bytecode::Inc => {
                     match self.stack.last_mut().unwrap() {
-                        Value::Integer(v) => {*v += 1}
-                        Value::BigInteger(v) => {*v += 1}
-                        Value::Double(v) => {*v += 1.0}
+                        Value::Integer(v) => { *v += 1 }
+                        Value::BigInteger(v) => { *v += 1 }
+                        Value::Double(v) => { *v += 1.0 }
                         _ => panic!("Invalid type")
                     };
                 }
                 Bytecode::Dec => {
                     match self.stack.last_mut().unwrap() {
-                        Value::Integer(v) => {*v -= 1}
-                        Value::BigInteger(v) => {*v -= 1}
-                        Value::Double(v) => {*v -= 1.0}
+                        Value::Integer(v) => { *v -= 1 }
+                        Value::BigInteger(v) => { *v -= 1 }
+                        Value::Double(v) => { *v -= 1.0 }
                         _ => panic!("Invalid type")
                     };
                 }
@@ -379,7 +379,7 @@ impl Interpreter {
                         self.pop_n_frames(count + 1);
                     } else {
                         // NB: I did some changes there with the blockself bits and i'm not positive it works the same as before, but it should.
-                        
+
                         // Block has escaped its method frame.
                         let instance = frame.borrow().get_self();
                         let block = match frame.borrow().args.first().unwrap() {
@@ -390,7 +390,7 @@ impl Interpreter {
                                 panic!("A method frame has escaped itself ??");
                             }
                         };
-                        
+
                         universe.escaped_block(self, instance, block).expect(
                             "A block has escaped and `escapedBlock:` is not defined on receiver",
                         );
@@ -460,7 +460,7 @@ impl Interpreter {
             universe: &mut Universe,
             method: Option<Rc<Method>>,
             symbol: Interned,
-            nb_params: usize
+            nb_params: usize,
         ) {
             let Some(method) = method else {
                 let args = interpreter.stack.split_off(interpreter.stack.len() - nb_params);

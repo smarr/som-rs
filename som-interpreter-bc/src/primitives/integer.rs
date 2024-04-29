@@ -31,6 +31,7 @@ pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[
     ("atRandom", self::at_random, true),
     ("as32BitSignedValue", self::as_32bit_signed_value, true),
     ("as32BitUnsignedValue", self::as_32bit_unsigned_value, true),
+    ("to:do:", self::to_do, true),
 ];
 pub static CLASS_PRIMITIVES: &[(&str, PrimitiveFn, bool)] =
     &[("fromString:", self::from_string, true)];
@@ -556,6 +557,27 @@ fn shift_right(interpreter: &mut Interpreter, _: &mut Universe) {
     };
 
     interpreter.stack.push(value);
+}
+
+fn to_do(interpreter: &mut Interpreter, _: &mut Universe) {
+    const SIGNATURE: &str = "Integer>>to:do:";
+    // eprintln!("Invoking to:do:!");
+    // dbg!(&interpreter.stack);
+
+    expect_args!(SIGNATURE, interpreter, [
+        Value::Integer(a) => a,
+        Value::Integer(b) => b,
+        Value::Block(blk) => blk,
+    ]);
+
+    // dbg!(&a, &b);
+    for i in (a..=b).rev() {
+        interpreter.push_ugly_ass_block_frame(Rc::clone(&blk), vec![Value::Block(Rc::clone(&blk)), Value::Integer(i)]);
+
+        // interpreter.push_block_frame(Rc::clone(&blk), vec![Value::Block(Rc::clone(&blk)), Value::Integer(i)]);
+        // unsafe { (*interpreter.current_frame.borrow_mut().bytecodes).push(Bytecode::Pop) };
+    }
+    interpreter.stack.push(Value::Integer(a)); // a return self
 }
 
 /// Search for an instance primitive matching the given signature.
