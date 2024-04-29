@@ -32,7 +32,9 @@ pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[
     ("as32BitSignedValue", self::as_32bit_signed_value, true),
     ("as32BitUnsignedValue", self::as_32bit_unsigned_value, true),
     ("to:do:", self::to_do, true),
+    ("downTo:do:", self::down_to_do, true),
 ];
+
 pub static CLASS_PRIMITIVES: &[(&str, PrimitiveFn, bool)] =
     &[("fromString:", self::from_string, true)];
 
@@ -570,14 +572,31 @@ fn to_do(interpreter: &mut Interpreter, _: &mut Universe) {
         Value::Block(blk) => blk,
     ]);
 
-    // dbg!(&a, &b);
     for i in (a..=b).rev() {
-        interpreter.push_ugly_ass_block_frame(Rc::clone(&blk), vec![Value::Block(Rc::clone(&blk)), Value::Integer(i)]);
+        interpreter.push_ugly_to_do_block_frame(Rc::clone(&blk), vec![Value::Block(Rc::clone(&blk)), Value::Integer(i)]);
 
+        // // not that this would even quite work... this may cause issues if the block is called recursively or something.
         // interpreter.push_block_frame(Rc::clone(&blk), vec![Value::Block(Rc::clone(&blk)), Value::Integer(i)]);
         // unsafe { (*interpreter.current_frame.borrow_mut().bytecodes).push(Bytecode::Pop) };
     }
-    interpreter.stack.push(Value::Integer(a)); // a return self
+
+    interpreter.stack.push(Value::Integer(a));
+}
+
+fn down_to_do(interpreter: &mut Interpreter, _: &mut Universe) {
+    const SIGNATURE: &str = "Integer>>downTo:do:";
+
+    expect_args!(SIGNATURE, interpreter, [
+        Value::Integer(a) => a,
+        Value::Integer(b) => b,
+        Value::Block(blk) => blk,
+    ]);
+
+    for i in b..=a {
+        interpreter.push_ugly_to_do_block_frame(Rc::clone(&blk), vec![Value::Block(Rc::clone(&blk)), Value::Integer(i)]);
+    }
+
+    interpreter.stack.push(Value::Integer(a));
 }
 
 /// Search for an instance primitive matching the given signature.

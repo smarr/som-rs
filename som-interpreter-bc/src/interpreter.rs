@@ -373,8 +373,6 @@ impl Interpreter {
                         .rev()
                         .position(|live_frame| Rc::ptr_eq(&live_frame, &method_frame));
 
-                    // println!("...returning (non local)");
-
                     if let Some(count) = escaped_frames {
                         self.pop_n_frames(count + 1);
                     } else {
