@@ -35,6 +35,7 @@ pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[
     ("to:by:do:", self::to_by_do, true),
     ("downTo:do:", self::down_to_do, true),
     ("downTo:by:do:", self::down_to_by_do, true),
+    ("timesRepeat:", self::times_repeat, true),
 ];
 
 pub static CLASS_PRIMITIVES: &[(&str, PrimitiveFn, bool)] =
@@ -637,6 +638,21 @@ fn down_to_by_do(interpreter: &mut Interpreter, _: &mut Universe) {
     }
 
     interpreter.stack.push(Value::Integer(start));
+}
+
+fn times_repeat(interpreter: &mut Interpreter, _: &mut Universe) {
+    const SIGNATURE: &str = "Integer>>timesRepeat:";
+
+    expect_args!(SIGNATURE, interpreter, [
+        Value::Integer(n) => n,
+        Value::Block(blk) => blk,
+    ]);
+
+    for _ in 0..=n {
+        interpreter.push_ugly_to_do_block_frame(Rc::clone(&blk), vec![Value::Block(Rc::clone(&blk))]); // NB: this doesn't take the index as an argument
+    }
+
+    interpreter.stack.push(Value::Integer(n));
 }
 
 /// Search for an instance primitive matching the given signature.
