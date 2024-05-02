@@ -363,23 +363,9 @@ impl Interpreter {
                     self.stack.push(self_val);
                 }
                 Bytecode::ReturnLocal => {
-                    let value = self.stack.pop().unwrap();
                     self.pop_frame();
-                    // println!("...returning (local)");
-                    // todo only handle bytecode idx writes here?
-                    // match self.current_frame().cloned() {i
-                    //     None => {} // eh we're at the end of the program anyway
-                    //     Some(f) => {
-                    //         self.bytecode_idx_new = f.borrow().bytecode_idx;
-                    //         // println!("returned with idx: {:?}", self.bytecode_idx_new); // todo remove all debug
-                    //         // println!("prev: {:?}", self.current_frame().unwrap().borrow().get_bytecode_at(self.bytecode_idx_new - 1));
-                    //     }
-                    // };
-                    self.stack.push(value);
                 }
                 Bytecode::ReturnNonLocal(up_idx) => {
-                    let value = self.stack.pop().unwrap();
-                    // let method_frame = Frame::method_frame(&frame);
                     let method_frame = Frame::nth_frame_back(Rc::clone(&frame), up_idx);
                     let escaped_frames = self
                         .frames
@@ -390,16 +376,7 @@ impl Interpreter {
                     // println!("...returning (non local)");
 
                     if let Some(count) = escaped_frames {
-                        // assert_eq!(up_idx as usize, count);
                         self.pop_n_frames(count + 1);
-                        // match self.current_frame().cloned() {
-                        //     None => {}
-                        //     Some(f) => {
-                        //         self.bytecode_idx_new = f.borrow().bytecode_idx;
-                        //         // println!("returned (non local) with idx: {:?}", self.bytecode_idx_new);
-                        //     }
-                        // };
-                        self.stack.push(value);
                     } else {
                         // NB: I did some changes there with the blockself bits and i'm not positive it works the same as before, but it should.
                         
