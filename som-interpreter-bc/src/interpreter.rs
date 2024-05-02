@@ -119,6 +119,12 @@ impl Interpreter {
         frame
     }
 
+    // pub fn push_ugly_to_do_block_frame(&mut self, block: Rc<Block>, args: Vec<Value>) -> SOMRef<Frame> {
+    //     let frame = self.push_block_frame(block, args);
+    //     frame.borrow_mut().ugly_to_do_flag = true;
+    //     frame
+    // }
+
     // pub fn push_frame(&mut self, kind: FrameKind) -> SOMRef<Frame> {
     //     let frame = Rc::new(RefCell::new(Frame::from_kind(kind)));
     //     self.frames.push(frame.clone());
@@ -131,6 +137,10 @@ impl Interpreter {
     pub fn pop_frame(&mut self) {
         self.frames.pop();
 
+        // if self.current_frame.borrow().ugly_to_do_flag {
+        //     self.stack.pop();
+        // }
+        
         match self.frames.last().cloned() {
             None => {}
             Some(f) => {
@@ -144,6 +154,10 @@ impl Interpreter {
     pub fn pop_n_frames(&mut self, n: usize) {
         (0..n).for_each(|_| { self.frames.pop(); });
 
+        // if self.current_frame.borrow().ugly_to_do_flag {
+        //     self.stack.pop();
+        // }
+        
         match self.frames.last().cloned() {
             None => {}
             Some(f) => {

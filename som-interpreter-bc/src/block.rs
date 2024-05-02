@@ -49,6 +49,49 @@ impl Block {
     pub fn nb_parameters(&self) -> usize {
         self.blk_info.nb_params
     }
+    
+    pub fn make_equivalent_with_no_return(&self) -> Rc<Block> {
+        Rc::from(Block {
+            frame: self.frame.clone(),
+            blk_info: Rc::new(BlockInfo {
+                literals: self.blk_info.literals.clone(),
+                body: {
+                    let og_body = &self.blk_info.body;
+                    let mut new_body = og_body.clone();
+
+                    // for bytecode in &mut new_body {
+                    //     if let Bytecode::ReturnNonLocal(_) = bytecode {
+                    //         *bytecode = Bytecode::Pop;
+                    //     }
+                    // }
+
+                    let return_counts = new_body.iter().filter(|b| match **b {
+                        Bytecode::ReturnLocal | Bytecode::ReturnSelf | Bytecode::ReturnNonLocal(_) => true,
+                        _ => false,
+                    }).count();
+
+                    if return_counts != 1 {
+                        dbg!(&og_body);
+                        std::process::exit(1);
+                    }
+                    assert_eq!(return_counts, 1);
+
+                    assert_eq!(*new_body.last().unwrap(), Bytecode::ReturnLocal); // can't be a return self cause it's never in a block
+
+                    new_body.pop();
+                    new_body.push(Bytecode::Pop);
+                    new_body.push(Bytecode::Pop);
+
+                    // dbg!(&og_body);
+                    // dbg!(&new_body);
+                    new_body
+                },
+                nb_locals: self.blk_info.nb_locals,
+                nb_params: self.blk_info.nb_params,
+                inline_cache: self.blk_info.inline_cache.clone(),
+            }),
+        })
+    }
 }
 
 impl fmt::Debug for Block {

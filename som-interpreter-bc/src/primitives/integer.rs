@@ -10,6 +10,7 @@ use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
 use crate::value::Value;
 use crate::{expect_args, reverse};
+use crate::block::Block;
 
 pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[
     ("<", self::lt, true),
@@ -32,10 +33,10 @@ pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[
     ("as32BitSignedValue", self::as_32bit_signed_value, true),
     ("as32BitUnsignedValue", self::as_32bit_unsigned_value, true),
     ("to:do:", self::to_do, true),
-    ("to:by:do:", self::to_by_do, true),
-    ("downTo:do:", self::down_to_do, true),
-    ("downTo:by:do:", self::down_to_by_do, true),
-    ("timesRepeat:", self::times_repeat, true),
+    // ("to:by:do:", self::to_by_do, true),
+    // ("downTo:do:", self::down_to_do, true),
+    // ("downTo:by:do:", self::down_to_by_do, true),
+    // ("timesRepeat:", self::times_repeat, true),
 ];
 
 pub static CLASS_PRIMITIVES: &[(&str, PrimitiveFn, bool)] =
@@ -572,19 +573,17 @@ fn to_do(interpreter: &mut Interpreter, _: &mut Universe) {
         Value::Integer(end) => end,
         Value::Block(blk) => blk,
     ]);
-
+    
+    let new_block_rc = blk.make_equivalent_with_no_return();
     for i in (start..=end).rev() {
-        interpreter.push_ugly_to_do_block_frame(Rc::clone(&blk), vec![Value::Block(Rc::clone(&blk)), Value::Integer(i)]);
-
-        // // not that this would even quite work... this may cause issues if the block is called recursively or something.
-        // interpreter.push_block_frame(Rc::clone(&blk), vec![Value::Block(Rc::clone(&blk)), Value::Integer(i)]);
-        // unsafe { (*interpreter.current_frame.borrow_mut().bytecodes).push(Bytecode::Pop) };
+        // interpreter.push_ugly_to_do_block_frame(Rc::clone(&blk), vec![Value::Block(Rc::clone(&blk)), Value::Integer(i)]);
+        interpreter.push_block_frame(Rc::clone(&new_block_rc), vec![Value::Block(Rc::clone(&new_block_rc)), Value::Integer(i)]);
     }
 
     interpreter.stack.push(Value::Integer(start));
 }
 
-fn to_by_do(interpreter: &mut Interpreter, _: &mut Universe) {
+/*fn to_by_do(interpreter: &mut Interpreter, _: &mut Universe) {
     const SIGNATURE: &str = "Integer>>to:by:do:";
 
     expect_args!(SIGNATURE, interpreter, [
@@ -598,16 +597,12 @@ fn to_by_do(interpreter: &mut Interpreter, _: &mut Universe) {
     // calling rev() because it's a stack of frames: LIFO means we want to add the last one first, then the penultimate one, etc., til the first
     for i in (start..=end).rev().step_by(step as usize) {
         interpreter.push_ugly_to_do_block_frame(Rc::clone(&blk), vec![Value::Block(Rc::clone(&blk)), Value::Integer(i)]);
-
-        // // not that this would even quite work... this may cause issues if the block is called recursively or something.
-        // interpreter.push_block_frame(Rc::clone(&blk), vec![Value::Block(Rc::clone(&blk)), Value::Integer(i)]);
-        // unsafe { (*interpreter.current_frame.borrow_mut().bytecodes).push(Bytecode::Pop) };
     }
 
     interpreter.stack.push(Value::Integer(start));
-}
+}*/
 
-fn down_to_do(interpreter: &mut Interpreter, _: &mut Universe) {
+/*fn down_to_do(interpreter: &mut Interpreter, _: &mut Universe) {
     const SIGNATURE: &str = "Integer>>downTo:do:";
 
     expect_args!(SIGNATURE, interpreter, [
@@ -655,7 +650,7 @@ fn times_repeat(interpreter: &mut Interpreter, _: &mut Universe) {
     }
 
     interpreter.stack.push(Value::Integer(n));
-}
+}*/
 
 /// Search for an instance primitive matching the given signature.
 pub fn get_instance_primitive(signature: &str) -> Option<PrimitiveFn> {
