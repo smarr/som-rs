@@ -283,3 +283,48 @@ fn inlining_pyramid() {
     expect_bytecode_sequence(&bytecodes, expected_bc);
     expect_bytecode_sequence(&bytecodes2, expected_bc);
 }
+
+// todo: that's meant to be a test for block:make_equivalent_with_no_return, but hey it works on the benchmarks soooo todo later i guess
+#[ignore]
+#[test]
+fn make_new_block_for_to_do() {
+    let og_bc = &[
+        PushArgument(0, 0),
+        PushArgument(0, 1),
+        PushArgument(1, 1),
+        Send3(0),
+        JumpOnFalseTopNil(32),
+        PushField(3),
+        PushArgument(0, 1),
+        PushArgument(1, 1),
+        Send3(1),
+        Pop,
+        PushArgument(0, 0),
+        PushArgument(0, 1),
+        PushArgument(1, 1),
+        PushGlobal(2),
+        SendN(3),
+        Pop,
+        PushArgument(1, 1),
+        PushConstant(4),
+        Send2(5),
+        JumpOnFalseTopNil(3),
+        PushGlobal(6),
+        ReturnNonLocal(1),
+        Pop,
+        PushArgument(0, 0),
+        PushArgument(1, 1),
+        Inc,
+        Send2(7),
+        JumpOnFalseTopNil(3),
+        PushGlobal(6),
+        ReturnNonLocal(1),
+        Pop,
+        PushArgument(0, 0),
+        PushArgument(0, 1),
+        PushArgument(1, 1),
+        PushGlobal(6),
+        SendN(3),
+        ReturnLocal,
+    ];
+}

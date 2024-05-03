@@ -576,7 +576,6 @@ fn to_do(interpreter: &mut Interpreter, _: &mut Universe) {
     
     let new_block_rc = blk.make_equivalent_with_no_return();
     for i in (start..=end).rev() {
-        // interpreter.push_ugly_to_do_block_frame(Rc::clone(&blk), vec![Value::Block(Rc::clone(&blk)), Value::Integer(i)]);
         interpreter.push_block_frame(Rc::clone(&new_block_rc), vec![Value::Block(Rc::clone(&new_block_rc)), Value::Integer(i)]);
     }
 
