@@ -79,7 +79,7 @@ impl Block {
                                     let nbr_new_bc_in_range = non_local_rets_idx.iter()
                                         .filter(|new_bc_idx| (bc_idx < **new_bc_idx) && (**new_bc_idx <= *jump_idx + bc_idx))
                                         .count();
-                                    
+
                                     if nbr_new_bc_in_range > 0 {
                                         *jump_idx += nbr_new_bc_in_range
                                     }
@@ -97,9 +97,7 @@ impl Block {
                             }
                         }
                     }
-
-                    assert_eq!(*new_body.last().unwrap(), Bytecode::ReturnLocal); // can't be a return self cause it's never in a block
-
+                    
                     // right before the ReturnLocal, we pop whatever value we wanted to return
                     new_body.insert(new_body.len() - 1, Bytecode::Pop);
                     
