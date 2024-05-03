@@ -288,7 +288,7 @@ fn inlining_pyramid() {
 #[ignore]
 #[test]
 fn make_new_block_for_to_do() {
-    let og_bc = &[
+    let _og_bc = &[
         PushArgument(0, 0),
         PushArgument(0, 1),
         PushArgument(1, 1),

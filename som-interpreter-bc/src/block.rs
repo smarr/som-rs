@@ -102,12 +102,6 @@ impl Block {
 
                     // right before the ReturnLocal, we pop whatever value we wanted to return
                     new_body.insert(new_body.len() - 1, Bytecode::Pop);
-
-                    if !non_local_rets_idx.is_empty() {
-                        dbg!(&og_body);
-                        dbg!(&new_body);
-                        std::process::exit(1);
-                    }
                     
                     new_body
                 },

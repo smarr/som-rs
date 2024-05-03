@@ -45,10 +45,6 @@ pub struct Frame {
     pub bytecode_idx: usize,
     /// Inline cache associated with the frame.
     pub inline_cache: *const RefCell<Vec<Option<(*const Class, Rc<Method>)>>>,
-    
-    // /// This is used in to:do: and means "do a POP at the end of the method". It's ugly. See "to:do:" primitive implem.
-    // pub ugly_to_do_flag: bool
-    
     // /// This frame's kind.
     // #[cfg(feature = "frame-debug-info")]
     // pub kind: FrameKind,
@@ -63,7 +59,6 @@ impl Frame {
             bytecodes: &block.blk_info.body,
             bytecode_idx: 0,
             inline_cache: std::ptr::addr_of!(block.blk_info.inline_cache),
-            // ugly_to_do_flag: false
         }
     }
 
@@ -77,7 +72,6 @@ impl Frame {
                     bytecodes: &env.body,
                     bytecode_idx: 0,
                     inline_cache: std::ptr::addr_of!(env.inline_cache),
-                    // ugly_to_do_flag: false
                 }
             }
             _ => unreachable!()
