@@ -9,7 +9,7 @@ use crate::universe::Universe;
 
 pub fn disassemble_method_body(universe: &Universe, class: &Class, env: &MethodEnv) {
     disassemble_body(universe, class, 1, &mut vec![env]);
-    #[cfg(not(feature = "block-dbg-info"))]
+    #[cfg(not(feature = "frame-debug-info"))]
     eprintln!("------- Used disassembler without debug symbols. While it could be possible, it's likely not desired. -------");
 }
 
@@ -170,6 +170,7 @@ trait FrameEnv {
     fn get_body(&self) -> &[Bytecode];
     fn resolve_local(&self, idx: u8) -> Option<Interned>;
     fn resolve_literal(&self, idx: u8) -> Option<&Literal>;
+    #[allow(dead_code)]
     fn resolve_argument(&self, idx: u8) -> Option<Interned>;
 }
 
@@ -178,12 +179,12 @@ impl FrameEnv for MethodEnv {
         &self.body
     }
 
-    #[cfg(feature = "block-dbg-info")]
+    #[cfg(feature = "frame-debug-info")]
     fn resolve_local(&self, idx: u8) -> Option<Interned> {
         self.block_debug_info.locals.get(usize::from(idx)).copied()
     }
 
-    #[cfg(not(feature = "block-dbg-info"))]
+    #[cfg(not(feature = "frame-debug-info"))]
     fn resolve_local(&self, _idx: u8) -> Option<Interned> {
         None
     }
@@ -202,12 +203,12 @@ impl FrameEnv for Block {
         &self.blk_info.body
     }
 
-    #[cfg(feature = "block-dbg-info")]
+    #[cfg(feature = "frame-debug-info")]
     fn resolve_local(&self, idx: u8) -> Option<Interned> {
         self.blk_info.block_debug_info.locals.get(usize::from(idx)).copied()
     }
 
-    #[cfg(not(feature = "block-dbg-info"))]
+    #[cfg(not(feature = "frame-debug-info"))]
     fn resolve_local(&self, _idx: u8) -> Option<Interned> {
         None
     }

@@ -12,7 +12,7 @@ use crate::universe::Universe;
 use crate::value::Value;
 use crate::{SOMRef, SOMWeakRef};
 
-#[cfg(feature = "block-dbg-info")]
+#[cfg(feature = "frame-debug-info")]
 use crate::block::BlockDebugInfo;
 
 #[derive(Clone)]
@@ -21,7 +21,7 @@ pub struct MethodEnv {
     pub body: Vec<Bytecode>,
     pub inline_cache: RefCell<Vec<Option<(*const Class, Rc<Method>)>>>,
     pub nbr_locals: usize,
-    #[cfg(feature = "block-dbg-info")]
+    #[cfg(feature = "frame-debug-info")]
     pub block_debug_info: BlockDebugInfo,
 }
 

@@ -10,7 +10,7 @@ use num_bigint::BigInt;
 
 use som_core::ast;
 use som_core::ast::{Expression, MethodBody, MethodDef};
-#[cfg(feature = "block-dbg-info")]
+#[cfg(feature = "frame-debug-info")]
 use som_core::ast::BlockDebugInfo;
 use som_core::bytecode::Bytecode;
 
@@ -114,7 +114,7 @@ struct BlockGenCtxt<'a> {
     pub locals_nbr: usize,
     pub literals: IndexSet<Literal>,
     pub body: Option<Vec<Bytecode>>,
-    #[cfg(feature = "block-dbg-info")]
+    #[cfg(feature = "frame-debug-info")]
     pub dbg_info: BlockDebugInfo,
 }
 
@@ -668,7 +668,7 @@ fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::GenericMethodDef) -> Opti
                     ast::MethodKind::Operator { .. } => 2
                 }
             },
-            #[cfg(feature = "block-dbg-info")]
+            #[cfg(feature = "frame-debug-info")]
             dbg_info: todo!(),
         },
     };
