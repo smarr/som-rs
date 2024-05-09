@@ -572,10 +572,9 @@ fn to_do(interpreter: &mut Interpreter, _: &mut Universe) {
         Value::Integer(end) => end,
         Value::Block(blk) => blk,
     ]);
-    
-    // std::process::exit(1);
+
     let new_block_rc = blk.make_equivalent_with_no_return();
-    // dbg!("ok");
+    // let new_block_rc = blk;
 
     // calling rev() because it's a stack of frames: LIFO means we want to add the last one first, then the penultimate one, etc., til the first
     for i in (start..=end).rev() {
@@ -585,7 +584,7 @@ fn to_do(interpreter: &mut Interpreter, _: &mut Universe) {
     interpreter.stack.push(Value::Integer(start));
 }
 
-fn to_by_do(interpreter: &mut Interpreter, _: &mut Universe) {
+/*fn to_by_do(interpreter: &mut Interpreter, _: &mut Universe) {
     const SIGNATURE: &str = "Integer>>to:by:do:";
 
     expect_args!(SIGNATURE, interpreter, [
@@ -654,7 +653,7 @@ fn times_repeat(interpreter: &mut Interpreter, _: &mut Universe) {
     }
 
     interpreter.stack.push(Value::Integer(n));
-}
+}*/
 
 /// Search for an instance primitive matching the given signature.
 pub fn get_instance_primitive(signature: &str) -> Option<PrimitiveFn> {

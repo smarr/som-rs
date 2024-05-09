@@ -456,6 +456,23 @@ impl MethodCodegen for ast::Expression {
                     .iter()
                     .try_for_each(|value| value.codegen(ctxt))?;
 
+                /*if message.signature == "to:do:" {
+                    match ctxt.get_instructions().last().unwrap() {
+                        Bytecode::PushBlock(idx) => {
+                            let block_literal= ctxt.remove_literal(*idx as usize).unwrap();
+                            if let Literal::Block(blk_rc) = block_literal {
+                                let new_blk_rc = blk_rc.make_equivalent_with_no_return();
+                                let lit_idx = ctxt.push_literal(Literal::Block(new_blk_rc));
+                                ctxt.pop_instr();
+                                ctxt.push_instr(Bytecode::PushBlock(lit_idx as u8));
+                            }
+                        },
+                        _ => { 
+                            // so in which cases does this happen?
+                        }
+                    }
+                }*/
+
                 let nb_params = match message.signature.chars().nth(0) {
                     Some(ch) if !ch.is_alphabetic() => 1,
                     _ => message.signature.chars().filter(|ch| *ch == ':').count(),

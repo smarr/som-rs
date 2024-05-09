@@ -50,6 +50,7 @@ impl Block {
         self.blk_info.nb_params
     }
 
+    /// Creates a new block with POP bytecodes before each return (local and non local), so that the block returns with no effect on the stack
     pub fn make_equivalent_with_no_return(&self) -> Rc<Block> {
         fn patch_return_non_locals(new_body: &mut Vec<Bytecode>) {
             let non_local_rets_idx: Vec<usize> = new_body.iter().enumerate()
@@ -58,7 +59,7 @@ impl Block {
 
             if !non_local_rets_idx.is_empty() {
                 for (i, pop_insert_idx) in non_local_rets_idx.iter().enumerate() {
-                    // we do "+i": +0, +1, +2, +... to adjust for the fact that we are inserting elements in succession (which changes the target indices)
+                    // we do "+i": +0, +1, +2, +... to adjust for the fact that we are inserting elements in succession (which changes the subsequent target indices)
                     new_body.insert(*pop_insert_idx + i, Bytecode::Pop);
                     assert_eq!(*new_body.get(*pop_insert_idx + i).unwrap(), Bytecode::Pop);
                     assert!(matches!(new_body.get(*pop_insert_idx + i + 1).unwrap(), Bytecode::ReturnNonLocal(_)));
@@ -75,7 +76,6 @@ impl Block {
 
                             if nbr_new_bc_in_range > 0 {
                                 *jump_idx += nbr_new_bc_in_range
-                                // jumps_to_patch.push((bc_idx, *jump_idx + nbr_new_bc_in_range));
                             }
                         },
                         Bytecode::JumpBackward(jump_idx) => {
@@ -85,7 +85,6 @@ impl Block {
 
                             if nbr_new_bc_in_range > 0 {
                                 *jump_idx += nbr_new_bc_in_range
-                                // jumps_to_patch.push((bc_idx, *jump_idx + nbr_new_bc_in_range));
                             }
                         },
                         _ => {}
@@ -98,8 +97,11 @@ impl Block {
         
         patch_return_non_locals(&mut new_body);
         
-        // right before the ReturnLocal, we pop whatever value we wanted to return
+        // this isn't handled at the same time as the ReturnNonLocal because it's fine for them to keep jumping to what they think is a ReturnLocal - what we really want is them to jump to the POP we insert right now
         new_body.insert(new_body.len() - 1, Bytecode::Pop);
+        
+        // dbg!(&self.blk_info.body);
+        // dbg!(&new_body);
 
         Rc::from(Block {
             frame: self.frame.clone(),
