@@ -169,30 +169,18 @@ impl InnerGenCtxt for BlockGenCtxt<'_> {
 
     fn backpatch_jump_to_current(&mut self, idx_to_backpatch: usize) {
         let jump_offset = self.get_cur_instr_idx() - idx_to_backpatch;
-
-        self.body.as_mut().unwrap()[idx_to_backpatch] =
-            match self.body.as_ref().unwrap()[idx_to_backpatch] {
-                Bytecode::Jump(_) => Bytecode::Jump(jump_offset),
-                Bytecode::JumpBackward(_) => Bytecode::JumpBackward(jump_offset),
-                Bytecode::JumpOnTrueTopNil(_) => Bytecode::JumpOnTrueTopNil(jump_offset),
-                Bytecode::JumpOnFalseTopNil(_) => Bytecode::JumpOnFalseTopNil(jump_offset),
-                Bytecode::JumpOnTruePop(_) => Bytecode::JumpOnTruePop(jump_offset),
-                Bytecode::JumpOnFalsePop(_) => Bytecode::JumpOnFalsePop(jump_offset),
-                _ => panic!("Attempting to backpatch a bytecode non jump"),
-            };
+        self.patch_jump(idx_to_backpatch, jump_offset)
     }
 
-    fn patch_jump(&mut self, idx_to_backpatch: usize, new_val: usize) {
-        self.body.as_mut().unwrap()[idx_to_backpatch] =
-            match self.body.as_ref().unwrap()[idx_to_backpatch] {
-                Bytecode::Jump(_) => Bytecode::Jump(new_val),
-                Bytecode::JumpBackward(_) => Bytecode::JumpBackward(new_val),
-                Bytecode::JumpOnTrueTopNil(_) => Bytecode::JumpOnTrueTopNil(new_val),
-                Bytecode::JumpOnFalseTopNil(_) => Bytecode::JumpOnFalseTopNil(new_val),
-                Bytecode::JumpOnTruePop(_) => Bytecode::JumpOnTruePop(new_val),
-                Bytecode::JumpOnFalsePop(_) => Bytecode::JumpOnFalsePop(new_val),
-                _ => panic!("Attempting to patch a bytecode non jump"),
-            };
+    fn patch_jump(&mut self, idx_to_patch: usize, new_val: usize) {
+        match self.body.as_mut().unwrap().get_mut(idx_to_patch).unwrap() {
+            Bytecode::Jump(jump_idx) | Bytecode::JumpBackward(jump_idx)
+            | Bytecode::JumpOnTrueTopNil(jump_idx) | Bytecode::JumpOnFalseTopNil(jump_idx)
+            | Bytecode::JumpOnTruePop(jump_idx) | Bytecode::JumpOnFalsePop(jump_idx) => {
+                *jump_idx = new_val
+            }
+            _ => panic!("Attempting to patch a bytecode non jump"),
+        };
     }
 
     fn get_nbr_locals(&self) -> usize {
@@ -526,13 +514,13 @@ impl MethodCodegen for ast::Expression {
                                 ctxt.push_instr(Bytecode::ReturnLocal)
                             }
                         }
-                    },
+                    }
                     _ => {
                         expr.codegen(ctxt)?;
                         ctxt.push_instr(Bytecode::ReturnNonLocal(*scope as u8));
                     }
                 };
-                
+
                 Some(())
             }
             ast::Expression::Literal(literal) => {
@@ -613,7 +601,7 @@ fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::GenericMethodDef) -> Opti
     /// Only add a ReturnSelf at the end of a method if needed: i.e. there's no existing return, and if there is, that it can't be jumped over.
     fn should_add_return_self(ctxt: &mut MethodGenCtxt, body: &ast::Body) -> bool {
         if body.exprs.is_empty() {
-            return true
+            return true;
         }
 
         // going back two BC to skip the POP added after each expr.codegen(...).
@@ -692,7 +680,7 @@ fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::GenericMethodDef) -> Opti
                 expr.codegen(&mut ctxt)?;
                 ctxt.push_instr(Bytecode::Pop);
             }
-            
+
             if should_add_return_self(&mut ctxt, body) {
                 ctxt.push_instr(Bytecode::ReturnSelf);
             } else {
