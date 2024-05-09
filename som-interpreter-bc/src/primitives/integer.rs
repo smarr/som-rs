@@ -32,10 +32,10 @@ pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[
     ("as32BitSignedValue", self::as_32bit_signed_value, true),
     ("as32BitUnsignedValue", self::as_32bit_unsigned_value, true),
     ("to:do:", self::to_do, true),
-    ("to:by:do:", self::to_by_do, true),
-    ("downTo:do:", self::down_to_do, true),
-    ("downTo:by:do:", self::down_to_by_do, true),
-    ("timesRepeat:", self::times_repeat, true),
+    // ("to:by:do:", self::to_by_do, true),
+    // ("downTo:do:", self::down_to_do, true),
+    // ("downTo:by:do:", self::down_to_by_do, true),
+    // ("timesRepeat:", self::times_repeat, true),
 ];
 
 pub static CLASS_PRIMITIVES: &[(&str, PrimitiveFn, bool)] =
@@ -573,7 +573,10 @@ fn to_do(interpreter: &mut Interpreter, _: &mut Universe) {
         Value::Block(blk) => blk,
     ]);
     
+    // std::process::exit(1);
     let new_block_rc = blk.make_equivalent_with_no_return();
+    // dbg!("ok");
+
     // calling rev() because it's a stack of frames: LIFO means we want to add the last one first, then the penultimate one, etc., til the first
     for i in (start..=end).rev() {
         interpreter.push_block_frame(Rc::clone(&new_block_rc), vec![Value::Block(Rc::clone(&new_block_rc)), Value::Integer(i)]);

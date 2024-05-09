@@ -411,7 +411,7 @@ impl Interpreter {
                         Value::Boolean(false) => {
                             self.stack.pop();
                         }
-                        _ => panic!("Jump condition did not evaluate to boolean (was {:?})", condition_result),
+                        _ => panic!("JumpOnTrueTopNil condition did not evaluate to boolean (was {:?})", condition_result),
                     }
                 }
                 Bytecode::JumpOnFalseTopNil(offset) => {
@@ -425,7 +425,7 @@ impl Interpreter {
                         Value::Boolean(true) => {
                             self.stack.pop();
                         }
-                        _ => panic!("Jump condition did not evaluate to boolean (was {:?})", condition_result),
+                        _ => panic!("JumpOnFalseTopNil condition did not evaluate to boolean (was {:?})", condition_result),
                     }
                 }
                 Bytecode::JumpOnTruePop(offset) => {
@@ -436,7 +436,7 @@ impl Interpreter {
                             self.bytecode_idx += offset - 1;
                         }
                         Value::Boolean(false) => {}
-                        _ => panic!("Jump condition did not evaluate to boolean (was {:?})", condition_result),
+                        _ => panic!("JumpOnTruePop condition did not evaluate to boolean (was {:?})", condition_result),
                     }
                 }
                 Bytecode::JumpOnFalsePop(offset) => {
@@ -447,7 +447,7 @@ impl Interpreter {
                             self.bytecode_idx += offset - 1;
                         }
                         Value::Boolean(true) => {}
-                        _ => panic!("Jump condition did not evaluate to boolean (was {:?})", condition_result),
+                        _ => panic!("JumpOnFalsePop condition did not evaluate to boolean (was {:?})", condition_result),
                     }
                 }
             }
