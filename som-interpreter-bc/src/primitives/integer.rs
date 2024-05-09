@@ -573,8 +573,8 @@ fn to_do(interpreter: &mut Interpreter, _: &mut Universe) {
         Value::Block(blk) => blk,
     ]);
 
-    let new_block_rc = blk.make_equivalent_with_no_return();
-    // let new_block_rc = blk;
+    // let new_block_rc = blk.make_equivalent_with_no_return();
+    let new_block_rc = blk;
 
     // calling rev() because it's a stack of frames: LIFO means we want to add the last one first, then the penultimate one, etc., til the first
     for i in (start..=end).rev() {

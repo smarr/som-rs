@@ -456,7 +456,7 @@ impl MethodCodegen for ast::Expression {
                     .iter()
                     .try_for_each(|value| value.codegen(ctxt))?;
 
-                /*if message.signature == "to:do:" {
+                if message.signature == "to:do:" {
                     match ctxt.get_instructions().last().unwrap() {
                         Bytecode::PushBlock(idx) => {
                             let block_literal= ctxt.remove_literal(*idx as usize).unwrap();
@@ -471,7 +471,7 @@ impl MethodCodegen for ast::Expression {
                             // so in which cases does this happen?
                         }
                     }
-                }*/
+                }
 
                 let nb_params = match message.signature.chars().nth(0) {
                     Some(ch) if !ch.is_alphabetic() => 1,
