@@ -483,7 +483,7 @@ impl Interpreter {
                     interpreter.push_method_frame(method, args);
                 }
                 MethodKind::Primitive(func) => {
-                    // eprintln!("Invoking prim {:?} (in {:?})", &method.signature, &method.holder.upgrade().unwrap().borrow().name);
+                    // eprintln!("Invoking prim {:?}", &method.signature);
                     func(interpreter, universe);
                 }
                 MethodKind::NotImplemented(err) => {

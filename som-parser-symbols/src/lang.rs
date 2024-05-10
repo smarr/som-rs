@@ -309,8 +309,11 @@ pub fn block<'a>() -> impl Parser<Expression, &'a [Token], AstGenCtxt> {
         Some((Expression::Block(Block {
             nbr_params: parameters.len(),
             nbr_locals: locals.len(),
-            #[cfg(feature = "block-debug-info")]
-            dbg_info: Rc::clone(&new_genctxt).borrow().get_debug_info(),
+            #[cfg(feature = "block-dbg-info")]
+            dbg_info: BlockDebugInfo {
+                parameters,
+                locals,
+            },
             body,
         }), input, new_genctxt))
     }
@@ -373,34 +376,17 @@ pub fn primitive<'a>() -> impl Parser<MethodBody, &'a [Token], AstGenCtxt> {
 }
 
 pub fn method_body<'a>() -> impl Parser<MethodBody, &'a [Token], AstGenCtxt> {
-    // between(
-    //     exact(Token::NewTerm),
-    //     default(locals()).and(body()),
-    //     exact(Token::EndTerm),
-    // )
-    //     .map(|(locals, body)| MethodBody::Body { 
-    //         locals_nbr: locals.len(),
-    //         body,
-    //         #[cfg(feature = "block-debug-info")]
-    //         debug_info: ctxt
-    //     })
-
-    move |input: &'a [Token], genctxt: AstGenCtxt| {
-        let ((locals, body), input, genctxt) = between(
-            exact(Token::NewTerm),
-            default(locals()).and(body()),
-            exact(Token::EndTerm),
-        ).parse(input, genctxt)?;
-
-        let method_body = MethodBody::Body { 
+    between(
+        exact(Token::NewTerm),
+        default(locals()).and(body()),
+        exact(Token::EndTerm),
+    )
+        .map(|(locals, body)| MethodBody::Body { 
             locals_nbr: locals.len(),
             body,
-            #[cfg(feature = "block-debug-info")]
-            debug_info: genctxt.borrow().get_debug_info()
-        };
-        
-        Some((method_body, input, genctxt))
-    }
+            #[cfg(feature = "block-dbg-info")]
+            locals
+        })
 }
 
 pub fn unary_method_def<'a>() -> impl Parser<MethodDef, &'a [Token], AstGenCtxt> {

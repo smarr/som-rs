@@ -67,7 +67,7 @@ fn block_test() {
     assert_eq!(
         block,
         Expression::Block(Block {
-            #[cfg(feature = "block-debug-info")]
+            #[cfg(feature = "block-dbg-info")]
             dbg_info: BlockDebugInfo {
                 parameters: vec![String::from("test")],
                 locals: vec![String::from("local")]
@@ -119,7 +119,7 @@ fn expression_test_2() {
             signature: String::from("ifTrue:ifFalse:"),
             values: vec![
                 Expression::Block(Block {
-                    #[cfg(feature = "block-debug-info")]
+                    #[cfg(feature = "block-dbg-info")]
                     dbg_info: BlockDebugInfo {
                         parameters: vec![],
                         locals: vec![]
@@ -138,7 +138,7 @@ fn expression_test_2() {
                     }
                 }),
                 Expression::Block(Block {
-                    #[cfg(feature = "block-debug-info")]
+                    #[cfg(feature = "block-dbg-info")]
                     dbg_info: BlockDebugInfo {
                         parameters: vec![],
                         locals: vec![]
@@ -176,7 +176,7 @@ fn primary_test() {
     assert_eq!(
         primary,
         Expression::Block(Block {
-            #[cfg(feature = "block-debug-info")]
+            #[cfg(feature = "block-dbg-info")]
             dbg_info: BlockDebugInfo {
                 parameters: vec![],
                 locals: vec![]

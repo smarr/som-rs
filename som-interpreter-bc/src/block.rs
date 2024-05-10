@@ -111,8 +111,6 @@ impl Block {
                 body: new_body,
                 nb_locals: self.blk_info.nb_locals,
                 nb_params: self.blk_info.nb_params,
-                #[cfg(feature = "frame-debug-info")]
-                block_debug_info: self.blk_info.block_debug_info.clone()
             }),
         })
     }

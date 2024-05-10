@@ -10,8 +10,6 @@ pub mod lang;
 use std::cell::RefCell;
 use std::rc::Rc;
 use som_core::ast::{ClassDef, Expression};
-#[cfg(feature = "block-debug-info")]
-use som_core::ast::BlockDebugInfo;
 use som_lexer::Token;
 use som_parser_core::{Parser};
 
@@ -195,18 +193,6 @@ impl AstGenCtxtData {
     
     pub fn get_method_scope(&self) -> usize {
         self.get_method_scope_rec(0)
-    }
-
-    #[cfg(feature = "block-debug-info")]
-    pub fn get_debug_info(&self) -> BlockDebugInfo {
-        BlockDebugInfo {
-            parameters: {
-                let mut parameters_with_self = self.param_names.clone();
-                parameters_with_self.insert(0, String::from("self"));
-                parameters_with_self
-            },
-            locals: self.local_names.clone(),
-        }
     }
 }
 

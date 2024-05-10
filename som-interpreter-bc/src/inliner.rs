@@ -355,8 +355,6 @@ impl PrimMessageInliner for ast::Expression {
                 body: new_body,
                 nb_params: orig_block.blk_info.nb_params,
                 inline_cache: orig_block.blk_info.inline_cache.clone(),
-                #[cfg(feature = "frame-debug-info")]
-                block_debug_info: orig_block.blk_info.block_debug_info.clone()
             }),
         }
     }
