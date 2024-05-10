@@ -51,13 +51,9 @@ fn disassemble_body(
             }
             Bytecode::PushLocal(up_idx, idx) | Bytecode::PopLocal(up_idx, idx) => {
                 print!(" {up_idx}, {idx}");
-                let maybe_local = (env.iter().rev().nth(usize::from(up_idx)))
-                    .and_then(|env| env.resolve_local(idx));
-                let Some(local) = maybe_local else {
-                    println!(" (invalid local)");
-                    continue;
-                };
-                println!(" (`{0}`)", universe.lookup_symbol(local));
+                let local_str = (env.iter().rev().nth(usize::from(up_idx)))
+                    .and_then(|env| Some(env.resolve_local(idx)));
+                println!(" (`{0}`)", local_str.unwrap());
             }
             Bytecode::PushField(idx) | Bytecode::PopField(idx) => {
                 print!(" {idx}");
@@ -68,7 +64,10 @@ fn disassemble_body(
                 println!(" (`{0}`)", universe.lookup_symbol(*name));
             }
             Bytecode::PushArgument(up_idx, idx) => {
-                println!(" {up_idx}, {idx}");
+                print!(" {up_idx}, {idx}");
+                let arg_str = (env.iter().rev().nth(usize::from(up_idx)))
+                    .and_then(|env| Some(env.resolve_argument(idx)));
+                println!(" (`{0}`)", arg_str.unwrap());
             }
             Bytecode::PushBlock(idx) => {
                 println!(" {idx}");
@@ -119,14 +118,9 @@ fn disassemble_body(
             }
             Bytecode::PopArgument(up_idx, idx) => {
                 print!(" {up_idx}, {idx}");
-                // TODO: the following requires to change the parser and interpreter to preserve argument names.
-                // let maybe_argument = (env.iter().rev().nth(usize::from(up_idx)))
-                //     .and_then(|env| env.resolve_argument(idx));
-                // let Some(argument) = maybe_argument else {
-                //     println!(" (invalid argument)");
-                //     continue;
-                // };
-                // println!(" (`{0}`)", universe.lookup_symbol(argument));
+                let arg_str = (env.iter().rev().nth(usize::from(up_idx)))
+                    .and_then(|env| Some(env.resolve_argument(idx)));
+                println!(" (`{0}`)", arg_str.unwrap());
             }
             Bytecode::Send1(idx)
             | Bytecode::Send2(idx)
@@ -168,10 +162,9 @@ fn disassemble_body(
 
 trait FrameEnv {
     fn get_body(&self) -> &[Bytecode];
-    fn resolve_local(&self, idx: u8) -> Option<Interned>;
+    fn resolve_local(&self, idx: u8) -> String;
     fn resolve_literal(&self, idx: u8) -> Option<&Literal>;
-    #[allow(dead_code)]
-    fn resolve_argument(&self, idx: u8) -> Option<Interned>;
+    fn resolve_argument(&self, idx: u8) -> String;
 }
 
 impl FrameEnv for MethodEnv {
@@ -180,21 +173,33 @@ impl FrameEnv for MethodEnv {
     }
 
     #[cfg(feature = "frame-debug-info")]
-    fn resolve_local(&self, idx: u8) -> Option<Interned> {
-        self.block_debug_info.locals.get(usize::from(idx)).copied()
+    fn resolve_local(&self, idx: u8) -> String {
+        match self.block_debug_info.locals.get(usize::from(idx)) {
+            None => String::from("(local not found)"),
+            Some(s) => s.clone()
+        }
     }
 
     #[cfg(not(feature = "frame-debug-info"))]
-    fn resolve_local(&self, _idx: u8) -> Option<Interned> {
-        None
+    fn resolve_local(&self, _idx: u8) -> String {
+        return String::from("(unknown local - no debug info)")
     }
 
     fn resolve_literal(&self, idx: u8) -> Option<&Literal> {
         self.literals.get(usize::from(idx))
     }
 
-    fn resolve_argument(&self, _idx: u8) -> Option<Interned> {
-        todo!()
+    #[cfg(feature = "frame-debug-info")]
+    fn resolve_argument(&self, idx: u8) -> String {
+        match self.block_debug_info.parameters.get(usize::from(idx)) {
+            None => String::from("(argument not found)"),
+            Some(s) => s.clone()
+        }
+    }
+
+    #[cfg(not(feature = "frame-debug-info"))]
+    fn resolve_argument(&self, _idx: u8) -> String {
+        return String::from("(unknown argument - no debug info)")
     }
 }
 
@@ -204,20 +209,32 @@ impl FrameEnv for Block {
     }
 
     #[cfg(feature = "frame-debug-info")]
-    fn resolve_local(&self, idx: u8) -> Option<Interned> {
-        self.blk_info.block_debug_info.locals.get(usize::from(idx)).copied()
+    fn resolve_local(&self, idx: u8) -> String {
+        match self.blk_info.block_debug_info.locals.get(usize::from(idx)) {
+            None => String::from("(local not found)"),
+            Some(s) => s.clone()
+        }
     }
 
     #[cfg(not(feature = "frame-debug-info"))]
-    fn resolve_local(&self, _idx: u8) -> Option<Interned> {
-        None
+    fn resolve_local(&self, _idx: u8) -> String {
+        return String::from("(unknown local)")
     }
 
     fn resolve_literal(&self, idx: u8) -> Option<&Literal> {
         self.blk_info.literals.get(usize::from(idx))
     }
 
-    fn resolve_argument(&self, _idx: u8) -> Option<Interned> {
-        todo!()
+    #[cfg(feature = "frame-debug-info")]
+    fn resolve_argument(&self, idx: u8) -> String {
+        match self.blk_info.block_debug_info.parameters.get(usize::from(idx)) {
+            None => String::from("(argument not found)"),
+            Some(s) => s.clone()
+        }
+    }
+
+    #[cfg(not(feature = "frame-debug-info"))]
+    fn resolve_argument(&self, _idx: u8) -> String {
+        return String::from("(unknown argument - no debug info)")
     }
 }

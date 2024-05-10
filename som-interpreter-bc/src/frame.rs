@@ -30,7 +30,6 @@ pub enum FrameKind {
     },
 }
 
-#[derive(Debug)]
 /// Represents a stack frame.
 pub struct Frame {
     /// The bytecodes associated with the frame.
@@ -45,9 +44,9 @@ pub struct Frame {
     pub bytecode_idx: usize,
     /// Inline cache associated with the frame.
     pub inline_cache: *const RefCell<Vec<Option<(*const Class, Rc<Method>)>>>,
-    // /// This frame's kind.
-    // #[cfg(feature = "frame-debug-info")]
-    // pub kind: FrameKind,
+    #[cfg(feature = "frame-debug-info")]
+    /// This frame's kind.
+    pub kind: FrameKind,
 }
 
 impl Frame {
@@ -59,6 +58,8 @@ impl Frame {
             bytecodes: &block.blk_info.body,
             bytecode_idx: 0,
             inline_cache: std::ptr::addr_of!(block.blk_info.inline_cache),
+            #[cfg(feature = "frame-debug-info")]
+            kind: FrameKind::Block { block: block.clone() }
         }
     }
 
@@ -66,12 +67,21 @@ impl Frame {
         match method.kind() {
             MethodKind::Defined(env) => {
                 Self {
+                    #[cfg(feature = "frame-debug-info")]
+                    kind: {
+                        let holder = method.holder.upgrade().unwrap();
+                        FrameKind::Method {
+                            self_value: args.get(0).unwrap().clone(),
+                            method: Rc::clone(&method),
+                            holder,
+                        }
+                    },
                     locals: (0..env.nbr_locals).map(|_| Value::Nil).collect(),
                     args,
                     literals: &env.literals,
                     bytecodes: &env.body,
                     bytecode_idx: 0,
-                    inline_cache: std::ptr::addr_of!(env.inline_cache),
+                    inline_cache: std::ptr::addr_of!(env.inline_cache)
                 }
             }
             _ => unreachable!()
@@ -92,6 +102,7 @@ impl Frame {
                     bytecodes: &block.blk_info.body,
                     bytecode_idx: 0,
                     inline_cache: std::ptr::addr_of!(block.blk_info.inline_cache),
+                    kind
                 };
                 frame
             }
@@ -106,6 +117,7 @@ impl Frame {
                         bytecodes: &env.body,
                         bytecode_idx: 0,
                         inline_cache: std::ptr::addr_of!(env.inline_cache),
+                        kind
                     }
                 } else {
                     Self {
@@ -115,6 +127,7 @@ impl Frame {
                         bytecodes: std::ptr::null(), // yeah ditto
                         inline_cache: std::ptr::null(), // inline cache is never accessed in prims so this will never fail.. right?
                         bytecode_idx: 0,
+                        kind
                     }
                 }
             }

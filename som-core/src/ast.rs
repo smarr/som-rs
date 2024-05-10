@@ -94,8 +94,8 @@ pub enum MethodBody {
     Body { 
         locals_nbr: usize,
         body: Body,
-        #[cfg(feature = "block-dbg-info")]
-        locals: Vec<String>,
+        #[cfg(feature = "block-debug-info")]
+        debug_info: BlockDebugInfo,
     },
 }
 
@@ -225,12 +225,12 @@ pub struct Block {
     pub nbr_locals: usize,
     /// Represents the block's body.
     pub body: Body,
-    #[cfg(feature = "block-dbg-info")]
+    #[cfg(feature = "block-debug-info")]
     /// Debug info for the block: parameters and local variable names
     pub dbg_info: BlockDebugInfo,
 }
 
-#[cfg(feature = "block-dbg-info")]
+#[cfg(feature = "block-debug-info")]
 #[derive(Debug, Clone, PartialEq)]
 pub struct BlockDebugInfo {
     pub parameters: Vec<String>,

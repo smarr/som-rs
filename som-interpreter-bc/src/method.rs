@@ -13,7 +13,7 @@ use crate::value::Value;
 use crate::{SOMRef, SOMWeakRef};
 
 #[cfg(feature = "frame-debug-info")]
-use crate::block::BlockDebugInfo;
+use som_core::ast::BlockDebugInfo;
 
 #[derive(Clone)]
 pub struct MethodEnv {
