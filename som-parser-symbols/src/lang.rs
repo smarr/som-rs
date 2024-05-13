@@ -276,20 +276,6 @@ pub fn parameters<'a>() -> impl Parser<Vec<String>, &'a [Token], AstGenCtxt> {
 }
 
 pub fn block<'a>() -> impl Parser<Expression, &'a [Token], AstGenCtxt> {
-    // between(
-    //     exact(Token::NewBlock),
-    //     default(parameters()).and(default(locals())).and(body()),
-    //     exact(Token::EndBlock),
-    // )
-    //     .map(|((parameters, locals), body)| {
-    //         Expression::Block(Block {
-    //             parameters,
-    //             locals,
-    //             body,
-    //         })
-    //     })
-
-
     move |input: &'a [Token], genctxt| {
         let (_, input, genctxt) = exact(Token::NewBlock).parse(input, genctxt)?;
 
@@ -309,11 +295,8 @@ pub fn block<'a>() -> impl Parser<Expression, &'a [Token], AstGenCtxt> {
         Some((Expression::Block(Block {
             nbr_params: parameters.len(),
             nbr_locals: locals.len(),
-            #[cfg(feature = "block-dbg-info")]
-            dbg_info: BlockDebugInfo {
-                parameters,
-                locals,
-            },
+            #[cfg(feature = "block-debug-info")]
+            dbg_info: Rc::clone(&new_genctxt).borrow().get_debug_info(),
             body,
         }), input, new_genctxt))
     }
@@ -375,18 +358,37 @@ pub fn primitive<'a>() -> impl Parser<MethodBody, &'a [Token], AstGenCtxt> {
     exact(Token::Primitive).map(|_| MethodBody::Primitive)
 }
 
+// making several methods here to avoid having to make the general case be a "move" function, since I think that's a slowdown.
+#[cfg(feature = "block-debug-info")]
+pub fn method_body<'a>() -> impl Parser<MethodBody, &'a [Token], AstGenCtxt> {
+    move |input: &'a [Token], genctxt: AstGenCtxt| {
+        let ((locals, body), input, genctxt) = between(
+            exact(Token::NewTerm),
+            default(locals()).and(body()),
+            exact(Token::EndTerm),
+        ).parse(input, genctxt)?;
+
+        let method_body = MethodBody::Body { 
+            locals_nbr: locals.len(),
+            body,
+            debug_info: genctxt.borrow().get_debug_info()
+        };
+        
+        Some((method_body, input, genctxt))
+    }
+}
+
+#[cfg(not(feature = "block-debug-info"))]
 pub fn method_body<'a>() -> impl Parser<MethodBody, &'a [Token], AstGenCtxt> {
     between(
         exact(Token::NewTerm),
         default(locals()).and(body()),
         exact(Token::EndTerm),
     )
-        .map(|(locals, body)| MethodBody::Body { 
-            locals_nbr: locals.len(),
-            body,
-            #[cfg(feature = "block-dbg-info")]
-            locals
-        })
+    .map(|(locals, body)| MethodBody::Body {
+        locals_nbr: locals.len(),
+        body
+    })
 }
 
 pub fn unary_method_def<'a>() -> impl Parser<MethodDef, &'a [Token], AstGenCtxt> {

@@ -117,7 +117,7 @@ struct BlockGenCtxt<'a> {
     pub literals: IndexSet<Literal>,
     pub body: Option<Vec<Bytecode>>,
     #[cfg(feature = "frame-debug-info")]
-    pub dbg_info: BlockDebugInfo,
+    pub debug_info: BlockDebugInfo,
 }
 
 impl GenCtxt for BlockGenCtxt<'_> {
@@ -697,7 +697,11 @@ fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::GenericMethodDef) -> Opti
                 }
             },
             #[cfg(feature = "frame-debug-info")]
-            dbg_info: todo!(),
+            debug_info: {
+                match &defn.body {
+                    MethodBody::Primitive => { BlockDebugInfo{ parameters: vec![], locals: vec![] } }
+                    MethodBody::Body { debug_info, .. } => debug_info.clone()
+            }},
         },
     };
 
@@ -740,12 +744,16 @@ fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::GenericMethodDef) -> Opti
                 let body = ctxt.inner.body.unwrap_or_default();
                 let literals = ctxt.inner.literals.into_iter().collect();
                 let inline_cache = RefCell::new(vec![None; body.len()]);
+                #[cfg(feature = "frame-debug-info")]
+                let dbg_info = ctxt.inner.debug_info;
 
                 MethodKind::Defined(MethodEnv {
                     body,
                     nbr_locals,
                     literals,
                     inline_cache,
+                    #[cfg(feature = "frame-debug-info")]
+                    block_debug_info: dbg_info
                 })
             }
         },
@@ -768,6 +776,8 @@ fn compile_block(outer: &mut dyn GenCtxt, defn: &ast::Block) -> Option<Block> {
         // dbg_info: defn.dbg_info,
         literals: IndexSet::new(),
         body: None,
+        #[cfg(feature = "frame-debug-info")]
+        debug_info: defn.dbg_info.clone()
     };
 
     let splitted = defn.body.exprs.split_last();
@@ -804,6 +814,8 @@ fn compile_block(outer: &mut dyn GenCtxt, defn: &ast::Block) -> Option<Block> {
             body,
             nb_params,
             inline_cache,
+            #[cfg(feature = "frame-debug-info")]
+            block_debug_info: ctxt.debug_info
         }),
     };
 
