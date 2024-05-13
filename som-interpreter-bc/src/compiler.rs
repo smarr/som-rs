@@ -400,14 +400,11 @@ impl MethodCodegen for ast::Expression {
                 Some(())
             }
             ast::Expression::ArgRead(up_idx, idx) => {
-                if *idx == 0 {
-                    ctxt.push_instr(Bytecode::PushSelf)
-                } else {
-                    match (up_idx, idx) {
-                        (0, _) => ctxt.push_instr(Bytecode::PushArg(*idx as u8)),
-                        _ => ctxt.push_instr(Bytecode::PushNonLocalArg(*up_idx as u8, *idx as u8))
-                    };
-                }
+                match (up_idx, idx) {
+                    (0, 0) => ctxt.push_instr(Bytecode::PushSelf), // I think this could be done whenever the index is 0, in general. But I'm not convinced it's valid (even though it didn't break the benchmarks/tests), so I reverted those changes
+                    (0, _) => ctxt.push_instr(Bytecode::PushArg(*idx as u8)),
+                    _ => ctxt.push_instr(Bytecode::PushNonLocalArg(*up_idx as u8, *idx as u8))
+                };
                 Some(())
             }
             ast::Expression::GlobalRead(name) => {
