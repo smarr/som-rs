@@ -49,7 +49,16 @@ fn disassemble_body(
             Bytecode::Dec => {
                 println!();
             }
-            Bytecode::PushLocal(up_idx, idx) | Bytecode::PopLocal(up_idx, idx) => {
+            Bytecode::PushLocal(idx) => {
+                print!(" {idx}");
+                let maybe_local = env.last().unwrap().resolve_local(idx);
+                let Some(local) = maybe_local else {
+                    println!(" (invalid local)");
+                    continue;
+                };
+                println!(" (`{0}`)", universe.lookup_symbol(local));
+            },
+            Bytecode::PushNonLocal(up_idx, idx) | Bytecode::PopLocal(up_idx, idx) => {
                 print!(" {up_idx}, {idx}");
                 let maybe_local = (env.iter().rev().nth(usize::from(up_idx)))
                     .and_then(|env| env.resolve_local(idx));
@@ -67,7 +76,10 @@ fn disassemble_body(
                 };
                 println!(" (`{0}`)", universe.lookup_symbol(*name));
             }
-            Bytecode::PushArgument(up_idx, idx) => {
+            Bytecode::PushArg(idx) => {
+                println!(" {idx}");
+            }
+            Bytecode::PushNonLocalArg(up_idx, idx) => {
                 println!(" {up_idx}, {idx}");
             }
             Bytecode::PushBlock(idx) => {
@@ -120,7 +132,7 @@ fn disassemble_body(
             Bytecode::Pop => {
                 println!();
             }
-            Bytecode::PopArgument(up_idx, idx) => {
+            Bytecode::PopArg(up_idx, idx) => {
                 print!(" {up_idx}, {idx}");
                 // TODO: the following requires to change the parser and interpreter to preserve argument names.
                 // let maybe_argument = (env.iter().rev().nth(usize::from(up_idx)))

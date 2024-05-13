@@ -99,13 +99,13 @@ impl PrimMessageInliner for ast::Expression {
         if let Some((_, body)) = block.body.split_last() {
             for block_bc in body {
                 match block_bc {
-                    Bytecode::PushLocal(up_idx, idx) => match up_idx {
-                        0 => ctxt.push_instr(Bytecode::PushLocal(
-                            *up_idx,
-                            nbr_locals_pre_inlining as u8 + *idx,
-                        )),
-                        1.. => ctxt.push_instr(Bytecode::PushLocal(*up_idx - 1, *idx)),
-                    },
+                    Bytecode::PushLocal(idx) => ctxt.push_instr(Bytecode::PushLocal(nbr_locals_pre_inlining as u8 + *idx)),
+                    Bytecode::PushNonLocal(up_idx, idx) => {
+                        match *up_idx - 1 {
+                            0 => ctxt.push_instr(Bytecode::PushLocal(*idx)),
+                            _ => ctxt.push_instr(Bytecode::PushNonLocal(*up_idx - 1, *idx))
+                        }
+                    }
                     Bytecode::PopLocal(up_idx, idx) => match up_idx {
                         0 => ctxt.push_instr(Bytecode::PopLocal(
                             *up_idx,
@@ -113,11 +113,16 @@ impl PrimMessageInliner for ast::Expression {
                         )),
                         1.. => ctxt.push_instr(Bytecode::PopLocal(*up_idx - 1, *idx)),
                     },
-                    Bytecode::PushArgument(up_idx, idx) => {
-                        ctxt.push_instr(Bytecode::PushArgument(*up_idx - 1, *idx))
+                    Bytecode::PushArg(_) => {
+                        panic!("We don't inline blocks with arguments at the moment. It's not a hard fix at all, it's just not needed yet. FIXME.");
+                        // let idx_to_adjust = nbr_of_arguments_in_inlined_funcs_or_whatnot;
+                        // ctxt.push_instr(Bytecode::PushArgument(*idx + whatever))
                     }
-                    Bytecode::PopArgument(up_idx, idx) => {
-                        ctxt.push_instr(Bytecode::PopArgument(*up_idx - 1, *idx))
+                    Bytecode::PushNonLocalArg(up_idx, idx) => {
+                        ctxt.push_instr(Bytecode::PushNonLocalArg(*up_idx - 1, *idx))
+                    }
+                    Bytecode::PopArg(up_idx, idx) => {
+                        ctxt.push_instr(Bytecode::PopArg(*up_idx - 1, *idx))
                     }
                     Bytecode::Send1(lit_idx)
                     | Bytecode::Send2(lit_idx)
@@ -275,10 +280,10 @@ impl PrimMessageInliner for ast::Expression {
             .body
             .iter()
             .map(|b| match b {
-                Bytecode::PushLocal(up_idx, _)
+                Bytecode::PushNonLocal(up_idx, _)
                 | Bytecode::PopLocal(up_idx, _)
-                | Bytecode::PushArgument(up_idx, _)
-                | Bytecode::PopArgument(up_idx, _) => {
+                | Bytecode::PushNonLocalArg(up_idx, _)
+                | Bytecode::PopArg(up_idx, _) => {
                     let new_up_idx = match *up_idx {
                         0 => 0, // local var/arg, not affected by inlining, stays the same
                         d if d > adjust_scope_by as u8 => *up_idx - 1,
@@ -286,10 +291,20 @@ impl PrimMessageInliner for ast::Expression {
                     };
 
                     match b {
-                        Bytecode::PushLocal(_, idx) => Bytecode::PushLocal(new_up_idx, *idx),
+                        Bytecode::PushNonLocal(_, idx) => {
+                            match new_up_idx {
+                                0 => Bytecode::PushLocal(*idx),
+                                _ => Bytecode::PushNonLocal(new_up_idx, *idx),
+                            }
+                        },
                         Bytecode::PopLocal(_, idx) => Bytecode::PopLocal(new_up_idx, *idx),
-                        Bytecode::PushArgument(_, idx) => Bytecode::PushArgument(new_up_idx, *idx),
-                        Bytecode::PopArgument(_, idx) => Bytecode::PopArgument(new_up_idx, *idx),
+                        Bytecode::PushNonLocalArg(_, idx) => {
+                            match new_up_idx {
+                                0 => Bytecode::PushArg(*idx),
+                                _ => Bytecode::PushNonLocalArg(new_up_idx, *idx),
+                            }
+                        },
+                        Bytecode::PopArg(_, idx) => Bytecode::PopArg(new_up_idx, *idx),
                         _ => unreachable!(),
                     }
                 }

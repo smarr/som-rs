@@ -204,7 +204,7 @@ impl InnerGenCtxt for BlockGenCtxt<'_> {
             if matches!(bytecode_win[0], Bytecode::Dup)
                 && matches!(
                     bytecode_win[1],
-                    Bytecode::PopField(..) | Bytecode::PopLocal(..) | Bytecode::PopArgument(..)
+                    Bytecode::PopField(..) | Bytecode::PopLocal(..) | Bytecode::PopArg(..)
                 )
                 && matches!(bytecode_win[2], Bytecode::Pop)
             {
@@ -387,11 +387,12 @@ impl MethodCodegen for ast::Expression {
     fn codegen(&self, ctxt: &mut dyn InnerGenCtxt) -> Option<()> {
         match self {
             ast::Expression::LocalVarRead(idx) => {
-                ctxt.push_instr(Bytecode::PushLocal(0, *idx as u8));
+                ctxt.push_instr(Bytecode::PushLocal(*idx as u8));
                 Some(())
             }
             ast::Expression::NonLocalVarRead(up_idx, idx) => {
-                ctxt.push_instr(Bytecode::PushLocal(*up_idx as u8, *idx as u8));
+                assert_ne!(*up_idx, 0);
+                ctxt.push_instr(Bytecode::PushNonLocal(*up_idx as u8, *idx as u8));
                 Some(())
             }
             ast::Expression::FieldRead(idx) => {
@@ -401,7 +402,8 @@ impl MethodCodegen for ast::Expression {
             ast::Expression::ArgRead(up_idx, idx) => {
                 match (up_idx, idx) {
                     (0, 0) => ctxt.push_instr(Bytecode::PushSelf),
-                    _ => ctxt.push_instr(Bytecode::PushArgument(*up_idx as u8, *idx as u8))
+                    (0, _) => ctxt.push_instr(Bytecode::PushArg(*idx as u8)),
+                    _ => ctxt.push_instr(Bytecode::PushNonLocalArg(*up_idx as u8, *idx as u8))
                 };
                 Some(())
             }
@@ -436,7 +438,7 @@ impl MethodCodegen for ast::Expression {
             ast::Expression::ArgWrite(up_idx, idx, expr) => {
                 expr.codegen(ctxt)?;
                 ctxt.push_instr(Bytecode::Dup);
-                ctxt.push_instr(Bytecode::PopArgument(*up_idx as u8, *idx as u8));
+                ctxt.push_instr(Bytecode::PopArg(*up_idx as u8, *idx as u8));
                 Some(())
             }
             ast::Expression::GlobalWrite(..) => {

@@ -205,22 +205,22 @@ impl Interpreter {
                         _ => panic!("Invalid type")
                     };
                 }
-                Bytecode::PushLocal(up_idx, idx) => {
-                    // let mut from = frame.clone();
-                    // for _ in 0..up_idx {
-                    //     let temp = match from.borrow().kind() {
-                    //         FrameKind::Block { block } => block.frame.clone().unwrap(),
-                    //         FrameKind::Method { .. } => {
-                    //             panic!("requested local from non-existing frame")
-                    //         }
-                    //     };
-                    //     from = temp;
-                    // }
+                Bytecode::PushLocal(idx) => {
+                    let value = self.current_frame.borrow().lookup_local(idx as usize).unwrap();
+                    self.stack.push(value);
+                }
+                Bytecode::PushNonLocal(up_idx, idx) => {
+                    assert_ne!(up_idx, 0);
                     let from = Frame::nth_frame_back(frame, up_idx);
                     let value = from.borrow().lookup_local(idx as usize).unwrap();
                     self.stack.push(value);
                 }
-                Bytecode::PushArgument(up_idx, idx) => {
+                Bytecode::PushArg(idx) => {
+                    assert_ne!(idx, 0); // that's a ReturnSelf case.
+                    let value = self.current_frame.borrow().lookup_argument(idx as usize).unwrap();
+                    self.stack.push(value);
+                }
+                Bytecode::PushNonLocalArg(up_idx, idx) => {
                     assert_ne!((up_idx, idx), (0, 0)); // that's a ReturnSelf case.
                     let from = Frame::nth_frame_back(frame, up_idx);
                     let value = from.borrow().lookup_argument(idx as usize).unwrap();
@@ -306,7 +306,7 @@ impl Interpreter {
                     let from = Frame::nth_frame_back(frame, up_idx);
                     from.borrow_mut().assign_local(idx as usize, value).unwrap();
                 }
-                Bytecode::PopArgument(up_idx, idx) => {
+                Bytecode::PopArg(up_idx, idx) => {
                     let value = self.stack.pop().unwrap();
                     // let mut from = Rc::clone(&self.current_frame);
                     // for _ in 0..up_idx {

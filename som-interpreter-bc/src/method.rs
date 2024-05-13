@@ -117,10 +117,16 @@ impl fmt::Display for Method {
                     write!(f, "    {}  ", bytecode.padded_name())?;
                     match bytecode {
                         Bytecode::Dup => {}
-                        Bytecode::PushLocal(up_idx, idx) => {
+                        Bytecode::PushLocal(idx) => {
+                            write!(f, "local: {}", idx)?;
+                        }
+                        Bytecode::PushNonLocal(up_idx, idx) => {
                             write!(f, "local: {}, context: {}", idx, up_idx)?;
                         }
-                        Bytecode::PushArgument(up_idx, idx) => {
+                        Bytecode::PushArg(idx) => {
+                            write!(f, "argument: {}", idx)?;
+                        }
+                        Bytecode::PushNonLocalArg(up_idx, idx) => {
                             write!(f, "argument: {}, context: {}", idx, up_idx)?;
                         }
                         Bytecode::PushField(idx) => {
@@ -156,7 +162,7 @@ impl fmt::Display for Method {
                         Bytecode::PopLocal(up_idx, idx) => {
                             write!(f, "local: {}, context: {}", idx, up_idx)?;
                         }
-                        Bytecode::PopArgument(up_idx, idx) => {
+                        Bytecode::PopArg(up_idx, idx) => {
                             write!(f, "argument: {}, context: {}", idx, up_idx)?;
                         }
                         Bytecode::PopField(idx) => {
