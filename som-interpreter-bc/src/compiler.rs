@@ -400,11 +400,14 @@ impl MethodCodegen for ast::Expression {
                 Some(())
             }
             ast::Expression::ArgRead(up_idx, idx) => {
-                match (up_idx, idx) {
-                    (0, 0) => ctxt.push_instr(Bytecode::PushSelf),
-                    (0, _) => ctxt.push_instr(Bytecode::PushArg(*idx as u8)),
-                    _ => ctxt.push_instr(Bytecode::PushNonLocalArg(*up_idx as u8, *idx as u8))
-                };
+                if *idx == 0 {
+                    ctxt.push_instr(Bytecode::PushSelf)
+                } else {
+                    match (up_idx, idx) {
+                        (0, _) => ctxt.push_instr(Bytecode::PushArg(*idx as u8)),
+                        _ => ctxt.push_instr(Bytecode::PushNonLocalArg(*up_idx as u8, *idx as u8))
+                    };
+                }
                 Some(())
             }
             ast::Expression::GlobalRead(name) => {
