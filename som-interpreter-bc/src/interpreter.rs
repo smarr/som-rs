@@ -221,6 +221,7 @@ impl Interpreter {
                     self.stack.push(value);
                 }
                 Bytecode::PushNonLocalArg(up_idx, idx) => {
+                    assert_ne!(up_idx, 0);
                     assert_ne!((up_idx, idx), (0, 0)); // that's a ReturnSelf case.
                     let from = Frame::nth_frame_back(frame, up_idx);
                     let value = from.borrow().lookup_argument(idx as usize).unwrap();

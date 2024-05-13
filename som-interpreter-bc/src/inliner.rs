@@ -119,7 +119,10 @@ impl PrimMessageInliner for ast::Expression {
                         // ctxt.push_instr(Bytecode::PushArgument(*idx + whatever))
                     }
                     Bytecode::PushNonLocalArg(up_idx, idx) => {
-                        ctxt.push_instr(Bytecode::PushNonLocalArg(*up_idx - 1, *idx))
+                        match *up_idx - 1 {
+                            0 => ctxt.push_instr(Bytecode::PushArg(*idx)),
+                            _ => ctxt.push_instr(Bytecode::PushNonLocalArg(*up_idx - 1, *idx))
+                        }
                     }
                     Bytecode::PopArg(up_idx, idx) => {
                         ctxt.push_instr(Bytecode::PopArg(*up_idx - 1, *idx))
