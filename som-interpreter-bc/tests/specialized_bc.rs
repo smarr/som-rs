@@ -137,11 +137,11 @@ fn send_bytecodes() {
     // we do a "+ 2" to not have the bytecode INC replace a Send2.
     expect_bytecode_sequence(&bytecodes, &[Push1, PushConstant1, Send2(2)]);
 
-    expect_bytecode_sequence(&bytecodes, &[PushArgument(0, 0), Push1, Push1, Send3(3)]);
+    expect_bytecode_sequence(&bytecodes, &[PushSelf, Push1, Push1, Send3(3)]);
 
     expect_bytecode_sequence(
         &bytecodes,
-        &[PushArgument(0, 0), Push1, Push1, Push1, SendN(4)],
+        &[PushSelf, Push1, Push1, Push1, SendN(4)],
     );
 }
 
@@ -159,18 +159,18 @@ fn super_send_bytecodes() {
 
     let bytecodes = get_bytecodes_from_method(class_txt, "run");
 
-    expect_bytecode_sequence(&bytecodes, &[PushArgument(0, 0), SuperSend1(0)]);
+    expect_bytecode_sequence(&bytecodes, &[PushSelf, SuperSend1(0)]);
 
-    expect_bytecode_sequence(&bytecodes, &[PushArgument(0, 0), Push1, SuperSend2(1)]);
+    expect_bytecode_sequence(&bytecodes, &[PushSelf, Push1, SuperSend2(1)]);
 
     expect_bytecode_sequence(
         &bytecodes,
-        &[PushArgument(0, 0), Push1, Push1, SuperSend3(2)],
+        &[PushSelf, Push1, Push1, SuperSend3(2)],
     );
 
     expect_bytecode_sequence(
         &bytecodes,
-        &[PushArgument(0, 0), Push1, Push1, Push1, SuperSendN(3)],
+        &[PushSelf, Push1, Push1, Push1, SuperSendN(3)],
     );
 }
 

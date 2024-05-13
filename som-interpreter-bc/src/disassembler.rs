@@ -106,6 +106,9 @@ fn disassemble_body(
                     }
                 }
             }
+            Bytecode::PushSelf => {
+                println!();
+            }
             Bytecode::PushGlobal(idx) => {
                 print!(" {idx}");
                 let Some(Literal::Symbol(signature)) = current.resolve_literal(idx) else {

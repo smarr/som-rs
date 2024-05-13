@@ -222,6 +222,7 @@ impl PrimMessageInliner for ast::Expression {
                     | Bytecode::Push0
                     | Bytecode::Push1
                     | Bytecode::PushNil
+                    | Bytecode::PushSelf
                     | Bytecode::Pop
                     | Bytecode::PushField(_)
                     | Bytecode::PopField(_)

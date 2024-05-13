@@ -221,13 +221,9 @@ impl Interpreter {
                     self.stack.push(value);
                 }
                 Bytecode::PushArgument(up_idx, idx) => {
-                    if up_idx == 0 && idx == 0 { // todo opt: is this avoidable? ask stefan, perhaps
-                        self.stack.push(frame.borrow().get_self());
-                    } else {
-                        let from = Frame::nth_frame_back(frame, up_idx);
-                        let value = from.borrow().lookup_argument(idx as usize).unwrap();
-                        self.stack.push(value);
-                    }
+                    let from = Frame::nth_frame_back(frame, up_idx);
+                    let value = from.borrow().lookup_argument(idx as usize).unwrap();
+                    self.stack.push(value);
                 }
                 Bytecode::PushField(idx) => {
                     let value = match frame.borrow().get_self() {
@@ -287,6 +283,9 @@ impl Interpreter {
                 }
                 Bytecode::PushNil => {
                     self.stack.push(Value::Nil);
+                }
+                Bytecode::PushSelf => {
+                    self.stack.push(frame.borrow().get_self());
                 }
                 Bytecode::Pop => {
                     self.stack.pop();

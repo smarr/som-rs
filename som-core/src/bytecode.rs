@@ -19,6 +19,7 @@ pub enum Bytecode {
     Push0,
     Push1,
     PushNil,
+    PushSelf,
     Pop,
     PopLocal(u8, u8),
     PopArgument(u8, u8),
@@ -65,6 +66,7 @@ impl Bytecode {
             Self::Push0              => "PUSH_0",
             Self::Push1              => "PUSH_1",
             Self::PushNil            => "PUSH_NIL",
+            Self::PushSelf           => "PUSH_SELF",
             Self::Pop                => "POP",
             Self::PopLocal(_, _)     => "POP_LOCAL",
             Self::PopArgument(_, _)  => "POP_ARGUMENT",
@@ -110,6 +112,7 @@ impl Bytecode {
             Self::Push0              => "PUSH_0          ",
             Self::Push1              => "PUSH_1          ",
             Self::PushNil            => "PUSH_NIL        ",
+            Self::PushSelf           => "PUSH_SELF       ",
             Self::Pop                => "POP             ",
             Self::PopLocal(_, _)     => "POP_LOCAL       ",
             Self::PopArgument(_, _)  => "POP_ARGUMENT    ",
@@ -135,7 +138,7 @@ impl Bytecode {
     }
 }
 
-pub static NAMES: [&str; 30] = [
+pub static NAMES: [&str; 31] = [
     "HALT",
     "DUP",
     "INC",
@@ -151,6 +154,7 @@ pub static NAMES: [&str; 30] = [
     "PUSH_0",
     "PUSH_1",
     "PUSH_NIL",
+    "PUSH_SELF",
     "POP",
     "POP_LOCAL",
     "POP_ARGUMENT",
@@ -168,7 +172,7 @@ pub static NAMES: [&str; 30] = [
     "RETURN_NON_LOCAL",
 ];
 
-pub static PADDED_NAMES: [&str; 30] = [
+pub static PADDED_NAMES: [&str; 31] = [
     "HALT            ",
     "DUP             ",
     "INC             ",
@@ -184,6 +188,7 @@ pub static PADDED_NAMES: [&str; 30] = [
     "PUSH_0          ",
     "PUSH_1          ",
     "PUSH_NIL        ",
+    "PUSH_SELF       ",
     "POP             ",
     "POP_LOCAL       ",
     "POP_ARGUMENT    ",
@@ -221,6 +226,7 @@ impl fmt::Display for Bytecode {
             Self::Push0                         => write!(f, "PUSH_0"),
             Self::Push1                         => write!(f, "PUSH_1"),
             Self::PushNil                       => write!(f, "PUSH_NIL"),
+            Self::PushSelf                      => write!(f, "PUSH_SELF"),
             Self::Pop                           => write!(f, "POP"),
             Self::PopLocal(up_idx, idx)     => write!(f, "POP_LOCAL {}, {}", up_idx, idx),
             Self::PopArgument(up_idx, idx)  => write!(f, "POP_ARGUMENT {}, {}", up_idx, idx),
