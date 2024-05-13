@@ -473,7 +473,7 @@ impl MethodCodegen for ast::Expression {
                             }
                         },
                         _ => { 
-                            // so in which cases does this happen?
+                            // TODO: so in which cases does this happen? It is possible, I'm fairly sure.
                         }
                     }
                 }
