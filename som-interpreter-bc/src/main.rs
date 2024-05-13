@@ -115,10 +115,14 @@ fn disassemble_class(opts: Options) -> anyhow::Result<()> {
     if let Some(directory) = file.parent() {
         classpath.push(directory.to_path_buf());
     }
-    let mut universe = Universe::with_classpath(classpath)?;
-
-    let class = universe.load_class(file_stem)?;
-
+    let mut universe = Universe::with_classpath(classpath.clone())?;
+    
+    // "Object" special casing needed since `load_class` assumes the class has a superclass and Object doesn't, and I didn't want to change the class loading logic just for the disassembler (tho it's probably fine)
+    let class = match file_stem {
+        "Object" => Universe::load_system_class(&mut universe.interner, classpath.as_slice(), "Object")?,
+        _ => universe.load_class(file_stem)?
+    };
+    
     let methods: Vec<Rc<Method>> = if opts.args.is_empty() {
         class.borrow().methods.values().cloned()
             .chain(class.borrow().class().borrow().methods.values().cloned())
