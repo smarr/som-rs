@@ -99,6 +99,8 @@ pub trait InnerGenCtxt: GenCtxt {
     fn get_instructions(&self) -> &Vec<Bytecode>;
     fn get_nbr_locals(&self) -> usize;
     fn set_nbr_locals(&mut self, nbr_locals: usize);
+    fn get_nbr_args(&self) -> usize;
+    fn set_nbr_args(&mut self, nbr_args: usize);
     fn get_literal(&self, idx: usize) -> Option<&Literal>;
     fn push_literal(&mut self, literal: Literal) -> usize;
     fn remove_literal(&mut self, idx: usize) -> Option<Literal>;
@@ -189,6 +191,14 @@ impl InnerGenCtxt for BlockGenCtxt<'_> {
 
     fn set_nbr_locals(&mut self, nbr_locals: usize) {
         self.locals_nbr = nbr_locals;
+    }
+
+    fn get_nbr_args(&self) -> usize {
+        self.args_nbr
+    }
+
+    fn set_nbr_args(&mut self, nbr_args: usize) {
+        self.args_nbr = nbr_args
     }
 
     fn remove_dup_popx_pop_sequences(&mut self) {
@@ -367,6 +377,14 @@ impl InnerGenCtxt for MethodGenCtxt<'_> {
 
     fn set_nbr_locals(&mut self, nbr_locals: usize) {
         self.inner.set_nbr_locals(nbr_locals)
+    }
+    
+    fn get_nbr_args(&self) -> usize {
+        self.inner.get_nbr_args()
+    }
+
+    fn set_nbr_args(&mut self, nbr_args: usize) {
+        self.inner.set_nbr_args(nbr_args)
     }
 }
 

@@ -92,8 +92,10 @@ impl PrimMessageInliner for ast::Expression {
 
     fn inline_compiled_block(&self, ctxt: &mut dyn InnerGenCtxt, block: &BlockInfo) -> Option<()> {
         let nbr_locals_pre_inlining = ctxt.get_nbr_locals();
+        let nbr_args_pre_inlining = ctxt.get_nbr_args();
 
-        ctxt.set_nbr_locals(ctxt.get_nbr_locals() + block.nb_locals);
+        ctxt.set_nbr_locals(nbr_locals_pre_inlining + block.nb_locals);
+        ctxt.set_nbr_args(nbr_args_pre_inlining + block.nb_params);
 
         // last is always ReturnLocal, so it gets ignored
         if let Some((_, body)) = block.body.split_last() {
@@ -113,10 +115,8 @@ impl PrimMessageInliner for ast::Expression {
                         )),
                         1.. => ctxt.push_instr(Bytecode::PopLocal(*up_idx - 1, *idx)),
                     },
-                    Bytecode::PushArg(_) => {
-                        panic!("We don't inline blocks with arguments at the moment. It's not a hard fix at all, it's just not needed yet. FIXME.");
-                        // let idx_to_adjust = nbr_of_arguments_in_inlined_funcs_or_whatnot;
-                        // ctxt.push_instr(Bytecode::PushArgument(*idx + whatever))
+                    Bytecode::PushArg(idx) => {
+                        ctxt.push_instr(Bytecode::PushArg(*idx + nbr_args_pre_inlining as u8))
                     }
                     Bytecode::PushNonLocalArg(up_idx, idx) => {
                         match *up_idx - 1 {
@@ -293,6 +293,9 @@ impl PrimMessageInliner for ast::Expression {
                         _ => *up_idx,
                     };
 
+                    // todo ACTUALLY shouldn't the idx be adjusted depending on the amount of inlined variables in the block? make a test for that!
+                    // and for the args case too!
+                    
                     match b {
                         Bytecode::PushNonLocal(_, idx) => {
                             match new_up_idx {
@@ -301,7 +304,7 @@ impl PrimMessageInliner for ast::Expression {
                             }
                         },
                         Bytecode::PopLocal(_, idx) => Bytecode::PopLocal(new_up_idx, *idx),
-                        Bytecode::PushNonLocalArg(_, idx) => {
+                        Bytecode::PushNonLocalArg(_, idx) => { 
                             match new_up_idx {
                                 0 => Bytecode::PushArg(*idx),
                                 _ => Bytecode::PushNonLocalArg(new_up_idx, *idx),
