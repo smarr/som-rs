@@ -480,7 +480,7 @@ impl MethodCodegen for ast::Expression {
                     .iter()
                     .try_for_each(|value| value.codegen(ctxt))?;
 
-                if message.signature == "to:do:" {
+                if ["to:do:", "to:by:do:", "downTo:do:", "downTo:by:do:", "timesRepeat:"].iter().any(|s| *s == message.signature) {
                     match ctxt.get_instructions().last().unwrap() {
                         Bytecode::PushBlock(idx) => {
                             let block_literal= ctxt.remove_literal(*idx as usize).unwrap();
