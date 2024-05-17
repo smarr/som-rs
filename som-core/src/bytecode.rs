@@ -23,6 +23,7 @@ pub enum Bytecode {
     PushNil,
     PushSelf,
     Pop,
+    Pop2, // this bytecode is only used for to:do: blocks. it pops the second to last element of the stack
     PopLocal(u8, u8),
     PopArg(u8, u8),
     PopField(u8),
@@ -72,6 +73,7 @@ impl Bytecode {
             Self::PushNil               => "PUSH_NIL",
             Self::PushSelf              => "PUSH_SELF",
             Self::Pop                   => "POP",
+            Self::Pop2                  => "POP2",
             Self::PopLocal(_, _)        => "POP_LOCAL",
             Self::PopArg(_, _)          => "POP_ARG",
             Self::PopField(_)           => "POP_FIELD",
@@ -120,6 +122,7 @@ impl Bytecode {
             Self::PushNil            => "PUSH_NIL        ",
             Self::PushSelf           => "PUSH_SELF       ",
             Self::Pop                => "POP             ",
+            Self::Pop2               => "POP_2           ",
             Self::PopLocal(_, _)     => "POP_LOCAL       ",
             Self::PopArg(_, _)  => "POP_ARG    ",
             Self::PopField(_)        => "POP_FIELD       ",
@@ -144,7 +147,7 @@ impl Bytecode {
     }
 }
 
-pub static NAMES: [&str; 33] = [
+pub static NAMES: [&str; 34] = [
     "HALT",
     "DUP",
     "INC",
@@ -164,6 +167,7 @@ pub static NAMES: [&str; 33] = [
     "PUSH_NIL",
     "PUSH_SELF",
     "POP",
+    "POP2",
     "POP_LOCAL",
     "POP_ARG",
     "POP_FIELD",
@@ -180,7 +184,7 @@ pub static NAMES: [&str; 33] = [
     "RETURN_NON_LOCAL",
 ];
 
-pub static PADDED_NAMES: [&str; 33] = [
+pub static PADDED_NAMES: [&str; 34] = [
     "HALT            ",
     "DUP             ",
     "INC             ",
@@ -200,6 +204,7 @@ pub static PADDED_NAMES: [&str; 33] = [
     "PUSH_NIL        ",
     "PUSH_SELF       ",
     "POP             ",
+    "POP_2           ",
     "POP_LOCAL       ",
     "POP_ARG    ",
     "POP_FIELD       ",
@@ -240,6 +245,7 @@ impl fmt::Display for Bytecode {
             Self::PushNil                       => write!(f, "PUSH_NIL"),
             Self::PushSelf                      => write!(f, "PUSH_SELF"),
             Self::Pop                           => write!(f, "POP"),
+            Self::Pop2                          => write!(f, "POP2"),
             Self::PopLocal(up_idx, idx)     => write!(f, "POP_LOCAL {}, {}", up_idx, idx),
             Self::PopArg(up_idx, idx)  => write!(f, "POP_ARG {}, {}", up_idx, idx),
             Self::PopField(idx)             => write!(f, "POP_FIELD {}", idx),

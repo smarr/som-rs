@@ -158,7 +158,7 @@ impl fmt::Display for Method {
                         }
                         Bytecode::Push0 | Bytecode::Push1 | Bytecode::PushNil => {}
                         Bytecode::PushSelf => {}
-                        Bytecode::Inc | Bytecode::Dec | Bytecode::Pop => {}
+                        Bytecode::Inc | Bytecode::Dec | Bytecode::Pop | Bytecode::Pop2 => {}
                         Bytecode::PopLocal(up_idx, idx) => {
                             write!(f, "local: {}, context: {}", idx, up_idx)?;
                         }

@@ -525,8 +525,8 @@ impl Universe {
         args: Vec<Value>,
     ) -> Option<()> {
         #[cfg(debug_assertions)]
-        panic!("does not understand: {:?}, called on {:?}", self.interner.lookup(symbol), &value);
         // dbg!(&interpreter.stack);
+        panic!("does not understand: {:?}, called on {:?}", self.interner.lookup(symbol), &value);
         
         let method_name = self.intern_symbol("doesNotUnderstand:arguments:");
         let method = value.lookup_method(self, method_name)?;

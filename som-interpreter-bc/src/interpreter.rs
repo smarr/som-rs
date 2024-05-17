@@ -292,6 +292,9 @@ impl Interpreter {
                 Bytecode::Pop => {
                     self.stack.pop();
                 }
+                Bytecode::Pop2 => {
+                    self.stack.remove(self.stack.len() - 2);
+                }
                 Bytecode::PopLocal(up_idx, idx) => {
                     let value = self.stack.pop().unwrap();
                     // let mut from = Rc::clone(&self.current_frame);

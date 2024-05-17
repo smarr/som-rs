@@ -60,8 +60,8 @@ impl Block {
             if !non_local_rets_idx.is_empty() {
                 for (i, pop_insert_idx) in non_local_rets_idx.iter().enumerate() {
                     // we do "+i": +0, +1, +2, +... to adjust for the fact that we are inserting elements in succession (which changes the subsequent target indices)
-                    new_body.insert(*pop_insert_idx + i, Bytecode::Pop);
-                    debug_assert_eq!(*new_body.get(*pop_insert_idx + i).unwrap(), Bytecode::Pop);
+                    // and we pop the SECOND TO LAST element of the stack (which is "self" in to:do: - an Integer) so we still have the return value of the ReturnNonLocal on the top of stack
+                    new_body.insert(*pop_insert_idx + i, Bytecode::Pop2);
                     debug_assert!(matches!(new_body.get(*pop_insert_idx + i + 1).unwrap(), Bytecode::ReturnNonLocal(_)));
                 }
 
