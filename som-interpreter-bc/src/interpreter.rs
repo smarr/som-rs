@@ -210,19 +210,19 @@ impl Interpreter {
                     self.stack.push(value);
                 }
                 Bytecode::PushNonLocal(up_idx, idx) => {
-                    assert_ne!(up_idx, 0);
+                    debug_assert_ne!(up_idx, 0);
                     let from = Frame::nth_frame_back(frame, up_idx);
                     let value = from.borrow().lookup_local(idx as usize).unwrap();
                     self.stack.push(value);
                 }
                 Bytecode::PushArg(idx) => {
-                    assert_ne!(idx, 0); // that's a ReturnSelf case.
+                    debug_assert_ne!(idx, 0); // that's a ReturnSelf case.
                     let value = self.current_frame.borrow().lookup_argument(idx as usize).unwrap();
                     self.stack.push(value);
                 }
                 Bytecode::PushNonLocalArg(up_idx, idx) => {
-                    assert_ne!(up_idx, 0);
-                    assert_ne!((up_idx, idx), (0, 0)); // that's a ReturnSelf case.
+                    debug_assert_ne!(up_idx, 0);
+                    debug_assert_ne!((up_idx, idx), (0, 0)); // that's a ReturnSelf case.
                     let from = Frame::nth_frame_back(frame, up_idx);
                     let value = from.borrow().lookup_argument(idx as usize).unwrap();
                     self.stack.push(value);
@@ -287,7 +287,7 @@ impl Interpreter {
                     self.stack.push(Value::Nil);
                 }
                 Bytecode::PushSelf => {
-                    self.stack.push(frame.borrow().get_self());
+                    self.stack.push(frame.borrow().lookup_argument(0).unwrap());
                 }
                 Bytecode::Pop => {
                     self.stack.pop();

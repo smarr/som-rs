@@ -61,8 +61,8 @@ impl Block {
                 for (i, pop_insert_idx) in non_local_rets_idx.iter().enumerate() {
                     // we do "+i": +0, +1, +2, +... to adjust for the fact that we are inserting elements in succession (which changes the subsequent target indices)
                     new_body.insert(*pop_insert_idx + i, Bytecode::Pop);
-                    assert_eq!(*new_body.get(*pop_insert_idx + i).unwrap(), Bytecode::Pop);
-                    assert!(matches!(new_body.get(*pop_insert_idx + i + 1).unwrap(), Bytecode::ReturnNonLocal(_)));
+                    debug_assert_eq!(*new_body.get(*pop_insert_idx + i).unwrap(), Bytecode::Pop);
+                    debug_assert!(matches!(new_body.get(*pop_insert_idx + i + 1).unwrap(), Bytecode::ReturnNonLocal(_)));
                 }
 
                 for (bc_idx, bc) in &mut new_body.iter_mut().enumerate() {

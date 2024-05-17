@@ -141,7 +141,7 @@ impl AstGenCtxtData {
     }
     fn get_var_read(&self, name: &String) -> Expression {
         if name == "self" {
-            return Expression::ArgRead(0, 0);
+            return Expression::ArgRead(self.get_method_scope(), 0);
         }
 
         match self.find_var(name) {
@@ -183,13 +183,11 @@ impl AstGenCtxtData {
         }
     }
 
-    pub fn get_method_scope_rec(&self, acc: usize) -> usize {
+    pub fn get_method_scope_rec(&self, method_scope: usize) -> usize {
         match &self.kind {
-            AstGenCtxtType::Class => unreachable!(),
-            AstGenCtxtType::Method => acc,
-            AstGenCtxtType::Block => {
-                self.outer_ctxt.as_ref().unwrap().borrow().get_method_scope_rec(acc + 1)
-            }
+            AstGenCtxtType::Class => method_scope - 1, // functionally unreachable branch. maybe reachable in the REPL, when we're technically outside a method, maybe? not sure.
+            AstGenCtxtType::Method => method_scope,
+            AstGenCtxtType::Block => self.outer_ctxt.as_ref().unwrap().borrow().get_method_scope_rec(method_scope + 1)
         }
     }
     

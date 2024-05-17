@@ -16,6 +16,7 @@ use som_core::bytecode::Bytecode;
 
 use crate::block::{Block, BlockInfo};
 use crate::class::{Class, MaybeWeak};
+#[cfg(not(feature = "inlining-disabled"))]
 use crate::inliner::PrimMessageInliner;
 use crate::interner::{Interned, Interner};
 use crate::method::{Method, MethodEnv, MethodKind};
@@ -409,7 +410,6 @@ impl MethodCodegen for ast::Expression {
                 Some(())
             }
             ast::Expression::NonLocalVarRead(up_idx, idx) => {
-                assert_ne!(*up_idx, 0);
                 ctxt.push_instr(Bytecode::PushNonLocal(*up_idx as u8, *idx as u8));
                 Some(())
             }
@@ -419,7 +419,7 @@ impl MethodCodegen for ast::Expression {
             }
             ast::Expression::ArgRead(up_idx, idx) => {
                 match (up_idx, idx) {
-                    (0, 0) => ctxt.push_instr(Bytecode::PushSelf), // I think this could be done whenever the index is 0, in general. But I'm not convinced it's valid (even though it didn't break the benchmarks/tests), so I reverted those changes
+                    (0, 0) => ctxt.push_instr(Bytecode::PushSelf),
                     (0, _) => ctxt.push_instr(Bytecode::PushArg(*idx as u8)),
                     _ => ctxt.push_instr(Bytecode::PushNonLocalArg(*up_idx as u8, *idx as u8))
                 };
@@ -470,10 +470,11 @@ impl MethodCodegen for ast::Expression {
 
                 message.receiver.codegen(ctxt)?;
 
+                #[cfg(not(feature = "inlining-disabled"))]
                 if self.inline_if_possible(ctxt, message).is_some() {
                     return Some(());
                 }
-
+                
                 message
                     .values
                     .iter()
