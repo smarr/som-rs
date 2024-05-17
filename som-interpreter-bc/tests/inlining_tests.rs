@@ -1,6 +1,9 @@
+use std::cell::RefCell;
 use som_core::bytecode::Bytecode;
 use som_core::bytecode::Bytecode::*;
 use std::path::PathBuf;
+use std::rc::Rc;
+use som_interpreter_bc::block::{Block, BlockInfo};
 
 use som_interpreter_bc::compiler;
 use som_interpreter_bc::method::MethodKind;
@@ -284,47 +287,101 @@ fn inlining_pyramid() {
     expect_bytecode_sequence(&bytecodes2, expected_bc);
 }
 
-// todo: that's meant to be a test for block:make_equivalent_with_no_return, but hey it works on the benchmarks soooo todo later i guess
-// #[ignore]
-// #[test]
-// fn make_new_block_for_to_do() {
-//     let _og_bc = &[
-//         PushArgument(0, 0),
-//         PushArgument(0, 1),
-//         PushArgument(1, 1),
-//         Send3(0),
-//         JumpOnFalseTopNil(32),
-//         PushField(3),
-//         PushArgument(0, 1),
-//         PushArgument(1, 1),
-//         Send3(1),
-//         Pop,
-//         PushArgument(0, 0),
-//         PushArgument(0, 1),
-//         PushArgument(1, 1),
-//         PushGlobal(2),
-//         SendN(3),
-//         Pop,
-//         PushArgument(1, 1),
-//         PushConstant(4),
-//         Send2(5),
-//         JumpOnFalseTopNil(3),
-//         PushGlobal(6),
-//         ReturnNonLocal(1),
-//         Pop,
-//         PushArgument(0, 0),
-//         PushArgument(1, 1),
-//         Inc,
-//         Send2(7),
-//         JumpOnFalseTopNil(3),
-//         PushGlobal(6),
-//         ReturnNonLocal(1),
-//         Pop,
-//         PushArgument(0, 0),
-//         PushArgument(0, 1),
-//         PushArgument(1, 1),
-//         PushGlobal(6),
-//         SendN(3),
-//         ReturnLocal,
-//     ];
-// }
+/// Highly specific test! to:do: relies on blocks that have been modified to not have a return value on the stack.
+/// This checks that this works OK when ReturnNonLocal is involved. Code taken from the Queens benchmark.
+#[test]
+fn block_with_non_local_returns_for_to_do_block() {
+    let block = Block {
+        frame: None,
+        blk_info: Rc::new(BlockInfo {
+            literals: vec![],
+            body: vec![
+                PushNonLocalArg(1,0),
+                PushArg(1),
+                PushNonLocalArg(1,1),
+                Send3(0),
+                JumpOnFalseTopNil(32),
+                PushField(3),
+                PushArg(1),
+                PushNonLocalArg(1,1),
+                Send3(1),
+                Pop,
+                PushNonLocalArg(1,0),
+                PushArg(1),
+                PushNonLocalArg(1,1),
+                PushGlobal(2),
+                SendN(3),
+                Pop,
+                PushNonLocalArg(1,1),
+                PushConstant(4),
+                Send2(5),
+                JumpOnFalseTopNil(3),
+                PushGlobal(6),
+                ReturnNonLocal(1),
+                Pop,
+                PushNonLocalArg(1,0),
+                PushNonLocalArg(1,1),
+                Inc,
+                Send2(7),
+                JumpOnFalseTopNil(3),
+                PushGlobal(6),
+                ReturnNonLocal(1),
+                Pop,
+                PushNonLocalArg(1,0),
+                PushArg(1),
+                PushNonLocalArg(1,1),
+                PushGlobal(6),
+                SendN(3),
+                ReturnLocal,
+            ],
+            nb_locals: 0,
+            nb_params: 0,
+            inline_cache: RefCell::new(vec![]),
+        }),
+    };
+
+    let new_blk_rc = block.make_equivalent_with_no_return();
+
+    assert_eq!(new_blk_rc.blk_info.body, vec![
+        PushNonLocalArg(1,0),
+        PushArg(1),
+        PushNonLocalArg(1,1),
+        Send3(0),
+        JumpOnFalseTopNil(34),
+        PushField(3),
+        PushArg(1),
+        PushNonLocalArg(1,1),
+        Send3(1),
+        Pop,
+        PushNonLocalArg(1,0),
+        PushArg(1),
+        PushNonLocalArg(1,1),
+        PushGlobal(2),
+        SendN(3),
+        Pop,
+        PushNonLocalArg(1,1),
+        PushConstant(4),
+        Send2(5),
+        JumpOnFalseTopNil(4),
+        PushGlobal(6),
+        Pop2,
+        ReturnNonLocal(1),
+        Pop,
+        PushNonLocalArg(1,0),
+        PushNonLocalArg(1,1),
+        Inc,
+        Send2(7),
+        JumpOnFalseTopNil(4),
+        PushGlobal(6),
+        Pop2,
+        ReturnNonLocal(1),
+        Pop,
+        PushNonLocalArg(1,0),
+        PushArg(1),
+        PushNonLocalArg(1,1),
+        PushGlobal(6),
+        SendN(3),
+        Pop,
+        ReturnLocal,
+    ]);
+}
