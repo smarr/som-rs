@@ -575,9 +575,10 @@ fn to_do(interpreter: &mut Interpreter, _: &mut Universe) {
     
     // Nota Bene: blocks for to:do: and friends get instrumented as a special case in the parser, so that they don't leave their "self" on the stack.
 
+    let new_blk = blk.make_equivalent_with_no_return();
     // calling rev() because it's a stack of frames: LIFO means we want to add the last one first, then the penultimate one, etc., til the first
     for i in (start..=end).rev() {
-        interpreter.push_block_frame(Rc::clone(&blk), vec![Value::Block(Rc::clone(&blk)), Value::Integer(i)]);
+        interpreter.push_block_frame(Rc::clone(&new_blk), vec![Value::Block(Rc::clone(&new_blk)), Value::Integer(i)]);
     }
 
     interpreter.stack.push(Value::Integer(start));
@@ -593,8 +594,9 @@ fn to_by_do(interpreter: &mut Interpreter, _: &mut Universe) {
         Value::Block(blk) => blk,
     ]);
 
+    let new_blk = blk.make_equivalent_with_no_return();
     for i in (start..=end).rev().step_by(step as usize) {
-        interpreter.push_block_frame(Rc::clone(&blk), vec![Value::Block(Rc::clone(&blk)), Value::Integer(i)]);
+        interpreter.push_block_frame(Rc::clone(&new_blk), vec![Value::Block(Rc::clone(&new_blk)), Value::Integer(i)]);
     }
 
     interpreter.stack.push(Value::Integer(start));
@@ -609,8 +611,9 @@ fn down_to_do(interpreter: &mut Interpreter, _: &mut Universe) {
         Value::Block(blk) => blk,
     ]);
 
+    let new_blk = blk.make_equivalent_with_no_return();
     for i in end..=start {
-        interpreter.push_block_frame(Rc::clone(&blk), vec![Value::Block(Rc::clone(&blk)), Value::Integer(i)]);
+        interpreter.push_block_frame(Rc::clone(&new_blk), vec![Value::Block(Rc::clone(&new_blk)), Value::Integer(i)]);
     }
 
     interpreter.stack.push(Value::Integer(start));
@@ -626,9 +629,10 @@ fn down_to_by_do(interpreter: &mut Interpreter, _: &mut Universe) {
         Value::Integer(end) => end,
         Value::Block(blk) => blk,
     ]);
-
+    
+    let new_blk = blk.make_equivalent_with_no_return();
     for i in (start..=end).step_by(step as usize) {
-        interpreter.push_block_frame(Rc::clone(&blk), vec![Value::Block(Rc::clone(&blk)), Value::Integer(i)]);
+        interpreter.push_block_frame(Rc::clone(&new_blk), vec![Value::Block(Rc::clone(&new_blk)), Value::Integer(i)]);
     }
 
     interpreter.stack.push(Value::Integer(start));
@@ -643,8 +647,9 @@ fn times_repeat(interpreter: &mut Interpreter, _: &mut Universe) {
         Value::Block(blk) => blk,
     ]);
 
+    let new_blk = blk.make_equivalent_with_no_return();
     for _ in 0..=n {
-        interpreter.push_block_frame(Rc::clone(&blk), vec![Value::Block(Rc::clone(&blk))]); // NB: this doesn't take the index as an argument
+        interpreter.push_block_frame(Rc::clone(&new_blk), vec![Value::Block(Rc::clone(&new_blk))]); // NB: this doesn't take the index as an argument
     }
 
     interpreter.stack.push(Value::Integer(n));
