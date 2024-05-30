@@ -80,16 +80,6 @@ pub struct Interpreter {
 }
 
 impl Interpreter {
-    // pub fn new() -> Self {
-    //     Self {
-    //         frames: vec![],
-    //         stack: vec![],
-    //         start_time: Instant::now(),
-    //         bytecode_idx: 0,
-    //         bytecodes: vec![]
-    //     }
-    // }
-
     pub fn new(base_frame: SOMRef<Frame>) -> Self {
         Self {
             frames: vec![Rc::clone(&base_frame)],
@@ -118,15 +108,6 @@ impl Interpreter {
         self.current_frame = Rc::clone(&frame);
         frame
     }
-
-    // pub fn push_frame(&mut self, kind: FrameKind) -> SOMRef<Frame> {
-    //     let frame = Rc::new(RefCell::new(Frame::from_kind(kind)));
-    //     self.frames.push(frame.clone());
-    //     self.bytecode_idx = 0;
-    //     self.current_bytecodes = frame.borrow_mut().bytecodes;
-    //     self.current_frame = Rc::clone(&frame);
-    //     frame
-    // }
 
     pub fn pop_frame(&mut self) {
         self.frames.pop();
@@ -177,7 +158,6 @@ impl Interpreter {
             // dbg!(&bytecode);
             // dbg!(&self.current_frame().unwrap().borrow().get_bytecodes());
 
-            // frame.borrow_mut().bytecode_idx += 1;
             self.bytecode_idx += 1;
 
 
@@ -297,31 +277,11 @@ impl Interpreter {
                 }
                 Bytecode::PopLocal(up_idx, idx) => {
                     let value = self.stack.pop().unwrap();
-                    // let mut from = Rc::clone(&self.current_frame);
-                    // for _ in 0..up_idx {
-                    //     let temp = match from.borrow().kind() {
-                    //         FrameKind::Block { block } => block.frame.clone().unwrap(),
-                    //         FrameKind::Method { .. } => {
-                    //             panic!("requested local from non-existing frame")
-                    //         }
-                    //     };
-                    //     from = temp;
-                    // }
                     let from = Frame::nth_frame_back(frame, up_idx);
                     from.borrow_mut().assign_local(idx as usize, value).unwrap();
                 }
                 Bytecode::PopArg(up_idx, idx) => {
                     let value = self.stack.pop().unwrap();
-                    // let mut from = Rc::clone(&self.current_frame);
-                    // for _ in 0..up_idx {
-                    //     let temp = match from.borrow().kind() {
-                    //         FrameKind::Block { block } => block.frame.clone().unwrap(),
-                    //         FrameKind::Method { .. } => {
-                    //             panic!("requested local from non-existing frame")
-                    //         }
-                    //     };
-                    //     from = temp;
-                    // }
                     let from = Frame::nth_frame_back(frame, up_idx);
                     from.borrow_mut()
                         .args
@@ -530,56 +490,6 @@ impl Interpreter {
                 }
                 _ => class.borrow().lookup_method(signature),
             }
-            /*match frame.borrow().kind() {
-                FrameKind::Block { block } => {
-                    let mut inline_cache = block.blk_info.inline_cache.borrow_mut();
-
-                    // SAFETY: this access is actually safe because the bytecode compiler
-                    // makes sure the cache has as many entries as there are bytecode instructions,
-                    // therefore we can avoid doing any redundant bounds checks here.
-                    let maybe_found = unsafe { inline_cache.get_unchecked_mut(bytecode_idx) };
-
-                    match maybe_found {
-                        Some((receiver, method)) if *receiver == class.as_ptr() => {
-                            Some(Rc::clone(method))
-                        }
-                        place @ None => {
-                            let found = class.borrow().lookup_method(signature);
-                            *place = found
-                                .clone()
-                                .map(|method| (class.as_ptr() as *const _, method));
-                            found
-                        }
-                        _ => class.borrow().lookup_method(signature),
-                    }
-                }
-                FrameKind::Method { method, .. } => {
-                    if let MethodKind::Defined(env) = method.kind() {
-                        let mut inline_cache = env.inline_cache.borrow_mut();
-
-                        // SAFETY: this access is actually safe because the bytecode compiler
-                        // makes sure the cache has as many entries as there are bytecode instructions,
-                        // therefore we can avoid doing any redundant bounds checks here.
-                        let maybe_found = unsafe { inline_cache.get_unchecked_mut(bytecode_idx) };
-
-                        match maybe_found {
-                            Some((receiver, method)) if *receiver == class.as_ptr() => {
-                                Some(Rc::clone(method))
-                            }
-                            place @ None => {
-                                let found = class.borrow().lookup_method(signature);
-                                *place = found
-                                    .clone()
-                                    .map(|method| (class.as_ptr() as *const _, method));
-                                found
-                            }
-                            _ => class.borrow().lookup_method(signature),
-                        }
-                    } else {
-                        class.borrow().lookup_method(signature)
-                    }
-                }
-            }*/
         }
 
         fn convert_literal(frame: &SOMRef<Frame>, literal: Literal) -> Option<Value> {
