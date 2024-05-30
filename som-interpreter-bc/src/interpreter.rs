@@ -186,7 +186,7 @@ impl Interpreter {
                     };
                 }
                 Bytecode::PushLocal(idx) => {
-                    let value = self.current_frame.borrow().lookup_local(idx as usize).unwrap();
+                    let value = frame.borrow().lookup_local(idx as usize).unwrap();
                     self.stack.push(value);
                 }
                 Bytecode::PushNonLocal(up_idx, idx) => {
@@ -197,7 +197,7 @@ impl Interpreter {
                 }
                 Bytecode::PushArg(idx) => {
                     debug_assert_ne!(idx, 0); // that's a ReturnSelf case.
-                    let value = self.current_frame.borrow().lookup_argument(idx as usize).unwrap();
+                    let value = frame.borrow().lookup_argument(idx as usize).unwrap();
                     self.stack.push(value);
                 }
                 Bytecode::PushNonLocalArg(up_idx, idx) => {
@@ -322,7 +322,7 @@ impl Interpreter {
                     super_send! {self, universe, &frame, idx, None}
                 }
                 Bytecode::ReturnSelf => {
-                    let self_val = self.current_frame.borrow().args.get(0).unwrap().clone();
+                    let self_val = frame.borrow().args.get(0).unwrap().clone();
                     self.pop_frame();
                     self.stack.push(self_val);
                 }
