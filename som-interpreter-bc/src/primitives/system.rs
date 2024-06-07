@@ -124,7 +124,13 @@ fn load(interpreter: &mut Interpreter, universe: &mut Universe) {
         Value::Symbol(sym) => sym,
     ]);
 
+    if let Some(cached_class @ Value::Class(_)) = universe.lookup_global(sym) {
+        interpreter.stack.push(cached_class);
+        return;
+    }
+    
     let name = universe.lookup_symbol(sym).to_string();
+    
     match universe.load_class(name) {
         Ok(class) => interpreter.stack.push(Value::Class(class)),
         Err(err) => panic!("'{}': {}", SIGNATURE, err),

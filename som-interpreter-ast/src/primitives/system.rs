@@ -118,6 +118,11 @@ fn load(universe: &mut Universe, args: Vec<Value>) -> Return {
     ]);
 
     let name = universe.lookup_symbol(sym).to_string();
+    
+    if let Some(cached_class @ Value::Class(_)) = universe.lookup_global(&name) {
+        return Return::Local(cached_class);
+    }
+    
     match universe.load_class(name) {
         Ok(class) => Return::Local(Value::Class(class)),
         Err(err) => Return::Exception(format!("'{}': {}", SIGNATURE, err)),
