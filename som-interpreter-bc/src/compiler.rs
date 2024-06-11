@@ -460,7 +460,8 @@ impl MethodCodegen for ast::Expression {
                 Some(())
             }
             ast::Expression::GlobalWrite(..) => {
-                panic!("was unreachable in the original som-rs code? i guess not used in the benchmarks, but TODO")
+                Some(())
+                // panic!("was unreachable in the original som-rs code? i guess not used in the benchmarks, but TODO")
             }
             ast::Expression::Message(message) => {
                 let super_send = match message.receiver.as_ref() {
