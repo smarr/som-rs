@@ -1,11 +1,12 @@
 use std::convert::TryFrom;
 use std::fs;
 use std::rc::Rc;
+use som_core::universe::Universe;
 
 use crate::expect_args;
 use crate::invokable::Return;
 use crate::primitives::PrimitiveFn;
-use crate::universe::Universe;
+use crate::universe::UniverseAST;
 use crate::value::Value;
 
 pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[
@@ -26,7 +27,7 @@ pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[
 ];
 pub static CLASS_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[];
 
-fn load_file(universe: &mut Universe, args: Vec<Value>) -> Return {
+fn load_file(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
     const SIGNATURE: &str = "System>>#loadFile:";
 
     expect_args!(SIGNATURE, args, [
@@ -46,7 +47,7 @@ fn load_file(universe: &mut Universe, args: Vec<Value>) -> Return {
     }
 }
 
-fn print_string(universe: &mut Universe, args: Vec<Value>) -> Return {
+fn print_string(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
     const SIGNATURE: &str = "System>>#printString:";
 
     expect_args!(SIGNATURE, args, [
@@ -64,7 +65,7 @@ fn print_string(universe: &mut Universe, args: Vec<Value>) -> Return {
     Return::Local(Value::System)
 }
 
-fn print_newline(_: &mut Universe, args: Vec<Value>) -> Return {
+fn print_newline(_: &mut UniverseAST, args: Vec<Value>) -> Return {
     const SIGNATURE: &'static str = "System>>#printNewline";
 
     expect_args!(SIGNATURE, args, [Value::System]);
@@ -73,7 +74,7 @@ fn print_newline(_: &mut Universe, args: Vec<Value>) -> Return {
     Return::Local(Value::Nil)
 }
 
-fn error_print(universe: &mut Universe, args: Vec<Value>) -> Return {
+fn error_print(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
     const SIGNATURE: &str = "System>>#errorPrint:";
 
     expect_args!(SIGNATURE, args, [
@@ -91,7 +92,7 @@ fn error_print(universe: &mut Universe, args: Vec<Value>) -> Return {
     Return::Local(Value::System)
 }
 
-fn error_println(universe: &mut Universe, args: Vec<Value>) -> Return {
+fn error_println(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
     const SIGNATURE: &str = "System>>#errorPrintln:";
 
     expect_args!(SIGNATURE, args, [
@@ -109,7 +110,7 @@ fn error_println(universe: &mut Universe, args: Vec<Value>) -> Return {
     Return::Local(Value::System)
 }
 
-fn load(universe: &mut Universe, args: Vec<Value>) -> Return {
+fn load(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
     const SIGNATURE: &str = "System>>#load:";
 
     expect_args!(SIGNATURE, args, [
@@ -129,7 +130,7 @@ fn load(universe: &mut Universe, args: Vec<Value>) -> Return {
     }
 }
 
-fn has_global(universe: &mut Universe, args: Vec<Value>) -> Return {
+fn has_global(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
     const SIGNATURE: &str = "System>>#hasGlobal:";
 
     expect_args!(SIGNATURE, args, [
@@ -141,7 +142,7 @@ fn has_global(universe: &mut Universe, args: Vec<Value>) -> Return {
     Return::Local(Value::Boolean(universe.has_global(symbol)))
 }
 
-fn global(universe: &mut Universe, args: Vec<Value>) -> Return {
+fn global(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
     const SIGNATURE: &str = "System>>#global:";
 
     expect_args!(SIGNATURE, args, [
@@ -153,7 +154,7 @@ fn global(universe: &mut Universe, args: Vec<Value>) -> Return {
     Return::Local(universe.lookup_global(symbol).unwrap_or(Value::Nil))
 }
 
-fn global_put(universe: &mut Universe, args: Vec<Value>) -> Return {
+fn global_put(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
     const SIGNATURE: &str = "System>>#global:put:";
 
     expect_args!(SIGNATURE, args, [
@@ -167,7 +168,7 @@ fn global_put(universe: &mut Universe, args: Vec<Value>) -> Return {
     Return::Local(value)
 }
 
-fn exit(_: &mut Universe, args: Vec<Value>) -> Return {
+fn exit(_: &mut UniverseAST, args: Vec<Value>) -> Return {
     const SIGNATURE: &str = "System>>#exit:";
 
     expect_args!(SIGNATURE, args, [
@@ -181,7 +182,7 @@ fn exit(_: &mut Universe, args: Vec<Value>) -> Return {
     }
 }
 
-fn ticks(universe: &mut Universe, args: Vec<Value>) -> Return {
+fn ticks(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
     const SIGNATURE: &str = "System>>#ticks";
 
     expect_args!(SIGNATURE, args, [Value::System]);
@@ -192,7 +193,7 @@ fn ticks(universe: &mut Universe, args: Vec<Value>) -> Return {
     }
 }
 
-fn time(universe: &mut Universe, args: Vec<Value>) -> Return {
+fn time(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
     const SIGNATURE: &str = "System>>#time";
 
     expect_args!(SIGNATURE, args, [Value::System]);
@@ -204,7 +205,7 @@ fn time(universe: &mut Universe, args: Vec<Value>) -> Return {
 }
 
 // this function is unusable after my recent changes to the frame. needs to be fixed when a compilation flag for frame debug info is enabled
-fn print_stack_trace(universe: &mut Universe, args: Vec<Value>) -> Return {
+fn print_stack_trace(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
     const SIGNATURE: &str = "System>>#printStackTrace";
 
     expect_args!(SIGNATURE, args, [Value::System]);
@@ -225,7 +226,7 @@ fn print_stack_trace(universe: &mut Universe, args: Vec<Value>) -> Return {
     Return::Local(Value::Boolean(true))
 }
 
-fn full_gc(_: &mut Universe, args: Vec<Value>) -> Return {
+fn full_gc(_: &mut UniverseAST, args: Vec<Value>) -> Return {
     const SIGNATURE: &str = "System>>#fullGC";
 
     expect_args!(SIGNATURE, args, [Value::System]);

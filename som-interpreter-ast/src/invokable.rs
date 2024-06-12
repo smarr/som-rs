@@ -7,7 +7,7 @@ use crate::block::Block;
 use crate::evaluate::Evaluate;
 use crate::frame::Frame;
 use crate::method::{Method, MethodKind};
-use crate::universe::Universe;
+use crate::universe::UniverseAST;
 use crate::value::Value;
 use crate::SOMRef;
 
@@ -27,11 +27,11 @@ pub enum Return {
 /// The trait for invoking methods and primitives.
 pub trait Invoke {
     /// Invoke within the given universe and with the given arguments.
-    fn invoke(&self, universe: &mut Universe, args: Vec<Value>) -> Return;
+    fn invoke(&self, universe: &mut UniverseAST, args: Vec<Value>) -> Return;
 }
 
 impl Invoke for Method {
-    fn invoke(&self, universe: &mut Universe, args: Vec<Value>) -> Return {
+    fn invoke(&self, universe: &mut UniverseAST, args: Vec<Value>) -> Return {
         // println!("--- Invoking \"{:1}\" ({:2})", &self.signature, &self.holder.upgrade().unwrap().borrow().name);
         // println!("--- ...with args: {:?}", &args);
         //
@@ -95,7 +95,7 @@ impl Invoke for Method {
 }
 
 impl Invoke for ast::GenericMethodDef {
-    fn invoke(&self, universe: &mut Universe, args: Vec<Value>) -> Return {
+    fn invoke(&self, universe: &mut UniverseAST, args: Vec<Value>) -> Return {
         let current_frame = universe.current_frame().clone();
         // if &self.signature == "initialize:" {
         //     dbg!(&self.body);
@@ -160,7 +160,7 @@ impl Invoke for ast::GenericMethodDef {
 }
 
 impl Invoke for Block {
-    fn invoke(&self, universe: &mut Universe, args: Vec<Value>) -> Return {
+    fn invoke(&self, universe: &mut UniverseAST, args: Vec<Value>) -> Return {
         // println!("Invoking a block.");
         // println!("--- ...with args: {:?}", &args);
 

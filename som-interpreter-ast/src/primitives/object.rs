@@ -5,7 +5,7 @@ use std::hash::{Hash, Hasher};
 use crate::class::Class;
 use crate::invokable::{Invoke, Return};
 use crate::primitives::PrimitiveFn;
-use crate::universe::Universe;
+use crate::universe::UniverseAST;
 use crate::value::Value;
 use crate::{expect_args, SOMRef};
 use crate::value::Value::Nil;
@@ -29,13 +29,13 @@ pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[
 ];
 pub static CLASS_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[];
 
-fn halt(_universe: &mut Universe, _args: Vec<Value>) -> Return{
+fn halt(_universe: &mut UniverseAST, _args: Vec<Value>) -> Return{
     const _: &'static str = "Object>>#halt";
     println!("HALT"); // so a breakpoint can be put
     Return::Local(Nil)
 }
 
-fn class(universe: &mut Universe, args: Vec<Value>) -> Return {
+fn class(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
     const SIGNATURE: &'static str = "Object>>#class";
 
     expect_args!(SIGNATURE, args, [
@@ -45,13 +45,13 @@ fn class(universe: &mut Universe, args: Vec<Value>) -> Return {
     Return::Local(Value::Class(object.class(universe)))
 }
 
-fn object_size(_: &mut Universe, _: Vec<Value>) -> Return {
+fn object_size(_: &mut UniverseAST, _: Vec<Value>) -> Return {
     const _: &'static str = "Object>>#objectSize";
 
     Return::Local(Value::Integer(std::mem::size_of::<Value>() as i64))
 }
 
-fn hashcode(_: &mut Universe, args: Vec<Value>) -> Return {
+fn hashcode(_: &mut UniverseAST, args: Vec<Value>) -> Return {
     const SIGNATURE: &'static str = "Object>>#hashcode";
 
     expect_args!(SIGNATURE, args, [
@@ -65,7 +65,7 @@ fn hashcode(_: &mut Universe, args: Vec<Value>) -> Return {
     Return::Local(Value::Integer(hash))
 }
 
-fn eq(_: &mut Universe, args: Vec<Value>) -> Return {
+fn eq(_: &mut UniverseAST, args: Vec<Value>) -> Return {
     const SIGNATURE: &'static str = "Object>>#==";
 
     expect_args!(SIGNATURE, args, [
@@ -76,7 +76,7 @@ fn eq(_: &mut Universe, args: Vec<Value>) -> Return {
     Return::Local(Value::Boolean(a == b))
 }
 
-fn perform(universe: &mut Universe, args: Vec<Value>) -> Return {
+fn perform(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
     const SIGNATURE: &'static str = "Object>>#perform:";
 
     expect_args!(SIGNATURE, args, [
@@ -106,7 +106,7 @@ fn perform(universe: &mut Universe, args: Vec<Value>) -> Return {
     }
 }
 
-fn perform_with_arguments(universe: &mut Universe, args: Vec<Value>) -> Return {
+fn perform_with_arguments(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
     const SIGNATURE: &'static str = "Object>>#perform:withArguments:";
 
     expect_args!(SIGNATURE, args, [
@@ -145,7 +145,7 @@ fn perform_with_arguments(universe: &mut Universe, args: Vec<Value>) -> Return {
     }
 }
 
-fn perform_in_super_class(universe: &mut Universe, args: Vec<Value>) -> Return {
+fn perform_in_super_class(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
     const SIGNATURE: &'static str = "Object>>#perform:inSuperclass:";
 
     expect_args!(SIGNATURE, args, [
@@ -177,7 +177,7 @@ fn perform_in_super_class(universe: &mut Universe, args: Vec<Value>) -> Return {
     }
 }
 
-fn perform_with_arguments_in_super_class(universe: &mut Universe, args: Vec<Value>) -> Return {
+fn perform_with_arguments_in_super_class(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
     const SIGNATURE: &'static str = "Object>>#perform:withArguments:inSuperclass:";
 
     expect_args!(SIGNATURE, args, [
@@ -217,7 +217,7 @@ fn perform_with_arguments_in_super_class(universe: &mut Universe, args: Vec<Valu
     }
 }
 
-fn inst_var_at(universe: &mut Universe, args: Vec<Value>) -> Return {
+fn inst_var_at(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
     const SIGNATURE: &'static str = "Object>>#instVarAt:";
 
     expect_args!(SIGNATURE, args, [
@@ -239,7 +239,7 @@ fn inst_var_at(universe: &mut Universe, args: Vec<Value>) -> Return {
     Return::Local(local)
 }
 
-fn inst_var_at_put(universe: &mut Universe, args: Vec<Value>) -> Return {
+fn inst_var_at_put(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
     const SIGNATURE: &'static str = "Object>>#instVarAt:put:";
 
     expect_args!(SIGNATURE, args, [
@@ -262,7 +262,7 @@ fn inst_var_at_put(universe: &mut Universe, args: Vec<Value>) -> Return {
     Return::Local(local)
 }
 
-fn gather_locals(universe: &mut Universe, class: SOMRef<Class>) -> Vec<usize> {
+fn gather_locals(universe: &mut UniverseAST, class: SOMRef<Class>) -> Vec<usize> {
     let fields = match class.borrow().super_class() {
         Some(super_class) => gather_locals(universe, super_class),
         None => Vec::new(),

@@ -10,12 +10,13 @@ use anyhow::{bail, Context};
 #[cfg(feature = "jemalloc")]
 use jemallocator::Jemalloc;
 use structopt::StructOpt;
+use som_core::universe::Universe;
 
 mod shell;
 
 use som_interpreter_bc::disassembler::disassemble_method_body;
 use som_interpreter_bc::method::{Method, MethodKind};
-use som_interpreter_bc::universe::Universe;
+use som_interpreter_bc::universe::UniverseBC;
 use som_interpreter_bc::value::Value;
 
 #[cfg(feature = "jemalloc")]
@@ -70,7 +71,7 @@ fn main() -> anyhow::Result<()> {
         classpath.push(directory.to_path_buf());
     }
 
-    let mut universe = Universe::with_classpath(classpath)?;
+    let mut universe = UniverseBC::with_classpath(classpath)?;
 
     let args = std::iter::once(String::from(file_stem))
         .chain(opts.args.iter().cloned())
@@ -115,11 +116,11 @@ fn disassemble_class(opts: Options) -> anyhow::Result<()> {
     if let Some(directory) = file.parent() {
         classpath.push(directory.to_path_buf());
     }
-    let mut universe = Universe::with_classpath(classpath.clone())?;
+    let mut universe = UniverseBC::with_classpath(classpath.clone())?;
     
     // "Object" special casing needed since `load_class` assumes the class has a superclass and Object doesn't, and I didn't want to change the class loading logic just for the disassembler (tho it's probably fine)
     let class = match file_stem {
-        "Object" => Universe::load_system_class(&mut universe.interner, classpath.as_slice(), "Object")?,
+        "Object" => UniverseBC::load_system_class(&mut universe.interner, classpath.as_slice(), "Object")?,
         _ => universe.load_class(file_stem)?
     };
     

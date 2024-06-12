@@ -1,6 +1,6 @@
 use crate::interpreter::Interpreter;
 use crate::primitives::PrimitiveFn;
-use crate::universe::Universe;
+use crate::universe::UniverseBC;
 use crate::value::Value;
 use crate::{expect_args, reverse};
 
@@ -15,7 +15,7 @@ pub mod block1 {
     ];
     pub static CLASS_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[];
     
-    fn value(interpreter: &mut Interpreter, _: &mut Universe) {
+    fn value(interpreter: &mut Interpreter, _: &mut UniverseBC) {
         const SIGNATURE: &str = "Block1>>#value";
 
         expect_args!(SIGNATURE, interpreter, [
@@ -30,7 +30,7 @@ pub mod block1 {
         // };
     }
 
-    pub fn restart(interpreter: &mut Interpreter, _: &mut Universe) {
+    pub fn restart(interpreter: &mut Interpreter, _: &mut UniverseBC) {
         const SIGNATURE: &str = "Block>>#restart";
 
         expect_args!(SIGNATURE, interpreter, [Value::Block(_)]);
@@ -64,7 +64,7 @@ pub mod block2 {
     pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[("value:", self::value, true)];
     pub static CLASS_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[];
 
-    fn value(interpreter: &mut Interpreter, _: &mut Universe) {
+    fn value(interpreter: &mut Interpreter, _: &mut UniverseBC) {
         const SIGNATURE: &str = "Block2>>#value:";
 
         expect_args!(SIGNATURE, interpreter, [
@@ -110,7 +110,7 @@ pub mod block3 {
         &[("value:with:", self::value_with, true)];
     pub static CLASS_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[];
 
-    fn value_with(interpreter: &mut Interpreter, _: &mut Universe) {
+    fn value_with(interpreter: &mut Interpreter, _: &mut UniverseBC) {
         const SIGNATURE: &str = "Block3>>#value:with:";
         
         expect_args!(SIGNATURE, interpreter, [

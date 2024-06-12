@@ -1,10 +1,11 @@
 use std::fmt;
 
 use som_core::ast;
+use som_core::universe::Universe;
 
 use crate::class::Class;
 use crate::frame::Frame;
-use crate::universe::Universe;
+use crate::universe::UniverseAST;
 use crate::SOMRef;
 
 /// Represents an executable block.
@@ -18,7 +19,7 @@ pub struct Block {
 
 impl Block {
     /// Get the block's class.
-    pub fn class(&self, universe: &Universe) -> SOMRef<Class> {
+    pub fn class(&self, universe: &UniverseAST) -> SOMRef<Class> {
         match self.nb_parameters() {
             0 => universe.block1_class(),
             1 => universe.block2_class(),

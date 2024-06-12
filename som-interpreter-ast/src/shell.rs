@@ -9,11 +9,11 @@ use anyhow::Error;
 
 // use som_interpreter_ast::evaluate::Evaluate;
 // use som_interpreter_ast::invokable::Return;
-use som_interpreter_ast::universe::Universe;
+use som_interpreter_ast::universe::UniverseAST;
 // use som_interpreter_ast::value::Value;
 
 /// Launches an interactive Read-Eval-Print-Loop within the given universe.
-pub fn interactive(_universe: &mut Universe, _verbose: bool) -> Result<(), Error> {
+pub fn interactive(_universe: &mut UniverseAST, _verbose: bool) -> Result<(), Error> {
     panic!("I broke the shell and I'm too lazy to fix it but it's definitely doable");
     
     /*let stdin = io::stdin();

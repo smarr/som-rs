@@ -8,12 +8,13 @@ use crate::class::Class;
 use crate::compiler::Literal;
 use crate::interpreter::Interpreter;
 use crate::primitives::PrimitiveFn;
-use crate::universe::Universe;
+use crate::universe::UniverseBC;
 use crate::value::Value;
 use crate::{SOMRef, SOMWeakRef};
 
 #[cfg(feature = "frame-debug-info")]
 use som_core::ast::BlockDebugInfo;
+use som_core::universe::Universe;
 
 #[derive(Clone)]
 pub struct MethodEnv {
@@ -52,7 +53,7 @@ pub struct Method {
 }
 
 impl Method {
-    pub fn class(&self, universe: &Universe) -> SOMRef<Class> {
+    pub fn class(&self, universe: &UniverseBC) -> SOMRef<Class> {
         if self.is_primitive() {
             universe.primitive_class()
         } else {
@@ -80,7 +81,7 @@ impl Method {
     pub fn invoke(
         self: Rc<Self>,
         interpreter: &mut Interpreter,
-        universe: &mut Universe,
+        universe: &mut UniverseBC,
         receiver: Value,
         mut args: Vec<Value>,
     ) {

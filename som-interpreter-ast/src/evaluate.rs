@@ -5,7 +5,7 @@ use som_core::ast;
 
 use crate::block::Block;
 use crate::invokable::{Invoke, Return};
-use crate::universe::Universe;
+use crate::universe::UniverseAST;
 use crate::value::Value;
 
 macro_rules! propagate {
@@ -20,11 +20,11 @@ macro_rules! propagate {
 /// The trait for evaluating AST nodes.
 pub trait Evaluate {
     /// Evaluate the node within a given universe.
-    fn evaluate(&self, universe: &mut Universe) -> Return;
+    fn evaluate(&self, universe: &mut UniverseAST) -> Return;
 }
 
 impl Evaluate for ast::Expression {
-    fn evaluate(&self, universe: &mut Universe) -> Return {
+    fn evaluate(&self, universe: &mut UniverseAST) -> Return {
         match self {
             Self::LocalVarWrite(idx, expr) => {
                 // TODO: this doesn't call the fastest path for evaluate, still has to dispatch the right expr even though it's always a var write. potential minor speedup there
@@ -145,7 +145,7 @@ impl Evaluate for ast::Expression {
 }
 
 impl Evaluate for ast::BinaryOp {
-    fn evaluate(&self, universe: &mut Universe) -> Return {
+    fn evaluate(&self, universe: &mut UniverseAST) -> Return {
         let (lhs, invokable) = match self.lhs.as_ref() {
             ast::Expression::GlobalRead(ident) if ident == "super" => {
                 let frame = universe.current_frame();
@@ -195,7 +195,7 @@ impl Evaluate for ast::BinaryOp {
 }
 
 impl Evaluate for ast::Literal {
-    fn evaluate(&self, universe: &mut Universe) -> Return {
+    fn evaluate(&self, universe: &mut UniverseAST) -> Return {
         match self {
             Self::Array(array) => {
                 let mut output = Vec::with_capacity(array.len());
@@ -218,13 +218,13 @@ impl Evaluate for ast::Literal {
 }
 
 impl Evaluate for ast::Term {
-    fn evaluate(&self, universe: &mut Universe) -> Return {
+    fn evaluate(&self, universe: &mut UniverseAST) -> Return {
         self.body.evaluate(universe)
     }
 }
 
 impl Evaluate for ast::Block {
-    fn evaluate(&self, universe: &mut Universe) -> Return {
+    fn evaluate(&self, universe: &mut UniverseAST) -> Return {
         let frame = universe.current_frame();
         // TODO: avoid cloning the whole block's AST.
         Return::Local(Value::Block(Rc::new(Block {
@@ -235,7 +235,7 @@ impl Evaluate for ast::Block {
 }
 
 impl Evaluate for ast::Message {
-    fn evaluate(&self, universe: &mut Universe) -> Return {
+    fn evaluate(&self, universe: &mut UniverseAST) -> Return {
         let (receiver, invokable) = match self.receiver.as_ref() {
             // ast::Expression::Reference(ident) if ident == "self" => {
             //     let frame = universe.current_frame();
@@ -305,7 +305,7 @@ impl Evaluate for ast::Message {
 }
 
 impl Evaluate for ast::Body {
-    fn evaluate(&self, universe: &mut Universe) -> Return {
+    fn evaluate(&self, universe: &mut UniverseAST) -> Return {
         let mut last_value = Value::Nil;
         for expr in &self.exprs {
             last_value = propagate!(expr.evaluate(universe));
