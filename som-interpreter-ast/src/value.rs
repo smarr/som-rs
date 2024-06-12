@@ -2,7 +2,6 @@ use std::fmt;
 use std::rc::Rc;
 
 use num_bigint::BigInt;
-use som_core::universe::Universe;
 
 use crate::block::Block;
 use crate::class::Class;

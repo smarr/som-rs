@@ -8,10 +8,12 @@
 pub mod lang;
 
 use std::cell::RefCell;
+use std::mem;
 use std::rc::Rc;
 use som_core::ast::{ClassDef, Expression};
 #[cfg(feature = "block-debug-info")]
 use som_core::ast::BlockDebugInfo;
+use som_core::universe::Universe;
 use som_lexer::Token;
 use som_parser_core::{Parser};
 
@@ -22,7 +24,7 @@ pub enum AstGenCtxtType {
     Method,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct AstGenCtxtData {
     kind: AstGenCtxtType, // used for debugging
     name: String, // debugging too
@@ -32,6 +34,7 @@ pub struct AstGenCtxtData {
     class_static_fields: Vec<String>, // it's possible the distinction between static/instance fields is useless, but i don't think so.
     current_scope: usize,
     outer_ctxt: Option<AstGenCtxt>,
+    universe: Option<Box<dyn Universe>>
 }
 
 pub type AstGenCtxt = Rc<RefCell<AstGenCtxtData>>;
@@ -42,8 +45,8 @@ enum FoundVar {
     Field(usize),
 }
 
-impl Default for AstGenCtxtData {
-    fn default() -> Self {
+impl AstGenCtxtData {
+    fn new(universe: Option<Box<dyn Universe>>) -> Self {
         AstGenCtxtData {
             kind: AstGenCtxtType::Class,
             name: "NO NAME".to_string(),
@@ -53,6 +56,7 @@ impl Default for AstGenCtxtData {
             class_instance_fields: vec![],
             current_scope: 0,
             outer_ctxt: None,
+            universe
         }
     }
 }
@@ -69,6 +73,7 @@ impl AstGenCtxtData {
             class_static_fields: vec![],
             current_scope: outer.borrow().current_scope + 1,
             outer_ctxt: Some(Rc::clone(&outer)),
+            universe: mem::take(&mut outer.borrow_mut().universe)
         }))
     }
 
@@ -210,16 +215,20 @@ impl AstGenCtxtData {
 
 
 /// Parses the input of an entire file into an AST.
-pub fn parse_file(input: &[Token]) -> Option<ClassDef> {
-    self::apply(lang::file(), input)
+pub fn parse_file(input: &[Token], universe: Box<dyn Universe>) -> Option<ClassDef> {
+    self::apply(lang::file(), input, Some(universe))
+}
+
+pub fn parse_file_no_universe(input: &[Token]) -> Option<ClassDef> {
+    self::apply(lang::file(), input, None)
 }
 
 /// Applies a parser and returns the output value if the entirety of the input has been parsed successfully.
-pub fn apply<'a, A, P>(mut parser: P, input: &'a [Token]) -> Option<A>
+pub fn apply<'a, A, P>(mut parser: P, input: &'a [Token], universe: Option<Box<dyn Universe>>) -> Option<A>
     where
         P: Parser<A, &'a [Token], AstGenCtxt>,
 {
-    match parser.parse(input, AstGenCtxt::default()) {
+    match parser.parse(input, Rc::new(RefCell::new(AstGenCtxtData::new(universe)))) {
         Some((output, tail, _)) if tail.is_empty() => Some(output),
         Some(_) | None => None,
     }

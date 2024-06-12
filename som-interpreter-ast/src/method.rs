@@ -1,5 +1,4 @@
 use som_core::ast;
-use som_core::universe::Universe;
 
 use crate::class::Class;
 use crate::primitives::PrimitiveFn;
