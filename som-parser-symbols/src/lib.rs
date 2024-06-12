@@ -24,8 +24,8 @@ pub enum AstGenCtxtType {
     Method,
 }
 
-#[derive(Debug)]
-pub struct AstGenCtxtData {
+// #[derive(Debug)]
+pub struct AstGenCtxtData<'a> {
     kind: AstGenCtxtType, // used for debugging
     name: String, // debugging too
     local_names: Vec<String>,
@@ -33,11 +33,11 @@ pub struct AstGenCtxtData {
     class_instance_fields: Vec<String>,
     class_static_fields: Vec<String>, // it's possible the distinction between static/instance fields is useless, but i don't think so.
     current_scope: usize,
-    outer_ctxt: Option<AstGenCtxt>,
-    universe: Option<Box<dyn Universe>>
+    outer_ctxt: Option<AstGenCtxt<'a>>,
+    universe: Option<&'a mut dyn Universe>
 }
 
-pub type AstGenCtxt = Rc<RefCell<AstGenCtxtData>>;
+pub type AstGenCtxt<'a> = Rc<RefCell<AstGenCtxtData<'a>>>;
 
 enum FoundVar {
     Local(usize, usize),
@@ -45,8 +45,8 @@ enum FoundVar {
     Field(usize),
 }
 
-impl AstGenCtxtData {
-    fn new(universe: Option<Box<dyn Universe>>) -> Self {
+impl<'a> AstGenCtxtData<'a> {
+    fn new(universe: Option<&'a mut dyn Universe>) -> Self {
         AstGenCtxtData {
             kind: AstGenCtxtType::Class,
             name: "NO NAME".to_string(),
@@ -61,7 +61,7 @@ impl AstGenCtxtData {
     }
 }
 
-impl AstGenCtxtData {
+impl<'a> AstGenCtxtData<'a> {
     pub fn new_ctxt_from(outer: AstGenCtxt, kind: AstGenCtxtType) -> AstGenCtxt {
         Rc::new(RefCell::new(
         AstGenCtxtData {
@@ -81,8 +81,9 @@ impl AstGenCtxtData {
         self.name = name;
     }
 
-    pub fn get_outer(&self) -> AstGenCtxt {
+    pub fn get_outer(&mut self) -> AstGenCtxt<'a> {
         let outer = self.outer_ctxt.as_ref().unwrap();
+        outer.borrow_mut().universe = mem::take(&mut self.universe);
         Rc::clone(outer)
     }
 
@@ -215,7 +216,7 @@ impl AstGenCtxtData {
 
 
 /// Parses the input of an entire file into an AST.
-pub fn parse_file(input: &[Token], universe: Box<dyn Universe>) -> Option<ClassDef> {
+pub fn parse_file(input: &[Token], universe: &mut dyn Universe) -> Option<ClassDef> {
     self::apply(lang::file(), input, Some(universe))
 }
 
@@ -224,9 +225,9 @@ pub fn parse_file_no_universe(input: &[Token]) -> Option<ClassDef> {
 }
 
 /// Applies a parser and returns the output value if the entirety of the input has been parsed successfully.
-pub fn apply<'a, A, P>(mut parser: P, input: &'a [Token], universe: Option<Box<dyn Universe>>) -> Option<A>
+pub fn apply<'a, A, P>(mut parser: P, input: &'a [Token], universe: Option<&'a mut dyn Universe>) -> Option<A>
     where
-        P: Parser<A, &'a [Token], AstGenCtxt>,
+        P: Parser<A, &'a [Token], AstGenCtxt<'a>>,
 {
     match parser.parse(input, Rc::new(RefCell::new(AstGenCtxtData::new(universe)))) {
         Some((output, tail, _)) if tail.is_empty() => Some(output),
