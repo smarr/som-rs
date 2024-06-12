@@ -222,8 +222,10 @@ impl UniverseBC {
     /// Load a class from its name into this universe.
     pub fn load_class(&mut self, class_name: impl Into<String>) -> Result<SOMRef<Class>, Error> {
         let class_name = class_name.into();
-        for path in self.classpath.iter() {
-            let mut path = path.join(class_name.as_str());
+        let paths: Vec<PathBuf> = self.classpath.iter().map(|path| path.clone()).collect(); // ugly. see original code for how it should be done instead. TODO change - maybe a .map() call fixes it?
+
+        for mut path in paths {
+            path.push(class_name.as_str());
             path.set_extension("som");
 
             // Read file contents.
@@ -238,12 +240,8 @@ impl UniverseBC {
                 .skip_whitespace(true)
                 .collect();
 
-            // let uni_box: Box<dyn Universe> = Box::new(&*self);
-            // let uni_ptr: *mut dyn Universe = self; 
-            let x: &mut dyn Universe = self;
-
             // Parse class definition from the tokens.
-            let defn = match som_parser::parse_file(tokens.as_slice(), x) {
+            let defn = match som_parser::parse_file(tokens.as_slice(), self) {
                 Some(defn) => defn,
                 None => continue,
             };
@@ -268,42 +266,6 @@ impl UniverseBC {
             let class = compiler::compile_class(&mut self.interner, &defn, Some(&super_class))
                 .ok_or_else(|| Error::msg(format!("")))?;
             set_super_class(&class, &super_class, &self.core.metaclass_class);
-
-            // fn has_duplicated_field(class: &SOMRef<Class>) -> Option<(String, (String, String))> {
-            //     let super_class_iterator = std::iter::successors(Some(class.clone()), |class| {
-            //         class.borrow().super_class()
-            //     });
-            //     let mut map = HashMap::<String, String>::new();
-            //     for class in super_class_iterator {
-            //         let class_name = class.borrow().name().to_string();
-            //         for (field, _) in class.borrow().locals.iter() {
-            //             let field_name = field.clone();
-            //             match map.entry(field_name.clone()) {
-            //                 Entry::Occupied(entry) => {
-            //                     return Some((field_name, (class_name, entry.get().clone())))
-            //                 }
-            //                 Entry::Vacant(v) => {
-            //                     v.insert(class_name.clone());
-            //                 }
-            //             }
-            //         }
-            //     }
-            //     return None;
-            // }
-
-            // if let Some((field, (c1, c2))) = has_duplicated_field(&class) {
-            //     return Err(anyhow!(
-            //         "the field named '{}' is defined more than once (by '{}' and '{}', where the latter inherits from the former)",
-            //         field, c1, c2,
-            //     ));
-            // }
-
-            // if let Some((field, (c1, c2))) = has_duplicated_field(&class.borrow().class()) {
-            //     return Err(anyhow!(
-            //         "the field named '{}' is defined more than once (by '{}' and '{}', where the latter inherits from the former)",
-            //         field, c1, c2,
-            //     ));
-            // }
 
             let symbol = self.intern_symbol(class.borrow().name());
             self.globals.insert(symbol, Value::Class(class.clone()));

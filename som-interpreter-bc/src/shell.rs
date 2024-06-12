@@ -1,6 +1,5 @@
 use std::io;
 use std::io::{BufRead, Write};
-use std::rc::Rc;
 use std::time::Instant;
 
 use anyhow::Error;
@@ -64,7 +63,7 @@ pub fn interactive(
         }
 
         let start = Instant::now();
-        let class_def = match som_parser::apply(lang::class_def(), tokens.as_slice(), todo!()) {
+        let class_def = match som_parser::apply(lang::class_def(), tokens.as_slice(), Some(universe)) {
             Some(class_def) => class_def,
             None => {
                 println!("ERROR: could not fully parse the given expression");
