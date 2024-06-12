@@ -303,82 +303,6 @@ impl Universe<SOMRef<Class>> for UniverseAST {
 
         Err(anyhow!("could not find the '{}' class", class_name))
     }
-
-    /// Get the **Object** class.
-    fn object_class(&self) -> SOMRef<Class> {
-        self.core.object_class.clone()
-    }
-    
-    /// Get the **Nil** class.
-    fn nil_class(&self) -> SOMRef<Class> {
-        self.core.nil_class.clone()
-    }
-    /// Get the **System** class.
-    fn system_class(&self) -> SOMRef<Class> {
-        self.core.system_class.clone()
-    }
-
-    /// Get the **Symbol** class.
-    fn symbol_class(&self) -> SOMRef<Class> {
-        self.core.symbol_class.clone()
-    }
-    /// Get the **String** class.
-    fn string_class(&self) -> SOMRef<Class> {
-        self.core.string_class.clone()
-    }
-    /// Get the **Array** class.
-    fn array_class(&self) -> SOMRef<Class> {
-        self.core.array_class.clone()
-    }
-
-    /// Get the **Integer** class.
-    fn integer_class(&self) -> SOMRef<Class> {
-        self.core.integer_class.clone()
-    }
-    /// Get the **Double** class.
-    fn double_class(&self) -> SOMRef<Class> {
-        self.core.double_class.clone()
-    }
-
-    /// Get the **Block** class.
-    fn block_class(&self) -> SOMRef<Class> {
-        self.core.block_class.clone()
-    }
-    /// Get the **Block1** class.
-    fn block1_class(&self) -> SOMRef<Class> {
-        self.core.block1_class.clone()
-    }
-    /// Get the **Block2** class.
-    fn block2_class(&self) -> SOMRef<Class> {
-        self.core.block2_class.clone()
-    }
-    /// Get the **Block3** class.
-    fn block3_class(&self) -> SOMRef<Class> {
-        self.core.block3_class.clone()
-    }
-
-    /// Get the **True** class.
-    fn true_class(&self) -> SOMRef<Class> {
-        self.core.true_class.clone()
-    }
-    /// Get the **False** class.
-    fn false_class(&self) -> SOMRef<Class> {
-        self.core.false_class.clone()
-    }
-
-    /// Get the **Metaclass** class.
-    fn metaclass_class(&self) -> SOMRef<Class> {
-        self.core.metaclass_class.clone()
-    }
-
-    /// Get the **Method** class.
-    fn method_class(&self) -> SOMRef<Class> {
-        self.core.method_class.clone()
-    }
-    /// Get the **Primitive** class.
-    fn primitive_class(&self) -> SOMRef<Class> {
-        self.core.primitive_class.clone()
-    }
 }
 
 impl UniverseAST {
@@ -422,6 +346,82 @@ impl UniverseAST {
         }
 
         Err(anyhow!("could not find the '{}' system class", class_name))
+    }
+    
+    /// Get the **Object** class.
+    pub fn object_class(&self) -> SOMRef<Class> {
+        self.core.object_class.clone()
+    }
+
+    /// Get the **Nil** class.
+    pub fn nil_class(&self) -> SOMRef<Class> {
+        self.core.nil_class.clone()
+    }
+    /// Get the **System** class.
+    pub fn system_class(&self) -> SOMRef<Class> {
+        self.core.system_class.clone()
+    }
+
+    /// Get the **Symbol** class.
+    pub fn symbol_class(&self) -> SOMRef<Class> {
+        self.core.symbol_class.clone()
+    }
+    /// Get the **String** class.
+    pub fn string_class(&self) -> SOMRef<Class> {
+        self.core.string_class.clone()
+    }
+    /// Get the **Array** class.
+    pub fn array_class(&self) -> SOMRef<Class> {
+        self.core.array_class.clone()
+    }
+
+    /// Get the **Integer** class.
+    pub fn integer_class(&self) -> SOMRef<Class> {
+        self.core.integer_class.clone()
+    }
+    /// Get the **Double** class.
+    pub fn double_class(&self) -> SOMRef<Class> {
+        self.core.double_class.clone()
+    }
+
+    /// Get the **Block** class.
+    pub fn block_class(&self) -> SOMRef<Class> {
+        self.core.block_class.clone()
+    }
+    /// Get the **Block1** class.
+    pub fn block1_class(&self) -> SOMRef<Class> {
+        self.core.block1_class.clone()
+    }
+    /// Get the **Block2** class.
+    pub fn block2_class(&self) -> SOMRef<Class> {
+        self.core.block2_class.clone()
+    }
+    /// Get the **Block3** class.
+    pub fn block3_class(&self) -> SOMRef<Class> {
+        self.core.block3_class.clone()
+    }
+
+    /// Get the **True** class.
+    pub fn true_class(&self) -> SOMRef<Class> {
+        self.core.true_class.clone()
+    }
+    /// Get the **False** class.
+    pub fn false_class(&self) -> SOMRef<Class> {
+        self.core.false_class.clone()
+    }
+
+    /// Get the **Metaclass** class.
+    pub fn metaclass_class(&self) -> SOMRef<Class> {
+        self.core.metaclass_class.clone()
+    }
+
+    /// Get the **Method** class.
+    pub fn method_class(&self) -> SOMRef<Class> {
+        self.core.method_class.clone()
+    }
+    /// Get the **Primitive** class.
+    pub fn primitive_class(&self) -> SOMRef<Class> {
+        self.core.primitive_class.clone()
     }
 }
 

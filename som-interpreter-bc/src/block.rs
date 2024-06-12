@@ -5,7 +5,6 @@ use std::rc::Rc;
 use som_core::ast::BlockDebugInfo;
 
 use som_core::bytecode::Bytecode;
-use som_core::universe::Universe;
 
 use crate::class::Class;
 use crate::compiler::Literal;

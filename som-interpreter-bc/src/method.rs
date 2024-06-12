@@ -14,7 +14,6 @@ use crate::{SOMRef, SOMWeakRef};
 
 #[cfg(feature = "frame-debug-info")]
 use som_core::ast::BlockDebugInfo;
-use som_core::universe::Universe;
 
 #[derive(Clone)]
 pub struct MethodEnv {

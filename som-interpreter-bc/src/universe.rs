@@ -81,9 +81,15 @@ pub struct UniverseBC {
     pub core: CoreClasses,
 }
 
-impl Universe<SOMRef<Class>> for UniverseBC {
+impl Universe for UniverseBC {
+    fn load_class(&mut self, class_name: &str) {
+        self.load_class(class_name).expect(&format!("Failed to parse class: {}", class_name));
+    }
+}
+
+impl UniverseBC {
     /// Initialize the universe from the given classpath.
-    fn with_classpath(classpath: Vec<PathBuf>) -> Result<Self, Error> {
+    pub fn with_classpath(classpath: Vec<PathBuf>) -> Result<Self, Error> {
         let mut interner = Interner::with_capacity(100);
         let mut globals = HashMap::new();
 
@@ -212,9 +218,9 @@ impl Universe<SOMRef<Class>> for UniverseBC {
             },
         })
     }
-    
+
     /// Load a class from its name into this universe.
-    fn load_class(&mut self, class_name: impl Into<String>) -> Result<SOMRef<Class>, Error> {
+    pub fn load_class(&mut self, class_name: impl Into<String>) -> Result<SOMRef<Class>, Error> {
         let class_name = class_name.into();
         for path in self.classpath.iter() {
             let mut path = path.join(class_name.as_str());
@@ -232,8 +238,12 @@ impl Universe<SOMRef<Class>> for UniverseBC {
                 .skip_whitespace(true)
                 .collect();
 
+            // let uni_box: Box<dyn Universe> = Box::new(&*self);
+            // let uni_ptr: *mut dyn Universe = self; 
+            let x: &mut dyn Universe = self;
+
             // Parse class definition from the tokens.
-            let defn = match som_parser::parse_file(tokens.as_slice()) {
+            let defn = match som_parser::parse_file(tokens.as_slice(), x) {
                 Some(defn) => defn,
                 None => continue,
             };
@@ -304,84 +314,6 @@ impl Universe<SOMRef<Class>> for UniverseBC {
         Err(anyhow!("could not find the '{}' class", class_name))
     }
 
-    /// Get the **Nil** class.
-    fn nil_class(&self) -> SOMRef<Class> {
-        self.core.nil_class.clone()
-    }
-    /// Get the **System** class.
-    fn system_class(&self) -> SOMRef<Class> {
-        self.core.system_class.clone()
-    }
-
-    /// Get the **Object** class.
-    fn object_class(&self) -> SOMRef<Class> {
-        self.core.object_class.clone()
-    }
-
-    /// Get the **Symbol** class.
-    fn symbol_class(&self) -> SOMRef<Class> {
-        self.core.symbol_class.clone()
-    }
-    /// Get the **String** class.
-    fn string_class(&self) -> SOMRef<Class> {
-        self.core.string_class.clone()
-    }
-    /// Get the **Array** class.
-    fn array_class(&self) -> SOMRef<Class> {
-        self.core.array_class.clone()
-    }
-
-    /// Get the **Integer** class.
-    fn integer_class(&self) -> SOMRef<Class> {
-        self.core.integer_class.clone()
-    }
-    /// Get the **Double** class.
-    fn double_class(&self) -> SOMRef<Class> {
-        self.core.double_class.clone()
-    }
-
-    /// Get the **Block** class.
-    fn block_class(&self) -> SOMRef<Class> {
-        self.core.block_class.clone()
-    }
-    /// Get the **Block1** class.
-    fn block1_class(&self) -> SOMRef<Class> {
-        self.core.block1_class.clone()
-    }
-    /// Get the **Block2** class.
-    fn block2_class(&self) -> SOMRef<Class> {
-        self.core.block2_class.clone()
-    }
-    /// Get the **Block3** class.
-    fn block3_class(&self) -> SOMRef<Class> {
-        self.core.block3_class.clone()
-    }
-
-    /// Get the **True** class.
-    fn true_class(&self) -> SOMRef<Class> {
-        self.core.true_class.clone()
-    }
-    /// Get the **False** class.
-    fn false_class(&self) -> SOMRef<Class> {
-        self.core.false_class.clone()
-    }
-
-    /// Get the **Metaclass** class.
-    fn metaclass_class(&self) -> SOMRef<Class> {
-        self.core.metaclass_class.clone()
-    }
-
-    /// Get the **Method** class.
-    fn method_class(&self) -> SOMRef<Class> {
-        self.core.method_class.clone()
-    }
-    /// Get the **Primitive** class.
-    fn primitive_class(&self) -> SOMRef<Class> {
-        self.core.primitive_class.clone()
-    }
-}
-
-impl UniverseBC {
     /// Load a system class (with an incomplete hierarchy).
     pub fn load_system_class(
         interner: &mut Interner,
@@ -407,7 +339,7 @@ impl UniverseBC {
                 .collect();
 
             // Parse class definition from the tokens.
-            let defn = match som_parser::parse_file(tokens.as_slice()) {
+            let defn = match som_parser::parse_file_no_universe(tokens.as_slice()) {
                 Some(defn) => defn,
                 None => return Err(anyhow!("could not parse the '{}' system class", class_name)),
             };
@@ -426,7 +358,83 @@ impl UniverseBC {
 
         Err(anyhow!("could not find the '{}' system class", class_name))
     }
-    
+
+    /// Get the **Nil** class.
+    pub fn nil_class(&self) -> SOMRef<Class> {
+        self.core.nil_class.clone()
+    }
+    /// Get the **System** class.
+    pub fn system_class(&self) -> SOMRef<Class> {
+        self.core.system_class.clone()
+    }
+
+    /// Get the **Object** class.
+    pub fn object_class(&self) -> SOMRef<Class> {
+        self.core.object_class.clone()
+    }
+
+    /// Get the **Symbol** class.
+    pub fn symbol_class(&self) -> SOMRef<Class> {
+        self.core.symbol_class.clone()
+    }
+    /// Get the **String** class.
+    pub fn string_class(&self) -> SOMRef<Class> {
+        self.core.string_class.clone()
+    }
+    /// Get the **Array** class.
+    pub fn array_class(&self) -> SOMRef<Class> {
+        self.core.array_class.clone()
+    }
+
+    /// Get the **Integer** class.
+    pub fn integer_class(&self) -> SOMRef<Class> {
+        self.core.integer_class.clone()
+    }
+    /// Get the **Double** class.
+    pub fn double_class(&self) -> SOMRef<Class> {
+        self.core.double_class.clone()
+    }
+
+    /// Get the **Block** class.
+    pub fn block_class(&self) -> SOMRef<Class> {
+        self.core.block_class.clone()
+    }
+    /// Get the **Block1** class.
+    pub fn block1_class(&self) -> SOMRef<Class> {
+        self.core.block1_class.clone()
+    }
+    /// Get the **Block2** class.
+    pub fn block2_class(&self) -> SOMRef<Class> {
+        self.core.block2_class.clone()
+    }
+    /// Get the **Block3** class.
+    pub fn block3_class(&self) -> SOMRef<Class> {
+        self.core.block3_class.clone()
+    }
+
+    /// Get the **True** class.
+    pub fn true_class(&self) -> SOMRef<Class> {
+        self.core.true_class.clone()
+    }
+    /// Get the **False** class.
+    pub fn false_class(&self) -> SOMRef<Class> {
+        self.core.false_class.clone()
+    }
+
+    /// Get the **Metaclass** class.
+    pub fn metaclass_class(&self) -> SOMRef<Class> {
+        self.core.metaclass_class.clone()
+    }
+
+    /// Get the **Method** class.
+    pub fn method_class(&self) -> SOMRef<Class> {
+        self.core.method_class.clone()
+    }
+    /// Get the **Primitive** class.
+    pub fn primitive_class(&self) -> SOMRef<Class> {
+        self.core.primitive_class.clone()
+    }
+
     /// Intern a symbol.
     pub fn intern_symbol(&mut self, symbol: &str) -> Interned {
         self.interner.intern(symbol)
