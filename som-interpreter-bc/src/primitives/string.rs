@@ -5,7 +5,7 @@ use std::rc::Rc;
 
 use crate::interpreter::Interpreter;
 use crate::primitives::PrimitiveFn;
-use crate::universe::Universe;
+use crate::universe::UniverseBC;
 use crate::value::Value;
 use crate::{expect_args, reverse};
 
@@ -23,7 +23,7 @@ pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[
 ];
 pub static CLASS_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[];
 
-fn length(interpreter: &mut Interpreter, universe: &mut Universe) {
+fn length(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
     const SIGNATURE: &str = "String>>#length";
 
     expect_args!(SIGNATURE, interpreter, [
@@ -42,7 +42,7 @@ fn length(interpreter: &mut Interpreter, universe: &mut Universe) {
     }
 }
 
-fn hashcode(interpreter: &mut Interpreter, universe: &mut Universe) {
+fn hashcode(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
     const SIGNATURE: &str = "String>>#hashcode";
 
     expect_args!(SIGNATURE, interpreter, [
@@ -69,7 +69,7 @@ fn hashcode(interpreter: &mut Interpreter, universe: &mut Universe) {
         .push(Value::Integer((hasher.finish() as i64).abs()))
 }
 
-fn is_letters(interpreter: &mut Interpreter, universe: &mut Universe) {
+fn is_letters(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
     const SIGNATURE: &str = "String>>#isLetters";
 
     expect_args!(SIGNATURE, interpreter, [
@@ -87,7 +87,7 @@ fn is_letters(interpreter: &mut Interpreter, universe: &mut Universe) {
     ))
 }
 
-fn is_digits(interpreter: &mut Interpreter, universe: &mut Universe) {
+fn is_digits(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
     const SIGNATURE: &str = "String>>#isDigits";
 
     expect_args!(SIGNATURE, interpreter, [
@@ -105,7 +105,7 @@ fn is_digits(interpreter: &mut Interpreter, universe: &mut Universe) {
     ))
 }
 
-fn is_whitespace(interpreter: &mut Interpreter, universe: &mut Universe) {
+fn is_whitespace(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
     const SIGNATURE: &str = "String>>#isWhiteSpace";
 
     expect_args!(SIGNATURE, interpreter, [
@@ -123,7 +123,7 @@ fn is_whitespace(interpreter: &mut Interpreter, universe: &mut Universe) {
     ))
 }
 
-fn concatenate(interpreter: &mut Interpreter, universe: &mut Universe) {
+fn concatenate(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
     const SIGNATURE: &str = "String>>#concatenate:";
 
     expect_args!(SIGNATURE, interpreter, [
@@ -146,7 +146,7 @@ fn concatenate(interpreter: &mut Interpreter, universe: &mut Universe) {
         .push(Value::String(Rc::new(format!("{}{}", s1, s2))))
 }
 
-fn as_symbol(interpreter: &mut Interpreter, universe: &mut Universe) {
+fn as_symbol(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
     const SIGNATURE: &str = "String>>#asSymbol";
 
     expect_args!(SIGNATURE, interpreter, [
@@ -162,7 +162,7 @@ fn as_symbol(interpreter: &mut Interpreter, universe: &mut Universe) {
     }
 }
 
-fn char_at(interpreter: &mut Interpreter, _universe: &mut Universe) {
+fn char_at(interpreter: &mut Interpreter, _universe: &mut UniverseBC) {
     const SIGNATURE: &str = "String>>#charAt:";
 
     expect_args!(SIGNATURE, interpreter, [
@@ -179,7 +179,7 @@ fn char_at(interpreter: &mut Interpreter, _universe: &mut Universe) {
     interpreter.stack.push(Value::String(Rc::new(String::from(value.chars().nth(idx).unwrap()))))
 }
 
-fn eq(interpreter: &mut Interpreter, universe: &mut Universe) {
+fn eq(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
     const SIGNATURE: &str = "String>>#=";
 
     expect_args!(SIGNATURE, interpreter, [
@@ -208,7 +208,7 @@ fn eq(interpreter: &mut Interpreter, universe: &mut Universe) {
     interpreter.stack.push(Value::Boolean(s1 == s2))
 }
 
-fn prim_substring_from_to(interpreter: &mut Interpreter, universe: &mut Universe) {
+fn prim_substring_from_to(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
     const SIGNATURE: &str = "String>>#primSubstringFrom:to:";
 
     expect_args!(SIGNATURE, interpreter, [

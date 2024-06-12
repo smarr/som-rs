@@ -1,13 +1,14 @@
 use std::convert::TryFrom;
 use std::fs;
 use std::rc::Rc;
+use som_core::universe::Universe;
 
 #[cfg(feature = "frame-debug-info")]
 use crate::frame::FrameKind;
 
 use crate::interpreter::Interpreter;
 use crate::primitives::PrimitiveFn;
-use crate::universe::Universe;
+use crate::universe::UniverseBC;
 use crate::value::Value;
 use crate::{expect_args, reverse};
 
@@ -29,7 +30,7 @@ pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[
 ];
 pub static CLASS_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[];
 
-fn load_file(interpreter: &mut Interpreter, universe: &mut Universe) {
+fn load_file(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
     const SIGNATURE: &str = "System>>#loadFile:";
 
     expect_args!(SIGNATURE, interpreter, [
@@ -51,7 +52,7 @@ fn load_file(interpreter: &mut Interpreter, universe: &mut Universe) {
     interpreter.stack.push(value);
 }
 
-fn print_string(interpreter: &mut Interpreter, universe: &mut Universe) {
+fn print_string(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
     const SIGNATURE: &str = "System>>#printString:";
 
     expect_args!(SIGNATURE, interpreter, [
@@ -71,7 +72,7 @@ fn print_string(interpreter: &mut Interpreter, universe: &mut Universe) {
     interpreter.stack.push(Value::System)
 }
 
-fn print_newline(interpreter: &mut Interpreter, _: &mut Universe) {
+fn print_newline(interpreter: &mut Interpreter, _: &mut UniverseBC) {
     const SIGNATURE: &'static str = "System>>#printNewline";
 
     expect_args!(SIGNATURE, interpreter, [Value::System]);
@@ -80,7 +81,7 @@ fn print_newline(interpreter: &mut Interpreter, _: &mut Universe) {
     interpreter.stack.push(Value::Nil);
 }
 
-fn error_print(interpreter: &mut Interpreter, universe: &mut Universe) {
+fn error_print(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
     const SIGNATURE: &str = "System>>#errorPrint:";
 
     expect_args!(SIGNATURE, interpreter, [
@@ -98,7 +99,7 @@ fn error_print(interpreter: &mut Interpreter, universe: &mut Universe) {
     interpreter.stack.push(Value::System);
 }
 
-fn error_println(interpreter: &mut Interpreter, universe: &mut Universe) {
+fn error_println(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
     const SIGNATURE: &str = "System>>#errorPrintln:";
 
     expect_args!(SIGNATURE, interpreter, [
@@ -116,7 +117,7 @@ fn error_println(interpreter: &mut Interpreter, universe: &mut Universe) {
     interpreter.stack.push(Value::System);
 }
 
-fn load(interpreter: &mut Interpreter, universe: &mut Universe) {
+fn load(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
     const SIGNATURE: &str = "System>>#load:";
 
     expect_args!(SIGNATURE, interpreter, [
@@ -137,7 +138,7 @@ fn load(interpreter: &mut Interpreter, universe: &mut Universe) {
     }
 }
 
-fn has_global(interpreter: &mut Interpreter, universe: &mut Universe) {
+fn has_global(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
     const SIGNATURE: &str = "System>>#hasGlobal:";
 
     expect_args!(SIGNATURE, interpreter, [
@@ -150,7 +151,7 @@ fn has_global(interpreter: &mut Interpreter, universe: &mut Universe) {
     interpreter.stack.push(value);
 }
 
-fn global(interpreter: &mut Interpreter, universe: &mut Universe) {
+fn global(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
     const SIGNATURE: &str = "System>>#global:";
 
     expect_args!(SIGNATURE, interpreter, [
@@ -163,7 +164,7 @@ fn global(interpreter: &mut Interpreter, universe: &mut Universe) {
     interpreter.stack.push(value);
 }
 
-fn global_put(interpreter: &mut Interpreter, universe: &mut Universe) {
+fn global_put(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
     const SIGNATURE: &str = "System>>#global:put:";
 
     expect_args!(SIGNATURE, interpreter, [
@@ -176,7 +177,7 @@ fn global_put(interpreter: &mut Interpreter, universe: &mut Universe) {
     interpreter.stack.push(value);
 }
 
-fn exit(interpreter: &mut Interpreter, _: &mut Universe) {
+fn exit(interpreter: &mut Interpreter, _: &mut UniverseBC) {
     const SIGNATURE: &str = "System>>#exit:";
 
     expect_args!(SIGNATURE, interpreter, [
@@ -190,7 +191,7 @@ fn exit(interpreter: &mut Interpreter, _: &mut Universe) {
     }
 }
 
-fn ticks(interpreter: &mut Interpreter, _: &mut Universe) {
+fn ticks(interpreter: &mut Interpreter, _: &mut UniverseBC) {
     const SIGNATURE: &str = "System>>#ticks";
 
     expect_args!(SIGNATURE, interpreter, [Value::System]);
@@ -201,7 +202,7 @@ fn ticks(interpreter: &mut Interpreter, _: &mut Universe) {
     }
 }
 
-fn time(interpreter: &mut Interpreter, _: &mut Universe) {
+fn time(interpreter: &mut Interpreter, _: &mut UniverseBC) {
     const SIGNATURE: &str = "System>>#time";
 
     expect_args!(SIGNATURE, interpreter, [Value::System]);
@@ -213,12 +214,12 @@ fn time(interpreter: &mut Interpreter, _: &mut Universe) {
 }
 
 #[cfg(not(feature = "frame-debug-info"))]
-fn print_stack_trace(_interpreter: &mut Interpreter, _: &mut Universe) {
+fn print_stack_trace(_interpreter: &mut Interpreter, _: &mut UniverseBC) {
     panic!("attempting to print a stack trace without having frame debug info, which is possible in a limited way, but likely not intended")
 }
 
 #[cfg(feature = "frame-debug-info")]
-fn print_stack_trace(interpreter: &mut Interpreter, _: &mut Universe) {
+fn print_stack_trace(interpreter: &mut Interpreter, _: &mut UniverseBC) {
     const SIGNATURE: &str = "System>>#printStackTrace";
 
     expect_args!(SIGNATURE, interpreter, [Value::System]);
@@ -244,7 +245,7 @@ fn print_stack_trace(interpreter: &mut Interpreter, _: &mut Universe) {
     interpreter.stack.push(Value::Boolean(true));
 }
 
-fn full_gc(interpreter: &mut Interpreter, _: &mut Universe) {
+fn full_gc(interpreter: &mut Interpreter, _: &mut UniverseBC) {
     const SIGNATURE: &str = "System>>#fullGC";
 
     expect_args!(SIGNATURE, interpreter, [Value::System]);

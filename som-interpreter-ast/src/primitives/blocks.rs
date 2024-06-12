@@ -2,7 +2,7 @@ use crate::expect_args;
 use crate::invokable::Invoke;
 use crate::invokable::Return;
 use crate::primitives::PrimitiveFn;
-use crate::universe::Universe;
+use crate::universe::UniverseAST;
 use crate::value::Value;
 
 /// Primitives for the **Block** and **Block1** class.
@@ -15,7 +15,7 @@ pub mod block1 {
     ];
     pub static CLASS_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[];
 
-    fn value(universe: &mut Universe, args: Vec<Value>) -> Return {
+    fn value(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
         const SIGNATURE: &str = "Block1>>#value";
 
         expect_args!(SIGNATURE, &args, [
@@ -37,7 +37,7 @@ pub mod block1 {
         )
     }
 
-    fn restart(_: &mut Universe, args: Vec<Value>) -> Return {
+    fn restart(_: &mut UniverseAST, args: Vec<Value>) -> Return {
         const SIGNATURE: &str = "Block>>#restart";
 
         expect_args!(SIGNATURE, args, [Value::Block(_)]);
@@ -69,7 +69,7 @@ pub mod block2 {
     pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[("value:", self::value, true)];
     pub static CLASS_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[];
 
-    fn value(universe: &mut Universe, args: Vec<Value>) -> Return {
+    fn value(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
         const SIGNATURE: &str = "Block2>>#value:";
 
         expect_args!(SIGNATURE, args, [
@@ -116,7 +116,7 @@ pub mod block3 {
         &[("value:with:", self::value_with, true)];
     pub static CLASS_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[];
 
-    fn value_with(universe: &mut Universe, args: Vec<Value>) -> Return {
+    fn value_with(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
         const SIGNATURE: &str = "Block3>>#value:with:";
 
         expect_args!(SIGNATURE, args, [

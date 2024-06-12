@@ -2,7 +2,7 @@ use std::rc::Rc;
 
 use crate::interpreter::Interpreter;
 use crate::primitives::PrimitiveFn;
-use crate::universe::Universe;
+use crate::universe::UniverseBC;
 use crate::value::Value;
 use crate::{expect_args, reverse};
 
@@ -13,7 +13,7 @@ pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[
 
 pub static CLASS_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[];
 
-fn as_string(interpreter: &mut Interpreter, universe: &mut Universe) {
+fn as_string(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
     const SIGNATURE: &str = "Symbol>>#asString";
 
     expect_args!(SIGNATURE, interpreter, [

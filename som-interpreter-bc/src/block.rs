@@ -5,13 +5,14 @@ use std::rc::Rc;
 use som_core::ast::BlockDebugInfo;
 
 use som_core::bytecode::Bytecode;
+use som_core::universe::Universe;
 
 use crate::class::Class;
 use crate::compiler::Literal;
 use crate::frame::Frame;
 // use crate::interner::Interned;
 use crate::method::Method;
-use crate::universe::Universe;
+use crate::universe::UniverseBC;
 use crate::SOMRef;
 
 #[derive(Clone)]
@@ -36,7 +37,7 @@ pub struct Block {
 
 impl Block {
     /// Get the block's class.
-    pub fn class(&self, universe: &Universe) -> SOMRef<Class> {
+    pub fn class(&self, universe: &UniverseBC) -> SOMRef<Class> {
         match self.nb_parameters() {
             0 => universe.block1_class(),
             1 => universe.block2_class(),

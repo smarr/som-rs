@@ -1,8 +1,9 @@
 use som_core::ast;
+use som_core::universe::Universe;
 
 use crate::class::Class;
 use crate::primitives::PrimitiveFn;
-use crate::universe::Universe;
+use crate::universe::UniverseAST;
 use crate::{SOMRef, SOMWeakRef};
 use crate::specialized::while_node::WhileNode;
 use crate::specialized::if_node::IfNode;
@@ -41,7 +42,7 @@ pub struct Method {
 }
 
 impl Method {
-    pub fn class(&self, universe: &Universe) -> SOMRef<Class> {
+    pub fn class(&self, universe: &UniverseAST) -> SOMRef<Class> {
         if self.is_primitive() {
             universe.primitive_class()
         } else {

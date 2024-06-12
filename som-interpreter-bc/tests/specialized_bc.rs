@@ -1,19 +1,20 @@
 use som_core::bytecode::Bytecode;
 use som_core::bytecode::Bytecode::*;
 use std::path::PathBuf;
+use som_core::universe::Universe;
 
 use som_interpreter_bc::compiler;
 use som_interpreter_bc::method::MethodKind;
-use som_interpreter_bc::universe::Universe;
+use som_interpreter_bc::universe::UniverseBC;
 use som_lexer::{Lexer, Token};
 use som_parser::lang;
 
-fn setup_universe() -> Universe {
+fn setup_universe() -> UniverseBC {
     let classpath = vec![
         PathBuf::from("../core-lib/Smalltalk"),
         PathBuf::from("../core-lib/TestSuite/BasicInterpreterTests"),
     ];
-    Universe::with_classpath(classpath).expect("could not setup test universe")
+    UniverseBC::with_classpath(classpath).expect("could not setup test universe")
 }
 
 fn get_bytecodes_from_method(class_txt: &str, method_name: &str) -> Vec<Bytecode> {

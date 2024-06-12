@@ -10,7 +10,7 @@ use crate::compiler::Literal;
 use crate::frame::Frame;
 use crate::interner::Interned;
 use crate::method::{Method, MethodKind};
-use crate::universe::Universe;
+use crate::universe::UniverseBC;
 use crate::value::Value;
 use crate::SOMRef;
 
@@ -137,7 +137,7 @@ impl Interpreter {
         }
     }
 
-    pub fn run(&mut self, universe: &mut Universe) -> Option<Value> {
+    pub fn run(&mut self, universe: &mut UniverseBC) -> Option<Value> {
         loop {
             if self.frames.is_empty() {
                 return Some(self.stack.pop().unwrap_or(Value::Nil));
@@ -421,7 +421,7 @@ impl Interpreter {
 
         pub fn do_send(
             interpreter: &mut Interpreter,
-            universe: &mut Universe,
+            universe: &mut UniverseBC,
             method: Option<Rc<Method>>,
             symbol: Interned,
             nb_params: usize,

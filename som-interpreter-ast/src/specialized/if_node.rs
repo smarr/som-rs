@@ -1,6 +1,6 @@
 use std::rc::Rc;
 use crate::invokable::{Invoke, Return};
-use crate::universe::Universe;
+use crate::universe::UniverseAST;
 use crate::value::Value;
 use crate::value::Value::Nil;
 
@@ -10,7 +10,7 @@ pub struct IfNode {
 }
 
 impl Invoke for IfNode {
-    fn invoke(&self, universe: &mut Universe, args: Vec<Value>) -> Return {
+    fn invoke(&self, universe: &mut UniverseAST, args: Vec<Value>) -> Return {
         let cond_block_val = args.get(0).unwrap();
         let body_block_arg = args.get(1).unwrap();
 

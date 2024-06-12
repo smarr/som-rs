@@ -2,13 +2,14 @@ use std::fmt;
 use std::rc::Rc;
 
 use num_bigint::BigInt;
+use som_core::universe::Universe;
 
 use crate::block::Block;
 use crate::class::Class;
 use crate::instance::Instance;
 use crate::interner::Interned;
 use crate::method::Method;
-use crate::universe::Universe;
+use crate::universe::UniverseAST;
 use crate::SOMRef;
 
 /// Represents an SOM value.
@@ -44,7 +45,7 @@ pub enum Value {
 
 impl Value {
     /// Get the class of the current value.
-    pub fn class(&self, universe: &Universe) -> SOMRef<Class> {
+    pub fn class(&self, universe: &UniverseAST) -> SOMRef<Class> {
         match self {
             Self::Nil => universe.nil_class(),
             Self::System => universe.system_class(),
@@ -66,7 +67,7 @@ impl Value {
     /// Search for a given method for this value.
     pub fn lookup_method(
         &self,
-        universe: &Universe,
+        universe: &UniverseAST,
         signature: impl AsRef<str>,
     ) -> Option<Rc<Method>> {
         self.class(universe).borrow().lookup_method(signature)
@@ -91,7 +92,7 @@ impl Value {
     }
 
     /// Get the string representation of this value.
-    pub fn to_string(&self, universe: &Universe) -> String {
+    pub fn to_string(&self, universe: &UniverseAST) -> String {
         match self {
             Self::Nil => "nil".to_string(),
             Self::System => "system".to_string(),

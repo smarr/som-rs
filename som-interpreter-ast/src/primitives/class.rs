@@ -6,7 +6,7 @@ use crate::expect_args;
 use crate::instance::Instance;
 use crate::invokable::Return;
 use crate::primitives::PrimitiveFn;
-use crate::universe::Universe;
+use crate::universe::UniverseAST;
 use crate::value::Value;
 use crate::SOMRef;
 
@@ -19,7 +19,7 @@ pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[
 ];
 pub static CLASS_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[];
 
-fn superclass(_: &mut Universe, args: Vec<Value>) -> Return {
+fn superclass(_: &mut UniverseAST, args: Vec<Value>) -> Return {
     const SIGNATURE: &str = "Class>>#superclass";
 
     expect_args!(SIGNATURE, args, [
@@ -30,7 +30,7 @@ fn superclass(_: &mut Universe, args: Vec<Value>) -> Return {
     Return::Local(super_class.map(Value::Class).unwrap_or(Value::Nil))
 }
 
-fn new(_: &mut Universe, args: Vec<Value>) -> Return {
+fn new(_: &mut UniverseAST, args: Vec<Value>) -> Return {
     const SIGNATURE: &str = "Class>>#new";
 
     expect_args!(SIGNATURE, args, [
@@ -42,7 +42,7 @@ fn new(_: &mut Universe, args: Vec<Value>) -> Return {
     Return::Local(Value::Instance(instance))
 }
 
-fn name(universe: &mut Universe, args: Vec<Value>) -> Return {
+fn name(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
     const SIGNATURE: &str = "Class>>#name";
 
     expect_args!(SIGNATURE, args, [
@@ -53,7 +53,7 @@ fn name(universe: &mut Universe, args: Vec<Value>) -> Return {
     Return::Local(Value::Symbol(sym))
 }
 
-fn methods(_: &mut Universe, args: Vec<Value>) -> Return {
+fn methods(_: &mut UniverseAST, args: Vec<Value>) -> Return {
     const SIGNATURE: &str = "Class>>#methods";
 
     expect_args!(SIGNATURE, args, [
@@ -70,14 +70,14 @@ fn methods(_: &mut Universe, args: Vec<Value>) -> Return {
     Return::Local(Value::Array(Rc::new(RefCell::new(methods))))
 }
 
-fn fields(universe: &mut Universe, args: Vec<Value>) -> Return {
+fn fields(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
     const SIGNATURE: &str = "Class>>#fields";
 
     expect_args!(SIGNATURE, args, [
         Value::Class(class) => class,
     ]);
 
-    fn gather_locals(universe: &mut Universe, class: SOMRef<Class>) -> Vec<Value> {
+    fn gather_locals(universe: &mut UniverseAST, class: SOMRef<Class>) -> Vec<Value> {
         let mut fields = match class.borrow().super_class() {
             Some(super_class) => gather_locals(universe, super_class),
             None => Vec::new(),

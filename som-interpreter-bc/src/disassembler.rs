@@ -4,16 +4,16 @@ use crate::block::Block;
 use crate::class::Class;
 use crate::compiler::Literal;
 use crate::method::MethodEnv;
-use crate::universe::Universe;
+use crate::universe::UniverseBC;
 
-pub fn disassemble_method_body(universe: &Universe, class: &Class, env: &MethodEnv) {
+pub fn disassemble_method_body(universe: &UniverseBC, class: &Class, env: &MethodEnv) {
     disassemble_body(universe, class, 1, &mut vec![env]);
     #[cfg(not(feature = "frame-debug-info"))]
     eprintln!("------- Used disassembler without debug symbols. While it could be possible, it's likely not desired. -------");
 }
 
 fn disassemble_body(
-    universe: &Universe,
+    universe: &UniverseBC,
     class: &Class,
     level: usize,
     env: &mut Vec<&dyn FrameEnv>,

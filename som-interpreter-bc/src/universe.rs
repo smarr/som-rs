@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
 use anyhow::{anyhow, Error};
+use som_core::universe::Universe;
 
 use crate::block::Block;
 use crate::class::Class;
@@ -69,7 +70,7 @@ pub struct CoreClasses {
 ///
 /// It represents the complete state of the interpreter, like the known class definitions,
 /// the string interner and the stack frames.
-pub struct Universe {
+pub struct UniverseBC {
     /// The string interner for symbols.
     pub interner: Interner,
     /// The known global bindings.
@@ -80,9 +81,9 @@ pub struct Universe {
     pub core: CoreClasses,
 }
 
-impl Universe {
+impl Universe<SOMRef<Class>> for UniverseBC {
     /// Initialize the universe from the given classpath.
-    pub fn with_classpath(classpath: Vec<PathBuf>) -> Result<Self, Error> {
+    fn with_classpath(classpath: Vec<PathBuf>) -> Result<Self, Error> {
         let mut interner = Interner::with_capacity(100);
         let mut globals = HashMap::new();
 
@@ -211,54 +212,9 @@ impl Universe {
             },
         })
     }
-
-    /// Load a system class (with an incomplete hierarchy).
-    pub fn load_system_class(
-        interner: &mut Interner,
-        classpath: &[impl AsRef<Path>],
-        class_name: impl Into<String>,
-    ) -> Result<SOMRef<Class>, Error> {
-        let class_name = class_name.into();
-        for path in classpath {
-            let mut path = path.as_ref().join(class_name.as_str());
-            path.set_extension("som");
-
-            // Read file contents.
-            let contents = match fs::read_to_string(path.as_path()) {
-                Ok(contents) => contents,
-                Err(err) if err.kind() == io::ErrorKind::NotFound => continue,
-                Err(err) => return Err(Error::from(err)),
-            };
-
-            // Collect all tokens from the file.
-            let tokens: Vec<_> = som_lexer::Lexer::new(contents.as_str())
-                .skip_comments(true)
-                .skip_whitespace(true)
-                .collect();
-
-            // Parse class definition from the tokens.
-            let defn = match som_parser::parse_file(tokens.as_slice()) {
-                Some(defn) => defn,
-                None => return Err(anyhow!("could not parse the '{}' system class", class_name)),
-            };
-
-            if defn.name != class_name {
-                return Err(anyhow!(
-                    "{}: class name is different from file name.",
-                    path.display(),
-                ));
-            }
-            let class = compiler::compile_class(interner, &defn, None)
-                .ok_or_else(|| Error::msg(format!("")))?;
-
-            return Ok(class);
-        }
-
-        Err(anyhow!("could not find the '{}' system class", class_name))
-    }
-
+    
     /// Load a class from its name into this universe.
-    pub fn load_class(&mut self, class_name: impl Into<String>) -> Result<SOMRef<Class>, Error> {
+    fn load_class(&mut self, class_name: impl Into<String>) -> Result<SOMRef<Class>, Error> {
         let class_name = class_name.into();
         for path in self.classpath.iter() {
             let mut path = path.join(class_name.as_str());
@@ -348,133 +304,129 @@ impl Universe {
         Err(anyhow!("could not find the '{}' class", class_name))
     }
 
-    /// Load a class from its path into this universe.
-    pub fn load_class_from_path(&mut self, path: impl AsRef<Path>) -> Result<SOMRef<Class>, Error> {
-        let path = path.as_ref();
-        let file_stem = path
-            .file_stem()
-            .ok_or_else(|| anyhow!("The given path has no file stem"))?;
-
-        // Read file contents.
-        let contents = match fs::read_to_string(path) {
-            Ok(contents) => contents,
-            Err(err) => return Err(Error::from(err)),
-        };
-
-        // Collect all tokens from the file.
-        let tokens: Vec<_> = som_lexer::Lexer::new(contents.as_str())
-            .skip_comments(true)
-            .skip_whitespace(true)
-            .collect();
-
-        // Parse class definition from the tokens.
-        let defn = match som_parser::parse_file(tokens.as_slice()) {
-            Some(defn) => defn,
-            None => return Err(Error::msg("could not parse file")),
-        };
-
-        if defn.name.as_str() != file_stem {
-            return Err(anyhow!(
-                "{}: class name is different from file name.",
-                path.display(),
-            ));
-        }
-
-        let super_class = if let Some(ref super_class) = defn.super_class {
-            let symbol = self.intern_symbol(super_class);
-            match self.lookup_global(symbol) {
-                Some(Value::Class(class)) => class,
-                _ => self.load_class(super_class)?,
-            }
-        } else {
-            self.core.object_class.clone()
-        };
-
-        let class = compiler::compile_class(&mut self.interner, &defn, Some(&super_class))
-            .ok_or_else(|| Error::msg(format!("")))?;
-        set_super_class(&class, &super_class, &self.core.metaclass_class);
-
-        Ok(class)
-    }
-
     /// Get the **Nil** class.
-    pub fn nil_class(&self) -> SOMRef<Class> {
+    fn nil_class(&self) -> SOMRef<Class> {
         self.core.nil_class.clone()
     }
     /// Get the **System** class.
-    pub fn system_class(&self) -> SOMRef<Class> {
+    fn system_class(&self) -> SOMRef<Class> {
         self.core.system_class.clone()
     }
 
     /// Get the **Object** class.
-    pub fn object_class(&self) -> SOMRef<Class> {
+    fn object_class(&self) -> SOMRef<Class> {
         self.core.object_class.clone()
     }
 
     /// Get the **Symbol** class.
-    pub fn symbol_class(&self) -> SOMRef<Class> {
+    fn symbol_class(&self) -> SOMRef<Class> {
         self.core.symbol_class.clone()
     }
     /// Get the **String** class.
-    pub fn string_class(&self) -> SOMRef<Class> {
+    fn string_class(&self) -> SOMRef<Class> {
         self.core.string_class.clone()
     }
     /// Get the **Array** class.
-    pub fn array_class(&self) -> SOMRef<Class> {
+    fn array_class(&self) -> SOMRef<Class> {
         self.core.array_class.clone()
     }
 
     /// Get the **Integer** class.
-    pub fn integer_class(&self) -> SOMRef<Class> {
+    fn integer_class(&self) -> SOMRef<Class> {
         self.core.integer_class.clone()
     }
     /// Get the **Double** class.
-    pub fn double_class(&self) -> SOMRef<Class> {
+    fn double_class(&self) -> SOMRef<Class> {
         self.core.double_class.clone()
     }
 
     /// Get the **Block** class.
-    pub fn block_class(&self) -> SOMRef<Class> {
+    fn block_class(&self) -> SOMRef<Class> {
         self.core.block_class.clone()
     }
     /// Get the **Block1** class.
-    pub fn block1_class(&self) -> SOMRef<Class> {
+    fn block1_class(&self) -> SOMRef<Class> {
         self.core.block1_class.clone()
     }
     /// Get the **Block2** class.
-    pub fn block2_class(&self) -> SOMRef<Class> {
+    fn block2_class(&self) -> SOMRef<Class> {
         self.core.block2_class.clone()
     }
     /// Get the **Block3** class.
-    pub fn block3_class(&self) -> SOMRef<Class> {
+    fn block3_class(&self) -> SOMRef<Class> {
         self.core.block3_class.clone()
     }
 
     /// Get the **True** class.
-    pub fn true_class(&self) -> SOMRef<Class> {
+    fn true_class(&self) -> SOMRef<Class> {
         self.core.true_class.clone()
     }
     /// Get the **False** class.
-    pub fn false_class(&self) -> SOMRef<Class> {
+    fn false_class(&self) -> SOMRef<Class> {
         self.core.false_class.clone()
     }
 
     /// Get the **Metaclass** class.
-    pub fn metaclass_class(&self) -> SOMRef<Class> {
+    fn metaclass_class(&self) -> SOMRef<Class> {
         self.core.metaclass_class.clone()
     }
 
     /// Get the **Method** class.
-    pub fn method_class(&self) -> SOMRef<Class> {
+    fn method_class(&self) -> SOMRef<Class> {
         self.core.method_class.clone()
     }
     /// Get the **Primitive** class.
-    pub fn primitive_class(&self) -> SOMRef<Class> {
+    fn primitive_class(&self) -> SOMRef<Class> {
         self.core.primitive_class.clone()
     }
 }
 
-impl Universe {
+impl UniverseBC {
+    /// Load a system class (with an incomplete hierarchy).
+    pub fn load_system_class(
+        interner: &mut Interner,
+        classpath: &[impl AsRef<Path>],
+        class_name: impl Into<String>,
+    ) -> Result<SOMRef<Class>, Error> {
+        let class_name = class_name.into();
+        for path in classpath {
+            let mut path = path.as_ref().join(class_name.as_str());
+            path.set_extension("som");
+
+            // Read file contents.
+            let contents = match fs::read_to_string(path.as_path()) {
+                Ok(contents) => contents,
+                Err(err) if err.kind() == io::ErrorKind::NotFound => continue,
+                Err(err) => return Err(Error::from(err)),
+            };
+
+            // Collect all tokens from the file.
+            let tokens: Vec<_> = som_lexer::Lexer::new(contents.as_str())
+                .skip_comments(true)
+                .skip_whitespace(true)
+                .collect();
+
+            // Parse class definition from the tokens.
+            let defn = match som_parser::parse_file(tokens.as_slice()) {
+                Some(defn) => defn,
+                None => return Err(anyhow!("could not parse the '{}' system class", class_name)),
+            };
+
+            if defn.name != class_name {
+                return Err(anyhow!(
+                    "{}: class name is different from file name.",
+                    path.display(),
+                ));
+            }
+            let class = compiler::compile_class(interner, &defn, None)
+                .ok_or_else(|| Error::msg(format!("")))?;
+
+            return Ok(class);
+        }
+
+        Err(anyhow!("could not find the '{}' system class", class_name))
+    }
+    
     /// Intern a symbol.
     pub fn intern_symbol(&mut self, symbol: &str) -> Interned {
         self.interner.intern(symbol)
@@ -501,7 +453,7 @@ impl Universe {
     }
 }
 
-impl Universe {
+impl UniverseBC {
     /// Call `escapedBlock:` on the given value, if it is defined.
     pub fn escaped_block(
         &mut self,
