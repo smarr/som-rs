@@ -1,7 +1,6 @@
 use std::cell::RefCell;
 use std::path::PathBuf;
 use std::rc::Rc;
-use som_core::universe::Universe;
 
 use som_interpreter_bc::compiler;
 use som_interpreter_bc::frame::Frame;
@@ -175,7 +174,7 @@ fn basic_interpreter_tests() {
             "could not fully tokenize test expression"
         );
 
-        let class_def = som_parser::apply(lang::class_def(), tokens.as_slice()).unwrap();
+        let class_def = som_parser::apply(lang::class_def(), tokens.as_slice(), None).unwrap();
 
         let object_class = universe.object_class();
         let class =

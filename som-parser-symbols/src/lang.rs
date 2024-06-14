@@ -138,7 +138,7 @@ pub fn super_class<'a>() -> impl Parser<String, &'a [Token], AstGenCtxt<'a>> {
         match head {
             Token::Identifier(value) => {
                 if let Some(universe) = genctxt.borrow_mut().universe.as_mut() {
-                    universe.load_class(value);
+                    universe.load_class_silent(value);
                 }
                 Some((value.clone(), tail, genctxt))
             }

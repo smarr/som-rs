@@ -10,7 +10,6 @@ use anyhow::anyhow;
 #[cfg(feature = "jemalloc")]
 use jemallocator::Jemalloc;
 use structopt::StructOpt;
-use som_core::universe::Universe;
 
 mod shell;
 

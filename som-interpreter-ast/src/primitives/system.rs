@@ -1,7 +1,6 @@
 use std::convert::TryFrom;
 use std::fs;
 use std::rc::Rc;
-use som_core::universe::Universe;
 
 use crate::expect_args;
 use crate::invokable::Return;

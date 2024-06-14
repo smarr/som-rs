@@ -1,5 +1,4 @@
 use std::path::PathBuf;
-use som_core::universe::Universe;
 
 use som_interpreter_ast::evaluate::Evaluate;
 use som_interpreter_ast::invokable::Return;
@@ -166,7 +165,7 @@ fn basic_interpreter_tests() {
             "could not fully tokenize test expression"
         );
 
-        let ast = som_parser::apply(lang::expression(), tokens.as_slice()).unwrap();
+        let ast = som_parser::apply(lang::expression(), tokens.as_slice(), None).unwrap();
 
         // let signature = universe.intern_symbol(expr.split(' ').skip(1).next().unwrap_or("unknown"));
 

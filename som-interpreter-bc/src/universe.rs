@@ -82,7 +82,7 @@ pub struct UniverseBC {
 }
 
 impl Universe for UniverseBC {
-    fn load_class(&mut self, class_name: &str) {
+    fn load_class_silent(&mut self, class_name: &str) {
         self.load_class(class_name).expect(&format!("Failed to parse class: {}", class_name));
     }
 
