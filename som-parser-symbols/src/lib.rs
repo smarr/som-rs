@@ -26,8 +26,9 @@ pub enum AstGenCtxtType {
 
 // #[derive(Debug)]
 pub struct AstGenCtxtData<'a> {
-    kind: AstGenCtxtType, // used for debugging
-    name: String, // debugging too
+    kind: AstGenCtxtType,
+    // name: String, // used for debugging
+    super_class_name: Option<String>,
     local_names: Vec<String>,
     param_names: Vec<String>,
     class_instance_fields: Vec<String>,
@@ -49,7 +50,8 @@ impl<'a> AstGenCtxtData<'a> {
     fn new(universe: Option<&'a mut dyn Universe>) -> Self {
         AstGenCtxtData {
             kind: AstGenCtxtType::Class,
-            name: "NO NAME".to_string(),
+            // name: "NO NAME".to_string(),
+            super_class_name: None,
             local_names: vec![],
             param_names: vec![],
             class_static_fields: vec![],
@@ -63,22 +65,21 @@ impl<'a> AstGenCtxtData<'a> {
 
 impl<'a> AstGenCtxtData<'a> {
     pub fn new_ctxt_from(outer: AstGenCtxt, kind: AstGenCtxtType) -> AstGenCtxt {
+        let universe = mem::take(&mut outer.borrow_mut().universe);
+
         Rc::new(RefCell::new(
         AstGenCtxtData {
             kind,
-            name: "NO NAME".to_string(),
+            // name: "NO NAME".to_string(),
+            super_class_name: None,
             local_names: vec![],
             param_names: vec![],
             class_instance_fields: vec![],
             class_static_fields: vec![],
             current_scope: outer.borrow().current_scope + 1,
             outer_ctxt: Some(Rc::clone(&outer)),
-            universe: mem::take(&mut outer.borrow_mut().universe)
+            universe
         }))
-    }
-
-    pub fn set_name(&mut self, name: String) {
-        self.name = name;
     }
 
     pub fn get_outer(&mut self) -> AstGenCtxt<'a> {
@@ -104,7 +105,7 @@ impl<'a> AstGenCtxtData<'a> {
     }
 
     pub fn add_params(&mut self, parameters: &Vec<String>) {
-        assert_ne!(self.kind, AstGenCtxtType::Class); // can't add parameters to a class.
+        debug_assert_ne!(self.kind, AstGenCtxtType::Class);
         self.param_names.extend(parameters.iter().cloned());
     }
 

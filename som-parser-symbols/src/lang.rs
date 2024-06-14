@@ -295,7 +295,7 @@ pub fn block<'a>() -> impl Parser<Expression, &'a [Token], AstGenCtxt<'a>> {
         let (_, input, genctxt) = exact(Token::NewBlock).parse(input, genctxt)?;
 
         let new_genctxt = AstGenCtxtData::new_ctxt_from(genctxt, AstGenCtxtType::Block);
-        new_genctxt.borrow_mut().set_name("anonymous block".to_string());
+        // new_genctxt.borrow_mut().name = "anonymous block".to_string();
 
         let (((parameters, locals), body), input, genctxt) = default(parameters())
             .and(default(locals()))
@@ -422,7 +422,7 @@ pub fn positional_method_def<'a>() -> impl Parser<MethodDef, &'a [Token], AstGen
         let (pairs, input, genctxt) = some(keyword().and(identifier())).and_left(exact(Token::Equal)).parse(input, genctxt)?;
         let (signature, parameters): (String, Vec<String>) = pairs.into_iter().unzip();
 
-        genctxt.borrow_mut().set_name(signature.clone());
+        // genctxt.borrow_mut().name = signature.clone();
         genctxt.borrow_mut().add_params(&parameters);
 
         let (body, input, genctxt) = primitive().or(method_body()).parse(input, genctxt)?;
@@ -510,7 +510,7 @@ pub fn class_def<'a>() -> impl Parser<ClassDef, &'a [Token], AstGenCtxt<'a>> {
     move |input: &'a [Token], genctxt: AstGenCtxt<'a>| {
         let (name, input, genctxt) = identifier().and_left(exact(Token::Equal)).parse(input, genctxt)?;
 
-        genctxt.borrow_mut().set_name(name.clone());
+        // genctxt.borrow_mut().name = name.clone();
         
         optional(super_class())
             .and(between(
