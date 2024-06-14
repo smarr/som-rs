@@ -85,6 +85,10 @@ impl Universe for UniverseBC {
     fn load_class(&mut self, class_name: &str) {
         self.load_class(class_name).expect(&format!("Failed to parse class: {}", class_name));
     }
+
+    fn get_field_idx_from_superclass(&self, super_class_name: &str, field_name: &str) -> Option<usize> {
+        todo!()
+    }
 }
 
 impl UniverseBC {
