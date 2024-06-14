@@ -10,11 +10,13 @@ use anyhow::{bail, Context};
 #[cfg(feature = "jemalloc")]
 use jemallocator::Jemalloc;
 use structopt::StructOpt;
+use som_interpreter_bc::class::{Class, MaybeWeak};
 
 mod shell;
 
 use som_interpreter_bc::disassembler::disassemble_method_body;
 use som_interpreter_bc::method::{Method, MethodKind};
+use som_interpreter_bc::SOMRef;
 use som_interpreter_bc::universe::UniverseBC;
 use som_interpreter_bc::value::Value;
 
@@ -101,7 +103,7 @@ fn main() -> anyhow::Result<()> {
 }
 
 fn disassemble_class(opts: Options) -> anyhow::Result<()> {
-    let Some(file) = opts.file else {
+    let Some(ref file) = opts.file else {
         bail!("no class specified for disassembly");
     };
 
@@ -111,7 +113,7 @@ fn disassemble_class(opts: Options) -> anyhow::Result<()> {
         .to_str()
         .context("the given path contains invalid UTF-8 in its file stem")?;
 
-    let mut classpath = opts.classpath;
+    let mut classpath = opts.classpath.clone();
     if let Some(directory) = file.parent() {
         classpath.push(directory.to_path_buf());
     }
@@ -123,27 +125,37 @@ fn disassemble_class(opts: Options) -> anyhow::Result<()> {
         _ => universe.load_class(file_stem)?
     };
     
+    dump_class_methods(Rc::clone(&class), &opts, file_stem, &mut universe);
+    
+    if let MaybeWeak::Strong(cls_ref) = &class.borrow().class {
+        println!("-----------------------------------------");
+        dump_class_methods(Rc::clone(cls_ref), &opts, file_stem, &mut universe);
+    } else {
+        panic!("Weak ref for class.class in disassembler - is this possible?")
+    }
+    
+    Ok(())
+}
+
+fn dump_class_methods(class: SOMRef<Class>, opts: &Options, file_stem: &str, universe: &mut UniverseBC) {
     let methods: Vec<Rc<Method>> = if opts.args.is_empty() {
-        class.borrow().methods.values().cloned()
-            .chain(class.borrow().class().borrow().methods.values().cloned())
-            .collect::<Vec<Rc<Method>>>()
+        class.borrow().methods.values().cloned().collect::<Vec<Rc<Method>>>()
     } else {
         opts.args
             .iter()
             .filter_map(|signature| {
                 let symbol = universe.intern_symbol(signature);
-                let maybe_method = class.borrow().methods.get(&symbol).cloned()
-                    .or_else(|| class.borrow().class().borrow().methods.get(&symbol).cloned());
-
-                if maybe_method.is_none() {
-                    eprintln!("No method named `{signature}` found in class `{file_stem}`.");
-                }
-
+                let maybe_method = class.borrow().methods.get(&symbol).cloned();
+    
+                // if maybe_method.is_none() {
+                //     eprintln!("No method named `{signature}` found in class `{file_stem}`.");
+                // }
+    
                 maybe_method
             })
             .collect()
     };
-
+    
     for method in methods {
         match &method.kind {
             MethodKind::Defined(env) => {
@@ -154,7 +166,7 @@ fn disassemble_class(opts: Options) -> anyhow::Result<()> {
                     num_locals = env.nbr_locals,
                     num_literals = env.literals.len(),
                 );
-
+    
                 disassemble_method_body(&universe, &class.borrow(), env);
             }
             MethodKind::Primitive(_) => {
@@ -173,6 +185,4 @@ fn disassemble_class(opts: Options) -> anyhow::Result<()> {
             }
         }
     }
-
-    Ok(())
 }
