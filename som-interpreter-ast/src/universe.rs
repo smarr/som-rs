@@ -87,6 +87,9 @@ pub struct UniverseAST {
 
 impl Universe for UniverseAST {
     fn load_class_silent(&mut self, class_name: &str) {
+        if self.lookup_global(class_name).is_some() {
+            return;
+        }
         self.load_class(class_name).expect(&format!("Failed to parse class: {}", class_name));
     }
 

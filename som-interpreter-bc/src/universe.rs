@@ -83,6 +83,10 @@ pub struct UniverseBC {
 
 impl Universe for UniverseBC {
     fn load_class_silent(&mut self, class_name: &str) {
+        let x_id = self.intern_symbol(class_name); // todo use reverse lookup instead
+        if self.lookup_global(x_id).is_some() {
+            return;
+        }
         self.load_class(class_name).expect(&format!("Failed to parse class: {}", class_name));
     }
 
