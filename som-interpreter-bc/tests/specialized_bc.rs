@@ -1,7 +1,6 @@
 use som_core::bytecode::Bytecode;
 use som_core::bytecode::Bytecode::*;
 use std::path::PathBuf;
-use som_core::universe::Universe;
 
 use som_interpreter_bc::compiler;
 use som_interpreter_bc::method::MethodKind;
@@ -31,7 +30,7 @@ fn get_bytecodes_from_method(class_txt: &str, method_name: &str) -> Vec<Bytecode
         "could not fully tokenize test expression"
     );
 
-    let class_def = som_parser::apply(lang::class_def(), tokens.as_slice()).unwrap();
+    let class_def = som_parser::apply(lang::class_def(), tokens.as_slice(), None).unwrap();
 
     let object_class = universe.object_class();
     let class = compiler::compile_class(&mut universe.interner, &class_def, Some(&object_class));
@@ -203,7 +202,6 @@ fn return_self_bytecode_explicit() {
 
     let bytecodes = get_bytecodes_from_method(class_txt_explicit_return, "run");
 
-    dbg!(&bytecodes);
     assert_eq!(bytecodes.len(), 1);
     expect_bytecode_sequence(
         &bytecodes,

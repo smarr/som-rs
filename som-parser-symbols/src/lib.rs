@@ -28,7 +28,7 @@ pub enum AstGenCtxtType {
 pub struct AstGenCtxtData<'a> {
     kind: AstGenCtxtType,
     // name: String, // used for debugging
-    super_class_name: Option<String>,
+    _super_class_name: Option<String>,
     local_names: Vec<String>,
     param_names: Vec<String>,
     class_instance_fields: Vec<String>,
@@ -47,11 +47,11 @@ enum FoundVar {
 }
 
 impl<'a> AstGenCtxtData<'a> {
-    fn new(universe: Option<&'a mut dyn Universe>) -> Self {
+    pub fn init(universe: Option<&'a mut dyn Universe>) -> Self {
         AstGenCtxtData {
             kind: AstGenCtxtType::Class,
             // name: "NO NAME".to_string(),
-            super_class_name: None,
+            _super_class_name: None,
             local_names: vec![],
             param_names: vec![],
             class_static_fields: vec![],
@@ -59,6 +59,21 @@ impl<'a> AstGenCtxtData<'a> {
             current_scope: 0,
             outer_ctxt: None,
             universe
+        }
+    }
+
+    pub fn init_no_universe() -> Self {
+        AstGenCtxtData {
+            kind: AstGenCtxtType::Class,
+            // name: "NO NAME".to_string(),
+            _super_class_name: None,
+            local_names: vec![],
+            param_names: vec![],
+            class_static_fields: vec![],
+            class_instance_fields: vec![],
+            current_scope: 0,
+            outer_ctxt: None,
+            universe: None
         }
     }
 }
@@ -71,7 +86,7 @@ impl<'a> AstGenCtxtData<'a> {
         AstGenCtxtData {
             kind,
             // name: "NO NAME".to_string(),
-            super_class_name: None,
+            _super_class_name: None,
             local_names: vec![],
             param_names: vec![],
             class_instance_fields: vec![],
@@ -221,6 +236,7 @@ pub fn parse_file(input: &[Token], universe: &mut dyn Universe) -> Option<ClassD
     self::apply(lang::file(), input, Some(universe))
 }
 
+/// Parses the input of an entire file into an AST, without access to the universe (system classes are initialized before the Universe itself, and don't need access to it)
 pub fn parse_file_no_universe(input: &[Token]) -> Option<ClassDef> {
     self::apply(lang::file(), input, None)
 }
@@ -230,7 +246,7 @@ pub fn apply<'a, A, P>(mut parser: P, input: &'a [Token], universe: Option<&'a m
     where
         P: Parser<A, &'a [Token], AstGenCtxt<'a>>,
 {
-    match parser.parse(input, Rc::new(RefCell::new(AstGenCtxtData::new(universe)))) {
+    match parser.parse(input, Rc::new(RefCell::new(AstGenCtxtData::init(universe)))) {
         Some((output, tail, _)) if tail.is_empty() => Some(output),
         Some(_) | None => None,
     }

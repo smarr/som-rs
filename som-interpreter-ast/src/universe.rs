@@ -85,9 +85,20 @@ pub struct UniverseAST {
     pub frames: Vec<SOMRef<Frame>>,
 }
 
-impl Universe<SOMRef<Class>> for UniverseAST {
+impl Universe for UniverseAST {
+    fn load_class_silent(&mut self, class_name: &str) {
+        self.load_class(class_name).expect(&format!("Failed to parse class: {}", class_name));
+    }
+
+    fn get_field_idx_from_superclass(&self, super_class_name: &str, field_name: &str) -> Option<usize> {
+        todo!()
+    }
+}
+
+
+impl UniverseAST {
     /// Initialize the universe from the given classpath.
-    fn with_classpath(classpath: Vec<PathBuf>) -> Result<Self, Error> {
+    pub fn with_classpath(classpath: Vec<PathBuf>) -> Result<Self, Error> {
         let interner = Interner::with_capacity(100);
         let mut globals = HashMap::new();
 
@@ -214,9 +225,11 @@ impl Universe<SOMRef<Class>> for UniverseAST {
     }
 
     /// Load a class from its name into this universe.
-    fn load_class(&mut self, class_name: impl Into<String>) -> Result<SOMRef<Class>, Error> {
+    pub fn load_class(&mut self, class_name: impl Into<String>) -> Result<SOMRef<Class>, Error> {
         let class_name = class_name.into();
-        for path in self.classpath.iter() {
+        let paths: Vec<PathBuf> = self.classpath.iter().map(|path| path.clone()).collect(); // TODO change, same as BC
+        
+        for path in paths {
             let mut path = path.join(class_name.as_str());
             path.set_extension("som");
 
@@ -233,7 +246,7 @@ impl Universe<SOMRef<Class>> for UniverseAST {
                 .collect();
 
             // Parse class definition from the tokens.
-            let defn = match som_parser::parse_file(tokens.as_slice()) {
+            let defn = match som_parser::parse_file(tokens.as_slice(), self) {
                 Some(defn) => defn,
                 None => continue,
             };
@@ -303,9 +316,7 @@ impl Universe<SOMRef<Class>> for UniverseAST {
 
         Err(anyhow!("could not find the '{}' class", class_name))
     }
-}
-
-impl UniverseAST {
+    
     /// Load a system class (with an incomplete hierarchy).
     pub fn load_system_class(
         classpath: &[impl AsRef<Path>],
@@ -330,7 +341,7 @@ impl UniverseAST {
                 .collect();
 
             // Parse class definition from the tokens.
-            let defn = match som_parser::parse_file(tokens.as_slice()) {
+            let defn = match som_parser::parse_file_no_universe(tokens.as_slice()) {
                 Some(defn) => defn,
                 None => return Err(anyhow!("could not parse the '{}' system class", class_name)),
             };
