@@ -6,6 +6,7 @@ stages:
 #variables:
 
 before_script:
+  - (cd core-lib && git remote add smarr https://github.com/smarr/SOM.git && git fetch --all) || true
   - git submodule update --init
 
 build-and-test-interpreters:
