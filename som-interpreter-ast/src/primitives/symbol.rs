@@ -25,7 +25,7 @@ fn as_string(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
     )))
 }
 
-fn concatenate(universe: &mut Universe, args: Vec<Value>) -> Return {
+fn concatenate(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
     const SIGNATURE: &str = "Symbol>>#concatenate:";
 
     expect_args!(SIGNATURE, args, [

@@ -1,10 +1,36 @@
 use std::fmt::{Debug, Formatter};
 
-pub trait Universe {
-    // fn load_class(&mut self, class_name: impl Into<String>);
-    fn load_class_silent(&mut self, class_name: &str);
+pub const SYSTEM_CLASS_NAMES: &[&str; 25] = &[
+    "Array", 
+    "Block", 
+    "Block1", 
+    "Block2",
+    "Block3",
+    "Boolean",
+    "Class",
+    "Dictionary",
+    "Double",
+    "False",
+    "HashEntry",
+    "Hashtable",
+    "Integer",
+    "Metaclass",
+    "Method",
+    "Nil",
+    "Object",
+    "Pair",
+    "Primitive",
+    "Set",
+    "String",
+    "Symbol",
+    "System",
+    "True",
+    "Vector"
+];
 
-    fn get_field_idx_from_superclass(&self, super_class_name: &str, field_name: &str) -> Option<usize>;
+
+pub trait Universe {
+    fn load_class_and_get_all_fields(&mut self, class_name: &str) -> Vec<String>;
 }
 
 impl Debug for dyn Universe {

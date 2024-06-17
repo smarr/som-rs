@@ -86,25 +86,15 @@ pub struct UniverseAST {
 }
 
 impl Universe for UniverseAST {
-    fn load_class_silent(&mut self, class_name: &str) {
-        if self.lookup_global(class_name).is_some() {
-            return;
-        }
-        self.load_class(class_name).expect(&format!("Failed to parse class: {}", class_name));
-    }
-
-    fn get_field_idx_from_superclass(&self, super_class_name: &str, field_name: &str) -> Option<usize> {
-        // Unfinished. TODO
-        let super_cls_val = self.lookup_global(super_class_name);
-        
-        match super_cls_val {
-            Some(Value::Class(super_cls)) => {
-                if super_cls.borrow().locals.is_empty() {
-                    return None;
-                }
-                return super_cls.borrow().local_names.iter().position(|s| s == field_name)
-            },
-            _ => None
+    fn load_class_and_get_all_fields(&mut self, class_name: &str) -> Vec<String> {
+        match self.lookup_global(class_name) {
+            Some(Value::Class(c)) => { c.borrow().local_names.clone() }
+            None => {
+                let cls = self.load_class(class_name).expect(&format!("Failed to parse class: {}", class_name));
+                let field_names = cls.borrow().local_names.clone();
+                field_names
+            }
+            _ => unreachable!("superclass accessed from parser is not actually a class?")
         }
     }
 }

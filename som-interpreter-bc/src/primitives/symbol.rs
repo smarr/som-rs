@@ -27,7 +27,7 @@ fn as_string(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
 
 // NOTA BENE: this isn't a prim in our other interpreters (TSOM, PySOM), I guess
 // This prim can be removed, and the breaking bug fixed another way, most likely. But I like this solution.
-fn concatenate(interpreter: &mut Interpreter, universe: &mut Universe) {
+fn concatenate(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
     const SIGNATURE: &str = "Symbol>>#concatenate:";
 
     expect_args!(SIGNATURE, interpreter, [

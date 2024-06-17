@@ -179,18 +179,6 @@ impl<'a> AstGenCtxtData<'a> {
                     _ => None,
                 }
             )
-            .or_else(|| { // check if it's defined in a superclass (as a field)
-                match (&self.super_class_name, &self.universe) { // ...if there is a superclass, and if we have access to the universe.
-                    (Some(super_class_name), Some(universe)) => {
-                        let maybe_field_idx = universe.get_field_idx_from_superclass(super_class_name, name);
-                        if maybe_field_idx.is_some() {
-                            dbg!(name);
-                        }
-                        maybe_field_idx.and_then(|field_idx| Some(FoundVar::Field(field_idx + self.local_names.len())))
-                    }
-                    _ => None
-                }
-            })
     }
     fn get_var_read(&self, name: &String) -> Expression {
         if name == "self" {

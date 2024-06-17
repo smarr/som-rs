@@ -137,10 +137,15 @@ pub fn super_class<'a>() -> impl Parser<String, &'a [Token], AstGenCtxt<'a>> {
         let (head, tail) = input.split_first()?;
         match head {
             Token::Identifier(value) => {
-                genctxt.borrow_mut().super_class_name = Some(value.clone());
-                if let Some(universe) = genctxt.borrow_mut().universe.as_mut() {
-                    universe.load_class_silent(value);
+                if !som_core::universe::SYSTEM_CLASS_NAMES.contains(&value.as_str()) && value != "nil" {
+                    genctxt.borrow_mut().super_class_name = Some(value.clone());
+                    let fields = match genctxt.borrow_mut().universe.as_mut() {
+                        Some(universe) => universe.load_class_and_get_all_fields(value),
+                        None => panic!("No universe provided even though we need to parse the superclass {}", value)
+                    };
+                    genctxt.borrow_mut().add_instance_fields(&fields);   
                 }
+                
                 Some((value.clone(), tail, genctxt))
             }
             _ => None,
