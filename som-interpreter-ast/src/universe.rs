@@ -94,7 +94,18 @@ impl Universe for UniverseAST {
     }
 
     fn get_field_idx_from_superclass(&self, super_class_name: &str, field_name: &str) -> Option<usize> {
-        todo!()
+        // Unfinished. TODO
+        let super_cls_val = self.lookup_global(super_class_name);
+        
+        match super_cls_val {
+            Some(Value::Class(super_cls)) => {
+                if super_cls.borrow().locals.is_empty() {
+                    return None;
+                }
+                return super_cls.borrow().local_names.iter().position(|s| s == field_name)
+            },
+            _ => None
+        }
     }
 }
 
@@ -230,7 +241,7 @@ impl UniverseAST {
     /// Load a class from its name into this universe.
     pub fn load_class(&mut self, class_name: impl Into<String>) -> Result<SOMRef<Class>, Error> {
         let class_name = class_name.into();
-        let paths: Vec<PathBuf> = self.classpath.iter().map(|path| path.clone()).collect(); // TODO change, same as BC
+        let paths: Vec<PathBuf> = self.classpath.iter().map(|path| path.clone()).collect(); // TODO change back, same as BC
         
         for path in paths {
             let mut path = path.join(class_name.as_str());

@@ -68,7 +68,9 @@ fn disassemble_body(
                 println!(" (`{0}`)", universe.lookup_symbol(*name));
             }
             Bytecode::PushArg(idx) => {
-                println!(" {idx}"); // todo show arg here too
+                print!(" {idx}");
+                let arg_str = env.last().unwrap().resolve_argument(idx);
+                println!(" (`{0}`)", arg_str);
             }
             Bytecode::PushNonLocalArg(up_idx, idx) => {
                 print!(" {up_idx}, {idx}");

@@ -148,7 +148,6 @@ pub enum Expression {
     /// Read of a field.
     FieldRead(usize),
     /// An assignment to a binding (eg. `counter := 10`).
-    GlobalWrite(String, Box<Expression>),
     LocalVarWrite(usize, Box<Expression>),
     NonLocalVarWrite(usize, usize, Box<Expression>),
     ArgWrite(usize, usize, Box<Expression>),
