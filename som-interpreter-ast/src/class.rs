@@ -35,7 +35,7 @@ pub struct Class {
     pub super_class: SOMWeakRef<Class>,
     /// The class' locals.
     pub locals: Vec<Value>,
-    /// The class' locals (fields) names.
+    /// The class' locals (fields) names. todo rename locals to fields
     pub local_names: Vec<String>,
     /// The class' methods/invokables.
     pub methods: IndexMap<String, Rc<Method>>,
