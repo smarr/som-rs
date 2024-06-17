@@ -88,6 +88,9 @@ fn fields(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
                 .locals.clone()
                 // .map(|field| Value::Symbol(universe.intern_symbol(field))),
         );
+        
+        // todo fix this primitive, it's incorrect afaik
+        
         fields
     }
 

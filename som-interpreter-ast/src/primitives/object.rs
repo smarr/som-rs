@@ -269,7 +269,9 @@ fn gather_locals(universe: &mut UniverseAST, class: SOMRef<Class>) -> Vec<usize>
     };
     // fields.extend(class.borrow().locals.keys().cloned());
     // fields.extend(class.borrow().locals.clone());
-    // todo idk maybe
+
+    // todo fix maybe?
+    
     fields
 }
 

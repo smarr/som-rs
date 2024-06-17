@@ -459,10 +459,6 @@ impl MethodCodegen for ast::Expression {
                 ctxt.push_instr(Bytecode::PopArg(*up_idx as u8, *idx as u8));
                 Some(())
             }
-            ast::Expression::GlobalWrite(..) => {
-                Some(())
-                // panic!("was unreachable in the original som-rs code? i guess not used in the benchmarks, but TODO")
-            }
             ast::Expression::Message(message) => {
                 let super_send = match message.receiver.as_ref() {
                     ast::Expression::GlobalRead(value) if value == "super" => true,

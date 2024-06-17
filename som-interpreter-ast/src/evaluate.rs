@@ -55,14 +55,6 @@ impl Evaluate for ast::Expression {
                     .unwrap_or_else(||
                         Return::Exception(format!("arg write: idx '{}', scope '{}' not found", idx, scope)))
             },
-            Self::GlobalWrite(name, expr) => {
-                let value = propagate!(expr.evaluate(universe));
-                universe.assign_global(name, &value)
-                    .map(|_| Return::Local(value))
-                    .unwrap_or_else(|| {
-                        Return::Exception(format!("global variable '{}' not found to assign to", name))
-                    })
-            },
             Self::BinaryOp(bin_op) => bin_op.evaluate(universe),
             Self::Block(blk) => blk.evaluate(universe),
             Self::Exit(expr, _scope) => {
@@ -75,11 +67,6 @@ impl Evaluate for ast::Expression {
                     .any(|live_frame| Rc::ptr_eq(&live_frame, &frame));
                 if has_not_escaped {
                     Return::NonLocal(value, frame)
-                    // todo i thought this code would work, but it doesn't! can and should be fixed.
-                    // match scope {
-                    //     0 => Return::Local(value),
-                    //     _ => Return::NonLocal(value, frame)
-                    // }
                 } else {
                     // Block has escaped its method frame.
                     let instance = frame.borrow().get_self();

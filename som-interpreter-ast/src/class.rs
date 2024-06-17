@@ -35,6 +35,8 @@ pub struct Class {
     pub super_class: SOMWeakRef<Class>,
     /// The class' locals.
     pub locals: Vec<Value>,
+    /// The class' locals (fields) names.
+    pub local_names: Vec<String>,
     /// The class' methods/invokables.
     pub methods: IndexMap<String, Rc<Method>>,
     /// Is this class a static one ?
@@ -75,6 +77,7 @@ impl Class {
             class: MaybeWeak::Weak(Weak::new()),
             super_class: Weak::new(),
             locals: vec![Value::Nil; static_locals.len()],
+            local_names: defn.static_locals,
             methods: IndexMap::new(),
             is_static: true,
         }));
@@ -84,6 +87,7 @@ impl Class {
             class: MaybeWeak::Strong(static_class.clone()),
             super_class: Weak::new(),
             locals: vec![Value::Nil; instance_locals.len()],
+            local_names: defn.instance_locals,
             methods: IndexMap::new(),
             is_static: false,
         }));

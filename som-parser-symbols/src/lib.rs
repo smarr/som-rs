@@ -18,28 +18,35 @@ use som_lexer::Token;
 use som_parser_core::{Parser};
 
 #[derive(Copy, Clone, PartialEq, Debug)]
+pub enum AstMethodGenCtxtType {
+    INSTANCE,
+    CLASS,
+}
+
+#[derive(Copy, Clone, PartialEq, Debug)]
 pub enum AstGenCtxtType {
     Class,
     Block,
-    Method,
+    Method(AstMethodGenCtxtType),
 }
 
 // #[derive(Debug)]
 pub struct AstGenCtxtData<'a> {
     kind: AstGenCtxtType,
-    // name: String, // used for debugging
-    _super_class_name: Option<String>,
+    name: String, // used for debugging
+    super_class_name: Option<String>,
     local_names: Vec<String>,
     param_names: Vec<String>,
     class_instance_fields: Vec<String>,
     class_static_fields: Vec<String>, // it's possible the distinction between static/instance fields is useless, but i don't think so.
     current_scope: usize,
     outer_ctxt: Option<AstGenCtxt<'a>>,
-    universe: Option<&'a mut dyn Universe>
+    universe: Option<&'a mut dyn Universe>,
 }
 
 pub type AstGenCtxt<'a> = Rc<RefCell<AstGenCtxtData<'a>>>;
 
+#[derive(Debug, PartialEq)]
 enum FoundVar {
     Local(usize, usize),
     Argument(usize, usize),
@@ -50,30 +57,30 @@ impl<'a> AstGenCtxtData<'a> {
     pub fn init(universe: Option<&'a mut dyn Universe>) -> Self {
         AstGenCtxtData {
             kind: AstGenCtxtType::Class,
-            // name: "NO NAME".to_string(),
-            _super_class_name: None,
+            name: "NO NAME".to_string(),
+            super_class_name: None,
             local_names: vec![],
             param_names: vec![],
             class_static_fields: vec![],
             class_instance_fields: vec![],
             current_scope: 0,
             outer_ctxt: None,
-            universe
+            universe,
         }
     }
 
     pub fn init_no_universe() -> Self {
         AstGenCtxtData {
             kind: AstGenCtxtType::Class,
-            // name: "NO NAME".to_string(),
-            _super_class_name: None,
+            name: "NO NAME".to_string(),
+            super_class_name: None,
             local_names: vec![],
             param_names: vec![],
             class_static_fields: vec![],
             class_instance_fields: vec![],
             current_scope: 0,
             outer_ctxt: None,
-            universe: None
+            universe: None,
         }
     }
 }
@@ -83,18 +90,18 @@ impl<'a> AstGenCtxtData<'a> {
         let universe = mem::take(&mut outer.borrow_mut().universe);
 
         Rc::new(RefCell::new(
-        AstGenCtxtData {
-            kind,
-            // name: "NO NAME".to_string(),
-            _super_class_name: None,
-            local_names: vec![],
-            param_names: vec![],
-            class_instance_fields: vec![],
-            class_static_fields: vec![],
-            current_scope: outer.borrow().current_scope + 1,
-            outer_ctxt: Some(Rc::clone(&outer)),
-            universe
-        }))
+            AstGenCtxtData {
+                kind,
+                name: "NO NAME".to_string(),
+                super_class_name: outer.borrow().super_class_name.clone(),
+                local_names: vec![],
+                param_names: vec![],
+                class_instance_fields: vec![],
+                class_static_fields: vec![],
+                current_scope: outer.borrow().current_scope + 1,
+                outer_ctxt: Some(Rc::clone(&outer)),
+                universe,
+            }))
     }
 
     pub fn get_outer(&mut self) -> AstGenCtxt<'a> {
@@ -148,16 +155,40 @@ impl<'a> AstGenCtxtData<'a> {
         self.get_local(name)
             .map(|idx| FoundVar::Local(0, idx))
             .or_else(|| self.get_param(name).map(|idx| FoundVar::Argument(0, idx)))
-            .or_else(|| self.get_instance_field(name).map(|idx| FoundVar::Field(idx)))
-            .or_else(|| self.get_static_field(name).map(|idx| FoundVar::Field(idx)))
-            .or_else(|| {
+            .or_else(|| { // check if it's defined in an outer scope
                 match &self.outer_ctxt.as_ref() {
                     None => None,
-                    Some(outer) => outer.borrow().find_var(name).map(|found| match found {
-                        FoundVar::Local(up_idx, idx) => FoundVar::Local(up_idx + 1, idx),
-                        FoundVar::Argument(up_idx, idx) => FoundVar::Argument(up_idx + 1, idx),
-                        FoundVar::Field(idx) => FoundVar::Field(idx),
-                    })
+                    Some(outer) => outer.borrow().find_var(name).map(|found|
+                        match found {
+                            FoundVar::Local(up_idx, idx) => FoundVar::Local(up_idx + 1, idx),
+                            FoundVar::Argument(up_idx, idx) => FoundVar::Argument(up_idx + 1, idx),
+                            FoundVar::Field(idx) => FoundVar::Field(idx),
+                        }
+                    )
+                }
+            })
+            .or_else(||
+                match self.kind {
+                    AstGenCtxtType::Method(method_type) => {
+                        let class_ctxt = self.outer_ctxt.as_ref().unwrap().borrow();
+                        match method_type {
+                            AstMethodGenCtxtType::INSTANCE => class_ctxt.get_instance_field(name).map(FoundVar::Field),
+                            AstMethodGenCtxtType::CLASS => class_ctxt.get_static_field(name).map(FoundVar::Field),
+                        }
+                    }
+                    _ => None,
+                }
+            )
+            .or_else(|| { // check if it's defined in a superclass (as a field)
+                match (&self.super_class_name, &self.universe) { // ...if there is a superclass, and if we have access to the universe.
+                    (Some(super_class_name), Some(universe)) => {
+                        let maybe_field_idx = universe.get_field_idx_from_superclass(super_class_name, name);
+                        if maybe_field_idx.is_some() {
+                            dbg!(name);
+                        }
+                        maybe_field_idx.and_then(|field_idx| Some(FoundVar::Field(field_idx + self.local_names.len())))
+                    }
+                    _ => None
                 }
             })
     }
@@ -175,7 +206,7 @@ impl<'a> AstGenCtxtData<'a> {
                             0 => Expression::LocalVarRead(idx),
                             _ => Expression::NonLocalVarRead(up_idx, idx)
                         }
-                    },
+                    }
                     FoundVar::Argument(up_idx, idx) => Expression::ArgRead(up_idx, idx + 1),
                     FoundVar::Field(idx) => Expression::FieldRead(idx)
                 }
@@ -184,12 +215,11 @@ impl<'a> AstGenCtxtData<'a> {
     }
 
     fn get_var_write(&self, name: &String, expr: Box<Expression>) -> Expression {
-        // if name == "self" {
-        //     return Expression::ArgWrite(0, 0, expr); // but really, this isn't a thing... right?
-        // }
-
         match self.find_var(name) {
-            None => Expression::GlobalWrite(name.clone(), expr),
+            None => {
+                panic!("should be unreachable, no such thing as a global write.")
+                // Expression::GlobalWrite(name.clone(), expr)
+            }
             Some(v) => {
                 match v {
                     FoundVar::Local(up_idx, idx) => {
@@ -197,7 +227,7 @@ impl<'a> AstGenCtxtData<'a> {
                             0 => Expression::LocalVarWrite(idx, expr),
                             _ => Expression::NonLocalVarWrite(up_idx, idx, expr)
                         }
-                    },
+                    }
                     FoundVar::Argument(up_idx, idx) => Expression::ArgWrite(up_idx, idx + 1, expr), // + 1 to adjust for self
                     FoundVar::Field(idx) => Expression::FieldWrite(idx, expr)
                 }
@@ -208,11 +238,11 @@ impl<'a> AstGenCtxtData<'a> {
     pub fn get_method_scope_rec(&self, method_scope: usize) -> usize {
         match &self.kind {
             AstGenCtxtType::Class => method_scope - 1, // functionally unreachable branch. maybe reachable in the REPL, when we're technically outside a method, maybe? not sure.
-            AstGenCtxtType::Method => method_scope,
+            AstGenCtxtType::Method(_) => method_scope,
             AstGenCtxtType::Block => self.outer_ctxt.as_ref().unwrap().borrow().get_method_scope_rec(method_scope + 1)
         }
     }
-    
+
     pub fn get_method_scope(&self) -> usize {
         self.get_method_scope_rec(0)
     }

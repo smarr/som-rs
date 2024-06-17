@@ -83,15 +83,38 @@ pub struct UniverseBC {
 
 impl Universe for UniverseBC {
     fn load_class_silent(&mut self, class_name: &str) {
-        let x_id = self.intern_symbol(class_name); // todo use reverse lookup instead
-        if self.lookup_global(x_id).is_some() {
+        let maybe_x_id = self.interner.reverse_lookup(class_name);
+        if maybe_x_id.is_some() && self.lookup_global(maybe_x_id.unwrap()).is_some() {
             return;
         }
         self.load_class(class_name).expect(&format!("Failed to parse class: {}", class_name));
     }
 
     fn get_field_idx_from_superclass(&self, super_class_name: &str, field_name: &str) -> Option<usize> {
-        todo!()
+        let super_cls_maybe_val = self.lookup_global(self.interner.reverse_lookup(super_class_name).unwrap());
+
+        match super_cls_maybe_val {
+            Some(Value::Class(super_cls)) => {
+                if super_cls.borrow().locals.is_empty() {
+                    return None;
+                }
+
+                match super_cls.borrow().locals.iter().position(|(id, _)| self.interner.lookup(*id) == field_name) {
+                    ok @ Some(_) => ok,
+                    None => {
+                        let super_super_cls = super_cls.borrow().super_class.upgrade();
+                        
+                        super_super_cls.and_then(|c| {
+                            match self.get_field_idx_from_superclass(&c.borrow().name, field_name) {
+                                Some(v) => Some(v + super_cls.borrow().locals.len()),
+                                None => None
+                            }
+                        })
+                    }
+                }
+            },
+            _ => None
+        }
     }
 }
 

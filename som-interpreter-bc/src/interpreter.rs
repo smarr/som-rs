@@ -437,13 +437,19 @@ impl Interpreter {
 
                 return;
             };
-
+            
             // we store the current bytecode idx to be able to correctly restore the bytecode state when we pop frames
             interpreter.current_frame.borrow_mut().bytecode_idx = interpreter.bytecode_idx;
 
             match method.kind() {
                 MethodKind::Defined(_) => {
-                    // eprintln!("Invoking {:?} (in {:?})", &method.signature, &method.holder.upgrade().unwrap().borrow().name);
+                    // let name = &method.holder.upgrade().unwrap().borrow().name.clone();
+                    // let filter_list = ["Integer", "Vector", "True", "Pair"];
+                    // let filter_list = [];
+                    
+                    // if !filter_list.contains(&name.as_str()) {
+                    //     eprintln!("Invoking {:?} (in {:?})", &method.signature, &method.holder.upgrade().unwrap().borrow().name);
+                    // }
 
                     let args = interpreter.stack.split_off(interpreter.stack.len() - nb_params - 1);
                     interpreter.push_method_frame(method, args);

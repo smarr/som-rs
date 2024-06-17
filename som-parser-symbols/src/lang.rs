@@ -4,7 +4,7 @@ use som_core::ast::MethodDef::{Generic, InlinedIf, InlinedIfTrueIfFalse, Inlined
 use som_lexer::Token;
 use som_parser_core::combinators::*;
 use som_parser_core::Parser;
-use crate::{AstGenCtxt, AstGenCtxtData, AstGenCtxtType};
+use crate::{AstGenCtxt, AstGenCtxtData, AstGenCtxtType, AstMethodGenCtxtType};
 
 macro_rules! opaque {
     ($expr:expr) => {{
@@ -137,6 +137,7 @@ pub fn super_class<'a>() -> impl Parser<String, &'a [Token], AstGenCtxt<'a>> {
         let (head, tail) = input.split_first()?;
         match head {
             Token::Identifier(value) => {
+                genctxt.borrow_mut().super_class_name = Some(value.clone());
                 if let Some(universe) = genctxt.borrow_mut().universe.as_mut() {
                     universe.load_class_silent(value);
                 }
@@ -295,7 +296,7 @@ pub fn block<'a>() -> impl Parser<Expression, &'a [Token], AstGenCtxt<'a>> {
         let (_, input, genctxt) = exact(Token::NewBlock).parse(input, genctxt)?;
 
         let new_genctxt = AstGenCtxtData::new_ctxt_from(genctxt, AstGenCtxtType::Block);
-        // new_genctxt.borrow_mut().name = "anonymous block".to_string();
+        new_genctxt.borrow_mut().name = "anonymous block".to_string();
 
         let (((parameters, locals), body), input, genctxt) = default(parameters())
             .and(default(locals()))
@@ -422,7 +423,7 @@ pub fn positional_method_def<'a>() -> impl Parser<MethodDef, &'a [Token], AstGen
         let (pairs, input, genctxt) = some(keyword().and(identifier())).and_left(exact(Token::Equal)).parse(input, genctxt)?;
         let (signature, parameters): (String, Vec<String>) = pairs.into_iter().unzip();
 
-        // genctxt.borrow_mut().name = signature.clone();
+        genctxt.borrow_mut().name = signature.clone();
         genctxt.borrow_mut().add_params(&parameters);
 
         let (body, input, genctxt) = primitive().or(method_body()).parse(input, genctxt)?;
@@ -489,9 +490,26 @@ pub fn operator_method_def<'a>() -> impl Parser<MethodDef, &'a [Token], AstGenCt
     }
 }
 
-pub fn method_def<'a>() -> impl Parser<MethodDef, &'a [Token], AstGenCtxt<'a>> {
+pub fn instance_method_def<'a>() -> impl Parser<MethodDef, &'a [Token], AstGenCtxt<'a>> {
     move |input: &'a [Token], genctxt: AstGenCtxt<'a>| {
-        let genctxt = AstGenCtxtData::new_ctxt_from(genctxt, AstGenCtxtType::Method);
+        let genctxt = AstGenCtxtData::new_ctxt_from(genctxt, AstGenCtxtType::Method(AstMethodGenCtxtType::INSTANCE));
+
+        match unary_method_def()
+            .or(positional_method_def())
+            .or(operator_method_def())
+            .parse(input, Rc::clone(&genctxt)) {
+            Some((method_def, input, genctxt)) => {
+                let original_genctxt = genctxt.borrow_mut().get_outer();
+                Some((method_def, input, original_genctxt))
+            },
+            None => None,
+        }
+    }
+}
+
+pub fn class_method_def<'a>() -> impl Parser<MethodDef, &'a [Token], AstGenCtxt<'a>> {
+    move |input: &'a [Token], genctxt: AstGenCtxt<'a>| {
+        let genctxt = AstGenCtxtData::new_ctxt_from(genctxt, AstGenCtxtType::Method(AstMethodGenCtxtType::CLASS));
 
         match unary_method_def()
             .or(positional_method_def())
@@ -510,13 +528,13 @@ pub fn class_def<'a>() -> impl Parser<ClassDef, &'a [Token], AstGenCtxt<'a>> {
     move |input: &'a [Token], genctxt: AstGenCtxt<'a>| {
         let (name, input, genctxt) = identifier().and_left(exact(Token::Equal)).parse(input, genctxt)?;
 
-        // genctxt.borrow_mut().name = name.clone();
+        genctxt.borrow_mut().name = name.clone();
         
         optional(super_class())
             .and(between(
                 exact(Token::NewTerm),
-                default(class_instance_locals()).and(many(method_def())).and(default(
-                    exact(Token::Separator).and_right(default(class_static_locals()).and(many(method_def()))),
+                default(class_instance_locals()).and(many(instance_method_def())).and(default(
+                    exact(Token::Separator).and_right(default(class_static_locals()).and(many(class_method_def()))),
                 )),
                 exact(Token::EndTerm),
             ))
