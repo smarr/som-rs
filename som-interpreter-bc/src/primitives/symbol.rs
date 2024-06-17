@@ -6,8 +6,11 @@ use crate::universe::Universe;
 use crate::value::Value;
 use crate::{expect_args, reverse};
 
-pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] =
-    &[("asString", self::as_string, true)];
+pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[
+    ("asString", self::as_string, true),
+    ("concatenate:", self::concatenate, true)
+];
+
 pub static CLASS_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[];
 
 fn as_string(interpreter: &mut Interpreter, universe: &mut Universe) {
@@ -20,6 +23,31 @@ fn as_string(interpreter: &mut Interpreter, universe: &mut Universe) {
     interpreter.stack.push(Value::String(Rc::new(
         universe.lookup_symbol(sym).to_string(),
     )));
+}
+
+// NOTA BENE: this isn't used in other interpreters, and may be avoidable in our case by reusing the string one.
+// So this prim can be removed, and the breaking bug fixed another way, most likely. But I like this solution.
+fn concatenate(interpreter: &mut Interpreter, universe: &mut Universe) {
+    const SIGNATURE: &str = "Symbol>>#concatenate:";
+
+    expect_args!(SIGNATURE, interpreter, [
+        s1 => s1,
+        s2 => s2,
+    ]);
+
+    let s1 = match s1 {
+        Value::Symbol(sym) => universe.lookup_symbol(sym),
+        _ => panic!("'{}': wrong types", SIGNATURE),
+    };
+    let s2 = match s2 {
+        Value::String(ref value) => value.as_str(),
+        Value::Symbol(sym) => universe.lookup_symbol(sym),
+        _ => panic!("'{}': wrong types", SIGNATURE),
+    };
+
+    interpreter
+        .stack
+        .push(Value::String(Rc::new(format!("{}{}", s1, s2))))
 }
 
 /// Search for an instance primitive matching the given signature.

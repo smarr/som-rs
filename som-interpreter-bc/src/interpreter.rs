@@ -31,6 +31,7 @@ macro_rules! send {
             }
         };
         let method = {
+            // dbg!($universe.lookup_symbol(symbol));
             let receiver = $interp.stack.iter().nth_back(nb_params)?;
             let receiver_class = receiver.class($universe);
             resolve_method($frame, &receiver_class, symbol, $interp.bytecode_idx)
@@ -56,6 +57,7 @@ macro_rules! super_send {
             }
         };
         let method = {
+            // dbg!($universe.lookup_symbol(symbol));
             let holder = $frame_expr.borrow().get_method_holder();
             let super_class = holder.borrow().super_class().unwrap();
             resolve_method($frame_expr, &super_class, symbol, $interp.bytecode_idx)

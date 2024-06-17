@@ -133,7 +133,6 @@ fn concatenate(interpreter: &mut Interpreter, universe: &mut Universe) {
 
     let s1 = match s1 {
         Value::String(ref value) => value.as_str(),
-        Value::Symbol(sym) => universe.lookup_symbol(sym),
         _ => panic!("'{}': wrong types", SIGNATURE),
     };
     let s2 = match s2 {
@@ -172,7 +171,8 @@ fn char_at(interpreter: &mut Interpreter, _universe: &mut Universe) {
     ]);
 
     let (value, idx) = match (&s1, s2) {
-        (Value::String(ref value), Value::Integer(i)) => (value, i as usize - 1),
+        (Value::String(ref value), Value::Integer(i)) => (value.as_str(), i as usize - 1),
+        (Value::Symbol(intern), Value::Integer(i)) => (_universe.lookup_symbol(*intern), i as usize - 1),
         _ => panic!()
     };
     

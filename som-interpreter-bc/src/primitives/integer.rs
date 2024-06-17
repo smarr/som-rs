@@ -648,7 +648,7 @@ fn times_repeat(interpreter: &mut Interpreter, _: &mut Universe) {
     ]);
 
     let new_blk = blk.make_equivalent_with_no_return();
-    for _ in 0..=n {
+    for _ in 1..=n {
         interpreter.push_block_frame(Rc::clone(&new_blk), vec![Value::Block(Rc::clone(&new_blk))]); // NB: this doesn't take the index as an argument
     }
 

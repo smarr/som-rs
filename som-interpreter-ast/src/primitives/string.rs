@@ -168,8 +168,12 @@ fn char_at(_universe: &mut Universe, args: Vec<Value>) -> Return {
     ]);
 
     let (value, idx) = match (&s1, s2) {
-        (Value::String(ref value), Value::Integer(i)) => (value, i as usize - 1),
-        _ => panic!()
+        (Value::String(ref value), Value::Integer(i)) => (value.as_str(), i as usize - 1),
+        (Value::Symbol(intern), Value::Integer(i)) => {
+            let str = _universe.lookup_symbol(*intern);
+            (str, i as usize - 1)
+        },
+        a => panic!("charAt not given a [String|Symbol] + integer but {:?}", a)
     };
 
     Return::Local(Value::String(Rc::new(String::from(value.chars().nth(idx).unwrap()))))
