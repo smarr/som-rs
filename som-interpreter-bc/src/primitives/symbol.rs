@@ -25,8 +25,8 @@ fn as_string(interpreter: &mut Interpreter, universe: &mut Universe) {
     )));
 }
 
-// NOTA BENE: this isn't used in other interpreters, and may be avoidable in our case by reusing the string one.
-// So this prim can be removed, and the breaking bug fixed another way, most likely. But I like this solution.
+// NOTA BENE: this isn't a prim in our other interpreters (TSOM, PySOM), I guess
+// This prim can be removed, and the breaking bug fixed another way, most likely. But I like this solution.
 fn concatenate(interpreter: &mut Interpreter, universe: &mut Universe) {
     const SIGNATURE: &str = "Symbol>>#concatenate:";
 
@@ -44,10 +44,9 @@ fn concatenate(interpreter: &mut Interpreter, universe: &mut Universe) {
         Value::Symbol(sym) => universe.lookup_symbol(sym),
         _ => panic!("'{}': wrong types", SIGNATURE),
     };
-
-    interpreter
-        .stack
-        .push(Value::String(Rc::new(format!("{}{}", s1, s2))))
+    
+    let interned = universe.intern_symbol(format!("{}{}", s1, s2).as_str());
+    interpreter.stack.push(Value::Symbol(interned))
 }
 
 /// Search for an instance primitive matching the given signature.

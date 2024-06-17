@@ -43,7 +43,8 @@ fn concatenate(universe: &mut Universe, args: Vec<Value>) -> Return {
         _ => panic!("'{}': wrong types", SIGNATURE),
     };
 
-    Return::Local(Value::String(Rc::new(format!("{}{}", s1, s2))))
+    let interned = universe.intern_symbol(format!("{}{}", s1, s2).as_str());
+    Return::Local(Value::Symbol(interned))
 }
 
 /// Search for an instance primitive matching the given signature.
