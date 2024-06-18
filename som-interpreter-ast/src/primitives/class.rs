@@ -1,14 +1,12 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use crate::class::Class;
 use crate::expect_args;
 use crate::instance::Instance;
 use crate::invokable::Return;
 use crate::primitives::PrimitiveFn;
 use crate::universe::UniverseAST;
 use crate::value::Value;
-use crate::SOMRef;
 
 pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[
     ("new", self::new, true),
@@ -70,31 +68,16 @@ fn methods(_: &mut UniverseAST, args: Vec<Value>) -> Return {
     Return::Local(Value::Array(Rc::new(RefCell::new(methods))))
 }
 
-fn fields(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
+fn fields(_: &mut UniverseAST, args: Vec<Value>) -> Return {
     const SIGNATURE: &str = "Class>>#fields";
 
     expect_args!(SIGNATURE, args, [
         Value::Class(class) => class,
     ]);
 
-    fn gather_locals(universe: &mut UniverseAST, class: SOMRef<Class>) -> Vec<Value> {
-        let mut fields = match class.borrow().super_class() {
-            Some(super_class) => gather_locals(universe, super_class),
-            None => Vec::new(),
-        };
-        fields.extend(
-            class
-                .borrow()
-                .locals.clone()
-                // .map(|field| Value::Symbol(universe.intern_symbol(field))),
-        );
-        
-        // todo fix this primitive, it's incorrect afaik
-        
-        fields
-    }
-
-    let fields = gather_locals(universe, class);
+    let fields = class.borrow().local_names.iter()
+        .map(|field_name| Value::String(Rc::new(field_name.clone())))
+        .collect();
 
     Return::Local(Value::Array(Rc::new(RefCell::new(fields))))
 }

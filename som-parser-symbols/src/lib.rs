@@ -109,6 +109,16 @@ impl<'a> AstGenCtxtData<'a> {
         outer.borrow_mut().universe = mem::take(&mut self.universe);
         Rc::clone(outer)
     }
+    
+    pub fn load_super_class_and_set_fields(&mut self, name: &String) {
+        let fields = match self.universe.as_mut() {
+            Some(universe) => universe.load_class_and_get_all_fields(name),
+            None => panic!("No universe provided even though we need to parse the superclass {}", name)
+        };
+        self.add_instance_fields(fields.0);
+        self.add_static_fields(fields.1);
+        self.super_class_name = Some(name.clone());
+    }
 
     pub fn add_instance_fields(&mut self, fields_names: Vec<String>) {
         self.class_instance_fields.extend(fields_names);
