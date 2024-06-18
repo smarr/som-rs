@@ -204,13 +204,15 @@ fn time(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
 }
 
 // this function is unusable after my recent changes to the frame. needs to be fixed when a compilation flag for frame debug info is enabled
-fn print_stack_trace(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
-    const SIGNATURE: &str = "System>>#printStackTrace";
-
+fn print_stack_trace(_: &mut UniverseAST, _: Vec<Value>) -> Return {
+    // const SIGNATURE: &str = "System>>#printStackTrace";
+    
+    dbg!("printStackTrace is broken (on purpose). It can be fixed and reenabled with a debug flag, though.");
+/*
     expect_args!(SIGNATURE, args, [Value::System]);
 
     for frame in &universe.frames {
-        let class = frame.borrow().get_method_holder();
+        // let class = frame.borrow().get_method_holder(universe);
         // let signature = frame.borrow().get_method_signature();
         // let signature = universe.lookup_symbol(signature);
         let signature = "we do not support method signatures in stack traces anymore...";
@@ -221,7 +223,7 @@ fn print_stack_trace(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
         // println!("{}>>#{}{}", class.borrow().name(), signature, block);
         println!("{}>>#{}", class.borrow().name(), signature);
     }
-
+*/
     Return::Local(Value::Boolean(true))
 }
 

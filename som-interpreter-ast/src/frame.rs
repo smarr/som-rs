@@ -1,7 +1,6 @@
 use std::cell::{RefCell};
 use std::rc::Rc;
 
-use crate::class::Class;
 use crate::value::Value;
 use crate::SOMRef;
 
@@ -69,16 +68,6 @@ impl Frame {
             Value::Block(b) => b.frame.borrow().get_self(),
             s => s.clone()
         }
-    }
-
-    /// Get the holder for this current method.
-    pub fn get_method_holder(&self) -> SOMRef<Class> {
-        let ours = match self.get_self() {
-            Value::Class(c) => c,
-            v => panic!("self value not a class, but {:?}", v)
-        };
-
-        ours.clone().borrow().class()
     }
 
     /// Get the signature of the current method.

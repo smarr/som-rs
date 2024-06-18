@@ -218,6 +218,13 @@ impl Class {
 
     /// Set the superclass of this class (as a weak reference).
     pub fn set_super_class(&mut self, class: &SOMRef<Self>) {
+        for local_name in class.borrow().local_names.iter().rev() {
+            self.local_names.insert(0, local_name.clone());
+        }
+        for local in class.borrow().locals.iter().rev() {
+            self.locals.insert(0, local.clone());
+        }
+
         self.super_class = Rc::downgrade(class);
     }
 
@@ -258,6 +265,7 @@ impl fmt::Debug for Class {
         f.debug_struct("Class")
             .field("name", &self.name)
             .field("fields", &self.locals.len())
+            .field("methods", &self.methods.len())
             // .field("class", &self.class)
             // .field("super_class", &self.super_class)
             .finish()
