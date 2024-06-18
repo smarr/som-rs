@@ -592,6 +592,14 @@ fn set_super_class(
     metaclass_class: &SOMRef<Class>,
 ) {
     class.borrow_mut().set_super_class(super_class);
+    
+    // not a fan of this splice notation. essentially, all fields from superclasses are added before the class' fields
+    class.borrow_mut().local_names.splice(0..0, super_class.borrow().local_names.clone());
+    class.borrow_mut().locals.splice(0..0, super_class.borrow().locals.clone());
+    
+    class.borrow_mut().class().borrow_mut().local_names.splice(0..0, super_class.borrow().class().borrow().local_names.clone());
+    class.borrow_mut().class().borrow_mut().locals.splice(0..0, super_class.borrow().class().borrow().locals.clone());
+    
     class
         .borrow()
         .class()
