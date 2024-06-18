@@ -546,18 +546,18 @@ impl UniverseAST {
     /// Call `doesNotUnderstand:` on the given value, if it is defined.
     pub fn does_not_understand(
         &mut self,
-        _value: Value,
+        value: Value,
         symbol: impl AsRef<str>,
-        _args: Vec<Value>,
+        args: Vec<Value>,
     ) -> Option<Return> {
-        // let initialize = value.lookup_method(self, "doesNotUnderstand:arguments:")?;
-        // let sym = self.intern_symbol(symbol.as_ref());
-        // let sym = Value::Symbol(sym);
-        // let args = Value::Array(Rc::new(RefCell::new(args)));
+        let initialize = value.lookup_method(self, "doesNotUnderstand:arguments:")?;
+        let sym = self.intern_symbol(symbol.as_ref());
+        let sym = Value::Symbol(sym);
+        let args = Value::Array(Rc::new(RefCell::new(args)));
 
-        eprintln!("Couldn't invoke {}; exiting.", symbol.as_ref());
-        std::process::exit(1);
-        // Some(initialize.invoke(self, vec![value, sym, args]))
+//        eprintln!("Couldn't invoke {}; exiting.", symbol.as_ref()); std::process::exit(1);
+        
+        Some(initialize.invoke(self, vec![value, sym, args]))
     }
 
     /// Call `unknownGlobal:` on the given value, if it is defined.
@@ -592,7 +592,7 @@ fn set_super_class(
     metaclass_class: &SOMRef<Class>,
 ) {
     class.borrow_mut().set_super_class(super_class);
-    
+
     // not a fan of this splice notation. essentially, all fields from superclasses are added before the class' fields
     class.borrow_mut().local_names.splice(0..0, super_class.borrow().local_names.clone());
     class.borrow_mut().locals.splice(0..0, super_class.borrow().locals.clone());
