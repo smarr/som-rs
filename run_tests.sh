@@ -2,7 +2,7 @@
 
 # Directory to process
 DIRECTORY="core-lib/TestSuite" # Replace with your directory path
-EXE=som-interpreter-bc
+EXE=som-interpreter-ast
 
 for file in $DIRECTORY/*Test.som; do
     if [ -f "$file" ]; then

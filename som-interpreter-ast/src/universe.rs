@@ -233,7 +233,7 @@ impl UniverseAST {
     pub fn load_class(&mut self, class_name: impl Into<String>) -> Result<SOMRef<Class>, Error> {
         let class_name = class_name.into();
         let paths: Vec<PathBuf> = self.classpath.iter().map(|path| path.clone()).collect(); // TODO change back, same as BC
-        
+
         for path in paths {
             let mut path = path.join(class_name.as_str());
             path.set_extension("som");
@@ -266,7 +266,7 @@ impl UniverseAST {
             let super_class = if let Some(ref super_class) = defn.super_class {
                 match self.lookup_global(super_class) {
                     Some(Value::Class(super_class)) => super_class,
-                    _ => self.load_class(super_class)?,
+                    _ => unreachable!("we should have already loaded and cached the superclass during parsing"),
                 }
             } else {
                 self.core.object_class.clone()
@@ -321,7 +321,7 @@ impl UniverseAST {
 
         Err(anyhow!("could not find the '{}' class", class_name))
     }
-    
+
     /// Load a system class (with an incomplete hierarchy).
     pub fn load_system_class(
         classpath: &[impl AsRef<Path>],
@@ -363,7 +363,7 @@ impl UniverseAST {
 
         Err(anyhow!("could not find the '{}' system class", class_name))
     }
-    
+
     /// Get the **Object** class.
     pub fn object_class(&self) -> SOMRef<Class> {
         self.core.object_class.clone()
@@ -555,8 +555,9 @@ impl UniverseAST {
         let sym = Value::Symbol(sym);
         let args = Value::Array(Rc::new(RefCell::new(args)));
 
-//        eprintln!("Couldn't invoke {}; exiting.", symbol.as_ref()); std::process::exit(1);
-        
+        // eprintln!("Couldn't invoke {}; exiting.", symbol.as_ref());
+        // std::process::exit(1);
+
         Some(initialize.invoke(self, vec![value, sym, args]))
     }
 
@@ -592,13 +593,6 @@ fn set_super_class(
     metaclass_class: &SOMRef<Class>,
 ) {
     class.borrow_mut().set_super_class(super_class);
-
-    // not a fan of this splice notation. essentially, all fields from superclasses are added before the class' fields
-    class.borrow_mut().local_names.splice(0..0, super_class.borrow().local_names.clone());
-    class.borrow_mut().locals.splice(0..0, super_class.borrow().locals.clone());
-    
-    class.borrow_mut().class().borrow_mut().local_names.splice(0..0, super_class.borrow().class().borrow().local_names.clone());
-    class.borrow_mut().class().borrow_mut().locals.splice(0..0, super_class.borrow().class().borrow().locals.clone());
     
     class
         .borrow()

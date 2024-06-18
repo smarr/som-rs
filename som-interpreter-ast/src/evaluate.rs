@@ -137,7 +137,7 @@ impl Evaluate for ast::BinaryOp {
             ast::Expression::GlobalRead(ident) if ident == "super" => {
                 let frame = universe.current_frame();
                 let lhs = frame.borrow().get_self();
-                let holder = frame.borrow().get_method_holder();
+                let holder = lhs.class(universe);
                 let super_class = match holder.borrow().super_class() {
                     Some(class) => class,
                     None => {
@@ -234,7 +234,7 @@ impl Evaluate for ast::Message {
             ast::Expression::GlobalRead(ident) if ident == "super" => {
                 let frame = universe.current_frame();
                 let receiver = frame.borrow().get_self();
-                let holder = frame.borrow().get_method_holder();
+                let holder = receiver.class(universe);
                 let super_class = match holder.borrow().super_class() {
                     Some(class) => class,
                     None => {
