@@ -143,7 +143,8 @@ pub fn super_class<'a>() -> impl Parser<String, &'a [Token], AstGenCtxt<'a>> {
                         Some(universe) => universe.load_class_and_get_all_fields(value),
                         None => panic!("No universe provided even though we need to parse the superclass {}", value)
                     };
-                    genctxt.borrow_mut().add_instance_fields(&fields);   
+                    genctxt.borrow_mut().add_instance_fields(fields.0);   
+                    genctxt.borrow_mut().add_static_fields(fields.1);   
                 }
                 
                 Some((value.clone(), tail, genctxt))
@@ -271,7 +272,7 @@ pub fn locals<'a>() -> impl Parser<Vec<String>, &'a [Token], AstGenCtxt<'a>> {
 pub fn class_instance_locals<'a>() -> impl Parser<Vec<String>, &'a [Token], AstGenCtxt<'a>> {
     move |input: &'a [Token], genctxt| {
         let (new_locals_names, input, genctxt) = between(exact(Token::Or), many(identifier()), exact(Token::Or)).parse(input, genctxt)?;
-        genctxt.borrow_mut().add_instance_fields(&new_locals_names);
+        genctxt.borrow_mut().add_instance_fields(new_locals_names.clone());
         Some((new_locals_names, input, genctxt))
     }
 }
@@ -279,7 +280,7 @@ pub fn class_instance_locals<'a>() -> impl Parser<Vec<String>, &'a [Token], AstG
 pub fn class_static_locals<'a>() -> impl Parser<Vec<String>, &'a [Token], AstGenCtxt<'a>> {
     move |input: &'a [Token], genctxt| {
         let (new_locals_names, input, genctxt) = between(exact(Token::Or), many(identifier()), exact(Token::Or)).parse(input, genctxt)?;
-        genctxt.borrow_mut().add_static_fields(&new_locals_names);
+        genctxt.borrow_mut().add_static_fields(new_locals_names.clone());
         Some((new_locals_names, input, genctxt))
     }
 }
@@ -301,7 +302,6 @@ pub fn block<'a>() -> impl Parser<Expression, &'a [Token], AstGenCtxt<'a>> {
         let (_, input, genctxt) = exact(Token::NewBlock).parse(input, genctxt)?;
 
         let new_genctxt = AstGenCtxtData::new_ctxt_from(genctxt, AstGenCtxtType::Block);
-        new_genctxt.borrow_mut().name = "anonymous block".to_string();
 
         let (((parameters, locals), body), input, genctxt) = default(parameters())
             .and(default(locals()))

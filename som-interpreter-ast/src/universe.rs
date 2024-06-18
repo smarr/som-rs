@@ -7,7 +7,7 @@ use std::rc::Rc;
 use std::time::Instant;
 
 use anyhow::{anyhow, Error};
-use som_core::universe::Universe;
+use som_core::universe::UniverseForParser;
 
 use crate::block::Block;
 use crate::class::Class;
@@ -85,16 +85,17 @@ pub struct UniverseAST {
     pub frames: Vec<SOMRef<Frame>>,
 }
 
-impl Universe for UniverseAST {
-    fn load_class_and_get_all_fields(&mut self, class_name: &str) -> Vec<String> {
+impl UniverseForParser for UniverseAST {
+    fn load_class_and_get_all_fields(&mut self, class_name: &str) -> (Vec<String>, Vec<String>) {
         match self.lookup_global(class_name) {
-            Some(Value::Class(c)) => { c.borrow().local_names.clone() }
+            Some(Value::Class(c)) => { (c.borrow().local_names.clone(), c.borrow().class().borrow().local_names.clone()) }
             None => {
                 let cls = self.load_class(class_name).expect(&format!("Failed to parse class: {}", class_name));
-                let field_names = cls.borrow().local_names.clone();
-                field_names
+                let instance_field_names = cls.borrow().local_names.clone();
+                let class_field_names = cls.borrow().class().borrow().local_names.clone();
+                (instance_field_names, class_field_names)
             }
-            _ => unreachable!("superclass accessed from parser is not actually a class?")
+            Some(val) => unreachable!("superclass accessed from parser is not actually a class, but {:?}", val)
         }
     }
 }
