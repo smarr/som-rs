@@ -2,12 +2,11 @@ use std::collections::hash_map::DefaultHasher;
 use std::convert::TryFrom;
 use std::hash::{Hash, Hasher};
 
-use crate::class::Class;
 use crate::invokable::{Invoke, Return};
 use crate::primitives::PrimitiveFn;
 use crate::universe::UniverseAST;
 use crate::value::Value;
-use crate::{expect_args, SOMRef};
+use crate::expect_args;
 use crate::value::Value::Nil;
 
 pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[
@@ -217,7 +216,7 @@ fn perform_with_arguments_in_super_class(universe: &mut UniverseAST, args: Vec<V
     }
 }
 
-fn inst_var_at(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
+fn inst_var_at(_: &mut UniverseAST, args: Vec<Value>) -> Return {
     const SIGNATURE: &'static str = "Object>>#instVarAt:";
 
     expect_args!(SIGNATURE, args, [
@@ -230,16 +229,20 @@ fn inst_var_at(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
         Err(err) => return Return::Exception(format!("'{}': {}", SIGNATURE, err)),
     };
 
-    let locals = gather_locals(universe, object.class(universe));
-    let local = locals
-        .get(index)
-        .and_then(|local| object.lookup_local(*local))
-        .unwrap_or(Value::Nil);
-
+    let local = match object {
+        Value::Instance(c) => {
+            c.borrow().locals.get(index).cloned().unwrap_or(Value::Nil)
+        }
+        Value::Class(c) => {
+            c.clone().borrow().locals.get(index).cloned().unwrap_or(Value::Nil)
+        },
+        _ => unreachable!("instVarAt called not on an instance or a class")
+    };
+    
     Return::Local(local)
 }
 
-fn inst_var_at_put(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
+fn inst_var_at_put(_: &mut UniverseAST, args: Vec<Value>) -> Return {
     const SIGNATURE: &'static str = "Object>>#instVarAt:put:";
 
     expect_args!(SIGNATURE, args, [
@@ -252,27 +255,18 @@ fn inst_var_at_put(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
         Ok(index) => index,
         Err(err) => return Return::Exception(format!("'{}': {}", SIGNATURE, err)),
     };
-
-    let locals = gather_locals(universe, object.class(universe));
-    let local = locals
-        .get(index)
-        .and_then(|local| object.assign_local(*local, &value).map(|_| value))
-        .unwrap_or(Value::Nil);
-
-    Return::Local(local)
-}
-
-fn gather_locals(universe: &mut UniverseAST, class: SOMRef<Class>) -> Vec<usize> {
-    let fields = match class.borrow().super_class() {
-        Some(super_class) => gather_locals(universe, super_class),
-        None => Vec::new(),
-    };
-    // fields.extend(class.borrow().locals.keys().cloned());
-    // fields.extend(class.borrow().locals.clone());
-
-    // todo fix maybe?
     
-    fields
+    let does_have_local = match &object {
+        Value::Instance(c) => { c.borrow().locals.len() > index }
+        Value::Class(c) => { c.clone().borrow().locals.len() > index },
+        _ => unreachable!("instVarAtPut called not on an instance or a class")
+    };
+
+    if does_have_local {
+        object.assign_local(index, &value);
+    }
+    
+    Return::Local(value)
 }
 
 /// Search for an instance primitive matching the given signature.
