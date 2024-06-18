@@ -29,11 +29,11 @@ pub const SYSTEM_CLASS_NAMES: &[&str; 25] = &[
 ];
 
 
-pub trait Universe {
-    fn load_class_and_get_all_fields(&mut self, class_name: &str) -> Vec<String>;
+pub trait UniverseForParser {
+    fn load_class_and_get_all_fields(&mut self, class_name: &str) -> (Vec<String>, Vec<String>);
 }
 
-impl Debug for dyn Universe {
+impl Debug for dyn UniverseForParser {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.write_str("Universe for parser")
     }

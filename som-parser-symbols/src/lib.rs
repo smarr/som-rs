@@ -13,7 +13,7 @@ use std::rc::Rc;
 use som_core::ast::{ClassDef, Expression};
 #[cfg(feature = "block-debug-info")]
 use som_core::ast::BlockDebugInfo;
-use som_core::universe::Universe;
+use som_core::universe::UniverseForParser;
 use som_lexer::Token;
 use som_parser_core::{Parser};
 
@@ -41,7 +41,7 @@ pub struct AstGenCtxtData<'a> {
     class_static_fields: Vec<String>, // it's possible the distinction between static/instance fields is useless, but i don't think so.
     current_scope: usize,
     outer_ctxt: Option<AstGenCtxt<'a>>,
-    universe: Option<&'a mut dyn Universe>,
+    universe: Option<&'a mut dyn UniverseForParser>,
 }
 
 pub type AstGenCtxt<'a> = Rc<RefCell<AstGenCtxtData<'a>>>;
@@ -54,7 +54,7 @@ enum FoundVar {
 }
 
 impl<'a> AstGenCtxtData<'a> {
-    pub fn init(universe: Option<&'a mut dyn Universe>) -> Self {
+    pub fn init(universe: Option<&'a mut dyn UniverseForParser>) -> Self {
         AstGenCtxtData {
             kind: AstGenCtxtType::Class,
             name: "NO NAME".to_string(),
@@ -110,19 +110,16 @@ impl<'a> AstGenCtxtData<'a> {
         Rc::clone(outer)
     }
 
-    // pub fn add_fields(&mut self, fields_names: &Vec<String>) {
-    //     self.class_field_names.extend(fields_names.iter().cloned());
-    // }
-
-    pub fn add_instance_fields(&mut self, fields_names: &Vec<String>) {
-        self.class_instance_fields.extend(fields_names.iter().cloned());
+    pub fn add_instance_fields(&mut self, fields_names: Vec<String>) {
+        self.class_instance_fields.extend(fields_names);
     }
 
-    pub fn add_static_fields(&mut self, fields_names: &Vec<String>) {
-        self.class_static_fields.extend(fields_names.iter().cloned());
+    pub fn add_static_fields(&mut self, fields_names: Vec<String>) {
+        self.class_static_fields.extend(fields_names);
     }
 
     pub fn add_locals(&mut self, new_locals_names: &Vec<String>) {
+        debug_assert_ne!(self.kind, AstGenCtxtType::Class);
         self.local_names.extend(new_locals_names.iter().cloned());
     }
 
@@ -138,11 +135,7 @@ impl<'a> AstGenCtxtData<'a> {
     pub fn get_param(&self, name: &String) -> Option<usize> {
         self.param_names.iter().position(|local| *local == *name)
     }
-
-    // pub fn get_field(&self, name: &String) -> Option<usize> {
-    //     self.class_field_names.iter().position(|c| c == name)
-    // }
-
+    
     pub fn get_instance_field(&self, name: &String) -> Option<usize> {
         self.class_instance_fields.iter().position(|c| c == name)
     }
@@ -155,7 +148,7 @@ impl<'a> AstGenCtxtData<'a> {
         self.get_local(name)
             .map(|idx| FoundVar::Local(0, idx))
             .or_else(|| self.get_param(name).map(|idx| FoundVar::Argument(0, idx)))
-            .or_else(|| { // check if it's defined in an outer scope
+            .or_else(|| { // check whether it's defined in an outer scope block as a local or arg...
                 match &self.outer_ctxt.as_ref() {
                     None => None,
                     Some(outer) => outer.borrow().find_var(name).map(|found|
@@ -167,7 +160,7 @@ impl<'a> AstGenCtxtData<'a> {
                     )
                 }
             })
-            .or_else(||
+            .or_else(|| // ...and if we recursively searched and it wasn't in a block, it must be a field (or search fails and it's a global).
                 match self.kind {
                     AstGenCtxtType::Method(method_type) => {
                         let class_ctxt = self.outer_ctxt.as_ref().unwrap().borrow();
@@ -205,8 +198,7 @@ impl<'a> AstGenCtxtData<'a> {
     fn get_var_write(&self, name: &String, expr: Box<Expression>) -> Expression {
         match self.find_var(name) {
             None => {
-                panic!("should be unreachable, no such thing as a global write.")
-                // Expression::GlobalWrite(name.clone(), expr)
+                panic!("variable couldn't be found to be written to ({} in {}).", name, self.name)
             }
             Some(v) => {
                 match v {
@@ -250,7 +242,7 @@ impl<'a> AstGenCtxtData<'a> {
 
 
 /// Parses the input of an entire file into an AST.
-pub fn parse_file(input: &[Token], universe: &mut dyn Universe) -> Option<ClassDef> {
+pub fn parse_file(input: &[Token], universe: &mut dyn UniverseForParser) -> Option<ClassDef> {
     self::apply(lang::file(), input, Some(universe))
 }
 
@@ -260,7 +252,7 @@ pub fn parse_file_no_universe(input: &[Token]) -> Option<ClassDef> {
 }
 
 /// Applies a parser and returns the output value if the entirety of the input has been parsed successfully.
-pub fn apply<'a, A, P>(mut parser: P, input: &'a [Token], universe: Option<&'a mut dyn Universe>) -> Option<A>
+pub fn apply<'a, A, P>(mut parser: P, input: &'a [Token], universe: Option<&'a mut dyn UniverseForParser>) -> Option<A>
     where
         P: Parser<A, &'a [Token], AstGenCtxt<'a>>,
 {
