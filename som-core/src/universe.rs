@@ -1,5 +1,6 @@
 use std::fmt::{Debug, Formatter};
 
+// unused to be honest, was useful in the parser at some point
 pub const SYSTEM_CLASS_NAMES: &[&str; 25] = &[
     "Array", 
     "Block", 

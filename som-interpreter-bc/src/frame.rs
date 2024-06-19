@@ -9,6 +9,8 @@ use crate::compiler::Literal;
 use crate::method::{Method, MethodKind};
 use crate::value::Value;
 use crate::SOMRef;
+
+#[cfg(feature = "frame-debug-info")]
 use crate::universe::UniverseBC;
 
 #[cfg(feature = "frame-debug-info")]
@@ -146,8 +148,8 @@ impl Frame {
         match self.args.first().unwrap() {
             Value::Block(b) => {
                 let block_frame = b.frame.as_ref().unwrap().clone();
-                let x = block_frame.borrow().get_self();
-                x
+                let self_val = block_frame.borrow().get_self();
+                self_val
             },
             s => s.clone()
         }
@@ -174,11 +176,6 @@ impl Frame {
         }
     }
     
-    // Don't even need this function. We store a pointer to the bytecode in the interpreter directly.
-    // pub fn get_bytecode(&self, idx: usize) -> Option<Bytecode> {
-    //     self.bytecodes.get(idx).cloned()
-    // }
-
     pub fn lookup_constant(&self, idx: usize) -> Option<Literal> {
         unsafe { (*self.literals).get(idx).cloned() }
     }

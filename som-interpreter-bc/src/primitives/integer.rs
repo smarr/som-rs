@@ -31,11 +31,11 @@ pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[
     ("atRandom", self::at_random, true),
     ("as32BitSignedValue", self::as_32bit_signed_value, true),
     ("as32BitUnsignedValue", self::as_32bit_unsigned_value, true),
-    ("to:do:", self::to_do, true),
-    ("to:by:do:", self::to_by_do, true),
-    ("downTo:do:", self::down_to_do, true),
-    ("downTo:by:do:", self::down_to_by_do, true),
-    ("timesRepeat:", self::times_repeat, true),
+    // ("to:do:", self::to_do, true),
+    // ("to:by:do:", self::to_by_do, true),
+    // ("downTo:do:", self::down_to_do, true),
+    // ("downTo:by:do:", self::down_to_by_do, true),
+    // ("timesRepeat:", self::times_repeat, true),
 ];
 
 pub static CLASS_PRIMITIVES: &[(&str, PrimitiveFn, bool)] =
@@ -564,6 +564,7 @@ fn shift_right(interpreter: &mut Interpreter, _: &mut UniverseBC) {
     interpreter.stack.push(value);
 }
 
+#[allow(dead_code)]
 fn to_do(interpreter: &mut Interpreter, _: &mut UniverseBC) {
     const SIGNATURE: &str = "Integer>>to:do:";
 
@@ -584,6 +585,7 @@ fn to_do(interpreter: &mut Interpreter, _: &mut UniverseBC) {
     interpreter.stack.push(Value::Integer(start));
 }
 
+#[allow(dead_code)]
 fn to_by_do(interpreter: &mut Interpreter, _: &mut UniverseBC) {
     const SIGNATURE: &str = "Integer>>to:by:do:";
 
@@ -602,6 +604,7 @@ fn to_by_do(interpreter: &mut Interpreter, _: &mut UniverseBC) {
     interpreter.stack.push(Value::Integer(start));
 }
 
+#[allow(dead_code)]
 fn down_to_do(interpreter: &mut Interpreter, _: &mut UniverseBC) {
     const SIGNATURE: &str = "Integer>>downTo:do:";
 
@@ -619,6 +622,7 @@ fn down_to_do(interpreter: &mut Interpreter, _: &mut UniverseBC) {
     interpreter.stack.push(Value::Integer(start));
 }
 
+#[allow(dead_code)]
 // NB: this guy isn't a speedup, it's never used in our benchmarks as far as I'm aware.
 fn down_to_by_do(interpreter: &mut Interpreter, _: &mut UniverseBC) {
     const SIGNATURE: &str = "Integer>>downTo:by:do:";
@@ -638,6 +642,7 @@ fn down_to_by_do(interpreter: &mut Interpreter, _: &mut UniverseBC) {
     interpreter.stack.push(Value::Integer(start));
 }
 
+#[allow(dead_code)]
 // NB: also not a speedup, also unused.
 fn times_repeat(interpreter: &mut Interpreter, _: &mut UniverseBC) {
     const SIGNATURE: &str = "Integer>>timesRepeat:";

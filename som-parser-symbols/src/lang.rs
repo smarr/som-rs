@@ -137,7 +137,7 @@ pub fn super_class<'a>() -> impl Parser<String, &'a [Token], AstGenCtxt<'a>> {
         let (head, tail) = input.split_first()?;
         match head {
             Token::Identifier(value) => {
-                if !som_core::universe::SYSTEM_CLASS_NAMES.contains(&value.as_str()) && value != "nil" {
+                if !["nil", "Class", "String", "Block", "Boolean"].contains(&value.as_str()) { // system classes that can be superclasses of other system classes. (and the special keyword "nil")
                     genctxt.borrow_mut().load_super_class_and_set_fields(value);
                 }
                 Some((value.clone(), tail, genctxt))
