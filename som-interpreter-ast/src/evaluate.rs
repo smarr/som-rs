@@ -118,14 +118,18 @@ impl Evaluate for ast::Expression {
                         Return::Exception(format!("arg read: idx '{}', scope '{}' not found", idx, scope))
                     })
             },
-            Self::GlobalRead(name) => universe.lookup_global(name)
-                .map(Return::Local)
-                .or_else(|| {
-                    let frame = universe.current_frame();
-                    let self_value = frame.borrow().get_self();
-                    universe.unknown_global(self_value, name.as_str())
-                })
-                .unwrap_or_else(|| Return::Exception(format!("global variable '{}' not found", name))),
+            Self::GlobalRead(name) => 
+                match name.as_str() {
+                    "super" => Return::Local(universe.current_frame().borrow().get_self()),
+                    _ => universe.lookup_global(name)
+                        .map(Return::Local)
+                        .or_else(|| {
+                            let frame = universe.current_frame();
+                            let self_value = frame.borrow().get_self();
+                            universe.unknown_global(self_value, name.as_str())
+                        })
+                        .unwrap_or_else(|| Return::Exception(format!("global variable '{}' not found", name)))
+                },
             Self::Message(msg) => msg.evaluate(universe),
         }
     }
