@@ -57,8 +57,8 @@ macro_rules! super_send {
             }
         };
         let method = {
-            // dbg!($universe.lookup_symbol(symbol));
-            let holder = $frame_expr.borrow().get_method_holder();
+            let receiver = $frame_expr.borrow().get_self();
+            let holder = receiver.class($universe);
             let super_class = holder.borrow().super_class().unwrap();
             resolve_method($frame_expr, &super_class, symbol, $interp.bytecode_idx)
         };
