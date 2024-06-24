@@ -31,11 +31,11 @@ pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[
     ("atRandom", self::at_random, true),
     ("as32BitSignedValue", self::as_32bit_signed_value, true),
     ("as32BitUnsignedValue", self::as_32bit_unsigned_value, true),
-    // ("to:do:", self::to_do, true),
-    // ("to:by:do:", self::to_by_do, true),
-    // ("downTo:do:", self::down_to_do, true),
-    // ("downTo:by:do:", self::down_to_by_do, true),
-    // ("timesRepeat:", self::times_repeat, true),
+    ("to:do:", self::to_do, true),
+    ("to:by:do:", self::to_by_do, true),
+    ("downTo:do:", self::down_to_do, true),
+    ("downTo:by:do:", self::down_to_by_do, true),
+    ("timesRepeat:", self::times_repeat, true),
 ];
 
 pub static CLASS_PRIMITIVES: &[(&str, PrimitiveFn, bool)] =
