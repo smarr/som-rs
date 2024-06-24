@@ -32,29 +32,29 @@ impl Evaluate for ast::Expression {
                 universe.assign_local(*idx, &value)
                     .map(|_| Return::Local(value))
                     .unwrap_or_else(||
-                        Return::Exception(format!("local var write: idx '{}' not found", idx)))
-            },
+                    Return::Exception(format!("local var write: idx '{}' not found", idx)))
+            }
             Self::NonLocalVarWrite(scope, idx, expr) => {
                 let value = propagate!(expr.evaluate(universe));
                 universe.assign_non_local(*idx, *scope, &value)
                     .map(|_| Return::Local(value))
                     .unwrap_or_else(||
-                        Return::Exception(format!("non local var write: idx '{}' not found", idx)))
-            },
+                    Return::Exception(format!("non local var write: idx '{}' not found", idx)))
+            }
             Self::FieldWrite(idx, expr) => {
                 let value = propagate!(expr.evaluate(universe));
                 universe.assign_field(*idx, &value)
                     .map(|_| Return::Local(value))
                     .unwrap_or_else(||
-                        Return::Exception(format!("field write: idx '{}' not found", idx)))
-            },
+                    Return::Exception(format!("field write: idx '{}' not found", idx)))
+            }
             Self::ArgWrite(scope, idx, expr) => {
                 let value = propagate!(expr.evaluate(universe));
                 universe.assign_arg(*idx, *scope, &value)
                     .map(|_| Return::Local(value))
                     .unwrap_or_else(||
-                        Return::Exception(format!("arg write: idx '{}', scope '{}' not found", idx, scope)))
-            },
+                    Return::Exception(format!("arg write: idx '{}', scope '{}' not found", idx, scope)))
+            }
             Self::BinaryOp(bin_op) => bin_op.evaluate(universe),
             Self::Block(blk) => blk.evaluate(universe),
             Self::Exit(expr, _scope) => {
@@ -95,30 +95,30 @@ impl Evaluate for ast::Expression {
                 universe.lookup_local(*idx)
                     .map(|v| Return::Local(v.clone()))
                     .unwrap_or_else(||
-                        Return::Exception(format!("local var read: idx '{}' not found", idx)))
-            },
+                    Return::Exception(format!("local var read: idx '{}' not found", idx)))
+            }
             Self::NonLocalVarRead(scope, idx) => {
                 universe.lookup_non_local(*idx, *scope)
                     .map(Return::Local)
                     .unwrap_or_else(|| {
                         Return::Exception(format!("non local var read: idx '{}' not found", idx))
                     })
-            },
+            }
             Self::FieldRead(idx) => {
                 universe.lookup_field(*idx)
                     .map(Return::Local)
                     .unwrap_or_else(|| {
                         Return::Exception(format!("field read: idx '{}' not found", idx))
                     })
-            },
+            }
             Self::ArgRead(scope, idx) => {
                 universe.lookup_arg(*idx, *scope)
                     .map(Return::Local)
                     .unwrap_or_else(|| {
                         Return::Exception(format!("arg read: idx '{}', scope '{}' not found", idx, scope))
                     })
-            },
-            Self::GlobalRead(name) => 
+            }
+            Self::GlobalRead(name) =>
                 match name.as_str() {
                     "super" => Return::Local(universe.current_frame().borrow().get_self()),
                     _ => universe.lookup_global(name)
@@ -131,6 +131,7 @@ impl Evaluate for ast::Expression {
                         .unwrap_or_else(|| Return::Exception(format!("global variable '{}' not found", name)))
                 },
             Self::Message(msg) => msg.evaluate(universe),
+            Self::SuperMessage(msg) => msg.evaluate(universe),
         }
     }
 }
@@ -227,35 +228,8 @@ impl Evaluate for ast::Block {
 
 impl Evaluate for ast::Message {
     fn evaluate(&self, universe: &mut UniverseAST) -> Return {
-        let (receiver, invokable) = match self.receiver.as_ref() {
-            // ast::Expression::Reference(ident) if ident == "self" => {
-            //     let frame = universe.current_frame();
-            //     let receiver = frame.borrow().get_self();
-            //     let holder = frame.borrow().get_method_holder();
-            //     let invokable = holder.borrow().lookup_method(&self.signature);
-            //     (receiver, invokable)
-            // }
-            ast::Expression::GlobalRead(ident) if ident == "super" => {
-                let frame = universe.current_frame();
-                let receiver = frame.borrow().get_self();
-                let holder = receiver.class(universe);
-                let super_class = match holder.borrow().super_class() {
-                    Some(class) => class,
-                    None => {
-                        return Return::Exception(
-                            "`super` used without any superclass available".to_string(),
-                        )
-                    }
-                };
-                let invokable = super_class.borrow().lookup_method(&self.signature);
-                (receiver, invokable)
-            }
-            expr => {
-                let receiver = propagate!(expr.evaluate(universe));
-                let invokable = receiver.lookup_method(universe, &self.signature);
-                (receiver, invokable)
-            }
-        };
+        let receiver = propagate!(self.receiver.evaluate(universe));
+        let invokable = receiver.lookup_method(universe, &self.signature);
         let args = {
             let mut output = Vec::with_capacity(self.values.len() + 1);
             output.push(receiver.clone());
@@ -272,6 +246,53 @@ impl Evaluate for ast::Message {
         //     self.signature,
         //     self.values,
         // );
+
+        let value = match invokable {
+            Some(invokable) => invokable.invoke(universe, args),
+            None => {
+                let mut args = args;
+                args.remove(0);
+                universe
+                    .does_not_understand(receiver.clone(), &self.signature, args)
+                    .unwrap_or_else(|| {
+                        Return::Exception(format!(
+                            "could not find method '{}>>#{}'",
+                            receiver.class(universe).borrow().name(),
+                            self.signature
+                        ))
+                        // Return::Local(Value::Nil)
+                    })
+            }
+        };
+
+        value
+    }
+}
+
+impl Evaluate for ast::SuperMessage {
+    fn evaluate(&self, universe: &mut UniverseAST) -> Return {
+        let super_class = match universe.lookup_global(&self.receiver_name) {
+            Some(Value::Class(cls)) => {
+                match self.is_static_class_call {
+                    true => cls.borrow().class(),
+                    false => Rc::clone(&cls),
+                }
+            }
+            Some(_) => return Return::Exception(format!("superclass name \"{}\" is not associated with a super class?", &self.receiver_name)),
+            None => return Return::Exception(format!("superclass \"{}\" does not exist?", &self.receiver_name))
+        };
+
+        let invokable = super_class.borrow().lookup_method(&self.signature);
+        let receiver = universe.current_frame().borrow().get_self();
+        let args = {
+            let mut output = Vec::with_capacity(self.values.len() + 1);
+            output.push(receiver.clone());
+            for expr in &self.values {
+                let value = propagate!(expr.evaluate(universe));
+                output.push(value);
+            }
+            output
+        };
 
         let value = match invokable {
             Some(invokable) => invokable.invoke(universe, args),

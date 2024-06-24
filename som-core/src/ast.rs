@@ -154,6 +154,8 @@ pub enum Expression {
     FieldWrite(usize, Box<Expression>),
     /// A message send (eg. `counter incrementBy: 5`).
     Message(Message),
+    /// A message send to a superclass.
+    SuperMessage(SuperMessage),
     /// A binary operation (eg. `counter <= 5`).
     BinaryOp(BinaryOp),
     /// An exit operation (eg. `^counter`). Second argument is the scope level to differentiate local and nonlocal returns
@@ -181,6 +183,19 @@ pub enum Expression {
 pub struct Message {
     /// The object to which the message is sent to.
     pub receiver: Box<Expression>,
+    /// The signature of the message (eg. "ifTrue:ifFalse:").
+    pub signature: String,
+    /// The list of dynamic values that are passed.
+    pub values: Vec<Expression>,
+}
+
+/// A message with "super" as the receiver, so the superclass.
+#[derive(Debug, Clone, PartialEq)]
+pub struct SuperMessage {
+    /// The object to which the message is sent to. TODO should not do a super call, but cache the class, really.
+    pub receiver_name: String,
+    /// Do we access the static or instance methods of the superclass?
+    pub is_static_class_call: bool,
     /// The signature of the message (eg. "ifTrue:ifFalse:").
     pub signature: String,
     /// The list of dynamic values that are passed.

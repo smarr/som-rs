@@ -104,6 +104,43 @@ impl<'a> AstGenCtxtData<'a> {
             }))
     }
 
+    // for debugging
+    pub fn get_class_name(&self) -> String {
+        match &self.kind {
+            AstGenCtxtType::Class => { self.name.clone() }
+            _ => self.outer_ctxt.as_ref().unwrap().borrow_mut().get_class_name()
+        }
+    }
+
+    pub fn get_super_class_name(&self) -> Option<String> {
+        match &self.kind {
+            AstGenCtxtType::Class => { self.super_class_name.clone() }
+            AstGenCtxtType::Method(method_type) => {
+                let s_cl_name = self.outer_ctxt.as_ref().unwrap().borrow_mut().get_super_class_name();
+                
+                match (&s_cl_name, method_type) {
+                    (Some(_), _) => s_cl_name,
+                    (None, AstMethodGenCtxtType::INSTANCE) => Some(String::from("Object")),
+                    (None, AstMethodGenCtxtType::CLASS) => Some(String::from("Class")),
+                }
+            }
+            _ => self.outer_ctxt.as_ref().unwrap().borrow_mut().get_super_class_name()
+        }
+    }
+    
+    pub fn is_method_static(&self) -> bool {
+        match &self.kind {
+            AstGenCtxtType::Class => { panic!("We went too high up when checking if a method is static: we're in the class AST context") }
+            AstGenCtxtType::Method(method_type) => {
+                match method_type {
+                    AstMethodGenCtxtType::INSTANCE => false,
+                    AstMethodGenCtxtType::CLASS => true,
+                }
+            }
+            _ => self.outer_ctxt.as_ref().unwrap().borrow().is_method_static()
+        }
+    }
+    
     pub fn get_outer(&mut self) -> AstGenCtxt<'a> {
         let outer = self.outer_ctxt.as_ref().unwrap();
         outer.borrow_mut().universe = mem::take(&mut self.universe);
@@ -117,7 +154,6 @@ impl<'a> AstGenCtxtData<'a> {
         };
         self.add_instance_fields(fields.0);
         self.add_static_fields(fields.1);
-        self.super_class_name = Some(name.clone());
     }
 
     pub fn add_instance_fields(&mut self, fields_names: Vec<String>) {

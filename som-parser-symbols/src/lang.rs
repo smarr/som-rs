@@ -137,6 +137,7 @@ pub fn super_class<'a>() -> impl Parser<String, &'a [Token], AstGenCtxt<'a>> {
         let (head, tail) = input.split_first()?;
         match head {
             Token::Identifier(value) => {
+                genctxt.borrow_mut().super_class_name = Some(value.clone());
                 if !["nil", "Class", "String", "Block", "Boolean"].contains(&value.as_str()) { // system classes that can be superclasses of other system classes. (and the special keyword "nil")
                     genctxt.borrow_mut().load_super_class_and_set_fields(value);
                 }
@@ -198,19 +199,60 @@ pub fn keyword<'a>() -> impl Parser<String, &'a [Token], AstGenCtxt<'a>> {
 }
 
 pub fn unary_send<'a>() -> impl Parser<Expression, &'a [Token], AstGenCtxt<'a>> {
-    opaque!(primary())
-        .and(many(identifier()))
-        .map(|(receiver, signatures)| {
-            signatures
+    // opaque!(primary())
+    //     .and(many(identifier()))
+    //     .map(|(receiver, signatures)| {
+    //         if !signatures.is_empty() {
+    //             dbg!(&receiver);
+    //             dbg!(&signatures);
+    //         }
+    //         signatures
+    //             .into_iter()
+    //             .fold(receiver, |receiver, signature| {
+    //                 // if let Expression::GlobalRead(ref s) = receiver {
+    //                 //     if s.as_str() == "super" {
+    //                 //         return Expression::SuperMessage(SuperMessage {
+    //                 //             receiver_name: String::from("TODO"),
+    //                 //             signature,
+    //                 //             values: Vec::new(),
+    //                 //         })
+    //                 //     }
+    //                 // }
+    // 
+    //                 Expression::Message(Message {
+    //                     receiver: Box::new(receiver),
+    //                     signature,
+    //                     values: Vec::new(),
+    //                 })
+    //             })
+    //     })
+        move |input: &'a [Token], genctxt: AstGenCtxt<'a>| {
+            let ((receiver, signatures), input, genctxt) = primary().and(many(identifier())).parse(input, genctxt)?;
+    
+            let a = signatures
                 .into_iter()
                 .fold(receiver, |receiver, signature| {
+                    if let Expression::GlobalRead(ref s) = receiver {
+                        if s.as_str() == "super" {
+                            // dbg!(genctxt.borrow().get_class_name()); // todo remove
+                            let receiver_name = genctxt.borrow().get_super_class_name().unwrap();
+                            return Expression::SuperMessage(SuperMessage {
+                                receiver_name,
+                                is_static_class_call: genctxt.borrow().is_method_static(),
+                                signature,
+                                values: Vec::new(),
+                            })
+                        }
+                    }
+    
                     Expression::Message(Message {
                         receiver: Box::new(receiver),
                         signature,
                         values: Vec::new(),
                     })
-                })
-        })
+                });
+            Some((a, input, genctxt))
+        }
 }
 
 pub fn binary_send<'a>() -> impl Parser<Expression, &'a [Token], AstGenCtxt<'a>> {
@@ -228,21 +270,34 @@ pub fn binary_send<'a>() -> impl Parser<Expression, &'a [Token], AstGenCtxt<'a>>
 }
 
 pub fn positional_send<'a>() -> impl Parser<Expression, &'a [Token], AstGenCtxt<'a>> {
-    binary_send()
-        .and(many(keyword().and(binary_send())))
-        .map(|(receiver, pairs)| {
-            if pairs.is_empty() {
-                receiver
-            } else {
-                let (signature, values) = pairs.into_iter().unzip();
+    move |input: &'a [Token], genctxt| {
+        let ((receiver, pairs), input, genctxt) = binary_send().and(many(keyword().and(binary_send()))).parse(input, genctxt)?;
 
-                Expression::Message(Message {
-                    receiver: Box::new(receiver),
-                    signature,
-                    values,
-                })
+        if pairs.is_empty() {
+            Some((receiver, input, genctxt))
+        } else {
+            let (signature, values) = pairs.into_iter().unzip();
+
+            if let Expression::GlobalRead(ref s) = receiver {
+                if s.as_str() == "super" {
+                    let receiver_name = genctxt.borrow().super_class_name.as_ref().unwrap().clone();
+                    let is_static_class = genctxt.borrow().is_method_static();
+                    return Some((Expression::SuperMessage(SuperMessage {
+                        receiver_name,
+                        is_static_class_call: is_static_class,
+                        signature,
+                        values,
+                    }), input, genctxt))
+                }
             }
-        })
+
+            Some((Expression::Message(Message {
+                receiver: Box::new(receiver),
+                signature,
+                values,
+            }), input, genctxt))
+        }
+    }
 }
 
 pub fn body<'a>() -> impl Parser<Body, &'a [Token], AstGenCtxt<'a>> {
@@ -382,12 +437,12 @@ pub fn method_body<'a>() -> impl Parser<MethodBody, &'a [Token], AstGenCtxt<'a>>
             exact(Token::EndTerm),
         ).parse(input, genctxt)?;
 
-        let method_body = MethodBody::Body { 
+        let method_body = MethodBody::Body {
             locals_nbr: locals.len(),
             body,
-            debug_info: genctxt.borrow().get_debug_info()
+            debug_info: genctxt.borrow().get_debug_info(),
         };
-        
+
         Some((method_body, input, genctxt))
     }
 }
@@ -399,10 +454,10 @@ pub fn method_body<'a>() -> impl Parser<MethodBody, &'a [Token], AstGenCtxt<'a>>
         default(locals()).and(body()),
         exact(Token::EndTerm),
     )
-    .map(|(locals, body)| MethodBody::Body {
-        locals_nbr: locals.len(),
-        body
-    })
+        .map(|(locals, body)| MethodBody::Body {
+            locals_nbr: locals.len(),
+            body,
+        })
 }
 
 pub fn unary_method_def<'a>() -> impl Parser<MethodDef, &'a [Token], AstGenCtxt<'a>> {
@@ -433,7 +488,7 @@ pub fn positional_method_def<'a>() -> impl Parser<MethodDef, &'a [Token], AstGen
                     signature,
                     body,
                 }, true)
-            },
+            }
             "whileFalse:" => {
                 InlinedWhile(GenericMethodDef {
                     kind: MethodKind::Positional { parameters },
@@ -447,21 +502,21 @@ pub fn positional_method_def<'a>() -> impl Parser<MethodDef, &'a [Token], AstGen
                     signature,
                     body,
                 }, true)
-            },
+            }
             "ifFalse:" => {
                 InlinedIf(GenericMethodDef {
                     kind: MethodKind::Positional { parameters },
                     signature,
                     body,
                 }, false)
-            },
+            }
             "ifTrue:ifFalse:" => {
                 InlinedIfTrueIfFalse(GenericMethodDef {
                     kind: MethodKind::Positional { parameters },
                     signature,
                     body,
                 })
-            },
+            }
             _ => Generic(GenericMethodDef {
                 kind: MethodKind::Positional { parameters: parameters.clone() },
                 signature,
@@ -499,7 +554,7 @@ pub fn instance_method_def<'a>() -> impl Parser<MethodDef, &'a [Token], AstGenCt
             Some((method_def, input, genctxt)) => {
                 let original_genctxt = genctxt.borrow_mut().get_outer();
                 Some((method_def, input, original_genctxt))
-            },
+            }
             None => None,
         }
     }
@@ -516,7 +571,7 @@ pub fn class_method_def<'a>() -> impl Parser<MethodDef, &'a [Token], AstGenCtxt<
             Some((method_def, input, genctxt)) => {
                 let original_genctxt = genctxt.borrow_mut().get_outer();
                 Some((method_def, input, original_genctxt))
-            },
+            }
             None => None,
         }
     }
@@ -527,7 +582,7 @@ pub fn class_def<'a>() -> impl Parser<ClassDef, &'a [Token], AstGenCtxt<'a>> {
         let (name, input, genctxt) = identifier().and_left(exact(Token::Equal)).parse(input, genctxt)?;
 
         genctxt.borrow_mut().name = name.clone();
-        
+
         optional(super_class())
             .and(between(
                 exact(Token::NewTerm),

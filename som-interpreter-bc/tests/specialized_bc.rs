@@ -30,7 +30,7 @@ fn get_bytecodes_from_method(class_txt: &str, method_name: &str) -> Vec<Bytecode
         "could not fully tokenize test expression"
     );
 
-    let class_def = som_parser::apply(lang::class_def(), tokens.as_slice(), None).unwrap();
+    let class_def = som_parser::apply(lang::class_def(), tokens.as_slice(), Some(&mut universe)).unwrap();
 
     let object_class = universe.object_class();
     let class = compiler::compile_class(&mut universe.interner, &class_def, Some(&object_class));
@@ -147,7 +147,7 @@ fn send_bytecodes() {
 
 #[test]
 fn super_send_bytecodes() {
-    let class_txt = "Foo = (
+    let class_txt = "Foo = Vector (
         run = (
             super send1.
             super sendtwo: 1.
