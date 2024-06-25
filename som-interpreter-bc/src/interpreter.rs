@@ -139,10 +139,6 @@ impl Interpreter {
 
     pub fn run(&mut self, universe: &mut UniverseBC) -> Option<Value> {
         loop {
-            if self.frames.is_empty() {
-                return Some(self.stack.pop().unwrap_or(Value::Nil));
-            }
-
             let frame = Rc::clone(&self.current_frame);
 
             // Actually safe, there's always a reference to the current bytecodes. Need unsafe because we want to store a ref for quick access in perf-critical code
@@ -326,10 +322,16 @@ impl Interpreter {
                 Bytecode::ReturnSelf => {
                     let self_val = frame.borrow().args.get(0).unwrap().clone();
                     self.pop_frame();
+                    if self.frames.is_empty() {
+                        return Some(self_val);
+                    }
                     self.stack.push(self_val);
                 }
                 Bytecode::ReturnLocal => {
                     self.pop_frame();
+                    if self.frames.is_empty() {
+                        return Some(self.stack.pop().unwrap_or(Value::Nil));
+                    }
                 }
                 Bytecode::ReturnNonLocal(up_idx) => {
                     let method_frame = Frame::nth_frame_back(Rc::clone(&frame), up_idx);
@@ -341,6 +343,9 @@ impl Interpreter {
 
                     if let Some(count) = escaped_frames {
                         self.pop_n_frames(count + 1);
+                        if self.frames.is_empty() {
+                            return Some(self.stack.pop().unwrap_or(Value::Nil));
+                        }
                     } else {
                         // NB: I did some changes there with the blockself bits and i'm not positive it works the same as before, but it should.
 
