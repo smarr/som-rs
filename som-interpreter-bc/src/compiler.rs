@@ -771,6 +771,11 @@ fn compile_block(outer: &mut dyn GenCtxt, defn: &ast::Block) -> Option<Block> {
         ctxt.push_instr(Bytecode::ReturnLocal);
     }
     ctxt.remove_dup_popx_pop_sequences();
+    
+    if ctxt.body.is_none() {
+        ctxt.push_instr(Bytecode::PushNil); // not 1000% sure this is valid? passes tests though.
+        ctxt.push_instr(Bytecode::ReturnLocal);
+    }
 
     let frame = None;
     // let locals = {
