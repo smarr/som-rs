@@ -154,56 +154,90 @@ impl Interpreter {
                     return Some(Value::Nil);
                 }
                 Bytecode::Dup => {
+                    #[cfg(feature = "profiler")]
+                    let timing = Profiler::global().start_detached_event("DUP", "bytecodes");
                     let value = self.stack.last().cloned().unwrap();
                     self.stack.push(value);
+                    #[cfg(feature = "profiler")]
+                    Profiler::global().finish_detached_event(timing);
                 }
                 Bytecode::Inc => {
+                    #[cfg(feature = "profiler")]
+                    let timing = Profiler::global().start_detached_event("INC", "bytecodes");
                     match self.stack.last_mut().unwrap() {
                         Value::Integer(v) => { *v += 1 }
                         Value::BigInteger(v) => { *v += 1 }
                         Value::Double(v) => { *v += 1.0 }
                         _ => panic!("Invalid type")
                     };
+                    #[cfg(feature = "profiler")]
+                    Profiler::global().finish_detached_event(timing);
                 }
                 Bytecode::Dec => {
+                    #[cfg(feature = "profiler")]
+                    let timing = Profiler::global().start_detached_event("DEC", "bytecodes");
                     match self.stack.last_mut().unwrap() {
                         Value::Integer(v) => { *v -= 1 }
                         Value::BigInteger(v) => { *v -= 1 }
                         Value::Double(v) => { *v -= 1.0 }
                         _ => panic!("Invalid type")
                     };
+                    #[cfg(feature = "profiler")]
+                    Profiler::global().finish_detached_event(timing);
                 }
                 Bytecode::PushLocal(idx) => {
+                    #[cfg(feature = "profiler")]
+                    let timing = Profiler::global().start_detached_event("PUSH_LOCAL", "bytecodes");
                     let value = frame.borrow().lookup_local(idx as usize).unwrap();
                     self.stack.push(value);
+                    #[cfg(feature = "profiler")]
+                    Profiler::global().finish_detached_event(timing);
                 }
                 Bytecode::PushNonLocal(up_idx, idx) => {
+                    #[cfg(feature = "profiler")]
+                    let timing = Profiler::global().start_detached_event("PUSH_NON_LOCAL", "bytecodes");
                     debug_assert_ne!(up_idx, 0);
                     let from = Frame::nth_frame_back(frame, up_idx);
                     let value = from.borrow().lookup_local(idx as usize).unwrap();
                     self.stack.push(value);
+                    #[cfg(feature = "profiler")]
+                    Profiler::global().finish_detached_event(timing);
                 }
                 Bytecode::PushArg(idx) => {
+                    #[cfg(feature = "profiler")]
+                    let timing = Profiler::global().start_detached_event("PUSH_ARG", "bytecodes");
                     debug_assert_ne!(idx, 0); // that's a ReturnSelf case.
                     let value = frame.borrow().lookup_argument(idx as usize).unwrap();
                     self.stack.push(value);
+                    #[cfg(feature = "profiler")]
+                    Profiler::global().finish_detached_event(timing);
                 }
                 Bytecode::PushNonLocalArg(up_idx, idx) => {
+                    #[cfg(feature = "profiler")]
+                    let timing = Profiler::global().start_detached_event("PUSHNONLOCAL_ARG", "bytecodes");
                     debug_assert_ne!(up_idx, 0);
                     debug_assert_ne!((up_idx, idx), (0, 0)); // that's a ReturnSelf case.
                     let from = Frame::nth_frame_back(frame, up_idx);
                     let value = from.borrow().lookup_argument(idx as usize).unwrap();
                     self.stack.push(value);
+                    #[cfg(feature = "profiler")]
+                    Profiler::global().finish_detached_event(timing);
                 }
                 Bytecode::PushField(idx) => {
+                    #[cfg(feature = "profiler")]
+                    let timing = Profiler::global().start_detached_event("PUSH_FIELD", "bytecodes");
                     let value = match frame.borrow().get_self() {
                         Value::Instance(i) => { i.borrow_mut().lookup_local(idx as usize) }
                         Value::Class(c) => { c.borrow().class().borrow_mut().lookup_local(idx as usize) }
                         v => { panic!("trying to read a field from a {:?}", &v) }
                     };
                     self.stack.push(value.unwrap());
+                    #[cfg(feature = "profiler")]
+                    Profiler::global().finish_detached_event(timing);
                 }
                 Bytecode::PushBlock(idx) => {
+                    #[cfg(feature = "profiler")]
+                    let timing = Profiler::global().start_detached_event("PUSH_BLOCK", "bytecodes");
                     let literal = frame.borrow().lookup_constant(idx as usize).unwrap();
                     let mut block = match literal {
                         Literal::Block(blk) => Block::clone(&blk),
@@ -211,28 +245,48 @@ impl Interpreter {
                     };
                     block.frame.replace(Rc::clone(&frame));
                     self.stack.push(Value::Block(Rc::new(block)));
+                    #[cfg(feature = "profiler")]
+                    Profiler::global().finish_detached_event(timing);
                 }
                 Bytecode::PushConstant(idx) => {
+                    #[cfg(feature = "profiler")]
+                    let timing = Profiler::global().start_detached_event("PUSH_CONSTANT", "bytecodes");
                     let literal = frame.borrow().lookup_constant(idx as usize).unwrap();
                     let value = convert_literal(&frame, literal).unwrap();
                     self.stack.push(value);
+                    #[cfg(feature = "profiler")]
+                    Profiler::global().finish_detached_event(timing);
                 }
                 Bytecode::PushConstant0 => {
+                    #[cfg(feature = "profiler")]
+                    let timing = Profiler::global().start_detached_event("PUSH_CONSTANT_0", "bytecodes");
                     let literal = frame.borrow().lookup_constant(0).unwrap();
                     let value = convert_literal(&frame, literal).unwrap();
                     self.stack.push(value);
+                    #[cfg(feature = "profiler")]
+                    Profiler::global().finish_detached_event(timing);
                 }
                 Bytecode::PushConstant1 => {
+                    #[cfg(feature = "profiler")]
+                    let timing = Profiler::global().start_detached_event("PUSH_CONSTANT_1", "bytecodes");
                     let literal = frame.borrow().lookup_constant(1).unwrap();
                     let value = convert_literal(&frame, literal).unwrap();
                     self.stack.push(value);
+                    #[cfg(feature = "profiler")]
+                    Profiler::global().finish_detached_event(timing);
                 }
                 Bytecode::PushConstant2 => {
+                    #[cfg(feature = "profiler")]
+                    let timing = Profiler::global().start_detached_event("PUSH_CONSTANT_2", "bytecodes");
                     let literal = frame.borrow().lookup_constant(2).unwrap();
                     let value = convert_literal(&frame, literal).unwrap();
                     self.stack.push(value);
+                    #[cfg(feature = "profiler")]
+                    Profiler::global().finish_detached_event(timing);
                 }
                 Bytecode::PushGlobal(idx) => {
+                    #[cfg(feature = "profiler")]
+                    let timing = Profiler::global().start_detached_event("PUSH_GLOBAL", "bytecodes");
                     let literal = frame.borrow().lookup_constant(idx as usize).unwrap();
                     let symbol = match literal {
                         Literal::Symbol(sym) => sym,
@@ -244,31 +298,63 @@ impl Interpreter {
                         let self_value = frame.borrow().get_self();
                         universe.unknown_global(self, self_value, symbol).unwrap();
                     }
+                    #[cfg(feature = "profiler")]
+                    Profiler::global().finish_detached_event(timing);
                 }
                 Bytecode::Push0 => {
+                    #[cfg(feature = "profiler")]
+                    let timing = Profiler::global().start_detached_event("PUSH_0", "bytecodes");
                     self.stack.push(INT_0);
+                    #[cfg(feature = "profiler")]
+                    Profiler::global().finish_detached_event(timing);
                 }
                 Bytecode::Push1 => {
+                    #[cfg(feature = "profiler")]
+                    let timing = Profiler::global().start_detached_event("PUSH_1", "bytecodes");
                     self.stack.push(INT_1);
+                    #[cfg(feature = "profiler")]
+                    Profiler::global().finish_detached_event(timing);
                 }
                 Bytecode::PushNil => {
+                    #[cfg(feature = "profiler")]
+                    let timing = Profiler::global().start_detached_event("PUSH_NIL", "bytecodes");
                     self.stack.push(Value::Nil);
+                    #[cfg(feature = "profiler")]
+                    Profiler::global().finish_detached_event(timing);
                 }
                 Bytecode::PushSelf => {
+                    #[cfg(feature = "profiler")]
+                    let timing = Profiler::global().start_detached_event("PUSH_SELF", "bytecodes");
                     self.stack.push(frame.borrow().lookup_argument(0).unwrap());
+                    #[cfg(feature = "profiler")]
+                    Profiler::global().finish_detached_event(timing);
                 }
                 Bytecode::Pop => {
+                    #[cfg(feature = "profiler")]
+                    let timing = Profiler::global().start_detached_event("POP", "bytecodes");
                     self.stack.pop();
+                    #[cfg(feature = "profiler")]
+                    Profiler::global().finish_detached_event(timing);
                 }
                 Bytecode::Pop2 => {
+                    #[cfg(feature = "profiler")]
+                    let timing = Profiler::global().start_detached_event("POP2", "bytecodes");
                     self.stack.remove(self.stack.len() - 2);
+                    #[cfg(feature = "profiler")]
+                    Profiler::global().finish_detached_event(timing);
                 }
                 Bytecode::PopLocal(up_idx, idx) => {
+                    #[cfg(feature = "profiler")]
+                    let timing = Profiler::global().start_detached_event("POP_LOCAL", "bytecodes");
                     let value = self.stack.pop().unwrap();
                     let from = Frame::nth_frame_back(frame, up_idx);
                     from.borrow_mut().assign_local(idx as usize, value).unwrap();
+                    #[cfg(feature = "profiler")]
+                    Profiler::global().finish_detached_event(timing);
                 }
                 Bytecode::PopArg(up_idx, idx) => {
+                    #[cfg(feature = "profiler")]
+                    let timing = Profiler::global().start_detached_event("POP_ARG", "bytecodes");
                     let value = self.stack.pop().unwrap();
                     let from = Frame::nth_frame_back(frame, up_idx);
                     from.borrow_mut()
@@ -276,54 +362,106 @@ impl Interpreter {
                         .get_mut(idx as usize)
                         .map(|loc| *loc = value)
                         .unwrap();
+                    #[cfg(feature = "profiler")]
+                    Profiler::global().finish_detached_event(timing);
                 }
                 Bytecode::PopField(idx) => {
+                    #[cfg(feature = "profiler")]
+                    let timing = Profiler::global().start_detached_event("POP_FIELD", "bytecodes");
                     let value = self.stack.pop().unwrap();
                     match frame.borrow_mut().get_self() {
                         Value::Instance(i) => { i.borrow_mut().assign_local(idx as usize, value) }
                         Value::Class(c) => { c.borrow().class().borrow_mut().assign_local(idx as usize, value) }
                         v => { panic!("{:?}", &v) }
                     };
+                    #[cfg(feature = "profiler")]
+                    Profiler::global().finish_detached_event(timing);
                 }
                 Bytecode::Send1(idx) => {
+                    #[cfg(feature = "profiler")]
+                    let timing = Profiler::global().start_detached_event("SEND_1", "bytecodes");
                     send! {self, universe, &frame, idx, Some(0)} // Send1 => receiver + 0 args, so we pass Some(0)
+                    #[cfg(feature = "profiler")]
+                    Profiler::global().finish_detached_event(timing);
                 }
                 Bytecode::Send2(idx) => {
+                    #[cfg(feature = "profiler")]
+                    let timing = Profiler::global().start_detached_event("SEND_2", "bytecodes");
                     send! {self, universe, &frame, idx, Some(1)}
+                    #[cfg(feature = "profiler")]
+                    Profiler::global().finish_detached_event(timing);
                 }
                 Bytecode::Send3(idx) => {
+                    #[cfg(feature = "profiler")]
+                    let timing = Profiler::global().start_detached_event("SEND_3", "bytecodes");
                     send! {self, universe, &frame, idx, Some(2)}
+                    #[cfg(feature = "profiler")]
+                    Profiler::global().finish_detached_event(timing);
                 }
                 Bytecode::SendN(idx) => {
+                    #[cfg(feature = "profiler")]
+                    let timing = Profiler::global().start_detached_event("SEND_N", "bytecodes");
                     send! {self, universe, &frame, idx, None}
+                    #[cfg(feature = "profiler")]
+                    Profiler::global().finish_detached_event(timing);
                 }
                 Bytecode::SuperSend1(idx) => {
+                    #[cfg(feature = "profiler")]
+                    let timing = Profiler::global().start_detached_event("SUPER_SEND_1", "bytecodes");
                     super_send! {self, universe, &frame, idx, Some(0)}
+                    #[cfg(feature = "profiler")]
+                    Profiler::global().finish_detached_event(timing);
                 }
                 Bytecode::SuperSend2(idx) => {
+                    #[cfg(feature = "profiler")]
+                    let timing = Profiler::global().start_detached_event("SUPER_SEND_2", "bytecodes");
                     super_send! {self, universe, &frame, idx, Some(1)}
+                    #[cfg(feature = "profiler")]
+                    Profiler::global().finish_detached_event(timing);
                 }
                 Bytecode::SuperSend3(idx) => {
+                    #[cfg(feature = "profiler")]
+                    let timing = Profiler::global().start_detached_event("SUPER_SEND_3", "bytecodes");
                     super_send! {self, universe, &frame, idx, Some(2)}
+                    #[cfg(feature = "profiler")]
+                    Profiler::global().finish_detached_event(timing);
                 }
                 Bytecode::SuperSendN(idx) => {
+                    #[cfg(feature = "profiler")]
+                    let timing = Profiler::global().start_detached_event("SUPER_SEND_N", "bytecodes");
                     super_send! {self, universe, &frame, idx, None}
+                    #[cfg(feature = "profiler")]
+                    Profiler::global().finish_detached_event(timing);
                 }
                 Bytecode::ReturnSelf => {
+                    #[cfg(feature = "profiler")]
+                    let timing = Profiler::global().start_detached_event("RETURN_SELF", "bytecodes");
                     let self_val = frame.borrow().args.get(0).unwrap().clone();
                     self.pop_frame();
                     if self.frames.is_empty() {
+                        #[cfg(feature = "profiler")]
+                        Profiler::global().finish_detached_event(timing);
                         return Some(self_val);
                     }
                     self.stack.push(self_val);
+                    #[cfg(feature = "profiler")]
+                    Profiler::global().finish_detached_event(timing);
                 }
                 Bytecode::ReturnLocal => {
+                    #[cfg(feature = "profiler")]
+                    let timing = Profiler::global().start_detached_event("RETURN_LOCAL", "bytecodes");
                     self.pop_frame();
                     if self.frames.is_empty() {
+                        #[cfg(feature = "profiler")]
+                        Profiler::global().finish_detached_event(timing);
                         return Some(self.stack.pop().unwrap_or(Value::Nil));
                     }
+                    #[cfg(feature = "profiler")]
+                    Profiler::global().finish_detached_event(timing);
                 }
                 Bytecode::ReturnNonLocal(up_idx) => {
+                    #[cfg(feature = "profiler")]
+                    let timing = Profiler::global().start_detached_event("RETURN_NON_LOCAL", "bytecodes");
                     let method_frame = Frame::nth_frame_back(Rc::clone(&frame), up_idx);
                     let escaped_frames = self
                         .frames
@@ -334,6 +472,8 @@ impl Interpreter {
                     if let Some(count) = escaped_frames {
                         self.pop_n_frames(count + 1);
                         if self.frames.is_empty() {
+                            #[cfg(feature = "profiler")]
+                            Profiler::global().finish_detached_event(timing);
                             return Some(self.stack.pop().unwrap_or(Value::Nil));
                         }
                     } else {
@@ -356,12 +496,22 @@ impl Interpreter {
                     }
                 }
                 Bytecode::Jump(offset) => {
+                    #[cfg(feature = "profiler")]
+                    let timing = Profiler::global().start_detached_event("JUMP", "bytecodes");
                     self.bytecode_idx += offset - 1; // minus one because it gets incremented by one already every loop
+                    #[cfg(feature = "profiler")]
+                    Profiler::global().finish_detached_event(timing);
                 }
                 Bytecode::JumpBackward(offset) => {
+                    #[cfg(feature = "profiler")]
+                    let timing = Profiler::global().start_detached_event("JUMP_BACKWARDS", "bytecodes");
                     self.bytecode_idx -= offset + 1;
+                    #[cfg(feature = "profiler")]
+                    Profiler::global().finish_detached_event(timing);
                 }
                 Bytecode::JumpOnTrueTopNil(offset) => {
+                    #[cfg(feature = "profiler")]
+                    let timing = Profiler::global().start_detached_event("JUMP_ON_TRUE_TOP_NIL", "bytecodes");
                     let condition_result = self.stack.last()?;
 
                     match condition_result {
@@ -374,8 +524,12 @@ impl Interpreter {
                         }
                         _ => panic!("JumpOnTrueTopNil condition did not evaluate to boolean (was {:?})", condition_result),
                     }
+                    #[cfg(feature = "profiler")]
+                    Profiler::global().finish_detached_event(timing);
                 }
                 Bytecode::JumpOnFalseTopNil(offset) => {
+                    #[cfg(feature = "profiler")]
+                    let timing = Profiler::global().start_detached_event("JUMP_ON_FALSE_TOP_NIL", "bytecodes");
                     let condition_result = self.stack.last()?;
 
                     match condition_result {
@@ -388,8 +542,12 @@ impl Interpreter {
                         }
                         _ => panic!("JumpOnFalseTopNil condition did not evaluate to boolean (was {:?})", condition_result),
                     }
+                    #[cfg(feature = "profiler")]
+                    Profiler::global().finish_detached_event(timing);
                 }
                 Bytecode::JumpOnTruePop(offset) => {
+                    #[cfg(feature = "profiler")]
+                    let timing = Profiler::global().start_detached_event("JUMP_ON_TRUE_POP", "bytecodes");
                     let condition_result = self.stack.pop()?;
 
                     match condition_result {
@@ -399,8 +557,12 @@ impl Interpreter {
                         Value::Boolean(false) => {}
                         _ => panic!("JumpOnTruePop condition did not evaluate to boolean (was {:?})", condition_result),
                     }
+                    #[cfg(feature = "profiler")]
+                    Profiler::global().finish_detached_event(timing);
                 }
                 Bytecode::JumpOnFalsePop(offset) => {
+                    #[cfg(feature = "profiler")]
+                    let timing = Profiler::global().start_detached_event("JUMP_ON_FALSE_POP", "bytecodes");
                     let condition_result = self.stack.pop()?;
 
                     match condition_result {
@@ -410,6 +572,8 @@ impl Interpreter {
                         Value::Boolean(true) => {}
                         _ => panic!("JumpOnFalsePop condition did not evaluate to boolean (was {:?})", condition_result),
                     }
+                    #[cfg(feature = "profiler")]
+                    Profiler::global().finish_detached_event(timing);
                 }
             }
         }
