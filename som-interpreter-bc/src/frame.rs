@@ -180,6 +180,7 @@ impl Frame {
         unsafe { (*self.literals).get(idx).cloned() }
     }
 
+    #[inline(always)]
     pub fn lookup_argument(&self, idx: usize) -> Option<Value> {
         self.args.get(idx).cloned()
     }
