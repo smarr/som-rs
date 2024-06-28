@@ -207,7 +207,7 @@ impl Interpreter {
                     #[cfg(feature = "profiler")]
                     let timing = Profiler::global().start_detached_event("PUSH_ARG", "bytecodes");
                     debug_assert_ne!(idx, 0); // that's a ReturnSelf case.
-                    let value = frame.borrow().lookup_argument(idx as usize).unwrap();
+                    let value = frame.borrow().lookup_argument(idx as usize);
                     self.stack.push(value);
                     #[cfg(feature = "profiler")]
                     Profiler::global().finish_detached_event(timing);
@@ -218,7 +218,7 @@ impl Interpreter {
                     debug_assert_ne!(up_idx, 0);
                     debug_assert_ne!((up_idx, idx), (0, 0)); // that's a ReturnSelf case.
                     let from = Frame::nth_frame_back(frame, up_idx);
-                    let value = from.borrow().lookup_argument(idx as usize).unwrap();
+                    let value = from.borrow().lookup_argument(idx as usize);
                     self.stack.push(value);
                     #[cfg(feature = "profiler")]
                     Profiler::global().finish_detached_event(timing);
@@ -325,7 +325,7 @@ impl Interpreter {
                 Bytecode::PushSelf => {
                     #[cfg(feature = "profiler")]
                     let timing = Profiler::global().start_detached_event("PUSH_SELF", "bytecodes");
-                    self.stack.push(frame.borrow().lookup_argument(0).unwrap());
+                    self.stack.push(frame.borrow().lookup_argument(0));
                     #[cfg(feature = "profiler")]
                     Profiler::global().finish_detached_event(timing);
                 }

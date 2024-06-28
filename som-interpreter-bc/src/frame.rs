@@ -181,8 +181,8 @@ impl Frame {
     }
 
     #[inline(always)]
-    pub fn lookup_argument(&self, idx: usize) -> Option<Value> {
-        self.args.get(idx).cloned()
+    pub fn lookup_argument(&self, idx: usize) -> Value {
+        unsafe { self.args.get_unchecked(idx).clone() }
     }
 
     /// Search for a local binding.
