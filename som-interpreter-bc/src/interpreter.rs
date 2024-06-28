@@ -156,6 +156,7 @@ impl Interpreter {
                     #[cfg(feature = "profiler")]
                     let timing = Profiler::global().start_detached_event("DUP", "bytecodes");
                     let value = self.stack.last().cloned().unwrap();
+
                     self.stack.push(value);
                     #[cfg(feature = "profiler")]
                     Profiler::global().finish_detached_event(timing);
@@ -331,7 +332,7 @@ impl Interpreter {
                 Bytecode::Pop => {
                     #[cfg(feature = "profiler")]
                     let timing = Profiler::global().start_detached_event("POP", "bytecodes");
-                    self.stack.pop();
+                    unsafe {self.stack.set_len(self.stack.len() - 1);}
                     #[cfg(feature = "profiler")]
                     Profiler::global().finish_detached_event(timing);
                 }
