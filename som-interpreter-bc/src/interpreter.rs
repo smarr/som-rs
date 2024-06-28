@@ -192,7 +192,7 @@ impl Interpreter {
                 Bytecode::PushLocal(idx) => {
                     #[cfg(feature = "profiler")]
                     let timing = Profiler::global().start_detached_event("PUSH_LOCAL", "bytecodes");
-                    let value = frame.borrow().lookup_local(idx as usize).unwrap();
+                    let value = frame.borrow().lookup_local(idx as usize);
                     self.stack.push(value);
                     #[cfg(feature = "profiler")]
                     Profiler::global().finish_detached_event(timing);
@@ -202,7 +202,7 @@ impl Interpreter {
                     let timing = Profiler::global().start_detached_event("PUSH_NON_LOCAL", "bytecodes");
                     debug_assert_ne!(up_idx, 0);
                     let from = Frame::nth_frame_back(frame, up_idx);
-                    let value = from.borrow().lookup_local(idx as usize).unwrap();
+                    let value = from.borrow().lookup_local(idx as usize);
                     self.stack.push(value);
                     #[cfg(feature = "profiler")]
                     Profiler::global().finish_detached_event(timing);
@@ -352,7 +352,7 @@ impl Interpreter {
                     let timing = Profiler::global().start_detached_event("POP_LOCAL", "bytecodes");
                     let value = self.stack.pop().unwrap();
                     let from = Frame::nth_frame_back(frame, up_idx);
-                    from.borrow_mut().assign_local(idx as usize, value).unwrap();
+                    from.borrow_mut().assign_local(idx as usize, value);
                     #[cfg(feature = "profiler")]
                     Profiler::global().finish_detached_event(timing);
                 }
@@ -361,11 +361,7 @@ impl Interpreter {
                     let timing = Profiler::global().start_detached_event("POP_ARG", "bytecodes");
                     let value = self.stack.pop().unwrap();
                     let from = Frame::nth_frame_back(frame, up_idx);
-                    from.borrow_mut()
-                        .args
-                        .get_mut(idx as usize)
-                        .map(|loc| *loc = value)
-                        .unwrap();
+                    from.borrow_mut().assign_arg(idx as usize, value);
                     #[cfg(feature = "profiler")]
                     Profiler::global().finish_detached_event(timing);
                 }

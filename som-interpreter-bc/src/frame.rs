@@ -186,13 +186,22 @@ impl Frame {
     }
 
     /// Search for a local binding.
-    pub fn lookup_local(&self, idx: usize) -> Option<Value> {
-        self.locals.get(idx).cloned()
+    pub fn lookup_local(&self, idx: usize) -> Value {
+        unsafe { self.locals.get_unchecked(idx).clone() }
     }
 
     /// Assign to a local binding.
-    pub fn assign_local(&mut self, idx: usize, value: Value) -> Option<()> {
-        self.locals.get_mut(idx).map(|local| *local = value)
+    pub fn assign_local(&mut self, idx: usize, value: Value) {
+        unsafe {
+            *self.locals.get_unchecked_mut(idx) = value;
+        }
+    }
+
+    /// Assign to an argument.
+    pub fn assign_arg(&mut self, idx: usize, value: Value) {
+        unsafe {
+            *self.args.get_unchecked_mut(idx) = value;
+        }
     }
 
     pub fn nth_frame_back(current_frame: SOMRef<Frame>, n: u8) -> SOMRef<Frame> {
