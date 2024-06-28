@@ -87,11 +87,7 @@ pub struct Interpreter {
 impl Interpreter {
     pub fn new(base_frame: SOMRef<Frame>) -> Self {
         Self {
-            frames: {
-                let mut f = Vec::with_capacity(20);
-                f.push(Rc::clone(&base_frame));
-                f
-            },
+            frames: vec![Rc::clone(&base_frame)],
             stack: vec![],
             start_time: Instant::now(),
             bytecode_idx: 0,
