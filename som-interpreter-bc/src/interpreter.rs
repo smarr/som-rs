@@ -22,7 +22,7 @@ const INT_1: Value = Value::Integer(1);
 
 macro_rules! send {
     ($interp:expr, $universe:expr, $frame:expr, $lit_idx:expr, $nb_params:expr) => {{
-        let literal = $frame.borrow().lookup_constant($lit_idx as usize).unwrap();
+        let literal = $frame.borrow().lookup_constant($lit_idx as usize);
         let Literal::Symbol(symbol) = literal else {
             return None;
         };
@@ -47,8 +47,7 @@ macro_rules! super_send {
     ($interp:expr, $universe:expr, $frame_expr:expr, $lit_idx:expr, $nb_params:expr) => {{
         let literal = $frame_expr
             .borrow()
-            .lookup_constant($lit_idx as usize)
-            .unwrap();
+            .lookup_constant($lit_idx as usize);
         let Literal::Symbol(symbol) = literal else {
             return None;
         };
@@ -238,7 +237,7 @@ impl Interpreter {
                 Bytecode::PushBlock(idx) => {
                     #[cfg(feature = "profiler")]
                     let timing = Profiler::global().start_detached_event("PUSH_BLOCK", "bytecodes");
-                    let literal = frame.borrow().lookup_constant(idx as usize).unwrap();
+                    let literal = frame.borrow().lookup_constant(idx as usize);
                     let mut block = match literal {
                         Literal::Block(blk) => Block::clone(&blk),
                         _ => panic!("PushBlock expected a block, but got another invalid literal"),
@@ -251,8 +250,8 @@ impl Interpreter {
                 Bytecode::PushConstant(idx) => {
                     #[cfg(feature = "profiler")]
                     let timing = Profiler::global().start_detached_event("PUSH_CONSTANT", "bytecodes");
-                    let literal = frame.borrow().lookup_constant(idx as usize).unwrap();
-                    let value = convert_literal(&frame, literal).unwrap();
+                    let literal = frame.borrow().lookup_constant(idx as usize).clone();
+                    let value = convert_literal(&frame, literal);
                     self.stack.push(value);
                     #[cfg(feature = "profiler")]
                     Profiler::global().finish_detached_event(timing);
@@ -260,8 +259,8 @@ impl Interpreter {
                 Bytecode::PushConstant0 => {
                     #[cfg(feature = "profiler")]
                     let timing = Profiler::global().start_detached_event("PUSH_CONSTANT_0", "bytecodes");
-                    let literal = frame.borrow().lookup_constant(0).unwrap();
-                    let value = convert_literal(&frame, literal).unwrap();
+                    let literal = frame.borrow().lookup_constant(0).clone();
+                    let value = convert_literal(&frame, literal);
                     self.stack.push(value);
                     #[cfg(feature = "profiler")]
                     Profiler::global().finish_detached_event(timing);
@@ -269,8 +268,8 @@ impl Interpreter {
                 Bytecode::PushConstant1 => {
                     #[cfg(feature = "profiler")]
                     let timing = Profiler::global().start_detached_event("PUSH_CONSTANT_1", "bytecodes");
-                    let literal = frame.borrow().lookup_constant(1).unwrap();
-                    let value = convert_literal(&frame, literal).unwrap();
+                    let literal = frame.borrow().lookup_constant(1);
+                    let value = convert_literal(&frame, literal);
                     self.stack.push(value);
                     #[cfg(feature = "profiler")]
                     Profiler::global().finish_detached_event(timing);
@@ -278,8 +277,8 @@ impl Interpreter {
                 Bytecode::PushConstant2 => {
                     #[cfg(feature = "profiler")]
                     let timing = Profiler::global().start_detached_event("PUSH_CONSTANT_2", "bytecodes");
-                    let literal = frame.borrow().lookup_constant(2).unwrap();
-                    let value = convert_literal(&frame, literal).unwrap();
+                    let literal = frame.borrow().lookup_constant(2);
+                    let value = convert_literal(&frame, literal);
                     self.stack.push(value);
                     #[cfg(feature = "profiler")]
                     Profiler::global().finish_detached_event(timing);
@@ -287,7 +286,7 @@ impl Interpreter {
                 Bytecode::PushGlobal(idx) => {
                     #[cfg(feature = "profiler")]
                     let timing = Profiler::global().start_detached_event("PUSH_GLOBAL", "bytecodes");
-                    let literal = frame.borrow().lookup_constant(idx as usize).unwrap();
+                    let literal = frame.borrow().lookup_constant(idx as usize);
                     let symbol = match literal {
                         Literal::Symbol(sym) => sym,
                         _ => panic!("Global is not a symbol."),
@@ -432,7 +431,7 @@ impl Interpreter {
                 Bytecode::ReturnSelf => {
                     #[cfg(feature = "profiler")]
                     let timing = Profiler::global().start_detached_event("RETURN_SELF", "bytecodes");
-                    let self_val = frame.borrow().args.get(0).unwrap().clone();
+                    let self_val = frame.borrow().lookup_argument(0);
                     self.pop_frame();
                     if self.frames.is_empty() {
                         #[cfg(feature = "profiler")]
@@ -477,7 +476,7 @@ impl Interpreter {
 
                         // Block has escaped its method frame.
                         let instance = frame.borrow().get_self();
-                        let block = match frame.borrow().args.first().unwrap() {
+                        let block = match frame.borrow().lookup_argument(0) {
                             Value::Block(block) => block.clone(),
                             _ => {
                                 // Should never happen, because `universe.current_frame()` would
@@ -655,7 +654,7 @@ impl Interpreter {
             }
         }
 
-        fn convert_literal(frame: &SOMRef<Frame>, literal: Literal) -> Option<Value> {
+        fn convert_literal(frame: &SOMRef<Frame>, literal: Literal) -> Value {
             let value = match literal {
                 Literal::Symbol(sym) => Value::Symbol(sym),
                 Literal::String(val) => Value::String(val),
@@ -666,18 +665,15 @@ impl Interpreter {
                     let arr = val
                         .into_iter()
                         .map(|idx| {
-                            frame
-                                .borrow()
-                                .lookup_constant(idx as usize)
-                                .and_then(|lit| convert_literal(frame, lit))
+                            let lit = frame.borrow().lookup_constant(idx as usize);
+                            convert_literal(frame, lit)
                         })
-                        .collect::<Option<Vec<_>>>()
-                        .unwrap();
+                        .collect::<Vec<_>>();
                     Value::Array(Rc::new(RefCell::new(arr)))
                 }
                 Literal::Block(val) => Value::Block(val),
             };
-            Some(value)
+            value
         }
 
         fn nb_params(signature: &str) -> usize {

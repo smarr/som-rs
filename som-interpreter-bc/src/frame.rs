@@ -176,8 +176,8 @@ impl Frame {
     //     self.bytecodes.get(idx).cloned()
     // }
 
-    pub fn lookup_constant(&self, idx: usize) -> Option<Literal> {
-        unsafe { (*self.literals).get(idx).cloned() }
+    pub fn lookup_constant(&self, idx: usize) -> Literal {
+        unsafe { (*self.literals).get_unchecked(idx).clone() }
     }
 
     #[inline(always)]
