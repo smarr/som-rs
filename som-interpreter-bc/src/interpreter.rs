@@ -14,18 +14,12 @@ use crate::universe::UniverseBC;
 use crate::value::Value;
 use crate::SOMRef;
 
-#[cfg(feature = "profiler")]
-use crate::profiler::Profiler;
-
 const INT_0: Value = Value::Integer(0);
 const INT_1: Value = Value::Integer(1);
 
 macro_rules! send {
     ($interp:expr, $universe:expr, $frame:expr, $lit_idx:expr, $nb_params:expr) => {{
-        let literal = $frame.borrow().lookup_constant($lit_idx as usize);
-        let Literal::Symbol(symbol) = literal else {
-            return None;
-        };
+        let Literal::Symbol(symbol) = $frame.borrow().lookup_constant($lit_idx as usize) else { unreachable!() };
         let nb_params = match $nb_params {
             Some(v) => v,
             None => {
@@ -44,11 +38,8 @@ macro_rules! send {
 }
 
 macro_rules! super_send {
-    ($interp:expr, $universe:expr, $frame_expr:expr, $lit_idx:expr, $nb_params:expr) => {{
-        let literal = $frame_expr.borrow().lookup_constant($lit_idx as usize);
-        let Literal::Symbol(symbol) = literal else {
-            return None;
-        };
+    ($interp:expr, $universe:expr, $frame:expr, $lit_idx:expr, $nb_params:expr) => {{
+        let Literal::Symbol(symbol) = $frame.borrow().lookup_constant($lit_idx as usize) else { unreachable!() };
         let nb_params = match $nb_params {
             Some(v) => v,
             None => {
@@ -58,9 +49,9 @@ macro_rules! super_send {
         };
         let method = {
             // dbg!($universe.lookup_symbol(symbol));
-            let holder = $frame_expr.borrow().get_method_holder();
+            let holder = $frame.borrow().get_method_holder();
             let super_class = holder.borrow().super_class().unwrap();
-            resolve_method($frame_expr, &super_class, symbol, $interp.bytecode_idx)
+            resolve_method($frame, &super_class, symbol, $interp.bytecode_idx)
         };
         do_send($interp, $universe, method, symbol, nb_params as usize);
     }};
