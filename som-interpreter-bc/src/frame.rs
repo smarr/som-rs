@@ -176,6 +176,7 @@ impl Frame {
     //     self.bytecodes.get(idx).cloned()
     // }
 
+    #[inline(always)]
     pub fn lookup_constant(&self, idx: usize) -> Literal {
         unsafe { (*self.literals).get_unchecked(idx).clone() }
     }
@@ -186,11 +187,13 @@ impl Frame {
     }
 
     /// Search for a local binding.
+    #[inline(always)]
     pub fn lookup_local(&self, idx: usize) -> Value {
         unsafe { self.locals.get_unchecked(idx).clone() }
     }
 
     /// Assign to a local binding.
+    #[inline(always)]
     pub fn assign_local(&mut self, idx: usize, value: Value) {
         unsafe {
             *self.locals.get_unchecked_mut(idx) = value;
@@ -198,6 +201,7 @@ impl Frame {
     }
 
     /// Assign to an argument.
+    #[inline(always)]
     pub fn assign_arg(&mut self, idx: usize, value: Value) {
         unsafe {
             *self.args.get_unchecked_mut(idx) = value;
