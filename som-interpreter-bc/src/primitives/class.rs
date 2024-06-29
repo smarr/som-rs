@@ -3,10 +3,10 @@ use std::rc::Rc;
 
 use crate::instance::Instance;
 use crate::interpreter::Interpreter;
+use crate::expect_args;
 use crate::primitives::PrimitiveFn;
 use crate::universe::UniverseBC;
 use crate::value::Value;
-use crate::{expect_args, reverse};
 
 pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[
     ("new", self::new, true),
@@ -17,12 +17,10 @@ pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[
 ];
 pub static CLASS_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[];
 
-fn superclass(interpreter: &mut Interpreter, _: &mut UniverseBC) {
+fn superclass(interpreter: &mut Interpreter, args: Vec<Value>, _: &mut UniverseBC) {
     const SIGNATURE: &str = "Class>>#superclass";
 
-    expect_args!(SIGNATURE, interpreter, [
-        Value::Class(class) => class,
-    ]);
+    expect_args!(SIGNATURE, args, [Value::Class(class)]);
 
     let super_class = class.borrow().super_class();
     interpreter
@@ -30,34 +28,34 @@ fn superclass(interpreter: &mut Interpreter, _: &mut UniverseBC) {
         .push(super_class.map(Value::Class).unwrap_or(Value::Nil));
 }
 
-fn new(interpreter: &mut Interpreter, _: &mut UniverseBC) {
+fn new(interpreter: &mut Interpreter, args: Vec<Value>, _: &mut UniverseBC) {
     const SIGNATURE: &str = "Class>>#new";
 
-    expect_args!(SIGNATURE, interpreter, [
-        Value::Class(class) => class,
+    expect_args!(SIGNATURE, args, [
+        Value::Class(class) 
     ]);
 
-    let instance = Instance::from_class(class);
+    let instance = Instance::from_class(class.clone());
     let instance = Rc::new(RefCell::new(instance));
     interpreter.stack.push(Value::Instance(instance));
 }
 
-fn name(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
+fn name(interpreter: &mut Interpreter, args: Vec<Value>, universe: &mut UniverseBC) {
     const SIGNATURE: &str = "Class>>#name";
 
-    expect_args!(SIGNATURE, interpreter, [
-        Value::Class(class) => class,
+    expect_args!(SIGNATURE, args, [
+        Value::Class(class) 
     ]);
 
     let sym = universe.intern_symbol(class.borrow().name());
     interpreter.stack.push(Value::Symbol(sym));
 }
 
-fn methods(interpreter: &mut Interpreter, _: &mut UniverseBC) {
+fn methods(interpreter: &mut Interpreter, args: Vec<Value>, _: &mut UniverseBC) {
     const SIGNATURE: &str = "Class>>#methods";
 
-    expect_args!(SIGNATURE, interpreter, [
-        Value::Class(class) => class,
+    expect_args!(SIGNATURE, args, [
+        Value::Class(class)
     ]);
 
     let methods = class
@@ -72,11 +70,11 @@ fn methods(interpreter: &mut Interpreter, _: &mut UniverseBC) {
         .push(Value::Array(Rc::new(RefCell::new(methods))));
 }
 
-fn fields(interpreter: &mut Interpreter, _: &mut UniverseBC) {
+fn fields(interpreter: &mut Interpreter, args: Vec<Value>, _: &mut UniverseBC) {
     const SIGNATURE: &str = "Class>>#fields";
 
-    expect_args!(SIGNATURE, interpreter, [
-        Value::Class(class) => class,
+    expect_args!(SIGNATURE, args, [
+        Value::Class(class)
     ]);
 
     interpreter.stack.push(Value::Array(Rc::new(RefCell::new(

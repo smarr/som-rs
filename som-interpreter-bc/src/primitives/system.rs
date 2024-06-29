@@ -9,7 +9,7 @@ use crate::interpreter::Interpreter;
 use crate::primitives::PrimitiveFn;
 use crate::universe::UniverseBC;
 use crate::value::Value;
-use crate::{expect_args, reverse};
+use crate::{expect_args};
 
 pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[
     ("loadFile:", self::load_file, true),
@@ -29,17 +29,17 @@ pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[
 ];
 pub static CLASS_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[];
 
-fn load_file(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
+fn load_file(interpreter: &mut Interpreter, args: Vec<Value>, universe: &mut UniverseBC) {
     const SIGNATURE: &str = "System>>#loadFile:";
 
-    expect_args!(SIGNATURE, interpreter, [
+    expect_args!(SIGNATURE, args, [
         Value::System,
-        value => value,
+        value
     ]);
 
     let path = match value {
         Value::String(ref string) => string,
-        Value::Symbol(sym) => universe.lookup_symbol(sym),
+        Value::Symbol(sym) => universe.lookup_symbol(*sym),
         _ => panic!("'{}': wrong type", SIGNATURE),
     };
 
@@ -51,17 +51,17 @@ fn load_file(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
     interpreter.stack.push(value);
 }
 
-fn print_string(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
+fn print_string(interpreter: &mut Interpreter, args: Vec<Value>, universe: &mut UniverseBC) {
     const SIGNATURE: &str = "System>>#printString:";
 
-    expect_args!(SIGNATURE, interpreter, [
+    expect_args!(SIGNATURE, args, [
         Value::System,
-        value => value,
+        value
     ]);
 
     let string = match value {
         Value::String(ref string) => string,
-        Value::Symbol(sym) => universe.lookup_symbol(sym),
+        Value::Symbol(sym) => universe.lookup_symbol(*sym),
         _ => panic!("'{}': wrong type", SIGNATURE),
     };
 
@@ -71,26 +71,26 @@ fn print_string(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
     interpreter.stack.push(Value::System)
 }
 
-fn print_newline(interpreter: &mut Interpreter, _: &mut UniverseBC) {
+fn print_newline(interpreter: &mut Interpreter, args: Vec<Value>, _: &mut UniverseBC) {
     const SIGNATURE: &'static str = "System>>#printNewline";
 
-    expect_args!(SIGNATURE, interpreter, [Value::System]);
+    expect_args!(SIGNATURE, args, [Value::System]);
 
     println!();
     interpreter.stack.push(Value::Nil);
 }
 
-fn error_print(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
+fn error_print(interpreter: &mut Interpreter, args: Vec<Value>, universe: &mut UniverseBC) {
     const SIGNATURE: &str = "System>>#errorPrint:";
 
-    expect_args!(SIGNATURE, interpreter, [
+    expect_args!(SIGNATURE, args, [
         Value::System,
-        value => value,
+        value
     ]);
 
     let string = match value {
         Value::String(ref string) => string,
-        Value::Symbol(sym) => universe.lookup_symbol(sym),
+        Value::Symbol(sym) => universe.lookup_symbol(*sym),
         _ => panic!("'{}': wrong type", SIGNATURE),
     };
 
@@ -98,17 +98,17 @@ fn error_print(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
     interpreter.stack.push(Value::System);
 }
 
-fn error_println(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
+fn error_println(interpreter: &mut Interpreter, args: Vec<Value>, universe: &mut UniverseBC) {
     const SIGNATURE: &str = "System>>#errorPrintln:";
 
-    expect_args!(SIGNATURE, interpreter, [
+    expect_args!(SIGNATURE, args, [
         Value::System,
-        value => value,
+        value
     ]);
 
     let string = match value {
         Value::String(ref string) => string,
-        Value::Symbol(sym) => universe.lookup_symbol(sym),
+        Value::Symbol(sym) => universe.lookup_symbol(*sym),
         _ => panic!("'{}': wrong type", SIGNATURE),
     };
 
@@ -116,20 +116,20 @@ fn error_println(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
     interpreter.stack.push(Value::System);
 }
 
-fn load(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
+fn load(interpreter: &mut Interpreter, args: Vec<Value>, universe: &mut UniverseBC) {
     const SIGNATURE: &str = "System>>#load:";
 
-    expect_args!(SIGNATURE, interpreter, [
+    expect_args!(SIGNATURE, args, [
         Value::System,
-        Value::Symbol(sym) => sym,
+        Value::Symbol(sym)
     ]);
 
-    if let Some(cached_class @ Value::Class(_)) = universe.lookup_global(sym) {
+    if let Some(cached_class @ Value::Class(_)) = universe.lookup_global(*sym) {
         interpreter.stack.push(cached_class);
         return;
     }
     
-    let name = universe.lookup_symbol(sym).to_string();
+    let name = universe.lookup_symbol(*sym).to_string();
     
     match universe.load_class(name) {
         Ok(class) => interpreter.stack.push(Value::Class(class)),
@@ -137,63 +137,63 @@ fn load(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
     }
 }
 
-fn has_global(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
+fn has_global(interpreter: &mut Interpreter, args: Vec<Value>, universe: &mut UniverseBC) {
     const SIGNATURE: &str = "System>>#hasGlobal:";
 
-    expect_args!(SIGNATURE, interpreter, [
+    expect_args!(SIGNATURE, args, [
         Value::System,
-        Value::Symbol(sym) => sym,
+        Value::Symbol(sym)
     ]);
 
-    let value = Value::Boolean(universe.has_global(sym));
+    let value = Value::Boolean(universe.has_global(*sym));
 
     interpreter.stack.push(value);
 }
 
-fn global(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
+fn global(interpreter: &mut Interpreter, args: Vec<Value>, universe: &mut UniverseBC) {
     const SIGNATURE: &str = "System>>#global:";
 
-    expect_args!(SIGNATURE, interpreter, [
+    expect_args!(SIGNATURE, args, [
         Value::System,
-        Value::Symbol(sym) => sym,
+        Value::Symbol(sym)
     ]);
 
-    let value = universe.lookup_global(sym).unwrap_or(Value::Nil);
+    let value = universe.lookup_global(*sym).unwrap_or(Value::Nil);
 
     interpreter.stack.push(value);
 }
 
-fn global_put(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
+fn global_put(interpreter: &mut Interpreter, args: Vec<Value>, universe: &mut UniverseBC) {
     const SIGNATURE: &str = "System>>#global:put:";
 
-    expect_args!(SIGNATURE, interpreter, [
+    expect_args!(SIGNATURE, args, [
         Value::System,
-        Value::Symbol(sym) => sym,
-        value => value,
+        Value::Symbol(sym),
+        value
     ]);
 
-    universe.assign_global(sym, value.clone());
-    interpreter.stack.push(value);
+    universe.assign_global(*sym, value.clone());
+    interpreter.stack.push(value.clone());
 }
 
-fn exit(interpreter: &mut Interpreter, _: &mut UniverseBC) {
+fn exit(_: &mut Interpreter, args: Vec<Value>, _: &mut UniverseBC) {
     const SIGNATURE: &str = "System>>#exit:";
 
-    expect_args!(SIGNATURE, interpreter, [
+    expect_args!(SIGNATURE, args, [
         Value::System,
-        Value::Integer(code) => code,
+        Value::Integer(code)
     ]);
 
-    match i32::try_from(code) {
+    match i32::try_from(*code) {
         Ok(code) => std::process::exit(code),
         Err(err) => panic!("'{}': {}", SIGNATURE, err),
     }
 }
 
-fn ticks(interpreter: &mut Interpreter, _: &mut UniverseBC) {
+fn ticks(interpreter: &mut Interpreter, args: Vec<Value>, _: &mut UniverseBC) {
     const SIGNATURE: &str = "System>>#ticks";
 
-    expect_args!(SIGNATURE, interpreter, [Value::System]);
+    expect_args!(SIGNATURE, args, [Value::System]);
 
     match i64::try_from(interpreter.start_time.elapsed().as_micros()) {
         Ok(micros) => interpreter.stack.push(Value::Integer(micros)),
@@ -201,10 +201,10 @@ fn ticks(interpreter: &mut Interpreter, _: &mut UniverseBC) {
     }
 }
 
-fn time(interpreter: &mut Interpreter, _: &mut UniverseBC) {
+fn time(interpreter: &mut Interpreter, args: Vec<Value>, _: &mut UniverseBC) {
     const SIGNATURE: &str = "System>>#time";
 
-    expect_args!(SIGNATURE, interpreter, [Value::System]);
+    expect_args!(SIGNATURE, args, [Value::System]);
 
     match i64::try_from(interpreter.start_time.elapsed().as_millis()) {
         Ok(micros) => interpreter.stack.push(Value::Integer(micros)),
@@ -213,15 +213,15 @@ fn time(interpreter: &mut Interpreter, _: &mut UniverseBC) {
 }
 
 #[cfg(not(feature = "frame-debug-info"))]
-fn print_stack_trace(_interpreter: &mut Interpreter, _: &mut UniverseBC) {
+fn print_stack_trace(_interpreter: &mut Interpreter, _: Vec<Value>, _: &mut UniverseBC) {
     panic!("attempting to print a stack trace without having frame debug info, which is possible in a limited way, but likely not intended")
 }
 
 #[cfg(feature = "frame-debug-info")]
-fn print_stack_trace(interpreter: &mut Interpreter, _: &mut UniverseBC) {
+fn print_stack_trace(interpreter: &mut Interpreter, args: Vec<Value>, _: &mut UniverseBC) {
     const SIGNATURE: &str = "System>>#printStackTrace";
 
-    expect_args!(SIGNATURE, interpreter, [Value::System]);
+    expect_args!(SIGNATURE, args, [Value::System]);
 
     for frame in &interpreter.frames {
         let class = frame.borrow().get_method_holder();
@@ -244,10 +244,10 @@ fn print_stack_trace(interpreter: &mut Interpreter, _: &mut UniverseBC) {
     interpreter.stack.push(Value::Boolean(true));
 }
 
-fn full_gc(interpreter: &mut Interpreter, _: &mut UniverseBC) {
+fn full_gc(interpreter: &mut Interpreter, args: Vec<Value>, _: &mut UniverseBC) {
     const SIGNATURE: &str = "System>>#fullGC";
 
-    expect_args!(SIGNATURE, interpreter, [Value::System]);
+    expect_args!(SIGNATURE, args, [Value::System]);
 
     // We don't do any garbage collection at all, so we return false.
     interpreter.stack.push(Value::Boolean(false));

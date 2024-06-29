@@ -2,7 +2,7 @@ use crate::interpreter::Interpreter;
 use crate::primitives::PrimitiveFn;
 use crate::universe::UniverseBC;
 use crate::value::Value;
-use crate::{expect_args, reverse};
+use crate::expect_args;
 
 /// Primitives for the **Block** and **Block1** class.
 pub mod block1 {
@@ -15,14 +15,12 @@ pub mod block1 {
     ];
     pub static CLASS_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[];
     
-    fn value(interpreter: &mut Interpreter, _: &mut UniverseBC) {
+    fn value(interpreter: &mut Interpreter, args: Vec<Value>, _: &mut UniverseBC) {
         const SIGNATURE: &str = "Block1>>#value";
 
-        expect_args!(SIGNATURE, interpreter, [
-            Value::Block(block) => block,
-        ]);
+        expect_args!(SIGNATURE, args, [Value::Block(block)]);
 
-        interpreter.push_block_frame(Rc::clone(&block), vec![Value::Block(block)]);
+        interpreter.push_block_frame(Rc::clone(&block), vec![Value::Block(block.clone())]);
         
         // match interpreter.stack.pop() {
         //     Some(Value::Block(block)) => interpreter.push_block_frame(Rc::clone(&block), vec![Value::Block(block)]),
@@ -30,10 +28,10 @@ pub mod block1 {
         // };
     }
 
-    pub fn restart(interpreter: &mut Interpreter, _: &mut UniverseBC) {
+    pub fn restart(interpreter: &mut Interpreter, args: Vec<Value>, _: &mut UniverseBC) {
         const SIGNATURE: &str = "Block>>#restart";
 
-        expect_args!(SIGNATURE, interpreter, [Value::Block(_)]);
+        expect_args!(SIGNATURE, args, [Value::Block(_)]);
 
         // let frame = interpreter.current_frame().expect("no current frame");
         interpreter.bytecode_idx = 0;
@@ -64,15 +62,15 @@ pub mod block2 {
     pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[("value:", self::value, true)];
     pub static CLASS_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[];
 
-    fn value(interpreter: &mut Interpreter, _: &mut UniverseBC) {
+    fn value(interpreter: &mut Interpreter, args: Vec<Value>, _: &mut UniverseBC) {
         const SIGNATURE: &str = "Block2>>#value:";
 
-        expect_args!(SIGNATURE, interpreter, [
-            Value::Block(block) => block,
-            argument => argument,
+        expect_args!(SIGNATURE, args, [
+            Value::Block(block),
+            argument
         ]);
 
-        interpreter.push_block_frame(Rc::clone(&block), vec![Value::Block(block), argument]);
+        interpreter.push_block_frame(Rc::clone(&block), vec![Value::Block(block.clone()), argument.clone()]);
         
         // NB: what follows is a potentially sliiiiightly faster way of handling things, but didn't lead to visible speedups, so eh.
         
@@ -110,16 +108,16 @@ pub mod block3 {
         &[("value:with:", self::value_with, true)];
     pub static CLASS_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[];
 
-    fn value_with(interpreter: &mut Interpreter, _: &mut UniverseBC) {
+    fn value_with(interpreter: &mut Interpreter, args: Vec<Value>, _: &mut UniverseBC) {
         const SIGNATURE: &str = "Block3>>#value:with:";
         
-        expect_args!(SIGNATURE, interpreter, [
-            Value::Block(block) => block,
-            argument1 => argument1,
-            argument2 => argument2,
+        expect_args!(SIGNATURE, args, [
+            Value::Block(block),
+            argument1,
+            argument2
         ]);
 
-        interpreter.push_block_frame(Rc::clone(&block), vec![Value::Block(block), argument1, argument2]);
+        interpreter.push_block_frame(Rc::clone(&block), vec![Value::Block(block.clone()), argument1.clone(), argument2.clone()]);
 
         // let args = interpreter.stack.split_off(interpreter.stack.len() - 3);
 

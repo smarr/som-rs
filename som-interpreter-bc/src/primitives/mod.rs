@@ -23,11 +23,19 @@ pub use self::blocks::{block1, block2, block3};
 
 use crate::interpreter::Interpreter;
 use crate::universe::UniverseBC;
+use crate::value::Value;
 
 /// A interpreter primitive (just a bare function pointer).
-pub type PrimitiveFn = fn(interpreter: &mut Interpreter, universe: &mut UniverseBC);
+pub type PrimitiveFn = fn(interpreter: &mut Interpreter, args: Vec<Value>, universe: &mut UniverseBC);
 
 #[macro_export]
+macro_rules! expect_args {
+    ($signature:expr, $args:expr, [$( $pattern:pat ),*]) => {
+        let [$($pattern),*] = $args.as_slice() else { panic!("wrong types for {:?}", $signature) };
+    };
+}
+
+/*#[macro_export]
 macro_rules! reverse {
     ($signature:expr, $interpreter:expr, [], [ $( $ptrn:pat $( => $name:ident )? ),* $(,)? ]) => {
         #[allow(unused_mut)]
@@ -55,7 +63,7 @@ macro_rules! expect_args {
     ($signature:expr, $frame:expr, [ $( $ptrn:pat $( => $name:ident )? ),* $(,)? ]) => {
         reverse!($signature, $frame, [ $( $ptrn $( => $name )? ,)* ], [])
     };
-}
+}*/
 
 pub fn get_class_primitives(
     class_name: &str,

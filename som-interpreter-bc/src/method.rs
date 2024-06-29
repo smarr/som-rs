@@ -93,7 +93,7 @@ impl Method {
             MethodKind::Primitive(func) => {
                 interpreter.stack.push(receiver);
                 interpreter.stack.append(&mut args);
-                func(interpreter, universe)
+                func(interpreter, args, universe)
             }
             MethodKind::NotImplemented(_) => todo!(),
         }

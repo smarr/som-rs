@@ -2,7 +2,7 @@ use crate::interpreter::Interpreter;
 use crate::primitives::PrimitiveFn;
 use crate::universe::UniverseBC;
 use crate::value::Value;
-use crate::{expect_args, reverse};
+use crate::expect_args;
 
 pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[
     ("holder", self::holder, true),
@@ -11,11 +11,11 @@ pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[
 ];
 pub static CLASS_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[];
 
-fn holder(interpreter: &mut Interpreter, _: &mut UniverseBC) {
+fn holder(interpreter: &mut Interpreter, args: Vec<Value>, _: &mut UniverseBC) {
     const SIGNATURE: &str = "Method>>#holder";
 
-    expect_args!(SIGNATURE, interpreter, [
-        Value::Invokable(invokable) => invokable,
+    expect_args!(SIGNATURE, args, [
+        Value::Invokable(invokable)
     ]);
 
     match invokable.holder().upgrade() {
@@ -24,28 +24,28 @@ fn holder(interpreter: &mut Interpreter, _: &mut UniverseBC) {
     }
 }
 
-fn signature(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
+fn signature(interpreter: &mut Interpreter, args: Vec<Value>, universe: &mut UniverseBC) {
     const SIGNATURE: &str = "Method>>#signature";
 
-    expect_args!(SIGNATURE, interpreter, [
-        Value::Invokable(invokable) => invokable,
+    expect_args!(SIGNATURE, args, [
+        Value::Invokable(invokable)
     ]);
 
     let sym = universe.intern_symbol(invokable.signature());
     interpreter.stack.push(Value::Symbol(sym))
 }
 
-fn invoke_on_with(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
+fn invoke_on_with(interpreter: &mut Interpreter, args: Vec<Value>, universe: &mut UniverseBC) {
     const SIGNATURE: &str = "Method>>#invokeOn:with:";
 
-    expect_args!(SIGNATURE, interpreter, [
-        Value::Invokable(invokable) => invokable,
-        receiver => receiver,
-        Value::Array(args) => args,
+    expect_args!(SIGNATURE, args, [
+        Value::Invokable(invokable),
+        receiver,
+        Value::Array(args)
     ]);
 
     let args = args.borrow().iter().cloned().collect();
-    invokable.invoke(interpreter, universe, receiver, args);
+    invokable.clone().invoke(interpreter, universe, receiver.clone(), args);
 }
 
 /// Search for an instance primitive matching the given signature.

@@ -9,7 +9,7 @@ use crate::interpreter::Interpreter;
 use crate::primitives::PrimitiveFn;
 use crate::universe::UniverseBC;
 use crate::value::Value;
-use crate::{expect_args, reverse};
+use crate::{expect_args};
 
 pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[
     ("<", self::lt, true),
@@ -51,17 +51,17 @@ macro_rules! demote {
     }};
 }
 
-fn from_string(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
+fn from_string(interpreter: &mut Interpreter, args: Vec<Value>, universe: &mut UniverseBC) {
     const SIGNATURE: &str = "Integer>>#fromString:";
-
-    expect_args!(SIGNATURE, interpreter, [
+    
+    expect_args!(SIGNATURE, args, [
         _,
-        value => value,
+        value
     ]);
 
     let value = match value {
         Value::String(ref value) => value.as_str(),
-        Value::Symbol(sym) => universe.lookup_symbol(sym),
+        Value::Symbol(sym) => universe.lookup_symbol(*sym),
         _ => panic!("'{}': wrong types", SIGNATURE),
     };
 
@@ -77,11 +77,11 @@ fn from_string(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
     }
 }
 
-fn as_string(interpreter: &mut Interpreter, _: &mut UniverseBC) {
+fn as_string(interpreter: &mut Interpreter, args: Vec<Value>, _: &mut UniverseBC) {
     const SIGNATURE: &str = "Integer>>#asString";
 
-    expect_args!(SIGNATURE, interpreter, [
-        value => value,
+    expect_args!(SIGNATURE, args, [
+        value
     ]);
 
     let value = match value {
@@ -96,15 +96,15 @@ fn as_string(interpreter: &mut Interpreter, _: &mut UniverseBC) {
     }
 }
 
-fn as_double(interpreter: &mut Interpreter, _: &mut UniverseBC) {
+fn as_double(interpreter: &mut Interpreter, args: Vec<Value>, _: &mut UniverseBC) {
     const SIGNATURE: &str = "Integer>>#asDouble";
 
-    expect_args!(SIGNATURE, interpreter, [
-        value => value,
+    expect_args!(SIGNATURE, args, [
+        value
     ]);
 
     let value = match value {
-        Value::Integer(value) => Value::Double(value as f64),
+        Value::Integer(value) => Value::Double(*value as f64),
         Value::BigInteger(value) => match value.to_i64() {
             Some(value) => Value::Double(value as f64),
             None => panic!(
@@ -118,11 +118,11 @@ fn as_double(interpreter: &mut Interpreter, _: &mut UniverseBC) {
     interpreter.stack.push(value);
 }
 
-fn at_random(interpreter: &mut Interpreter, _: &mut UniverseBC) {
+fn at_random(interpreter: &mut Interpreter, args: Vec<Value>, _: &mut UniverseBC) {
     const SIGNATURE: &str = "Integer>>#atRandom";
 
-    expect_args!(SIGNATURE, interpreter, [
-        value => value,
+    expect_args!(SIGNATURE, args, [
+        value
     ]);
 
     let chosen = match value {
@@ -144,15 +144,15 @@ fn at_random(interpreter: &mut Interpreter, _: &mut UniverseBC) {
     }
 }
 
-fn as_32bit_signed_value(interpreter: &mut Interpreter, _: &mut UniverseBC) {
+fn as_32bit_signed_value(interpreter: &mut Interpreter, args: Vec<Value>, _: &mut UniverseBC) {
     const SIGNATURE: &str = "Integer>>#as32BitSignedValue";
 
-    expect_args!(SIGNATURE, interpreter, [
-        value => value,
+    expect_args!(SIGNATURE, args, [
+        value
     ]);
 
     let value = match value {
-        Value::Integer(value) => value as i32 as i64,
+        Value::Integer(value) => *value as i32 as i64,
         Value::BigInteger(value) => match value.to_u32_digits() {
             (Sign::Minus, values) => -(values[0] as i64),
             (Sign::Plus, values) | (Sign::NoSign, values) => values[0] as i64,
@@ -166,15 +166,15 @@ fn as_32bit_signed_value(interpreter: &mut Interpreter, _: &mut UniverseBC) {
     }
 }
 
-fn as_32bit_unsigned_value(interpreter: &mut Interpreter, _: &mut UniverseBC) {
+fn as_32bit_unsigned_value(interpreter: &mut Interpreter, args: Vec<Value>, _: &mut UniverseBC) {
     const SIGNATURE: &str = "Integer>>#as32BitUnsignedValue";
 
-    expect_args!(SIGNATURE, interpreter, [
-        value => value,
+    expect_args!(SIGNATURE, args, [
+        value
     ]);
 
     let value = match value {
-        Value::Integer(value) => value as u32 as i64,
+        Value::Integer(value) => *value as u32 as i64,
         Value::BigInteger(value) => {
             let (_, values) = value.to_u32_digits();
             values[0] as i64
@@ -188,30 +188,30 @@ fn as_32bit_unsigned_value(interpreter: &mut Interpreter, _: &mut UniverseBC) {
     }
 }
 
-fn plus(interpreter: &mut Interpreter, _: &mut UniverseBC) {
+fn plus(interpreter: &mut Interpreter, args: Vec<Value>, _: &mut UniverseBC) {
     const SIGNATURE: &str = "Integer>>#+";
 
-    expect_args!(SIGNATURE, interpreter, [
-        a => a,
-        b => b,
+    expect_args!(SIGNATURE, args, [
+        a,
+        b
     ]);
-
+    
     let value = match (a, b) {
-        (Value::Integer(a), Value::Integer(b)) => match a.checked_add(b) {
+        (Value::Integer(a), Value::Integer(b)) => match a.checked_add(*b) {
             Some(value) => Value::Integer(value),
-            None => demote!(interpreter, BigInt::from(a) + BigInt::from(b)),
+            None => demote!(interpreter, BigInt::from(*a) + BigInt::from(*b)),
         },
         (Value::BigInteger(a), Value::BigInteger(b)) => demote!(interpreter, a + b),
         (Value::BigInteger(a), Value::Integer(b)) | (Value::Integer(b), Value::BigInteger(a)) => {
-            demote!(interpreter, a + BigInt::from(b))
+            demote!(interpreter, a + BigInt::from(*b))
         }
         (Value::Double(a), Value::Double(b)) => Value::Double(a + b),
         (Value::Integer(a), Value::Double(b)) | (Value::Double(b), Value::Integer(a)) => {
-            Value::Double((a as f64) + b)
+            Value::Double((*a as f64) + *b)
         }
         (Value::BigInteger(a), Value::Double(b)) | (Value::Double(b), Value::BigInteger(a)) => {
             match a.to_f64() {
-                Some(a) => Value::Double(a + b),
+                Some(a) => Value::Double(a + *b),
                 None => panic!(
                     "'{}': `Integer` too big to be converted to `Double`",
                     SIGNATURE
@@ -224,29 +224,29 @@ fn plus(interpreter: &mut Interpreter, _: &mut UniverseBC) {
     interpreter.stack.push(value);
 }
 
-fn minus(interpreter: &mut Interpreter, _: &mut UniverseBC) {
+fn minus(interpreter: &mut Interpreter, args: Vec<Value>, _: &mut UniverseBC) {
     const SIGNATURE: &str = "Integer>>#-";
 
-    expect_args!(SIGNATURE, interpreter, [
-        a => a,
-        b => b,
+    expect_args!(SIGNATURE, args, [
+        a,
+        b
     ]);
 
     let value = match (a, b) {
-        (Value::Integer(a), Value::Integer(b)) => match a.checked_sub(b) {
+        (Value::Integer(a), Value::Integer(b)) => match a.checked_sub(*b) {
             Some(value) => Value::Integer(value),
-            None => demote!(interpreter, BigInt::from(a) - BigInt::from(b)),
+            None => demote!(interpreter, BigInt::from(*a) - BigInt::from(*b)),
         },
         (Value::BigInteger(a), Value::BigInteger(b)) => demote!(interpreter, a - b),
         (Value::BigInteger(a), Value::Integer(b)) => {
-            demote!(interpreter, a - BigInt::from(b))
+            demote!(interpreter, a - BigInt::from(*b))
         }
         (Value::Integer(a), Value::BigInteger(b)) => {
-            demote!(interpreter, BigInt::from(a) - b)
+            demote!(interpreter, BigInt::from(*a) - b)
         }
         (Value::Double(a), Value::Double(b)) => Value::Double(a - b),
         (Value::Integer(a), Value::Double(b)) | (Value::Double(b), Value::Integer(a)) => {
-            Value::Double((a as f64) - b)
+            Value::Double((*a as f64) - b)
         }
         (Value::BigInteger(a), Value::Double(b)) => match a.to_f64() {
             Some(a) => Value::Double(a - b),
@@ -268,26 +268,26 @@ fn minus(interpreter: &mut Interpreter, _: &mut UniverseBC) {
     interpreter.stack.push(value);
 }
 
-fn times(interpreter: &mut Interpreter, _: &mut UniverseBC) {
+fn times(interpreter: &mut Interpreter, args: Vec<Value>, _: &mut UniverseBC) {
     const SIGNATURE: &str = "Integer>>#*";
 
-    expect_args!(SIGNATURE, interpreter, [
-        a => a,
-        b => b,
+    expect_args!(SIGNATURE, args, [
+        a,
+        b
     ]);
 
     let value = match (a, b) {
-        (Value::Integer(a), Value::Integer(b)) => match a.checked_mul(b) {
+        (Value::Integer(a), Value::Integer(b)) => match a.checked_mul(*b) {
             Some(value) => Value::Integer(value),
-            None => demote!(interpreter, BigInt::from(a) * BigInt::from(b)),
+            None => demote!(interpreter, BigInt::from(*a) * BigInt::from(*b)),
         },
         (Value::BigInteger(a), Value::BigInteger(b)) => demote!(interpreter, a * b),
         (Value::BigInteger(a), Value::Integer(b)) | (Value::Integer(b), Value::BigInteger(a)) => {
-            demote!(interpreter, a * BigInt::from(b))
+            demote!(interpreter, a * BigInt::from(*b))
         }
         (Value::Double(a), Value::Double(b)) => Value::Double(a * b),
         (Value::Integer(a), Value::Double(b)) | (Value::Double(b), Value::Integer(a)) => {
-            Value::Double((a as f64) * b)
+            Value::Double((*a as f64) * b)
         }
         (Value::BigInteger(a), Value::Double(b)) | (Value::Double(b), Value::BigInteger(a)) => {
             match a.to_f64() {
@@ -304,29 +304,29 @@ fn times(interpreter: &mut Interpreter, _: &mut UniverseBC) {
     interpreter.stack.push(value);
 }
 
-fn divide(interpreter: &mut Interpreter, _: &mut UniverseBC) {
+fn divide(interpreter: &mut Interpreter, args: Vec<Value>, _: &mut UniverseBC) {
     const SIGNATURE: &str = "Integer>>#/";
 
-    expect_args!(SIGNATURE, interpreter, [
-        a => a,
-        b => b,
+    expect_args!(SIGNATURE, args, [
+        a,
+        b
     ]);
 
     let value = match (a, b) {
-        (Value::Integer(a), Value::Integer(b)) => match a.checked_div(b) {
+        (Value::Integer(a), Value::Integer(b)) => match a.checked_div(*b) {
             Some(value) => Value::Integer(value),
-            None => demote!(interpreter, BigInt::from(a) / BigInt::from(b)),
+            None => demote!(interpreter, BigInt::from(*a) / BigInt::from(*b)),
         },
         (Value::BigInteger(a), Value::BigInteger(b)) => demote!(interpreter, a / b),
         (Value::BigInteger(a), Value::Integer(b)) => {
-            demote!(interpreter, a / BigInt::from(b))
+            demote!(interpreter, a / BigInt::from(*b))
         }
         (Value::Integer(a), Value::BigInteger(b)) => {
-            demote!(interpreter, BigInt::from(a) / b)
+            demote!(interpreter, BigInt::from(*a) / b)
         }
         (Value::Double(a), Value::Double(b)) => Value::Double(a / b),
         (Value::Integer(a), Value::Double(b)) | (Value::Double(b), Value::Integer(a)) => {
-            Value::Double((a as f64) / b)
+            Value::Double((*a as f64) / b)
         }
         (Value::BigInteger(a), Value::Double(b)) => match a.to_f64() {
             Some(a) => Value::Double(a / b),
@@ -348,16 +348,16 @@ fn divide(interpreter: &mut Interpreter, _: &mut UniverseBC) {
     interpreter.stack.push(value);
 }
 
-fn divide_float(interpreter: &mut Interpreter, _: &mut UniverseBC) {
+fn divide_float(interpreter: &mut Interpreter, args: Vec<Value>, _: &mut UniverseBC) {
     const SIGNATURE: &str = "Integer>>#//";
 
-    expect_args!(SIGNATURE, interpreter, [
-        a => a,
-        b => b,
+    expect_args!(SIGNATURE, args, [
+        a,
+        b
     ]);
 
     let a = match a {
-        Value::Integer(a) => a as f64,
+        Value::Integer(a) => *a as f64,
         Value::BigInteger(a) => match a.to_f64() {
             Some(a) => a,
             None => panic!(
@@ -365,12 +365,12 @@ fn divide_float(interpreter: &mut Interpreter, _: &mut UniverseBC) {
                 SIGNATURE
             ),
         },
-        Value::Double(a) => a,
+        Value::Double(a) => *a,
         _ => panic!("'{}': wrong types", SIGNATURE),
     };
 
     let b = match b {
-        Value::Integer(b) => b as f64,
+        Value::Integer(b) => *b as f64,
         Value::BigInteger(b) => match b.to_f64() {
             Some(b) => b,
             None => panic!(
@@ -378,19 +378,19 @@ fn divide_float(interpreter: &mut Interpreter, _: &mut UniverseBC) {
                 SIGNATURE
             ),
         },
-        Value::Double(b) => b,
+        Value::Double(b) => *b,
         _ => panic!("'{}': wrong types", SIGNATURE),
     };
 
     interpreter.stack.push(Value::Double(a / b));
 }
 
-fn modulo(interpreter: &mut Interpreter, _: &mut UniverseBC) {
+fn modulo(interpreter: &mut Interpreter, args: Vec<Value>, _: &mut UniverseBC) {
     const SIGNATURE: &str = "Integer>>#%";
 
-    expect_args!(SIGNATURE, interpreter, [
-        Value::Integer(a) => a,
-        Value::Integer(b) => b,
+    expect_args!(SIGNATURE, args, [
+        Value::Integer(a),
+        Value::Integer(b)
     ]);
 
     let result = a % b;
@@ -401,12 +401,12 @@ fn modulo(interpreter: &mut Interpreter, _: &mut UniverseBC) {
     }
 }
 
-fn remainder(interpreter: &mut Interpreter, _: &mut UniverseBC) {
+fn remainder(interpreter: &mut Interpreter, args: Vec<Value>, _: &mut UniverseBC) {
     const SIGNATURE: &str = "Integer>>#rem:";
 
-    expect_args!(SIGNATURE, interpreter, [
-        Value::Integer(a) => a,
-        Value::Integer(b) => b,
+    expect_args!(SIGNATURE, args, [
+        Value::Integer(a),
+        Value::Integer(b)
     ]);
 
     let result = a % b;
@@ -417,16 +417,16 @@ fn remainder(interpreter: &mut Interpreter, _: &mut UniverseBC) {
     }
 }
 
-fn sqrt(interpreter: &mut Interpreter, _: &mut UniverseBC) {
+fn sqrt(interpreter: &mut Interpreter, args: Vec<Value>, _: &mut UniverseBC) {
     const SIGNATURE: &str = "Integer>>#sqrt";
 
-    expect_args!(SIGNATURE, interpreter, [
-        a => a,
+    expect_args!(SIGNATURE, args, [
+        a
     ]);
 
     let value = match a {
         Value::Integer(a) => {
-            let sqrt = (a as f64).sqrt();
+            let sqrt = (*a as f64).sqrt();
             let trucated = sqrt.trunc();
             if sqrt == trucated {
                 Value::Integer(trucated as i64)
@@ -442,19 +442,19 @@ fn sqrt(interpreter: &mut Interpreter, _: &mut UniverseBC) {
     interpreter.stack.push(value);
 }
 
-fn bitand(interpreter: &mut Interpreter, _: &mut UniverseBC) {
+fn bitand(interpreter: &mut Interpreter, args: Vec<Value>, _: &mut UniverseBC) {
     const SIGNATURE: &str = "Integer>>#&";
 
-    expect_args!(SIGNATURE, interpreter, [
-        a => a,
-        b => b,
+    expect_args!(SIGNATURE, args, [
+        a,
+        b
     ]);
 
     let value = match (a, b) {
         (Value::Integer(a), Value::Integer(b)) => Value::Integer(a & b),
         (Value::BigInteger(a), Value::BigInteger(b)) => demote!(interpreter, a & b),
         (Value::BigInteger(a), Value::Integer(b)) | (Value::Integer(b), Value::BigInteger(a)) => {
-            demote!(interpreter, a & BigInt::from(b))
+            demote!(interpreter, a & BigInt::from(*b))
         }
         _ => panic!("'{}': wrong types", SIGNATURE),
     };
@@ -462,19 +462,19 @@ fn bitand(interpreter: &mut Interpreter, _: &mut UniverseBC) {
     interpreter.stack.push(value);
 }
 
-fn bitxor(interpreter: &mut Interpreter, _: &mut UniverseBC) {
+fn bitxor(interpreter: &mut Interpreter, args: Vec<Value>, _: &mut UniverseBC) {
     const SIGNATURE: &str = "Integer>>#bitXor:";
 
-    expect_args!(SIGNATURE, interpreter, [
-        a => a,
-        b => b,
+    expect_args!(SIGNATURE, args, [
+        a,
+        b
     ]);
 
     let value = match (a, b) {
         (Value::Integer(a), Value::Integer(b)) => Value::Integer(a ^ b),
         (Value::BigInteger(a), Value::BigInteger(b)) => demote!(interpreter, a ^ b),
         (Value::BigInteger(a), Value::Integer(b)) | (Value::Integer(b), Value::BigInteger(a)) => {
-            demote!(interpreter, a ^ BigInt::from(b))
+            demote!(interpreter, a ^ BigInt::from(*b))
         }
         _ => panic!("'{}': wrong types", SIGNATURE),
     };
@@ -482,177 +482,176 @@ fn bitxor(interpreter: &mut Interpreter, _: &mut UniverseBC) {
     interpreter.stack.push(value);
 }
 
-fn lt(interpreter: &mut Interpreter, _: &mut UniverseBC) {
+fn lt(interpreter: &mut Interpreter, args: Vec<Value>, _: &mut UniverseBC) {
     const SIGNATURE: &str = "Integer>>#<";
 
-    expect_args!(SIGNATURE, interpreter, [
-        a => a,
-        b => b,
+    expect_args!(SIGNATURE, args, [
+        a,
+        b
     ]);
 
     let value = match (a, b) {
         (Value::Integer(a), Value::Integer(b)) => Value::Boolean(a < b),
         (Value::BigInteger(a), Value::BigInteger(b)) => Value::Boolean(a < b),
         (Value::Double(a), Value::Double(b)) => Value::Boolean(a < b),
-        (Value::Integer(a), Value::Double(b)) => Value::Boolean((a as f64) < b),
-        (Value::Double(a), Value::Integer(b)) => Value::Boolean(a < (b as f64)),
-        (Value::BigInteger(a), Value::Integer(b)) => Value::Boolean(a < BigInt::from(b)),
-        (Value::Integer(a), Value::BigInteger(b)) => Value::Boolean(BigInt::from(a) < b),
+        (Value::Integer(a), Value::Double(b)) => Value::Boolean((*a as f64) < *b),
+        (Value::Double(a), Value::Integer(b)) => Value::Boolean(*a < (*b as f64)),
+        (Value::BigInteger(a), Value::Integer(b)) => Value::Boolean(*a < BigInt::from(*b)),
+        (Value::Integer(a), Value::BigInteger(b)) => Value::Boolean(BigInt::from(*a) < *b),
         (t1, t2) => panic!("'{}': wrong types: {:?} and {:?}", SIGNATURE, t1, t2),
     };
 
     interpreter.stack.push(value);
 }
 
-fn eq(interpreter: &mut Interpreter, _: &mut UniverseBC) {
+fn eq(interpreter: &mut Interpreter, args: Vec<Value>, _: &mut UniverseBC) {
     const SIGNATURE: &str = "Integer>>#=";
 
-    expect_args!(SIGNATURE, interpreter, [
-        a => a,
-        b => b,
+    expect_args!(SIGNATURE, args, [
+        a,
+        b
     ]);
 
     let value = match (a, b) {
         (Value::Integer(a), Value::Integer(b)) => Value::Boolean(a == b),
         (Value::BigInteger(a), Value::BigInteger(b)) => Value::Boolean(a == b),
         (Value::Double(a), Value::Double(b)) => Value::Boolean(a == b),
-        (Value::Integer(a), Value::Double(b)) => Value::Boolean((a as f64) == b),
-        (Value::Double(a), Value::Integer(b)) => Value::Boolean(a == (b as f64)),
+        (Value::Integer(a), Value::Double(b)) => Value::Boolean((*a as f64) == *b),
+        (Value::Double(a), Value::Integer(b)) => Value::Boolean(*a == (*b as f64)),
         _ => Value::Boolean(false),
     };
 
     interpreter.stack.push(value);
 }
 
-fn shift_left(interpreter: &mut Interpreter, _: &mut UniverseBC) {
+fn shift_left(interpreter: &mut Interpreter, args: Vec<Value>, _: &mut UniverseBC) {
     const SIGNATURE: &str = "Integer>>#<<";
 
-    expect_args!(SIGNATURE, interpreter, [
-        a => a,
-        Value::Integer(b) => b,
+    expect_args!(SIGNATURE, args, [
+        a,
+        Value::Integer(b)
     ]);
 
     let value = match a {
-        Value::Integer(a) => match a.checked_shl(b as u32) {
+        Value::Integer(a) => match a.checked_shl(*b as u32) {
             Some(value) => Value::Integer(value),
-            None => demote!(interpreter, BigInt::from(a) << (b as usize)),
+            None => demote!(interpreter, BigInt::from(*a) << (*b as usize)),
         },
-        Value::BigInteger(a) => demote!(interpreter, a << (b as usize)),
+        Value::BigInteger(a) => demote!(interpreter, a << (*b as usize)),
         _ => panic!("'{}': wrong types", SIGNATURE),
     };
 
     interpreter.stack.push(value);
 }
 
-fn shift_right(interpreter: &mut Interpreter, _: &mut UniverseBC) {
+fn shift_right(interpreter: &mut Interpreter, args: Vec<Value>, _: &mut UniverseBC) {
     const SIGNATURE: &str = "Integer>>#>>";
 
-    expect_args!(SIGNATURE, interpreter, [
-        a => a,
-        Value::Integer(b) => b,
+    expect_args!(SIGNATURE, args, [
+        a,
+        Value::Integer(b)
     ]);
 
     let value = match a {
-        Value::Integer(a) => match a.checked_shr(b as u32) {
+        Value::Integer(a) => match a.checked_shr(*b as u32) {
             Some(value) => Value::Integer(value),
-            None => demote!(interpreter, BigInt::from(a) >> (b as usize)),
+            None => demote!(interpreter, BigInt::from(*a) >> (*b as usize)),
         },
-        Value::BigInteger(a) => demote!(interpreter, a >> (b as usize)),
+        Value::BigInteger(a) => demote!(interpreter, a >> (*b as usize)),
         _ => panic!("'{}': wrong types", SIGNATURE),
     };
 
     interpreter.stack.push(value);
 }
 
-fn to_do(interpreter: &mut Interpreter, _: &mut UniverseBC) {
+fn to_do(interpreter: &mut Interpreter, args: Vec<Value>, _: &mut UniverseBC) {
     const SIGNATURE: &str = "Integer>>to:do:";
 
-    expect_args!(SIGNATURE, interpreter, [
-        Value::Integer(start) => start,
-        Value::Integer(end) => end,
-        Value::Block(blk) => blk,
+    expect_args!(SIGNATURE, args, [
+        Value::Integer(start),
+        Value::Integer(end),
+        Value::Block(blk)
     ]);
     
     // Nota Bene: blocks for to:do: and friends get instrumented as a special case in the parser, so that they don't leave their "self" on the stack.
 
     let new_blk = blk.make_equivalent_with_no_return();
     // calling rev() because it's a stack of frames: LIFO means we want to add the last one first, then the penultimate one, etc., til the first
-    for i in (start..=end).rev() {
+    for i in (*start..=*end).rev() {
         interpreter.push_block_frame(Rc::clone(&new_blk), vec![Value::Block(Rc::clone(&new_blk)), Value::Integer(i)]);
     }
 
-    interpreter.stack.push(Value::Integer(start));
+    interpreter.stack.push(Value::Integer(*start));
 }
 
-fn to_by_do(interpreter: &mut Interpreter, _: &mut UniverseBC) {
+fn to_by_do(interpreter: &mut Interpreter, args: Vec<Value>, _: &mut UniverseBC) {
     const SIGNATURE: &str = "Integer>>to:by:do:";
 
-    expect_args!(SIGNATURE, interpreter, [
-        Value::Integer(start) => start,
-        Value::Integer(step) => step,
-        Value::Integer(end) => end,
-        Value::Block(blk) => blk,
-    ]);
-
+    // name_args!(SIGNATURE, args, [Value::Integer(start), Value::Integer(step), Value::Integer(end), Value::Block(blk)]);
+    // let [Value::Integer(start), Value::Integer(step), Value::Integer(end), Value::Block(blk)]: [Value] = args.try_into().unwrap() else { panic!("wrong types for {:?}", SIGNATURE) };
+    // let Ok([Value::Integer(start), Value::Integer(step), Value::Integer(end), Value::Block(blk)]): Result<[Value; 4], _> = args.try_into() else { panic!("wrong types for {:?}", SIGNATURE) };
+    // let [Value::Integer(start), Value::Integer(step), Value::Integer(end), Value::Block(blk)] = extract(args, SIGNATURE) else { unreachable!() };
+    expect_args!(SIGNATURE, args, [Value::Integer(start), Value::Integer(step), Value::Integer(end), Value::Block(blk)]);
+    
     let new_blk = blk.make_equivalent_with_no_return();
-    for i in (start..=end).rev().step_by(step as usize) {
+    for i in (*start..=*end).rev().step_by(*step as usize) {
         interpreter.push_block_frame(Rc::clone(&new_blk), vec![Value::Block(Rc::clone(&new_blk)), Value::Integer(i)]);
     }
 
-    interpreter.stack.push(Value::Integer(start));
+    interpreter.stack.push(Value::Integer(*start));
 }
 
-fn down_to_do(interpreter: &mut Interpreter, _: &mut UniverseBC) {
+fn down_to_do(interpreter: &mut Interpreter, args: Vec<Value>, _: &mut UniverseBC) {
     const SIGNATURE: &str = "Integer>>downTo:do:";
 
-    expect_args!(SIGNATURE, interpreter, [
-        Value::Integer(start) => start,
-        Value::Integer(end) => end,
-        Value::Block(blk) => blk,
+    expect_args!(SIGNATURE, args, [
+        Value::Integer(start),
+        Value::Integer(end),
+        Value::Block(blk)
     ]);
 
     let new_blk = blk.make_equivalent_with_no_return();
-    for i in end..=start {
+    for i in *end..=*start {
         interpreter.push_block_frame(Rc::clone(&new_blk), vec![Value::Block(Rc::clone(&new_blk)), Value::Integer(i)]);
     }
 
-    interpreter.stack.push(Value::Integer(start));
+    interpreter.stack.push(Value::Integer(*start));
 }
 
 // NB: this guy isn't a speedup, it's never used in our benchmarks as far as I'm aware.
-fn down_to_by_do(interpreter: &mut Interpreter, _: &mut UniverseBC) {
+fn down_to_by_do(interpreter: &mut Interpreter, args: Vec<Value>, _: &mut UniverseBC) {
     const SIGNATURE: &str = "Integer>>downTo:by:do:";
 
-    expect_args!(SIGNATURE, interpreter, [
-        Value::Integer(start) => start,
-        Value::Integer(step) => step,
-        Value::Integer(end) => end,
-        Value::Block(blk) => blk,
+    expect_args!(SIGNATURE, args, [
+        Value::Integer(start),
+        Value::Integer(step),
+        Value::Integer(end),
+        Value::Block(blk)
     ]);
     
     let new_blk = blk.make_equivalent_with_no_return();
-    for i in (start..=end).step_by(step as usize) {
+    for i in (*start..=*end).step_by(*step as usize) {
         interpreter.push_block_frame(Rc::clone(&new_blk), vec![Value::Block(Rc::clone(&new_blk)), Value::Integer(i)]);
     }
 
-    interpreter.stack.push(Value::Integer(start));
+    interpreter.stack.push(Value::Integer(*start));
 }
 
 // NB: also not a speedup, also unused.
-fn times_repeat(interpreter: &mut Interpreter, _: &mut UniverseBC) {
+fn times_repeat(interpreter: &mut Interpreter, args: Vec<Value>, _: &mut UniverseBC) {
     const SIGNATURE: &str = "Integer>>timesRepeat:";
 
-    expect_args!(SIGNATURE, interpreter, [
-        Value::Integer(n) => n,
-        Value::Block(blk) => blk,
+    expect_args!(SIGNATURE, args, [
+        Value::Integer(n),
+        Value::Block(blk)
     ]);
 
     let new_blk = blk.make_equivalent_with_no_return();
-    for _ in 1..=n {
+    for _ in 1..=*n {
         interpreter.push_block_frame(Rc::clone(&new_blk), vec![Value::Block(Rc::clone(&new_blk))]); // NB: this doesn't take the index as an argument
     }
 
-    interpreter.stack.push(Value::Integer(n));
+    interpreter.stack.push(Value::Integer(*n));
 }
 
 /// Search for an instance primitive matching the given signature.
