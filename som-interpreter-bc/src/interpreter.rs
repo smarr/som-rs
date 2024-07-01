@@ -142,7 +142,8 @@ impl Interpreter {
                     return Some(Value::Nil);
                 }
                 Bytecode::Dup => {
-                    let value = self.stack.last().cloned().unwrap();
+                    let value = unsafe { self.stack.get_unchecked(self.stack.len() - 1).clone() };
+                    // let value = self.stack.last().cloned().unwrap();
                     self.stack.push(value);
                 }
                 Bytecode::Inc => {
