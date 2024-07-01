@@ -7,7 +7,7 @@ use crate::interpreter::Interpreter;
 use crate::primitives::PrimitiveFn;
 use crate::universe::UniverseBC;
 use crate::value::Value;
-use crate::expect_args;
+use crate::{expect_args, reverse};
 
 pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[
     ("length", self::length, true),
@@ -23,16 +23,16 @@ pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[
 ];
 pub static CLASS_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[];
 
-fn length(interpreter: &mut Interpreter, args: Vec<Value>, universe: &mut UniverseBC) {
+fn length(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
     const SIGNATURE: &str = "String>>#length";
 
-    expect_args!(SIGNATURE, args, [
-        value
+    expect_args!(SIGNATURE, interpreter, [
+        value => value,
     ]);
 
     let value = match value {
         Value::String(ref value) => value.as_str(),
-        Value::Symbol(sym) => universe.lookup_symbol(*sym),
+        Value::Symbol(sym) => universe.lookup_symbol(sym),
         _ => panic!("'{}': invalid self type", SIGNATURE),
     };
 
@@ -42,16 +42,16 @@ fn length(interpreter: &mut Interpreter, args: Vec<Value>, universe: &mut Univer
     }
 }
 
-fn hashcode(interpreter: &mut Interpreter, args: Vec<Value>, universe: &mut UniverseBC) {
+fn hashcode(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
     const SIGNATURE: &str = "String>>#hashcode";
 
-    expect_args!(SIGNATURE, args, [
-        value
+    expect_args!(SIGNATURE, interpreter, [
+        value => value,
     ]);
 
     let value = match value {
         Value::String(ref value) => value.as_str(),
-        Value::Symbol(sym) => universe.lookup_symbol(*sym),
+        Value::Symbol(sym) => universe.lookup_symbol(sym),
         _ => panic!("'{}': invalid self type", SIGNATURE),
     };
 
@@ -69,16 +69,16 @@ fn hashcode(interpreter: &mut Interpreter, args: Vec<Value>, universe: &mut Univ
         .push(Value::Integer((hasher.finish() as i64).abs()))
 }
 
-fn is_letters(interpreter: &mut Interpreter, args: Vec<Value>, universe: &mut UniverseBC) {
+fn is_letters(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
     const SIGNATURE: &str = "String>>#isLetters";
 
-    expect_args!(SIGNATURE, args, [
-        value
+    expect_args!(SIGNATURE, interpreter, [
+        value => value,
     ]);
 
     let value = match value {
         Value::String(ref value) => value.as_str(),
-        Value::Symbol(sym) => universe.lookup_symbol(*sym),
+        Value::Symbol(sym) => universe.lookup_symbol(sym),
         _ => panic!("'{}': invalid self type", SIGNATURE),
     };
 
@@ -87,16 +87,16 @@ fn is_letters(interpreter: &mut Interpreter, args: Vec<Value>, universe: &mut Un
     ))
 }
 
-fn is_digits(interpreter: &mut Interpreter, args: Vec<Value>, universe: &mut UniverseBC) {
+fn is_digits(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
     const SIGNATURE: &str = "String>>#isDigits";
 
-    expect_args!(SIGNATURE, args, [
-        value
+    expect_args!(SIGNATURE, interpreter, [
+        value => value,
     ]);
 
     let value = match value {
         Value::String(ref value) => value.as_str(),
-        Value::Symbol(sym) => universe.lookup_symbol(*sym),
+        Value::Symbol(sym) => universe.lookup_symbol(sym),
         _ => panic!("'{}': invalid self type", SIGNATURE),
     };
 
@@ -105,16 +105,16 @@ fn is_digits(interpreter: &mut Interpreter, args: Vec<Value>, universe: &mut Uni
     ))
 }
 
-fn is_whitespace(interpreter: &mut Interpreter, args: Vec<Value>, universe: &mut UniverseBC) {
+fn is_whitespace(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
     const SIGNATURE: &str = "String>>#isWhiteSpace";
 
-    expect_args!(SIGNATURE, args, [
-        value
+    expect_args!(SIGNATURE, interpreter, [
+        value => value,
     ]);
 
     let value = match value {
         Value::String(ref value) => value.as_str(),
-        Value::Symbol(sym) => universe.lookup_symbol(*sym),
+        Value::Symbol(sym) => universe.lookup_symbol(sym),
         _ => panic!("'{}': invalid self type", SIGNATURE),
     };
 
@@ -123,12 +123,12 @@ fn is_whitespace(interpreter: &mut Interpreter, args: Vec<Value>, universe: &mut
     ))
 }
 
-fn concatenate(interpreter: &mut Interpreter, args: Vec<Value>, universe: &mut UniverseBC) {
+fn concatenate(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
     const SIGNATURE: &str = "String>>#concatenate:";
 
-    expect_args!(SIGNATURE, args, [
-        s1,
-        s2
+    expect_args!(SIGNATURE, interpreter, [
+        s1 => s1,
+        s2 => s2,
     ]);
 
     let s1 = match s1 {
@@ -137,7 +137,7 @@ fn concatenate(interpreter: &mut Interpreter, args: Vec<Value>, universe: &mut U
     };
     let s2 = match s2 {
         Value::String(ref value) => value.as_str(),
-        Value::Symbol(sym) => universe.lookup_symbol(*sym),
+        Value::Symbol(sym) => universe.lookup_symbol(sym),
         _ => panic!("'{}': wrong types", SIGNATURE),
     };
 
@@ -146,50 +146,50 @@ fn concatenate(interpreter: &mut Interpreter, args: Vec<Value>, universe: &mut U
         .push(Value::String(Rc::new(format!("{}{}", s1, s2))))
 }
 
-fn as_symbol(interpreter: &mut Interpreter, args: Vec<Value>, universe: &mut UniverseBC) {
+fn as_symbol(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
     const SIGNATURE: &str = "String>>#asSymbol";
 
-    expect_args!(SIGNATURE, args, [
-        value
+    expect_args!(SIGNATURE, interpreter, [
+        value => value,
     ]);
 
     match value {
         Value::String(ref value) => interpreter
             .stack
             .push(Value::Symbol(universe.intern_symbol(value.as_str()))),
-        Value::Symbol(sym) => interpreter.stack.push(Value::Symbol(*sym)),
+        Value::Symbol(sym) => interpreter.stack.push(Value::Symbol(sym)),
         _ => panic!("'{}': invalid self type", SIGNATURE),
     }
 }
 
-fn char_at(interpreter: &mut Interpreter, args: Vec<Value>, universe: &mut UniverseBC) {
+fn char_at(interpreter: &mut Interpreter, _universe: &mut UniverseBC) {
     const SIGNATURE: &str = "String>>#charAt:";
 
-    expect_args!(SIGNATURE, args, [
-        s1,
-        s2
+    expect_args!(SIGNATURE, interpreter, [
+        s1 => s1,
+        s2 => s2,
     ]);
 
     let (value, idx) = match (&s1, s2) {
-        (Value::String(ref value), Value::Integer(i)) => (value.as_str(), *i as usize - 1),
-        (Value::Symbol(intern), Value::Integer(i)) => (universe.lookup_symbol(*intern), *i as usize - 1),
+        (Value::String(ref value), Value::Integer(i)) => (value.as_str(), i as usize - 1),
+        (Value::Symbol(intern), Value::Integer(i)) => (_universe.lookup_symbol(*intern), i as usize - 1),
         _ => panic!()
     };
     
     interpreter.stack.push(Value::String(Rc::new(String::from(value.chars().nth(idx).unwrap()))))
 }
 
-fn eq(interpreter: &mut Interpreter, args: Vec<Value>, universe: &mut UniverseBC) {
+fn eq(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
     const SIGNATURE: &str = "String>>#=";
 
-    expect_args!(SIGNATURE, args, [
-        s1,
-        s2
+    expect_args!(SIGNATURE, interpreter, [
+        s1 => s1,
+        s2 => s2,
     ]);
 
     let s1 = match s1 {
         Value::String(ref s1) => s1.as_str(),
-        Value::Symbol(s1) => universe.lookup_symbol(*s1),
+        Value::Symbol(s1) => universe.lookup_symbol(s1),
         _ => {
             interpreter.stack.push(Value::Boolean(false));
             return;
@@ -198,7 +198,7 @@ fn eq(interpreter: &mut Interpreter, args: Vec<Value>, universe: &mut UniverseBC
 
     let s2 = match s2 {
         Value::String(ref s2) => s2.as_str(),
-        Value::Symbol(s2) => universe.lookup_symbol(*s2),
+        Value::Symbol(s2) => universe.lookup_symbol(s2),
         _ => {
             interpreter.stack.push(Value::Boolean(false));
             return;
@@ -208,16 +208,16 @@ fn eq(interpreter: &mut Interpreter, args: Vec<Value>, universe: &mut UniverseBC
     interpreter.stack.push(Value::Boolean(s1 == s2))
 }
 
-fn prim_substring_from_to(interpreter: &mut Interpreter, args: Vec<Value>, universe: &mut UniverseBC) {
+fn prim_substring_from_to(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
     const SIGNATURE: &str = "String>>#primSubstringFrom:to:";
 
-    expect_args!(SIGNATURE, args, [
-        value,
-        Value::Integer(from),
-        Value::Integer(to)
+    expect_args!(SIGNATURE, interpreter, [
+        value => value,
+        Value::Integer(from) => from,
+        Value::Integer(to) => to,
     ]);
 
-    let (value, from, to) = match (&value, usize::try_from(from - 1), usize::try_from(*to)) {
+    let (value, from, to) = match (&value, usize::try_from(from - 1), usize::try_from(to)) {
         (Value::String(ref value), Ok(from), Ok(to)) => (value.as_str(), from, to),
         (Value::Symbol(sym), Ok(from), Ok(to)) => (universe.lookup_symbol(*sym), from, to),
         (_, _, _) => panic!("'{}': wrong types", SIGNATURE),

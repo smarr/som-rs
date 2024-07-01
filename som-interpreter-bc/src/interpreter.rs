@@ -27,14 +27,13 @@ macro_rules! send {
                 nb_params(signature)
             }
         };
-        let args = $interp.stack.split_off($interp.stack.len() - nb_params - 1);
         let method = {
             // dbg!($universe.lookup_symbol(symbol));
-            let receiver = unsafe { args.get_unchecked(0) };
+            let receiver = $interp.stack.iter().nth_back(nb_params)?;
             let receiver_class = receiver.class($universe);
             resolve_method($frame, &receiver_class, symbol, $interp.bytecode_idx)
         };
-        do_send($interp, $universe, method, symbol, args);
+        do_send($interp, $universe, method, symbol, nb_params as usize);
     }};
 }
 
@@ -48,14 +47,13 @@ macro_rules! super_send {
                 nb_params(signature)
             }
         };
-        let args = $interp.stack.split_off($interp.stack.len() - nb_params - 1);
         let method = {
             // dbg!($universe.lookup_symbol(symbol));
             let holder = $frame.borrow().get_method_holder();
             let super_class = holder.borrow().super_class().unwrap();
             resolve_method($frame, &super_class, symbol, $interp.bytecode_idx)
         };
-        do_send($interp, $universe, method, symbol, args);
+        do_send($interp, $universe, method, symbol, nb_params as usize);
     }};
 }
 
@@ -400,16 +398,16 @@ impl Interpreter {
             }
         }
 
-        #[inline(always)]
         pub fn do_send(
             interpreter: &mut Interpreter,
             universe: &mut UniverseBC,
             method: Option<Rc<Method>>,
             symbol: Interned,
-            args: Vec<Value>,
+            nb_params: usize,
         ) {
             let Some(method) = method else {
-                let self_value = args.get(0).unwrap().clone();
+                let args = interpreter.stack.split_off(interpreter.stack.len() - nb_params);
+                let self_value = interpreter.stack.pop().unwrap();
 
                 universe.does_not_understand(interpreter, self_value, symbol, args)
                     .expect(
@@ -424,22 +422,29 @@ impl Interpreter {
 
             match method.kind() {
                 MethodKind::Defined(_) => {
+                    // let name = &method.holder.upgrade().unwrap().borrow().name.clone();
+                    // let filter_list = ["Integer", "Vector", "True", "Pair"];
+                    // let filter_list = [];
+
+                    // if !filter_list.contains(&name.as_str()) {
                     //     eprintln!("Invoking {:?} (in {:?})", &method.signature, &method.holder.upgrade().unwrap().borrow().name);
+                    // }
+
+                    let args = interpreter.stack.split_off(interpreter.stack.len() - nb_params - 1);
                     interpreter.push_method_frame(method, args);
                 }
                 MethodKind::Primitive(func) => {
                     // eprintln!("Invoking prim {:?} (in {:?})", &method.signature, &method.holder.upgrade().unwrap().borrow().name);
-                    func(interpreter, args, universe);
+                    func(interpreter, universe);
                 }
                 MethodKind::NotImplemented(err) => {
-                    unreachable!("Primitive `#{}` not implemented", err);
-                    // let self_value = args.get(0).unwrap();
-                    // println!(
-                    //     "{}>>#{}",
-                    //     self_value.class(&universe).borrow().name(),
-                    //     method.signature(),
-                    // );
-                    // panic!("Primitive `#{}` not implemented", err)
+                    let self_value = interpreter.stack.iter().nth_back(nb_params).unwrap();
+                    println!(
+                        "{}>>#{}",
+                        self_value.class(&universe).borrow().name(),
+                        method.signature(),
+                    );
+                    panic!("Primitive `#{}` not implemented", err)
                 }
             }
         }
