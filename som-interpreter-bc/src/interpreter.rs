@@ -190,7 +190,7 @@ impl Interpreter {
                         Value::Class(c) => { c.borrow().class().borrow_mut().lookup_local(idx as usize) }
                         v => { panic!("trying to read a field from a {:?}", &v) }
                     };
-                    self.stack.push(value.unwrap());
+                    self.stack.push(value);
                 }
                 Bytecode::PushBlock(idx) => {
                     let literal = frame.borrow().lookup_constant(idx as usize);
