@@ -21,9 +21,8 @@ impl Invoke for WhileNode {
 
         loop {
             let cond_block_return = universe.with_frame(
-                Value::Block(Rc::clone(&cond_block)),
                 cond_block.block.nbr_locals,
-                0,
+                vec![Value::Block(Rc::clone(&cond_block))],
                 |universe| cond_block.invoke(universe, vec![]),
             );
 
@@ -36,9 +35,8 @@ impl Invoke for WhileNode {
                 break Return::Local(Nil)
             } else {
                 let ret_val = universe.with_frame(
-                    Value::Block(Rc::clone(&body_block)),
                     body_block.block.nbr_locals,
-                    0,
+                    vec![Value::Block(Rc::clone(&body_block))],
                     |universe| body_block.invoke(universe, vec![]),
                 );
 

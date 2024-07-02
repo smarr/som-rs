@@ -25,9 +25,8 @@ impl Invoke for IfNode {
             Return::Local(Nil)
         } else {
             universe.with_frame(
-                Value::Block(Rc::clone(&body_block)),
                 nbr_locals,
-                0,
+                vec![Value::Block(Rc::clone(&body_block))],
                 |universe| body_block.invoke(universe, vec![]),
             )
         }

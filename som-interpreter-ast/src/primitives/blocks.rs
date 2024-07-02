@@ -16,24 +16,15 @@ pub mod block1 {
     pub static CLASS_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[];
 
     fn value(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
-        const SIGNATURE: &str = "Block1>>#value";
-
-        expect_args!(SIGNATURE, &args, [
-            Value::Block(block) => block,
-        ]);
-
-        // let block_self = block.frame.borrow().get_self();
-        let block_self = Value::Block(block.clone());
-        let block_args = vec![];
+        let block = match args.first() {
+            Some(Value::Block(b)) => b.clone(),
+            _ => panic!("Calling value: on a block... not on a block?")
+        };
 
         universe.with_frame(
-            // FrameKind::Block {
-            //     block: block.clone(),
-            // },
-            block_self,
             block.block.nbr_locals,
-            1,
-            |universe| block.invoke(universe, block_args),
+            args,
+            |universe| block.invoke(universe, vec![]),
         )
     }
 
@@ -70,24 +61,15 @@ pub mod block2 {
     pub static CLASS_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[];
 
     fn value(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
-        const SIGNATURE: &str = "Block2>>#value:";
-
-        expect_args!(SIGNATURE, args, [
-            Value::Block(block) => block,
-            a => a,
-        ]);
-
-        let block_self = Value::Block(block.clone());
-        let block_args = Vec::from([a]);
+        let block = match args.first() {
+            Some(Value::Block(b)) => b.clone(),
+            _ => panic!("Calling value: on a block... not on a block?")
+        };
 
         universe.with_frame(
-            // FrameKind::Block {
-            //     block: block.clone(),
-            // },
-            block_self,
             block.block.nbr_locals,
-            2,
-            |universe| block.invoke(universe, block_args),
+            args,
+            |universe| block.invoke(universe, vec![]),
         )
     }
 
@@ -117,26 +99,15 @@ pub mod block3 {
     pub static CLASS_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[];
 
     fn value_with(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
-        const SIGNATURE: &str = "Block3>>#value:with:";
-
-        expect_args!(SIGNATURE, args, [
-            Value::Block(block) => block,
-            a => a,
-            b => b,
-        ]);
-
-        // let block_self = block.frame.borrow().get_self();
-        let block_self = Value::Block(block.clone());
-        let block_args = Vec::from([a, b]);
+        let block = match args.first() {
+            Some(Value::Block(b)) => b.clone(),
+            _ => panic!("Calling value: on a block... not on a block?")
+        };
 
         universe.with_frame(
-            // FrameKind::Block {
-            //     block: block.clone(),
-            // },
-            block_self,
             block.block.nbr_locals,
-            3,
-            |universe| block.invoke(universe, block_args),
+            args,
+            |universe| block.invoke(universe, vec![]),
         )
     }
 

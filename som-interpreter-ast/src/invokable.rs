@@ -48,29 +48,15 @@ impl Invoke for Method {
 
         let output = match self.kind() {
             MethodKind::Defined(method) => {
-                let nbr_params = args.len();
-
-                let (self_value, params) = {
-                    let mut iter = args.into_iter();
-                    let receiver = match iter.next() {
-                        Some(receiver) => receiver,
-                        None => {
-                            return Return::Exception("missing receiver for invocation".to_string());
-                        }
-                    };
-                    (receiver, iter.collect::<Vec<_>>())
-                };
-
                 let nbr_locals = match &method.body {
                     MethodBody::Body { locals_nbr, .. } => *locals_nbr,
                     MethodBody::Primitive => unreachable!()
                 };
 
                 universe.with_frame(
-                    self_value,
                     nbr_locals,
-                    nbr_params,
-                    |universe| method.invoke(universe, params),
+                    args,
+                    |universe| method.invoke(universe, vec![]),
                 )
             }
             MethodKind::Primitive(func) => func(universe, args),
@@ -82,52 +68,14 @@ impl Invoke for Method {
             }
         };
         // println!("...exiting {:}.", self.signature);
-        match output {
-            // Return::Exception(msg) => Return::Exception(format!(
-            //     "from {}>>#{}\n{}",
-            //     self.holder().borrow().name(),
-            //     self.signature(),
-            //     msg,
-            // )),
-            output => output,
-        }
+        output
     }
 }
 
 impl Invoke for ast::GenericMethodDef {
-    fn invoke(&self, universe: &mut UniverseAST, args: Vec<Value>) -> Return {
+    fn invoke(&self, universe: &mut UniverseAST, _: Vec<Value>) -> Return {
         let current_frame = universe.current_frame().clone();
-        // if &self.signature == "initialize:" {
-        //     dbg!(&self.body);
-        // std::process::exit(1);
-        // }
-        // if self.signature == "link" {
-        //     dbg!(&self.body);
-        // }
 
-
-        match &self.kind {
-            ast::MethodKind::Unary => {}
-            ast::MethodKind::Positional { .. } => current_frame
-                .borrow_mut()
-                .params
-                .extend(args),
-            ast::MethodKind::Operator { .. } => {
-                let rhs_value = match args.into_iter().next() {
-                    Some(value) => value,
-                    None => {
-                        // This should never happen in theory (the parser would have caught the missing rhs).
-                        return Return::Exception(format!(
-                            "no right-hand side for operator call ?"
-                        ));
-                    }
-                };
-                current_frame
-                    .borrow_mut()
-                    .params
-                    .push(rhs_value);
-            }
-        }
         match &self.body {
             ast::MethodBody::Body { body, .. } => {
                 loop {
@@ -160,21 +108,7 @@ impl Invoke for ast::GenericMethodDef {
 }
 
 impl Invoke for Block {
-    fn invoke(&self, universe: &mut UniverseAST, args: Vec<Value>) -> Return {
-        // println!("Invoking a block.");
-        // println!("--- ...with args: {:?}", &args);
-
-        // dbg!(&self.block.body);
-
-        let current_frame = universe.current_frame();
-        current_frame.borrow_mut().params.extend(args);
-
-        // dbg!(&current_frame.borrow_mut().params);
-        // dbg!(&self.block.parameters);
-        // dbg!("--");
-
-        let l = self.block.body.evaluate(universe);
-        // println!("...exiting a block.");
-        l
+    fn invoke(&self, universe: &mut UniverseAST, _: Vec<Value>) -> Return {
+        self.block.body.evaluate(universe)
     }
 }

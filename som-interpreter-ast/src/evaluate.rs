@@ -115,7 +115,7 @@ impl Evaluate for ast::Expression {
                 universe.lookup_arg(*idx, *scope)
                     .map(Return::Local)
                     .unwrap_or_else(|| {
-                        Return::Exception(format!("arg read: idx '{}', scope '{}' not found", idx, scope))
+                        Return::Exception(format!("arg read: scope '{}', idx '{}' not found", scope, idx))
                     })
             },
             Self::GlobalRead(name) => 

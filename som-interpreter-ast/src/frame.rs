@@ -1,5 +1,6 @@
 use std::cell::{RefCell};
 use std::rc::Rc;
+use std::vec;
 
 use crate::value::Value;
 use crate::SOMRef;
@@ -47,14 +48,12 @@ impl Frame {
     //     frame.params.push(self_value);
     //     frame
     // }
-
-    pub fn new_frame(nbr_locals: usize, nbr_params: usize, self_value: Value) -> Self {
-        let mut frame = Self {
+    
+    pub fn new_frame(nbr_locals: usize, params: Vec<Value>) -> Self {
+        Self {
             locals: vec![Value::Nil; nbr_locals],
-            params: Vec::with_capacity(nbr_params + 1), // can we add all params now? it's not straightforward as it turns out, but adding some *should* be doable...
-        };
-        frame.params.push(self_value);
-        frame
+            params,
+        }
     }
 
     /// Get the frame's kind.

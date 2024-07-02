@@ -451,8 +451,8 @@ impl UniverseAST {
     //     ret
     // }
 
-    pub fn with_frame<T>(&mut self, self_value: Value, nbr_locals: usize, nbr_params: usize, func: impl FnOnce(&mut Self) -> T) -> T {
-        let frame = Rc::new(RefCell::new(Frame::new_frame(nbr_locals, nbr_params, self_value)));
+    pub fn with_frame<T>(&mut self, nbr_locals: usize, args: Vec<Value>, func: impl FnOnce(&mut Self) -> T) -> T {
+        let frame = Rc::new(RefCell::new(Frame::new_frame(nbr_locals, args)));
         self.frames.push(frame);
         let ret = func(self);
         self.frames.pop();
