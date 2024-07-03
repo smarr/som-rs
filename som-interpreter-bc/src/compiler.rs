@@ -671,10 +671,9 @@ fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::GenericMethodDef) -> Opti
                 }
             },
             args_nbr: {
-                match &defn.kind {
-                    ast::MethodKind::Unary => 1,
-                    ast::MethodKind::Positional { parameters } => parameters.len(),
-                    ast::MethodKind::Operator { .. } => 2
+                match defn.signature.chars().next().unwrap() {
+                    '~' | '&' | '|' | '*' | '/' | '\\' | '+' | '=' | '>' | '<' | ',' | '@' | '%' | '-' => 2,
+                    _ => defn.signature.chars().filter(|c| *c == ':').count()
                 }
             },
             #[cfg(feature = "frame-debug-info")]

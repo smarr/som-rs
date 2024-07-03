@@ -9,7 +9,6 @@ use crate::compiler::Literal;
 use crate::method::{Method, MethodKind};
 use crate::value::Value;
 use crate::SOMRef;
-use crate::universe::UniverseBC;
 
 #[cfg(feature = "frame-debug-info")]
 /// The kind of a given frame.
@@ -151,18 +150,6 @@ impl Frame {
             },
             s => s.clone()
         }
-    }
-
-    #[cfg(feature = "frame-debug-info")]
-    /// Get the holder for this current method. TODO maybe remove this method? barely used
-    pub fn get_method_holder(&self, universe: &mut UniverseBC) -> SOMRef<Class> {
-        let ours = match self.get_self() {
-            Value::Class(c) => c,
-            v => v.class(universe),
-            // v => panic!("self value not a class, but {:?}", v)
-        };
-
-        ours.clone().borrow().class()
     }
 
     #[cfg(feature = "frame-debug-info")]

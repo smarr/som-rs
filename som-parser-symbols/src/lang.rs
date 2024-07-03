@@ -410,7 +410,6 @@ pub fn unary_method_def<'a>() -> impl Parser<MethodDef, &'a [Token], AstGenCtxt<
         .and_left(exact(Token::Equal))
         .and(primitive().or(method_body()))
         .map(|(signature, body)| Generic(GenericMethodDef {
-            kind: MethodKind::Unary,
             signature,
             body,
         }))
@@ -429,41 +428,35 @@ pub fn positional_method_def<'a>() -> impl Parser<MethodDef, &'a [Token], AstGen
         let method_def = match signature.as_str() {
             "whileTrue:" => {
                 InlinedWhile(GenericMethodDef {
-                    kind: MethodKind::Positional { parameters },
                     signature,
                     body,
                 }, true)
             },
             "whileFalse:" => {
                 InlinedWhile(GenericMethodDef {
-                    kind: MethodKind::Positional { parameters },
                     signature,
                     body,
                 }, false)
             }
             "ifTrue:" => {
                 InlinedIf(GenericMethodDef {
-                    kind: MethodKind::Positional { parameters },
                     signature,
                     body,
                 }, true)
             },
             "ifFalse:" => {
                 InlinedIf(GenericMethodDef {
-                    kind: MethodKind::Positional { parameters },
                     signature,
                     body,
                 }, false)
             },
             "ifTrue:ifFalse:" => {
                 InlinedIfTrueIfFalse(GenericMethodDef {
-                    kind: MethodKind::Positional { parameters },
                     signature,
                     body,
                 })
             },
             _ => Generic(GenericMethodDef {
-                kind: MethodKind::Positional { parameters: parameters.clone() },
                 signature,
                 body,
             })
@@ -481,7 +474,6 @@ pub fn operator_method_def<'a>() -> impl Parser<MethodDef, &'a [Token], AstGenCt
 
         primitive().or(method_body())
             .map(|body| Generic(GenericMethodDef {
-                kind: MethodKind::Operator { rhs: rhs.clone() },
                 signature: op.clone(),
                 body,
             })).parse(input, genctxt)
