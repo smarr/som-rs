@@ -142,8 +142,11 @@ impl Interpreter {
                     return Some(Value::Nil);
                 }
                 Bytecode::Dup => {
-                    let value = unsafe { self.stack.get_unchecked(self.stack.len() - 1).clone() };
-                    // let value = self.stack.last().cloned().unwrap();
+                    let value = match cfg!(debug_assertions) {
+                        true => self.stack.last().cloned().unwrap(),
+                        false => unsafe { self.stack.get_unchecked(self.stack.len() - 1).clone() }
+                    };
+                        
                     self.stack.push(value);
                 }
                 Bytecode::Inc => {
@@ -247,7 +250,10 @@ impl Interpreter {
                     self.stack.push(frame.borrow().lookup_argument(0));
                 }
                 Bytecode::Pop => {
-                    unsafe {self.stack.set_len(self.stack.len() - 1);}
+                    match cfg!(debug_assertions) {
+                        true => { self.stack.pop(); },
+                        false => unsafe { self.stack.set_len(self.stack.len() - 1); }
+                    };
                 }
                 Bytecode::Pop2 => {
                     self.stack.remove(self.stack.len() - 2);
