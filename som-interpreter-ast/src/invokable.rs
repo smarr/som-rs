@@ -34,19 +34,8 @@ impl Invoke for Method {
     fn invoke(&self, universe: &mut UniverseAST, args: Vec<Value>) -> Return {
         // println!("--- Invoking \"{:1}\" ({:2})", &self.signature, &self.holder.upgrade().unwrap().borrow().name);
         // println!("--- ...with args: {:?}", &args);
-        //
-        //
-        // if !universe.frames.is_empty() {
-        //     match &universe.current_method_frame().as_ref().borrow().kind {
-        //         FrameKind::Block { .. } => {}
-        //         FrameKind::Method { signature, holder, .. } => {
-        //             println!("We're in {:?} ({:?})", universe.lookup_symbol(signature.clone()),
-        //                      holder.borrow().name)
-        //         }
-        //     }
-        // }
 
-        let output = match self.kind() {
+        match self.kind() {
             MethodKind::Defined(method) => {
                 let nbr_locals = match &method.body {
                     MethodBody::Body { locals_nbr, .. } => *locals_nbr,
@@ -63,12 +52,8 @@ impl Invoke for Method {
             MethodKind::WhileInlined(while_node) => { while_node.invoke(universe, args) }
             MethodKind::IfInlined(if_node) => { if_node.invoke(universe, args) }
             MethodKind::IfTrueIfFalseInlined(if_true_if_false_node) => { if_true_if_false_node.invoke(universe, args) },
-            MethodKind::NotImplemented(name) => {
-                Return::Exception(format!("unimplemented primitive: {}", name))
-            }
-        };
-        // println!("...exiting {:}.", self.signature);
-        output
+            MethodKind::NotImplemented(name) => { Return::Exception(format!("unimplemented primitive: {}", name)) }
+        }
     }
 }
 

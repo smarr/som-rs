@@ -228,13 +228,6 @@ impl Evaluate for ast::Block {
 impl Evaluate for ast::Message {
     fn evaluate(&self, universe: &mut UniverseAST) -> Return {
         let (receiver, invokable) = match self.receiver.as_ref() {
-            // ast::Expression::Reference(ident) if ident == "self" => {
-            //     let frame = universe.current_frame();
-            //     let receiver = frame.borrow().get_self();
-            //     let holder = frame.borrow().get_method_holder();
-            //     let invokable = holder.borrow().lookup_method(&self.signature);
-            //     (receiver, invokable)
-            // }
             ast::Expression::GlobalRead(ident) if ident == "super" => {
                 let frame = universe.current_frame();
                 let receiver = frame.borrow().get_self();
