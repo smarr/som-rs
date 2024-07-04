@@ -56,12 +56,7 @@ impl Evaluate for ast::Expression {
                         Return::Exception(format!("arg write: idx '{}', scope '{}' not found", idx, scope)))
             },
             Self::BinaryOp(bin_op) => bin_op.evaluate(universe),
-            Self::Block(blk) => {
-                Return::Local(Value::Block(Rc::new(Block {
-                    block: Rc::clone(blk),
-                    frame: universe.current_frame().clone(),
-                })))
-            },
+            Self::Block(blk) => blk.evaluate(universe),
             Self::Exit(expr, _scope) => {
                 let value = propagate!(expr.evaluate(universe));
                 let frame = universe.current_method_frame();
@@ -216,6 +211,15 @@ impl Evaluate for ast::Literal {
 impl Evaluate for ast::Term {
     fn evaluate(&self, universe: &mut UniverseAST) -> Return {
         self.body.evaluate(universe)
+    }
+}
+
+impl Evaluate for Rc<ast::Block> {
+    fn evaluate(&self, universe: &mut UniverseAST) -> Return {
+        Return::Local(Value::Block(Rc::new(Block {
+            block: Rc::clone(self),
+            frame: Rc::clone(universe.current_frame()),
+        })))
     }
 }
 
