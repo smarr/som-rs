@@ -107,10 +107,10 @@ fn basic_interpreter_tests() {
             "BlockInlining testOneLevelInliningWithLocalShadowTrue",
             Value::Integer(2),
         ),
-        // (
-        //     "BlockInlining testOneLevelInliningWithLocalShadowFalse",
-        //     Value::Integer(1),
-        // ),
+        (
+            "BlockInlining testOneLevelInliningWithLocalShadowFalse",
+            Value::Integer(1),
+        ),
         (
             "BlockInlining testShadowDoesntStoreWrongLocal",
             Value::Integer(33),
