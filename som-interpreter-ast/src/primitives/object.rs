@@ -265,7 +265,7 @@ fn inst_var_at_put(_: &mut UniverseAST, args: Vec<Value>) -> Return {
     if does_have_local {
         object.assign_local(index, &value);
     }
-    
+
     Return::Local(value)
 }
 
