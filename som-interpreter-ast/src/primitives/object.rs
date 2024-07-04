@@ -238,7 +238,7 @@ fn inst_var_at(_: &mut UniverseAST, args: Vec<Value>) -> Return {
         },
         _ => unreachable!("instVarAt called not on an instance or a class")
     };
-    
+
     Return::Local(local)
 }
 
@@ -255,7 +255,7 @@ fn inst_var_at_put(_: &mut UniverseAST, args: Vec<Value>) -> Return {
         Ok(index) => index,
         Err(err) => return Return::Exception(format!("'{}': {}", SIGNATURE, err)),
     };
-    
+
     let does_have_local = match &object {
         Value::Instance(c) => { c.borrow().locals.len() > index }
         Value::Class(c) => { c.clone().borrow().locals.len() > index },
