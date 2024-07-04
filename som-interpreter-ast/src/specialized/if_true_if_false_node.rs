@@ -1,4 +1,3 @@
-use std::rc::Rc;
 use crate::invokable::{Invoke, Return};
 use crate::universe::UniverseAST;
 use crate::value::Value;
@@ -8,13 +7,13 @@ pub struct IfTrueIfFalseNode {}
 
 impl Invoke for IfTrueIfFalseNode {
     fn invoke(&self, universe: &mut UniverseAST, args: Vec<Value>) -> Return {
-        let cond_block_val = args.get(0).unwrap();
-        let body_block_arg = args.get(1).unwrap();
-        let body_block_arg2 = args.get(2).unwrap();
+        let (cond_block_val, block_1_arg, block_2_arg) = unsafe {
+            (args.get_unchecked(0), args.get_unchecked(1), args.get_unchecked(2))
+        };
 
         let bool_val = match cond_block_val {
             Value::Boolean(a) => *a,
-            _x => panic!()
+            _ => panic!("ifTrue:ifFalse: condition did not evaluate to boolean")
         };
 
         // let (bool_val, body_block, body_block2) = match (cond_block_val, body_block_arg, body_block_arg2) {
@@ -22,32 +21,17 @@ impl Invoke for IfTrueIfFalseNode {
         //     (a, b, c) => panic!("ifTrue:ifFalse: was not given a bool and two blocks as arguments, but {:?} and {:?} and {:?}", a, b, c)
         // };
 
-        if bool_val {
-            // body_block.invoke(universe, vec![])
-            // TODO: this kinda sucks, right? It's to make the case work where you don't provide a block.
-            // Shouldn't this be changed in IfNode too
-            match body_block_arg {
-                Value::Block(b) => {
-                    universe.with_frame(
-                        b.block.nbr_locals,
-                        vec![Value::Block(Rc::clone(&b))],
-                        |universe| b.invoke(universe, vec![]),
-                    )
-                },
-                a => Return::Local(a.clone()),
-            }
-        } else {
-            // body_block2.invoke(universe, vec![])
-            match body_block_arg2 {
-                Value::Block(b) => {
-                    universe.with_frame(
-                        b.block.nbr_locals,
-                        vec![Value::Block(Rc::clone(&b))],
-                        |universe| b.invoke(universe, vec![]),
-                    )
-                },
-                a => Return::Local(a.clone()),
-            }
+        let block_to_evaluate = if bool_val { block_1_arg } else { block_2_arg };
+
+        match block_to_evaluate {
+            Value::Block(b) => {
+                universe.with_frame(
+                    b.block.nbr_locals,
+                    vec![],
+                    |universe| b.invoke(universe, vec![]),
+                )
+            },
+            a => Return::Local(a.clone()),
         }
     }
 }
