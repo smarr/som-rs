@@ -68,7 +68,7 @@ fn block_test() {
 
     assert_eq!(
         block,
-        Expression::Block(Block {
+        Expression::Block(Rc::new(Block {
             #[cfg(feature = "block-debug-info")]
             dbg_info: BlockDebugInfo {
                 parameters: vec![String::from("test")],
@@ -92,7 +92,7 @@ fn block_test() {
                 ],
                 full_stopped: true,
             }
-        }),
+        })),
     );
 }
 
@@ -120,7 +120,7 @@ fn expression_test_2() {
             })),
             signature: String::from("ifTrue:ifFalse:"),
             values: vec![
-                Expression::Block(Block {
+                Expression::Block(Rc::new(Block {
                     #[cfg(feature = "block-debug-info")]
                     dbg_info: BlockDebugInfo {
                         parameters: vec![],
@@ -138,8 +138,8 @@ fn expression_test_2() {
                         })],
                         full_stopped: true,
                     }
-                }),
-                Expression::Block(Block {
+                })),
+                Expression::Block(Rc::new(Block {
                     #[cfg(feature = "block-debug-info")]
                     dbg_info: BlockDebugInfo {
                         parameters: vec![],
@@ -157,7 +157,7 @@ fn expression_test_2() {
                         })],
                         full_stopped: false,
                     }
-                }),
+                })),
             ],
         }),
     );
@@ -177,7 +177,7 @@ fn primary_test() {
 
     assert_eq!(
         primary,
-        Expression::Block(Block {
+        Expression::Block(Rc::new(Block {
             #[cfg(feature = "block-debug-info")]
             dbg_info: BlockDebugInfo {
                 parameters: vec![],
@@ -209,6 +209,6 @@ fn primary_test() {
                 })],
                 full_stopped: false,
             }
-        }),
+        })),
     );
 }
