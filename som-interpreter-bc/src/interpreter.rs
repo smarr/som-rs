@@ -145,7 +145,7 @@ impl Interpreter {
                         true => self.stack.last().cloned().unwrap(),
                         false => unsafe { self.stack.get_unchecked(self.stack.len() - 1).clone() }
                     };
-                        
+
                     self.stack.push(value);
                 }
                 Bytecode::Inc => {
