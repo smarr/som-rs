@@ -29,7 +29,8 @@ macro_rules! send {
         };
         let method = {
             // dbg!($universe.lookup_symbol(symbol));
-            let receiver = $interp.stack.iter().nth_back(nb_params)?;
+            // let receiver = $interp.stack.iter().nth_back(nb_params)?;
+            let receiver = unsafe { $interp.stack.get_unchecked($interp.stack.len() - nb_params - 1) };
             let receiver_class = receiver.class($universe);
             resolve_method($frame, &receiver_class, symbol, $interp.bytecode_idx)
         };
