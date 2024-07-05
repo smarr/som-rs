@@ -234,8 +234,8 @@ fn print_stack_trace(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
         };
 
         println!(
-            "{}>>#{}{} @bi: {}",
-            class.borrow().name(),
+            "{:?}>>#{}{} @bi: {}",
+            class,
             method.signature(),
             block,
             bytecode_idx

@@ -555,7 +555,7 @@ impl UniverseAST {
         let sym = Value::Symbol(sym);
         let args = Value::Array(Rc::new(RefCell::new(args)));
 
-//        eprintln!("Couldn't invoke {}; exiting.", symbol.as_ref()); std::process::exit(1);
+       // eprintln!("Couldn't invoke {}; exiting.", symbol.as_ref()); std::process::exit(1);
 
         Some(initialize.invoke(self, vec![value, sym, args]))
     }

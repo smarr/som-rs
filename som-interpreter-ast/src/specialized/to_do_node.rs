@@ -17,18 +17,16 @@ impl Invoke for ToDoNode {
             (Value::Integer(a), Value::Integer(b), Value::Block(c)) => (*a, *b, c.clone()),
             (a, b, c) => panic!("to:do: was not given two ints and a block as arguments, but {:?} and {:?} and {:?}", a, b, c)
         };
-        
-        // dbg!(&body_block.block.body);
+
         for i in start_int..=end_int {
-            // dbg!(&i);
-            universe.with_frame(
+            let ret = universe.with_frame(
                 body_block.block.nbr_locals,
                 vec![Value::Block(Rc::clone(&body_block)), Value::Integer(i)],
                 |universe| body_block.evaluate(universe),
             );
+            if let ret_val @ Return::NonLocal(..) = ret { return ret_val };
         }
 
-        // dbg!("done");
         Return::Local(Value::Integer(start_int))
     }
 }

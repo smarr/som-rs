@@ -241,6 +241,8 @@ impl Evaluate for ast::Message {
         //     self.values,
         // );
 
+        // println!("invoking {}>>#{}", receiver.class(universe).borrow().name(), self.signature);
+
         let value = match invokable {
             Some(invokable) => invokable.invoke(universe, args),
             None => {

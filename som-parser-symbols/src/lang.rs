@@ -456,12 +456,12 @@ pub fn positional_method_def<'a>() -> impl Parser<MethodDef, &'a [Token], AstGen
                     body,
                 })
             },
-            // "to:do:" => {
-            //     InlinedToDo(GenericMethodDef {
-            //         signature,
-            //         body,
-            //     })
-            // },
+            "to:do:" => {
+                InlinedToDo(GenericMethodDef {
+                    signature,
+                    body,
+                })
+            },
             _ => Generic(GenericMethodDef {
                 signature,
                 body,

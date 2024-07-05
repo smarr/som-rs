@@ -28,6 +28,7 @@ pub mod block1 {
         )
     }
 
+    // TODO: with inlining, this is never called. Maybe it could be removed for better perf since we could forego Return::Restart? but this wouldn't be fully valid interpreter behaviour.
     fn restart(_: &mut UniverseAST, args: Vec<Value>) -> Return {
         const SIGNATURE: &str = "Block>>#restart";
 
