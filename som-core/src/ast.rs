@@ -48,6 +48,7 @@ pub struct GenericMethodDef {
 pub enum MethodDef {
     Generic(GenericMethodDef),
     InlinedWhile(GenericMethodDef, bool),
+    InlinedToDo(GenericMethodDef),
     InlinedIf(GenericMethodDef, bool),
     InlinedIfTrueIfFalse(GenericMethodDef),
 }

@@ -857,6 +857,7 @@ pub fn compile_class(
         let method = match method_def {
             MethodDef::Generic(v) => v,
             MethodDef::InlinedWhile(v, _) => v,
+            MethodDef::InlinedToDo(v) => v,
             MethodDef::InlinedIf(v, _) => v,
             MethodDef::InlinedIfTrueIfFalse(v) => v
         };
@@ -943,6 +944,7 @@ pub fn compile_class(
         let method = match method_def {
             MethodDef::Generic(v) => v,
             MethodDef::InlinedWhile(v, _) => v,
+            MethodDef::InlinedToDo(v) => v,
             MethodDef::InlinedIf(v, _) => v,
             MethodDef::InlinedIfTrueIfFalse(v) => v
         };

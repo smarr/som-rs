@@ -7,6 +7,7 @@ use crate::{SOMRef, SOMWeakRef};
 use crate::specialized::while_node::WhileNode;
 use crate::specialized::if_node::IfNode;
 use crate::specialized::if_true_if_false_node::IfTrueIfFalseNode;
+use crate::specialized::to_do_node::ToDoNode;
 
 /// The kind of a class method.
 #[derive(Clone)]
@@ -19,8 +20,10 @@ pub enum MethodKind {
     WhileInlined(WhileNode),
     /// Specialized: ifTrue/ifFalse.
     IfInlined(IfNode),
-    /// Specialized: ifTrue/ifFalse.
+    /// Specialized: ifTrue:ifFalse.
     IfTrueIfFalseInlined(IfTrueIfFalseNode),
+    /// Specialized: to:do:.
+    ToDoInlined(ToDoNode),
     /// A non-implemented primitive.
     NotImplemented(String),
 }

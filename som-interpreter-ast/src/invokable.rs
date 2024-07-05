@@ -1,9 +1,5 @@
-use std::rc::Rc;
-
-use som_core::ast;
 use som_core::ast::MethodBody;
 
-use crate::block::Block;
 use crate::evaluate::Evaluate;
 use crate::frame::Frame;
 use crate::method::{Method, MethodKind};
@@ -45,55 +41,15 @@ impl Invoke for Method {
                 universe.with_frame(
                     nbr_locals,
                     args,
-                    |universe| method.invoke(universe, vec![]),
+                    |universe| method.evaluate(universe),
                 )
             }
             MethodKind::Primitive(func) => func(universe, args),
             MethodKind::WhileInlined(while_node) => { while_node.invoke(universe, args) }
             MethodKind::IfInlined(if_node) => { if_node.invoke(universe, args) }
             MethodKind::IfTrueIfFalseInlined(if_true_if_false_node) => { if_true_if_false_node.invoke(universe, args) },
+            MethodKind::ToDoInlined(to_do_node) => { to_do_node.invoke(universe, args) },
             MethodKind::NotImplemented(name) => { Return::Exception(format!("unimplemented primitive: {}", name)) }
         }
-    }
-}
-
-impl Invoke for ast::GenericMethodDef {
-    fn invoke(&self, universe: &mut UniverseAST, _: Vec<Value>) -> Return {
-        let current_frame = universe.current_frame().clone();
-
-        match &self.body {
-            ast::MethodBody::Body { body, .. } => {
-                loop {
-                    match body.evaluate(universe) {
-                        Return::NonLocal(value, frame) => {
-                            if Rc::ptr_eq(&current_frame, &frame) {
-                                break Return::Local(value);
-                            } else {
-                                break Return::NonLocal(value, frame);
-                            }
-                        }
-                        Return::Local(_) => break Return::Local(current_frame.borrow().get_self()),
-                        Return::Exception(msg) => break Return::Exception(msg),
-                        Return::Restart => continue,
-                    }
-                }
-            }
-            ast::MethodBody::Primitive => Return::Exception(format!(
-                "unimplemented primitive: {}>>#{}",
-                current_frame
-                    .borrow()
-                    .get_self()
-                    .class(universe)
-                    .borrow()
-                    .name(),
-                self.signature,
-            )),
-        }
-    }
-}
-
-impl Invoke for Block {
-    fn invoke(&self, universe: &mut UniverseAST, _: Vec<Value>) -> Return {
-        self.block.body.evaluate(universe)
     }
 }

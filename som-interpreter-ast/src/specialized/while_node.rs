@@ -1,4 +1,5 @@
 use std::rc::Rc;
+use crate::evaluate::Evaluate;
 use crate::invokable::{Invoke, Return};
 use crate::universe::UniverseAST;
 use crate::value::Value;
@@ -23,7 +24,7 @@ impl Invoke for WhileNode {
             let cond_block_return = universe.with_frame(
                 cond_block.block.nbr_locals,
                 vec![Value::Block(Rc::clone(&cond_block))],
-                |universe| cond_block.invoke(universe, vec![]),
+                |universe| cond_block.evaluate(universe),
             );
 
             let bool_val = match cond_block_return {
@@ -37,7 +38,7 @@ impl Invoke for WhileNode {
                 let ret_val = universe.with_frame(
                     body_block.block.nbr_locals,
                     vec![Value::Block(Rc::clone(&body_block))],
-                    |universe| body_block.invoke(universe, vec![]),
+                    |universe| body_block.evaluate(universe),
                 );
 
                 match ret_val {

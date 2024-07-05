@@ -1,4 +1,5 @@
 use std::rc::Rc;
+use crate::evaluate::Evaluate;
 use crate::invokable::{Invoke, Return};
 use crate::universe::UniverseAST;
 use crate::value::Value;
@@ -29,7 +30,7 @@ impl Invoke for IfTrueIfFalseNode {
                 universe.with_frame(
                     b.block.nbr_locals,
                     vec![Value::Block(Rc::clone(&b))],
-                    |universe| b.invoke(universe, vec![]),
+                    |universe| b.evaluate(universe),
                 )
             },
             a => Return::Local(a.clone()),

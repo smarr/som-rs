@@ -272,3 +272,44 @@ impl Evaluate for ast::Body {
         Return::Local(last_value)
     }
 }
+
+impl Evaluate for ast::GenericMethodDef {
+    fn evaluate(&self, universe: &mut UniverseAST) -> Return {
+        let current_frame = universe.current_frame().clone();
+
+        match &self.body {
+            ast::MethodBody::Body { body, .. } => {
+                loop {
+                    match body.evaluate(universe) {
+                        Return::NonLocal(value, frame) => {
+                            if Rc::ptr_eq(&current_frame, &frame) {
+                                break Return::Local(value);
+                            } else {
+                                break Return::NonLocal(value, frame);
+                            }
+                        }
+                        Return::Local(_) => break Return::Local(current_frame.borrow().get_self()),
+                        Return::Exception(msg) => break Return::Exception(msg),
+                        Return::Restart => continue,
+                    }
+                }
+            }
+            ast::MethodBody::Primitive => Return::Exception(format!(
+                "unimplemented primitive: {}>>#{}",
+                current_frame
+                    .borrow()
+                    .get_self()
+                    .class(universe)
+                    .borrow()
+                    .name(),
+                self.signature,
+            )),
+        }
+    }
+}
+
+impl Evaluate for Block {
+    fn evaluate(&self, universe: &mut UniverseAST) -> Return {
+        self.block.body.evaluate(universe)
+    }
+}

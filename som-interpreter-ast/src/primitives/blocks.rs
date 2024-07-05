@@ -1,5 +1,4 @@
 use crate::expect_args;
-use crate::invokable::Invoke;
 use crate::invokable::Return;
 use crate::primitives::PrimitiveFn;
 use crate::universe::UniverseAST;
@@ -7,6 +6,7 @@ use crate::value::Value;
 
 /// Primitives for the **Block** and **Block1** class.
 pub mod block1 {
+    use crate::evaluate::Evaluate;
     use super::*;
 
     pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[
@@ -24,7 +24,7 @@ pub mod block1 {
         universe.with_frame(
             block.block.nbr_locals,
             args,
-            |universe| block.invoke(universe, vec![]),
+            |universe| block.evaluate(universe),
         )
     }
 
@@ -55,6 +55,7 @@ pub mod block1 {
 
 /// Primitives for the **Block2** class.
 pub mod block2 {
+    use crate::evaluate::Evaluate;
     use super::*;
 
     pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[("value:", self::value, true)];
@@ -69,7 +70,7 @@ pub mod block2 {
         universe.with_frame(
             block.block.nbr_locals,
             args,
-            |universe| block.invoke(universe, vec![]),
+            |universe| block.evaluate(universe),
         )
     }
 
@@ -92,6 +93,7 @@ pub mod block2 {
 
 /// Primitives for the **Block3** class.
 pub mod block3 {
+    use crate::evaluate::Evaluate;
     use super::*;
 
     pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] =
@@ -107,7 +109,7 @@ pub mod block3 {
         universe.with_frame(
             block.block.nbr_locals,
             args,
-            |universe| block.invoke(universe, vec![]),
+            |universe| block.evaluate(universe),
         )
     }
 
