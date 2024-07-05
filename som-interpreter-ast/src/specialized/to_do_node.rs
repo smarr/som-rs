@@ -19,12 +19,11 @@ impl Invoke for ToDoNode {
         };
 
         for i in start_int..=end_int {
-            let ret = universe.with_frame(
+            propagate!(universe.with_frame(
                 body_block.block.nbr_locals,
                 vec![Value::Block(Rc::clone(&body_block)), Value::Integer(i)],
                 |universe| body_block.evaluate(universe),
-            );
-            if let ret_val @ Return::NonLocal(..) = ret { return ret_val };
+            ));
         }
 
         Return::Local(Value::Integer(start_int))

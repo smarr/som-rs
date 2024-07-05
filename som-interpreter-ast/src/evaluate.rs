@@ -8,15 +8,6 @@ use crate::invokable::{Invoke, Return};
 use crate::universe::UniverseAST;
 use crate::value::Value;
 
-macro_rules! propagate {
-    ($expr:expr) => {
-        match $expr {
-            Return::Local(value) => value,
-            ret => return ret,
-        }
-    };
-}
-
 /// The trait for evaluating AST nodes.
 pub trait Evaluate {
     /// Evaluate the node within a given universe.

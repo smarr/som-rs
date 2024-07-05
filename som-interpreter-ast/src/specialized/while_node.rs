@@ -33,19 +33,13 @@ impl Invoke for WhileNode {
             };
 
             if bool_val != self.expected_bool {
-                break Return::Local(Nil)
+                return Return::Local(Nil)
             } else {
-                let ret_val = universe.with_frame(
+                propagate!(universe.with_frame(
                     body_block.block.nbr_locals,
                     vec![Value::Block(Rc::clone(&body_block))],
                     |universe| body_block.evaluate(universe),
-                );
-
-                match ret_val {
-                    Return::Restart | Return::Local(_) => {},
-                    ret @ Return::NonLocal(_, _) => break ret,
-                    Return::Exception(e) => panic!("Exception thrown: {}", e),
-                }
+                ));
             }
         }
     }

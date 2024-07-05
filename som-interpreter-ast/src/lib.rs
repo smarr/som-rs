@@ -5,6 +5,15 @@
 use std::cell::RefCell;
 use std::rc::{Rc, Weak};
 
+macro_rules! propagate {
+    ($expr:expr) => {
+        match $expr {
+            Return::Local(value) => value,
+            ret => return ret,
+        }
+    };
+}
+
 /// Facilities for manipulating blocks.
 pub mod block;
 /// Facilities for manipulating classes.
