@@ -858,6 +858,8 @@ pub fn compile_class(
             MethodDef::Generic(v) => v,
             MethodDef::InlinedWhile(v, _) => v,
             MethodDef::InlinedToDo(v) => v,
+            MethodDef::InlinedToByDo(v) => v,
+            MethodDef::InlinedDownToDo(v) => v,
             MethodDef::InlinedIf(v, _) => v,
             MethodDef::InlinedIfTrueIfFalse(v) => v
         };
@@ -945,6 +947,8 @@ pub fn compile_class(
             MethodDef::Generic(v) => v,
             MethodDef::InlinedWhile(v, _) => v,
             MethodDef::InlinedToDo(v) => v,
+            MethodDef::InlinedToByDo(v) => v,
+            MethodDef::InlinedDownToDo(v) => v,
             MethodDef::InlinedIf(v, _) => v,
             MethodDef::InlinedIfTrueIfFalse(v) => v
         };

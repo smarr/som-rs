@@ -49,6 +49,8 @@ pub enum MethodDef {
     Generic(GenericMethodDef),
     InlinedWhile(GenericMethodDef, bool),
     InlinedToDo(GenericMethodDef),
+    InlinedToByDo(GenericMethodDef),
+    InlinedDownToDo(GenericMethodDef),
     InlinedIf(GenericMethodDef, bool),
     InlinedIfTrueIfFalse(GenericMethodDef),
 }

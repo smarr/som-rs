@@ -1,6 +1,6 @@
 use std::rc::Rc;
 use som_core::ast::*;
-use som_core::ast::MethodDef::{Generic, InlinedIf, InlinedIfTrueIfFalse, InlinedToDo, InlinedWhile};
+use som_core::ast::MethodDef::{Generic, InlinedDownToDo, InlinedIf, InlinedIfTrueIfFalse, InlinedToByDo, InlinedToDo, InlinedWhile};
 use som_lexer::Token;
 use som_parser_core::combinators::*;
 use som_parser_core::Parser;
@@ -458,6 +458,18 @@ pub fn positional_method_def<'a>() -> impl Parser<MethodDef, &'a [Token], AstGen
             },
             "to:do:" => {
                 InlinedToDo(GenericMethodDef {
+                    signature,
+                    body,
+                })
+            },
+            "to:by:do:" => {
+                InlinedToByDo(GenericMethodDef {
+                    signature,
+                    body,
+                })
+            },
+            "downTo:do:" => {
+                InlinedDownToDo(GenericMethodDef {
                     signature,
                     body,
                 })

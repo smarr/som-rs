@@ -10,8 +10,10 @@ use crate::method::{Method, MethodKind};
 use crate::primitives;
 use crate::value::Value;
 use crate::{SOMRef, SOMWeakRef};
+use crate::specialized::down_to_do_node::DownToDoNode;
 use crate::specialized::if_node::IfNode;
 use crate::specialized::if_true_if_false_node::IfTrueIfFalseNode;
+use crate::specialized::to_by_do_node::ToByDoNode;
 use crate::specialized::to_do_node::ToDoNode;
 use crate::specialized::while_node::WhileNode;
 
@@ -139,9 +141,10 @@ impl Class {
             .iter()
             .map(|method_def| {
                 match method_def {
+                    // todo find a way to no longer store the method for those inlined method cases...
                     MethodDef::Generic(method) | MethodDef::InlinedWhile(method, _) |
                     MethodDef::InlinedIf(method, _) | MethodDef::InlinedIfTrueIfFalse(method) | 
-                    MethodDef::InlinedToDo(method) => {
+                    MethodDef::InlinedToDo(method) | MethodDef::InlinedToByDo(method) | MethodDef::InlinedDownToDo(method) => {
                         let signature = method.signature.clone();
                         let kind = match method_def {
                             MethodDef::Generic(_) => {
@@ -153,6 +156,8 @@ impl Class {
                             MethodDef::InlinedIf(_, exp_bool) => MethodKind::IfInlined(IfNode { expected_bool: *exp_bool }),
                             MethodDef::InlinedIfTrueIfFalse(_) => MethodKind::IfTrueIfFalseInlined(IfTrueIfFalseNode {}),
                             MethodDef::InlinedToDo(_) => MethodKind::ToDoInlined(ToDoNode {}),
+                            MethodDef::InlinedToByDo(_) => MethodKind::ToByDoInlined(ToByDoNode {}),
+                            MethodDef::InlinedDownToDo(_) => MethodKind::DownToDoInlined(DownToDoNode {}),
                         };
                         let method = Method {
                             kind,

@@ -4,9 +4,11 @@ use crate::class::Class;
 use crate::primitives::PrimitiveFn;
 use crate::universe::UniverseAST;
 use crate::{SOMRef, SOMWeakRef};
+use crate::specialized::down_to_do_node::DownToDoNode;
 use crate::specialized::while_node::WhileNode;
 use crate::specialized::if_node::IfNode;
 use crate::specialized::if_true_if_false_node::IfTrueIfFalseNode;
+use crate::specialized::to_by_do_node::ToByDoNode;
 use crate::specialized::to_do_node::ToDoNode;
 
 /// The kind of a class method.
@@ -24,6 +26,10 @@ pub enum MethodKind {
     IfTrueIfFalseInlined(IfTrueIfFalseNode),
     /// Specialized: to:do:.
     ToDoInlined(ToDoNode),
+    /// Specialized: to:by:do:.
+    ToByDoInlined(ToByDoNode),
+    /// Specialized: downTo:do:.
+    DownToDoInlined(DownToDoNode),
     /// A non-implemented primitive.
     NotImplemented(String),
 }
