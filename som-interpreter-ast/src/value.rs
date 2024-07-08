@@ -72,24 +72,6 @@ impl Value {
         self.class(universe).borrow().lookup_method(signature)
     }
 
-    /// Search for a local binding within this value.
-    pub fn lookup_local(&self, idx: usize) -> Self {
-        match self {
-            Self::Instance(instance) => instance.borrow().lookup_local(idx),
-            Self::Class(class) => class.borrow().lookup_local(idx),
-            v => panic!("Looking up a local in a value {:?}", v),
-        }
-    }
-
-    /// Assign a value to a local binding within this value. TODO only ever used by that one object prim. move it
-    pub fn assign_local(&mut self, idx: usize, value: &Self) {
-        match self {
-            Self::Instance(instance) => instance.borrow_mut().assign_local(idx, value.clone()),
-            Self::Class(class) => class.borrow_mut().assign_local(idx, value),
-            v => unreachable!("Assigning a local binding in a {:?} value type?", v),
-        }
-    }
-
     /// Get the string representation of this value.
     pub fn to_string(&self, universe: &UniverseAST) -> String {
         match self {

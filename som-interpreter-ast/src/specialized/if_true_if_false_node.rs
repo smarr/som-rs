@@ -29,7 +29,7 @@ impl Invoke for IfTrueIfFalseNode {
             Value::Block(b) => {
                 universe.with_frame(
                     b.block.nbr_locals,
-                    vec![Value::Block(Rc::clone(&b))],
+                    vec![Value::Block(Rc::clone(b))],
                     |universe| b.evaluate(universe),
                 )
             },

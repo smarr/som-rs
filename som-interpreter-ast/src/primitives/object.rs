@@ -29,13 +29,13 @@ pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[
 pub static CLASS_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[];
 
 fn halt(_universe: &mut UniverseAST, _args: Vec<Value>) -> Return{
-    const _: &'static str = "Object>>#halt";
+    const _: &str = "Object>>#halt";
     println!("HALT"); // so a breakpoint can be put
     Return::Local(Nil)
 }
 
 fn class(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
-    const SIGNATURE: &'static str = "Object>>#class";
+    const SIGNATURE: &str = "Object>>#class";
 
     expect_args!(SIGNATURE, args, [
         object => object,
@@ -45,13 +45,13 @@ fn class(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
 }
 
 fn object_size(_: &mut UniverseAST, _: Vec<Value>) -> Return {
-    const _: &'static str = "Object>>#objectSize";
+    const _: &str = "Object>>#objectSize";
 
     Return::Local(Value::Integer(std::mem::size_of::<Value>() as i64))
 }
 
 fn hashcode(_: &mut UniverseAST, args: Vec<Value>) -> Return {
-    const SIGNATURE: &'static str = "Object>>#hashcode";
+    const SIGNATURE: &str = "Object>>#hashcode";
 
     expect_args!(SIGNATURE, args, [
         value => value,
@@ -65,7 +65,7 @@ fn hashcode(_: &mut UniverseAST, args: Vec<Value>) -> Return {
 }
 
 fn eq(_: &mut UniverseAST, args: Vec<Value>) -> Return {
-    const SIGNATURE: &'static str = "Object>>#==";
+    const SIGNATURE: &str = "Object>>#==";
 
     expect_args!(SIGNATURE, args, [
         a => a,
@@ -76,7 +76,7 @@ fn eq(_: &mut UniverseAST, args: Vec<Value>) -> Return {
 }
 
 fn perform(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
-    const SIGNATURE: &'static str = "Object>>#perform:";
+    const SIGNATURE: &str = "Object>>#perform:";
 
     expect_args!(SIGNATURE, args, [
         object => object,
@@ -106,7 +106,7 @@ fn perform(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
 }
 
 fn perform_with_arguments(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
-    const SIGNATURE: &'static str = "Object>>#perform:withArguments:";
+    const SIGNATURE: &str = "Object>>#perform:withArguments:";
 
     expect_args!(SIGNATURE, args, [
         object => object,
@@ -120,14 +120,14 @@ fn perform_with_arguments(universe: &mut UniverseAST, args: Vec<Value>) -> Retur
     match method {
         Some(invokable) => {
             let args = std::iter::once(object)
-                .chain(arr.replace(Vec::default()).into_iter())
+                .chain(arr.replace(Vec::default()))
                 .collect();
             invokable.invoke(universe, args)
         }
         None => {
             let signature = signature.to_string();
             let args = std::iter::once(object.clone())
-                .chain(arr.replace(Vec::default()).into_iter())
+                .chain(arr.replace(Vec::default()))
                 .collect();
             universe
                 .does_not_understand(object.clone(), signature.as_str(), args)
@@ -145,7 +145,7 @@ fn perform_with_arguments(universe: &mut UniverseAST, args: Vec<Value>) -> Retur
 }
 
 fn perform_in_super_class(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
-    const SIGNATURE: &'static str = "Object>>#perform:inSuperclass:";
+    const SIGNATURE: &str = "Object>>#perform:inSuperclass:";
 
     expect_args!(SIGNATURE, args, [
         object => object,
@@ -177,7 +177,7 @@ fn perform_in_super_class(universe: &mut UniverseAST, args: Vec<Value>) -> Retur
 }
 
 fn perform_with_arguments_in_super_class(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
-    const SIGNATURE: &'static str = "Object>>#perform:withArguments:inSuperclass:";
+    const SIGNATURE: &str = "Object>>#perform:withArguments:inSuperclass:";
 
     expect_args!(SIGNATURE, args, [
         object => object,
@@ -192,13 +192,13 @@ fn perform_with_arguments_in_super_class(universe: &mut UniverseAST, args: Vec<V
     match method {
         Some(invokable) => {
             let args = std::iter::once(object)
-                .chain(arr.replace(Vec::default()).into_iter())
+                .chain(arr.replace(Vec::default()))
                 .collect();
             invokable.invoke(universe, args)
         }
         None => {
             let args = std::iter::once(object.clone())
-                .chain(arr.replace(Vec::default()).into_iter())
+                .chain(arr.replace(Vec::default()))
                 .collect();
             let signature = signature.to_string();
             universe
@@ -217,7 +217,7 @@ fn perform_with_arguments_in_super_class(universe: &mut UniverseAST, args: Vec<V
 }
 
 fn inst_var_at(_: &mut UniverseAST, args: Vec<Value>) -> Return {
-    const SIGNATURE: &'static str = "Object>>#instVarAt:";
+    const SIGNATURE: &str = "Object>>#instVarAt:";
 
     expect_args!(SIGNATURE, args, [
         object => object,
@@ -234,7 +234,7 @@ fn inst_var_at(_: &mut UniverseAST, args: Vec<Value>) -> Return {
             c.borrow().locals.get(index).cloned().unwrap_or(Value::Nil)
         }
         Value::Class(c) => {
-            c.clone().borrow().locals.get(index).cloned().unwrap_or(Value::Nil)
+            c.clone().borrow().fields.get(index).cloned().unwrap_or(Value::Nil)
         },
         _ => unreachable!("instVarAt called not on an instance or a class")
     };
@@ -243,7 +243,7 @@ fn inst_var_at(_: &mut UniverseAST, args: Vec<Value>) -> Return {
 }
 
 fn inst_var_at_put(_: &mut UniverseAST, args: Vec<Value>) -> Return {
-    const SIGNATURE: &'static str = "Object>>#instVarAt:put:";
+    const SIGNATURE: &str = "Object>>#instVarAt:put:";
 
     expect_args!(SIGNATURE, args, [
         object => object,
@@ -258,12 +258,16 @@ fn inst_var_at_put(_: &mut UniverseAST, args: Vec<Value>) -> Return {
 
     let does_have_local = match &object {
         Value::Instance(c) => { c.borrow().locals.len() > index }
-        Value::Class(c) => { c.clone().borrow().locals.len() > index },
+        Value::Class(c) => { c.clone().borrow().fields.len() > index },
         _ => unreachable!("instVarAtPut called not on an instance or a class")
     };
 
     if does_have_local {
-        object.assign_local(index, &value);
+        match object {
+            Value::Instance(instance) => instance.borrow_mut().assign_local(index, value.clone()),
+            Value::Class(class) => class.borrow_mut().assign_field(index, value.clone()),
+            v => unreachable!("Assigning a local binding in a {:?} value type?", v),
+        }
     }
 
     Return::Local(value)

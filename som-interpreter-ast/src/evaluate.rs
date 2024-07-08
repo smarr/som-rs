@@ -47,21 +47,19 @@ impl Evaluate for ast::Expression {
                     .frames
                     .iter()
                     .rev()
-                    .any(|live_frame| Rc::ptr_eq(&live_frame, &frame));
+                    .any(|live_frame| Rc::ptr_eq(live_frame, &frame));
                 if has_not_escaped {
                     Return::NonLocal(value, frame)
                 } else {
                     // Block has escaped its method frame.
                     let instance = frame.borrow().get_self();
                     let frame = universe.current_frame();
-                    let block = match frame.borrow().params.get(0) {
+                    let block = match frame.borrow().params.first() {
                         Some(Value::Block(b)) => b.clone(),
                         _ => {
                             // Should never happen, because `universe.current_frame()` would
                             // have been equal to `universe.current_method_frame()`.
-                            return Return::Exception(format!(
-                                "A method frame has escaped itself ??"
-                            ));
+                            return Return::Exception("A method frame has escaped itself ??".to_string());
                         }
                     };
                     universe.escaped_block(instance, block).unwrap_or_else(|| {
@@ -234,7 +232,7 @@ impl Evaluate for ast::Message {
 
         // println!("invoking {}>>#{}", receiver.class(universe).borrow().name(), self.signature);
 
-        let value = match invokable {
+        match invokable {
             Some(invokable) => invokable.invoke(universe, args),
             None => {
                 let mut args = args;
@@ -250,9 +248,7 @@ impl Evaluate for ast::Message {
                         // Return::Local(Value::Nil)
                     })
             }
-        };
-
-        value
+        }
     }
 }
 

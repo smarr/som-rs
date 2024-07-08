@@ -36,10 +36,10 @@ pub struct Class {
     /// The superclass of this class.
     // TODO: Should probably be `Option<SOMRef<Class>>`.
     pub super_class: SOMWeakRef<Class>,
-    /// The class' locals.
-    pub locals: Vec<Value>,
-    /// The class' locals (fields) names. todo rename locals to fields
-    pub local_names: Vec<String>,
+    /// The class' fields.
+    pub fields: Vec<Value>,
+    /// The class' fields names.
+    pub field_names: Vec<String>,
     /// The class' methods/invokables.
     pub methods: IndexMap<String, Rc<Method>>,
     /// Is this class a static one ?
@@ -79,8 +79,8 @@ impl Class {
             name: format!("{} class", defn.name),
             class: MaybeWeak::Weak(Weak::new()),
             super_class: Weak::new(),
-            locals: vec![Value::Nil; static_locals.len()],
-            local_names: defn.static_locals,
+            fields: vec![Value::Nil; static_locals.len()],
+            field_names: defn.static_locals,
             methods: IndexMap::new(),
             is_static: true,
         }));
@@ -89,8 +89,8 @@ impl Class {
             name: defn.name.clone(),
             class: MaybeWeak::Strong(static_class.clone()),
             super_class: Weak::new(),
-            locals: vec![Value::Nil; instance_locals.len()],
-            local_names: defn.instance_locals,
+            fields: vec![Value::Nil; instance_locals.len()],
+            field_names: defn.instance_locals,
             methods: IndexMap::new(),
             is_static: false,
         }));
@@ -226,11 +226,11 @@ impl Class {
 
     /// Set the superclass of this class (as a weak reference).
     pub fn set_super_class(&mut self, class: &SOMRef<Self>) {
-        for local_name in class.borrow().local_names.iter().rev() {
-            self.local_names.insert(0, local_name.clone());
+        for local_name in class.borrow().field_names.iter().rev() {
+            self.field_names.insert(0, local_name.clone());
         }
-        for local in class.borrow().locals.iter().rev() {
-            self.locals.insert(0, local.clone());
+        for local in class.borrow().fields.iter().rev() {
+            self.fields.insert(0, local.clone());
         }
 
         self.super_class = Rc::downgrade(class);
@@ -248,22 +248,22 @@ impl Class {
     }
 
     /// Search for a local binding.
-    pub fn lookup_local(&self, idx: usize) -> Value {
-        self.locals.get(idx).cloned().unwrap_or_else(|| {
+    pub fn lookup_field(&self, idx: usize) -> Value {
+        self.fields.get(idx).cloned().unwrap_or_else(|| {
             let super_class = self.super_class().unwrap();
             let super_class_ref = super_class.borrow_mut();
-            super_class_ref.lookup_local(idx)
+            super_class_ref.lookup_field(idx)
         })
     }
 
     /// Assign a value to a local binding.
-    pub fn assign_local(&mut self, idx: usize, value: &Value) {
-        if let Some(local) = self.locals.get_mut(idx) {
-            *local = value.clone();
+    pub fn assign_field(&mut self, idx: usize, value: Value) {
+        if let Some(local) = self.fields.get_mut(idx) {
+            *local = value;
             return;
         }
         let super_class = self.super_class().unwrap();
-        super_class.borrow_mut().assign_local(idx, value);
+        super_class.borrow_mut().assign_field(idx, value);
     }
 }
 
@@ -271,7 +271,7 @@ impl fmt::Debug for Class {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("Class")
             .field("name", &self.name)
-            .field("fields", &self.locals.len())
+            .field("fields", &self.fields.len())
             .field("methods", &self.methods.len())
             // .field("class", &self.class)
             // .field("super_class", &self.super_class)

@@ -65,7 +65,7 @@ fn print_string(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
 }
 
 fn print_newline(_: &mut UniverseAST, args: Vec<Value>) -> Return {
-    const SIGNATURE: &'static str = "System>>#printNewline";
+    const SIGNATURE: &str = "System>>#printNewline";
 
     expect_args!(SIGNATURE, args, [Value::System]);
 

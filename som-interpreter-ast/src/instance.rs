@@ -16,7 +16,7 @@ pub struct Instance {
 impl Instance {
     /// Construct an instance for a given class.
     pub fn from_class(class: SOMRef<Class>) -> Self {
-        let locals = class.borrow().locals.iter().map(|_| Value::Nil).collect();
+        let locals = class.borrow().fields.iter().map(|_| Value::Nil).collect();
         
         Self {
             class,

@@ -16,7 +16,7 @@ impl Invoke for IfNode {
         let body_block_arg = unsafe { args.get_unchecked(1) };
 
         let (bool_val, body_block) = match (cond_block_val, body_block_arg) {
-            (Value::Boolean(b), Value::Block(c)) => (*b, Rc::clone(&c)),
+            (Value::Boolean(b), Value::Block(c)) => (*b, Rc::clone(c)),
             (a, b) => panic!("if[True|False] was not given a bool and a block as arguments, but {:?} and {:?}", a, b)
         };
 

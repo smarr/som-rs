@@ -75,7 +75,7 @@ fn fields(_: &mut UniverseAST, args: Vec<Value>) -> Return {
         Value::Class(class) => class,
     ]);
 
-    let fields = class.borrow().local_names.iter()
+    let fields = class.borrow().field_names.iter()
         .map(|field_name| Value::String(Rc::new(field_name.clone())))
         .collect();
 
