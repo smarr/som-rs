@@ -4,7 +4,7 @@ use std::rc::{Rc, Weak};
 
 use indexmap::IndexMap;
 
-use som_core::ast::{ClassDef, MethodBody, MethodDef};
+use som_core::ast::{ClassDef, MethodBody};
 
 use crate::method::{Method, MethodKind};
 use crate::primitives;
@@ -99,22 +99,17 @@ impl Class {
             .static_methods
             .iter()
             .map(|method| {
-                match method {
-                    MethodDef::Generic(method) => {
-                        let signature = method.signature.clone();
-                        let kind = match method.body {
-                            MethodBody::Primitive => MethodKind::NotImplemented(signature.clone()),
-                            MethodBody::Body { .. } => MethodKind::Defined(method.clone()),
-                        };
-                        let method = Method {
-                            kind,
-                            signature: signature.clone(),
-                            holder: Rc::downgrade(&static_class),
-                        };
-                        (signature, Rc::new(method))
-                    }
-                    _ => panic!("Unreachable, I believe?") // inlinedwhile, inlinedif, etc.
-                }
+                let signature = method.signature.clone();
+                let kind = match method.body {
+                    MethodBody::Primitive => MethodKind::NotImplemented(signature.clone()),
+                    MethodBody::Body { .. } => MethodKind::Defined(method.clone()),
+                };
+                let method = Method {
+                    kind,
+                    signature: signature.clone(),
+                    holder: Rc::downgrade(&static_class),
+                };
+                (signature, Rc::new(method))
             })
             .collect();
 
@@ -139,34 +134,30 @@ impl Class {
         let mut instance_methods: IndexMap<String, Rc<Method>> = defn
             .instance_methods
             .iter()
-            .map(|method_def| {
-                match method_def {
-                    // todo find a way to no longer store the method for those inlined method cases...
-                    MethodDef::Generic(method) | MethodDef::InlinedWhile(method, _) |
-                    MethodDef::InlinedIf(method, _) | MethodDef::InlinedIfTrueIfFalse(method) | 
-                    MethodDef::InlinedToDo(method) | MethodDef::InlinedToByDo(method) | MethodDef::InlinedDownToDo(method) => {
-                        let signature = method.signature.clone();
-                        let kind = match method_def {
-                            MethodDef::Generic(_) => {
-                                match method.body {
-                                    MethodBody::Primitive => MethodKind::NotImplemented(signature.clone()),
-                                    MethodBody::Body { .. } => MethodKind::Defined(method.clone())}
-                            },
-                            MethodDef::InlinedWhile(_, exp_bool) => MethodKind::WhileInlined(WhileNode { expected_bool: *exp_bool }),
-                            MethodDef::InlinedIf(_, exp_bool) => MethodKind::IfInlined(IfNode { expected_bool: *exp_bool }),
-                            MethodDef::InlinedIfTrueIfFalse(_) => MethodKind::IfTrueIfFalseInlined(IfTrueIfFalseNode {}),
-                            MethodDef::InlinedToDo(_) => MethodKind::ToDoInlined(ToDoNode {}),
-                            MethodDef::InlinedToByDo(_) => MethodKind::ToByDoInlined(ToByDoNode {}),
-                            MethodDef::InlinedDownToDo(_) => MethodKind::DownToDoInlined(DownToDoNode {}),
-                        };
-                        let method = Method {
-                            kind,
-                            signature: signature.clone(),
-                            holder: Rc::downgrade(&instance_class),
-                        };
-                        (signature, Rc::new(method))
+            .map(|method| {
+                let signature = method.signature.clone();
+                let kind = match signature.as_str() {
+                    "ifTrue:" => MethodKind::IfInlined(IfNode { expected_bool: true }),
+                    "ifFalse:" => MethodKind::IfInlined(IfNode { expected_bool: false }),
+                    "ifTrue:ifFalse:" => MethodKind::IfTrueIfFalseInlined(IfTrueIfFalseNode {}),
+                    "whileTrue:" => MethodKind::WhileInlined(WhileNode { expected_bool: true }),
+                    "whileFalse:" => MethodKind::WhileInlined(WhileNode { expected_bool: false }),
+                    "to:do:" => MethodKind::ToDoInlined(ToDoNode{}),
+                    "to:by:do:" => MethodKind::ToByDoInlined(ToByDoNode{}),
+                    "downTo:do:" => MethodKind::DownToDoInlined(DownToDoNode{}),
+                    _ => {
+                        match method.body {
+                            MethodBody::Primitive => MethodKind::NotImplemented(signature.clone()),
+                            MethodBody::Body { .. } => MethodKind::Defined(method.clone())
+                        }
                     }
-                }
+                };
+                let method = Method {
+                    kind,
+                    signature: signature.clone(),
+                    holder: Rc::downgrade(&instance_class),
+                };
+                (signature, Rc::new(method))
             })
             .collect();
 

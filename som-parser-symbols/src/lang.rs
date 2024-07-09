@@ -1,6 +1,5 @@
 use std::rc::Rc;
 use som_core::ast::*;
-use som_core::ast::MethodDef::{Generic, InlinedDownToDo, InlinedIf, InlinedIfTrueIfFalse, InlinedToByDo, InlinedToDo, InlinedWhile};
 use som_lexer::Token;
 use som_parser_core::combinators::*;
 use som_parser_core::Parser;
@@ -382,12 +381,12 @@ pub fn method_body<'a>() -> impl Parser<MethodBody, &'a [Token], AstGenCtxt<'a>>
             exact(Token::EndTerm),
         ).parse(input, genctxt)?;
 
-        let method_body = MethodBody::Body { 
+        let method_body = MethodBody::Body {
             locals_nbr: locals.len(),
             body,
-            debug_info: genctxt.borrow().get_debug_info()
+            debug_info: genctxt.borrow().get_debug_info(),
         };
-        
+
         Some((method_body, input, genctxt))
     }
 }
@@ -399,20 +398,20 @@ pub fn method_body<'a>() -> impl Parser<MethodBody, &'a [Token], AstGenCtxt<'a>>
         default(locals()).and(body()),
         exact(Token::EndTerm),
     )
-    .map(|(locals, body)| MethodBody::Body {
-        locals_nbr: locals.len(),
-        body
-    })
+        .map(|(locals, body)| MethodBody::Body {
+            locals_nbr: locals.len(),
+            body,
+        })
 }
 
 pub fn unary_method_def<'a>() -> impl Parser<MethodDef, &'a [Token], AstGenCtxt<'a>> {
     identifier()
         .and_left(exact(Token::Equal))
         .and(primitive().or(method_body()))
-        .map(|(signature, body)| Generic(GenericMethodDef {
+        .map(|(signature, body)| MethodDef {
             signature,
             body,
-        }))
+        })
 }
 
 pub fn positional_method_def<'a>() -> impl Parser<MethodDef, &'a [Token], AstGenCtxt<'a>> {
@@ -420,64 +419,14 @@ pub fn positional_method_def<'a>() -> impl Parser<MethodDef, &'a [Token], AstGen
         let (pairs, input, genctxt) = some(keyword().and(identifier())).and_left(exact(Token::Equal)).parse(input, genctxt)?;
         let (signature, parameters): (String, Vec<String>) = pairs.into_iter().unzip();
 
-        genctxt.borrow_mut().name = signature.clone();
+        genctxt.borrow_mut().name.clone_from(&signature);
         genctxt.borrow_mut().add_params(&parameters);
 
         let (body, input, genctxt) = primitive().or(method_body()).parse(input, genctxt)?;
 
-        let method_def = match signature.as_str() {
-            "whileTrue:" => {
-                InlinedWhile(GenericMethodDef {
-                    signature,
-                    body,
-                }, true)
-            },
-            "whileFalse:" => {
-                InlinedWhile(GenericMethodDef {
-                    signature,
-                    body,
-                }, false)
-            }
-            "ifTrue:" => {
-                InlinedIf(GenericMethodDef {
-                    signature,
-                    body,
-                }, true)
-            },
-            "ifFalse:" => {
-                InlinedIf(GenericMethodDef {
-                    signature,
-                    body,
-                }, false)
-            },
-            "ifTrue:ifFalse:" => {
-                InlinedIfTrueIfFalse(GenericMethodDef {
-                    signature,
-                    body,
-                })
-            },
-            "to:do:" => {
-                InlinedToDo(GenericMethodDef {
-                    signature,
-                    body,
-                })
-            },
-            "to:by:do:" => {
-                InlinedToByDo(GenericMethodDef {
-                    signature,
-                    body,
-                })
-            },
-            "downTo:do:" => {
-                InlinedDownToDo(GenericMethodDef {
-                    signature,
-                    body,
-                })
-            },
-            _ => Generic(GenericMethodDef {
-                signature,
-                body,
-            })
+        let method_def = MethodDef {
+            signature,
+            body,
         };
 
         Some((method_def, input, genctxt))
@@ -491,10 +440,10 @@ pub fn operator_method_def<'a>() -> impl Parser<MethodDef, &'a [Token], AstGenCt
         genctxt.borrow_mut().add_params(&vec![rhs.clone()]);
 
         primitive().or(method_body())
-            .map(|body| Generic(GenericMethodDef {
+            .map(|body| MethodDef {
                 signature: op.clone(),
                 body,
-            })).parse(input, genctxt)
+            }).parse(input, genctxt)
     }
 }
 
@@ -509,7 +458,7 @@ pub fn instance_method_def<'a>() -> impl Parser<MethodDef, &'a [Token], AstGenCt
             Some((method_def, input, genctxt)) => {
                 let original_genctxt = genctxt.borrow_mut().get_outer();
                 Some((method_def, input, original_genctxt))
-            },
+            }
             None => None,
         }
     }
@@ -526,7 +475,7 @@ pub fn class_method_def<'a>() -> impl Parser<MethodDef, &'a [Token], AstGenCtxt<
             Some((method_def, input, genctxt)) => {
                 let original_genctxt = genctxt.borrow_mut().get_outer();
                 Some((method_def, input, original_genctxt))
-            },
+            }
             None => None,
         }
     }
@@ -537,7 +486,7 @@ pub fn class_def<'a>() -> impl Parser<ClassDef, &'a [Token], AstGenCtxt<'a>> {
         let (name, input, genctxt) = identifier().and_left(exact(Token::Equal)).parse(input, genctxt)?;
 
         genctxt.borrow_mut().name = name.clone();
-        
+
         optional(super_class())
             .and(between(
                 exact(Token::NewTerm),

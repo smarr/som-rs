@@ -37,22 +37,11 @@ pub struct ClassDef {
 /// "operator method"    + value = ( self increment: value )
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub struct GenericMethodDef {
+pub struct MethodDef {
     /// The method's signature (eg. `println`, `at:put:` or `==`).
     pub signature: String,
     /// The method's body.
     pub body: MethodBody,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum MethodDef {
-    Generic(GenericMethodDef),
-    InlinedWhile(GenericMethodDef, bool),
-    InlinedToDo(GenericMethodDef),
-    InlinedToByDo(GenericMethodDef),
-    InlinedDownToDo(GenericMethodDef),
-    InlinedIf(GenericMethodDef, bool),
-    InlinedIfTrueIfFalse(GenericMethodDef),
 }
 
 /// Represents a method's body.

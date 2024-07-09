@@ -9,7 +9,7 @@ use indexmap::{IndexMap, IndexSet};
 use num_bigint::BigInt;
 
 use som_core::ast;
-use som_core::ast::{Expression, MethodBody, MethodDef};
+use som_core::ast::{Expression, MethodBody};
 #[cfg(feature = "frame-debug-info")]
 use som_core::ast::BlockDebugInfo;
 use som_core::bytecode::Bytecode;
@@ -618,7 +618,7 @@ impl GenCtxt for ClassGenCtxt<'_> {
     }
 }
 
-fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::GenericMethodDef) -> Option<Method> {
+fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::MethodDef) -> Option<Method> {
     /// Only add a ReturnSelf at the end of a method if needed: i.e. there's no existing return, and if there is, that it can't be jumped over.
     fn should_add_return_self(ctxt: &mut MethodGenCtxt, body: &ast::Body) -> bool {
         if body.exprs.is_empty() {
@@ -854,18 +854,8 @@ pub fn compile_class(
     }));
 
     for method_def in &defn.static_methods {
-        let method = match method_def {
-            MethodDef::Generic(v) => v,
-            MethodDef::InlinedWhile(v, _) => v,
-            MethodDef::InlinedToDo(v) => v,
-            MethodDef::InlinedToByDo(v) => v,
-            MethodDef::InlinedDownToDo(v) => v,
-            MethodDef::InlinedIf(v, _) => v,
-            MethodDef::InlinedIfTrueIfFalse(v) => v
-        };
-
-        let signature = static_class_ctxt.interner.intern(method.signature.as_str());
-        let mut method = compile_method(&mut static_class_ctxt, method)?;
+        let signature = static_class_ctxt.interner.intern(method_def.signature.as_str());
+        let mut method = compile_method(&mut static_class_ctxt, method_def)?;
         method.holder = Rc::downgrade(&static_class);
         static_class_ctxt.methods.insert(signature, Rc::new(method));
     }
@@ -943,20 +933,10 @@ pub fn compile_class(
     }));
 
     for method_def in &defn.instance_methods {
-        let method = match method_def {
-            MethodDef::Generic(v) => v,
-            MethodDef::InlinedWhile(v, _) => v,
-            MethodDef::InlinedToDo(v) => v,
-            MethodDef::InlinedToByDo(v) => v,
-            MethodDef::InlinedDownToDo(v) => v,
-            MethodDef::InlinedIf(v, _) => v,
-            MethodDef::InlinedIfTrueIfFalse(v) => v
-        };
-
         let signature = instance_class_ctxt
             .interner
-            .intern(method.signature.as_str());
-        let mut method = compile_method(&mut instance_class_ctxt, method)?;
+            .intern(method_def.signature.as_str());
+        let mut method = compile_method(&mut instance_class_ctxt, method_def)?;
         method.holder = Rc::downgrade(&instance_class);
         instance_class_ctxt
             .methods

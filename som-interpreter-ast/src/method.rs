@@ -15,7 +15,7 @@ use crate::specialized::to_do_node::ToDoNode;
 #[derive(Clone)]
 pub enum MethodKind {
     /// A user-defined method from the AST.
-    Defined(ast::GenericMethodDef),
+    Defined(ast::MethodDef),
     /// An interpreter primitive.
     Primitive(PrimitiveFn),
     /// Specialized: whileTrue/whileFalse node.

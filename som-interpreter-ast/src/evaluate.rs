@@ -262,7 +262,7 @@ impl Evaluate for ast::Body {
     }
 }
 
-impl Evaluate for ast::GenericMethodDef {
+impl Evaluate for ast::MethodDef {
     fn evaluate(&self, universe: &mut UniverseAST) -> Return {
         let current_frame = universe.current_frame().clone();
 
