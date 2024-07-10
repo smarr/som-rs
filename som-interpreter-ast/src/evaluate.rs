@@ -2,6 +2,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use som_core::ast;
+use crate::ast::{AstBinaryOp, AstBlock, AstBody, AstExpression, AstMessage, AstMethodBody, AstMethodDef, AstSuperMessage, AstTerm};
 
 use crate::block::Block;
 use crate::invokable::{Invoke, Return};
@@ -14,7 +15,7 @@ pub trait Evaluate {
     fn evaluate(&self, universe: &mut UniverseAST) -> Return;
 }
 
-impl Evaluate for ast::Expression {
+impl Evaluate for AstExpression {
     fn evaluate(&self, universe: &mut UniverseAST) -> Return {
         match self {
             Self::LocalVarWrite(idx, expr) => {
@@ -102,10 +103,10 @@ impl Evaluate for ast::Expression {
     }
 }
 
-impl Evaluate for ast::BinaryOp {
+impl Evaluate for AstBinaryOp {
     fn evaluate(&self, universe: &mut UniverseAST) -> Return {
         let (lhs, invokable) = match &self.lhs {
-            ast::Expression::GlobalRead(ident) if ident == "super" => {
+            AstExpression::GlobalRead(ident) if ident == "super" => {
                 let frame = universe.current_frame();
                 let lhs = frame.borrow().get_self();
                 let holder = lhs.class(universe);
@@ -175,13 +176,13 @@ impl Evaluate for ast::Literal {
     }
 }
 
-impl Evaluate for ast::Term {
+impl Evaluate for AstTerm {
     fn evaluate(&self, universe: &mut UniverseAST) -> Return {
         self.body.evaluate(universe)
     }
 }
 
-impl Evaluate for Rc<ast::Block> {
+impl Evaluate for Rc<AstBlock> {
     fn evaluate(&self, universe: &mut UniverseAST) -> Return {
         Return::Local(Value::Block(Rc::new(Block {
             block: Rc::clone(self),
@@ -190,7 +191,7 @@ impl Evaluate for Rc<ast::Block> {
     }
 }
 
-impl Evaluate for ast::Message {
+impl Evaluate for AstMessage {
     fn evaluate(&self, universe: &mut UniverseAST) -> Return {
         let receiver = propagate!(self.receiver.evaluate(universe));
         let invokable = receiver.lookup_method(universe, &self.signature);
@@ -233,7 +234,7 @@ impl Evaluate for ast::Message {
     }
 }
 
-impl Evaluate for ast::SuperMessage {
+impl Evaluate for AstSuperMessage {
     fn evaluate(&self, universe: &mut UniverseAST) -> Return {
         let super_class = match universe.lookup_global(&self.receiver_name) {
             Some(Value::Class(cls)) => {
@@ -281,7 +282,7 @@ impl Evaluate for ast::SuperMessage {
 }
 
 
-impl Evaluate for ast::Body {
+impl Evaluate for AstBody {
     fn evaluate(&self, universe: &mut UniverseAST) -> Return {
         let mut last_value = Value::Nil;
         for expr in &self.exprs {
@@ -291,12 +292,12 @@ impl Evaluate for ast::Body {
     }
 }
 
-impl Evaluate for ast::MethodDef {
+impl Evaluate for AstMethodDef {
     fn evaluate(&self, universe: &mut UniverseAST) -> Return {
         let current_frame = universe.current_frame().clone();
 
         match &self.body {
-            ast::MethodBody::Body { body, .. } => {
+            AstMethodBody::Body { body, .. } => {
                 loop {
                     match body.evaluate(universe) {
                         Return::NonLocal(value, frame) => {
@@ -312,7 +313,7 @@ impl Evaluate for ast::MethodDef {
                     }
                 }
             }
-            ast::MethodBody::Primitive => Return::Exception(format!(
+            AstMethodBody::Primitive => Return::Exception(format!(
                 "unimplemented primitive: {}>>#{}",
                 current_frame
                     .borrow()

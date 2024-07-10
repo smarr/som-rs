@@ -1,9 +1,8 @@
-use som_core::ast;
-
 use crate::class::Class;
 use crate::primitives::PrimitiveFn;
 use crate::universe::UniverseAST;
 use crate::{SOMRef, SOMWeakRef};
+use crate::ast::AstMethodDef;
 use crate::specialized::down_to_do_node::DownToDoNode;
 use crate::specialized::while_node::WhileNode;
 use crate::specialized::if_node::IfNode;
@@ -15,7 +14,7 @@ use crate::specialized::to_do_node::ToDoNode;
 #[derive(Clone)]
 pub enum MethodKind {
     /// A user-defined method from the AST.
-    Defined(ast::MethodDef),
+    Defined(AstMethodDef),
     /// An interpreter primitive.
     Primitive(PrimitiveFn),
     /// Specialized: whileTrue/whileFalse node.

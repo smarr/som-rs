@@ -1,4 +1,4 @@
-use som_core::ast::MethodBody;
+use crate::ast::AstMethodBody;
 
 use crate::evaluate::Evaluate;
 use crate::frame::Frame;
@@ -34,8 +34,8 @@ impl Invoke for Method {
         match self.kind() {
             MethodKind::Defined(method) => {
                 let nbr_locals = match &method.body {
-                    MethodBody::Body { locals_nbr, .. } => *locals_nbr,
-                    MethodBody::Primitive => unreachable!()
+                    AstMethodBody::Body { locals_nbr, .. } => *locals_nbr,
+                    AstMethodBody::Primitive => unreachable!()
                 };
 
                 universe.with_frame(

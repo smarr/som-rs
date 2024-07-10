@@ -14,6 +14,9 @@ macro_rules! propagate {
     };
 }
 
+/// TODO doc
+pub mod ast;
+
 /// Facilities for manipulating blocks.
 pub mod block;
 /// Facilities for manipulating classes.
