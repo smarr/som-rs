@@ -203,25 +203,25 @@ pub fn unary_send<'a>() -> impl Parser<Expression, &'a [Token], AstGenCtxt<'a>> 
             signatures
                 .into_iter()
                 .fold(receiver, |receiver, signature| {
-                    Expression::Message(Message {
-                        receiver: Box::new(receiver),
+                    Expression::Message(Box::new(Message {
+                        receiver,
                         signature,
                         values: Vec::new(),
-                    })
+                    }))
                 })
         })
 }
 
 pub fn binary_send<'a>() -> impl Parser<Expression, &'a [Token], AstGenCtxt<'a>> {
     unary_send()
-        .and(many(operator().and(unary_send().map(Box::new))))
+        .and(many(operator().and(unary_send())))
         .map(|(lhs, operands)| {
             operands.into_iter().fold(lhs, |lhs, (op, rhs)| {
-                Expression::BinaryOp(BinaryOp {
-                    lhs: Box::new(lhs),
+                Expression::BinaryOp(Box::new(BinaryOp {
+                    lhs,
                     op,
                     rhs,
-                })
+                }))
             })
         })
 }
@@ -235,11 +235,11 @@ pub fn positional_send<'a>() -> impl Parser<Expression, &'a [Token], AstGenCtxt<
             } else {
                 let (signature, values) = pairs.into_iter().unzip();
 
-                Expression::Message(Message {
-                    receiver: Box::new(receiver),
+                Expression::Message(Box::new(Message {
+                    receiver,
                     signature,
                     values,
-                })
+                }))
             }
         })
 }

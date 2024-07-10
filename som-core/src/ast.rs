@@ -121,9 +121,9 @@ pub enum Expression {
     ArgWrite(usize, usize, Box<Expression>),
     FieldWrite(usize, Box<Expression>),
     /// A message send (eg. `counter incrementBy: 5`).
-    Message(Message),
+    Message(Box<Message>),
     /// A binary operation (eg. `counter <= 5`).
-    BinaryOp(BinaryOp),
+    BinaryOp(Box<BinaryOp>),
     /// An exit operation (eg. `^counter`). Second argument is the scope level to differentiate local and nonlocal returns
     Exit(Box<Expression>, usize),
     /// A literal (eg. `'foo'`, `10`, `#foo`, ...).
@@ -148,7 +148,7 @@ pub enum Expression {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Message {
     /// The object to which the message is sent to.
-    pub receiver: Box<Expression>,
+    pub receiver: Expression,
     /// The signature of the message (eg. "ifTrue:ifFalse:").
     pub signature: String,
     /// The list of dynamic values that are passed.
@@ -166,9 +166,9 @@ pub struct BinaryOp {
     /// Represents the operator symbol.
     pub op: String,
     /// Represents the left-hand side.
-    pub lhs: Box<Expression>,
+    pub lhs: Expression,
     /// Represents the right-hand side.
-    pub rhs: Box<Expression>,
+    pub rhs: Expression,
 }
 
 /// Represents a block.
@@ -229,9 +229,9 @@ pub struct Term {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Literal {
     /// Represents a symbol literal (eg. `#foo`).
-    Symbol(String),
+    Symbol(String), // todo: in a perfect world, this would be 'static str. that requires we store source code as static though, which sounds like a lot of refactoring.
     /// Represents a string literal (eg. `'hello'`).
-    String(String),
+    String(String), // todo: ditto, maybe.
     /// Represents a decimal number literal (eg. `3.14`).
     Double(f64),
     /// Represents a integer number literal (eg. `42`).

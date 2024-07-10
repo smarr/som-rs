@@ -103,7 +103,7 @@ impl Evaluate for ast::Expression {
 
 impl Evaluate for ast::BinaryOp {
     fn evaluate(&self, universe: &mut UniverseAST) -> Return {
-        let (lhs, invokable) = match self.lhs.as_ref() {
+        let (lhs, invokable) = match &self.lhs {
             ast::Expression::GlobalRead(ident) if ident == "super" => {
                 let frame = universe.current_frame();
                 let lhs = frame.borrow().get_self();
@@ -191,7 +191,7 @@ impl Evaluate for Rc<ast::Block> {
 
 impl Evaluate for ast::Message {
     fn evaluate(&self, universe: &mut UniverseAST) -> Return {
-        let (receiver, invokable) = match self.receiver.as_ref() {
+        let (receiver, invokable) = match &self.receiver {
             ast::Expression::GlobalRead(ident) if ident == "super" => {
                 let frame = universe.current_frame();
                 let receiver = frame.borrow().get_self();

@@ -41,16 +41,16 @@ fn expression_test_1() {
 
     assert_eq!(
         expression,
-        Expression::BinaryOp(BinaryOp {
+        Expression::BinaryOp(Box::new(BinaryOp {
             op: String::from("+"),
-            lhs: Box::new(Expression::Literal(Literal::Integer(3))),
-            rhs: Box::new(Expression::Message(Message {
-                receiver: Box::new(Expression::GlobalRead(String::from("counter"))),
+            lhs: Expression::Literal(Literal::Integer(3)),
+            rhs: Expression::Message(Box::new(Message {
+                receiver: Expression::GlobalRead(String::from("counter")),
                 signature: String::from("get"),
                 values: vec![],
             })),
         })
-    );
+    ));
 }
 
 #[test]
@@ -84,11 +84,11 @@ fn block_test() {
                             "this is correct"
                         ))))
                     ),
-                    Expression::Message(Message {
-                        receiver: Box::new(Expression::LocalVarRead(0)),
+                    Expression::Message(Box::new(Message {
+                        receiver: Expression::LocalVarRead(0),
                         signature: String::from("println"),
                         values: vec![],
-                    })
+                    }))
                 ],
                 full_stopped: true,
             }
@@ -112,11 +112,11 @@ fn expression_test_2() {
 
     assert_eq!(
         expression,
-        Expression::Message(Message {
-            receiver: Box::new(Expression::BinaryOp(BinaryOp {
+        Expression::Message(Box::new(Message {
+            receiver: Expression::BinaryOp(Box::new(BinaryOp {
                 op: String::from("=="),
-                lhs: Box::new(Expression::Literal(Literal::Integer(3))),
-                rhs: Box::new(Expression::Literal(Literal::Integer(3))),
+                lhs: Expression::Literal(Literal::Integer(3)),
+                rhs: Expression::Literal(Literal::Integer(3)),
             })),
             signature: String::from("ifTrue:ifFalse:"),
             values: vec![
@@ -129,13 +129,13 @@ fn expression_test_2() {
                     nbr_params: 0,
                     nbr_locals: 0,
                     body: Body {
-                        exprs: vec![Expression::Message(Message {
-                            receiver: Box::new(Expression::Literal(Literal::String(String::from(
+                        exprs: vec![Expression::Message(Box::new(Message {
+                            receiver: Expression::Literal(Literal::String(String::from(
                                 "this is correct"
-                            )))),
+                            ))),
                             signature: String::from("println"),
                             values: vec![],
-                        })],
+                        }))],
                         full_stopped: true,
                     }
                 })),
@@ -148,19 +148,17 @@ fn expression_test_2() {
                     nbr_params: 0,
                     nbr_locals: 0,
                     body: Body {
-                        exprs: vec![Expression::Message(Message {
-                            receiver: Box::new(Expression::Literal(Literal::String(String::from(
-                                "oh no"
-                            )))),
+                        exprs: vec![Expression::Message(Box::new(Message {
+                            receiver: Expression::Literal(Literal::String(String::from("oh no"))),
                             signature: String::from("println"),
                             values: vec![],
-                        })],
+                        }))],
                         full_stopped: false,
                     }
                 })),
             ],
         }),
-    );
+    ));
 }
 
 #[test]
@@ -186,27 +184,27 @@ fn primary_test() {
             nbr_params: 0,
             nbr_locals: 0,
             body: Body {
-                exprs: vec![Expression::Message(Message {
-                    receiver: Box::new(Expression::ArgRead(0, 0)),
+                exprs: vec![Expression::Message(Box::new(Message {
+                    receiver: Expression::ArgRead(0, 0),
                     signature: String::from("fib:"),
-                    values: vec![Expression::BinaryOp(BinaryOp {
+                    values: vec![Expression::BinaryOp(Box::new(BinaryOp {
                         op: String::from("+"),
-                        lhs: Box::new(Expression::BinaryOp(BinaryOp {
+                        lhs: Expression::BinaryOp(Box::new(BinaryOp {
                             op: String::from("-"),
-                            lhs: Box::new(Expression::GlobalRead(String::from("n"))),
-                            rhs: Box::new(Expression::Literal(Literal::Integer(1))),
+                            lhs: Expression::GlobalRead(String::from("n")),
+                            rhs: Expression::Literal(Literal::Integer(1)),
                         })),
-                        rhs: Box::new(Expression::Message(Message {
-                            receiver: Box::new(Expression::ArgRead(0, 0)),
+                        rhs: Expression::Message(Box::new(Message {
+                            receiver: Expression::ArgRead(0, 0),
                             signature: String::from("fib:"),
-                            values: vec![Expression::BinaryOp(BinaryOp {
+                            values: vec![Expression::BinaryOp(Box::new(BinaryOp {
                                 op: String::from("-"),
-                                lhs: Box::new(Expression::GlobalRead(String::from("n"))),
-                                rhs: Box::new(Expression::Literal(Literal::Integer(2))),
-                            })],
+                                lhs: Expression::GlobalRead(String::from("n")),
+                                rhs: Expression::Literal(Literal::Integer(2)),
+                            }))],
                         }))
-                    })],
-                })],
+                    }))],
+                }))],
                 full_stopped: false,
             }
         })),
