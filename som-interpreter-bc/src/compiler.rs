@@ -463,7 +463,7 @@ impl MethodCodegen for ast::Expression {
                 message.receiver.codegen(ctxt)?;
 
                 #[cfg(not(feature = "inlining-disabled"))]
-                if self.inline_if_possible(ctxt, message).is_some() {
+                if message.inline_if_possible(ctxt).is_some() {
                     return Some(());
                 }
                 
