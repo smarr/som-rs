@@ -74,7 +74,7 @@ fn print_newline(_: &mut UniverseAST, args: Vec<Value>) -> Return {
 }
 
 fn error_print(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
-    const SIGNATURE: &str = "System>>#errorPrint:";
+    const SIGNATURE: &'static str = "System>>#errorPrint:";
 
     expect_args!(SIGNATURE, args, [
         Value::System,
@@ -206,7 +206,7 @@ fn time(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
 // this function is unusable after my recent changes to the frame. needs to be fixed when a compilation flag for frame debug info is enabled
 fn print_stack_trace(_: &mut UniverseAST, _: Vec<Value>) -> Return {
     // const SIGNATURE: &str = "System>>#printStackTrace";
-    
+
     dbg!("printStackTrace is broken (on purpose). It can be fixed and reenabled with a debug flag, though.");
 /*
     expect_args!(SIGNATURE, args, [Value::System]);

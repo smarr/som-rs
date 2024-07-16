@@ -70,7 +70,7 @@ fn main() -> anyhow::Result<()> {
                 .collect();
 
             let output = universe.initialize(args).unwrap_or_else(|| {
-                Return::Exception(format!("could not find 'System>>#initialize:'"))
+                Return::Exception("could not find 'System>>#initialize:'".to_string())
             });
 
             // let class = universe.load_class_from_path(file)?;

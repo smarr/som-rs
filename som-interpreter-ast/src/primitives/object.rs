@@ -120,14 +120,14 @@ fn perform_with_arguments(universe: &mut UniverseAST, args: Vec<Value>) -> Retur
     match method {
         Some(invokable) => {
             let args = std::iter::once(object)
-                .chain(arr.replace(Vec::default()).into_iter())
+                .chain(arr.replace(Vec::default()))
                 .collect();
             invokable.invoke(universe, args)
         }
         None => {
             let signature = signature.to_string();
             let args = std::iter::once(object.clone())
-                .chain(arr.replace(Vec::default()).into_iter())
+                .chain(arr.replace(Vec::default()))
                 .collect();
             universe
                 .does_not_understand(object.clone(), signature.as_str(), args)
@@ -192,13 +192,13 @@ fn perform_with_arguments_in_super_class(universe: &mut UniverseAST, args: Vec<V
     match method {
         Some(invokable) => {
             let args = std::iter::once(object)
-                .chain(arr.replace(Vec::default()).into_iter())
+                .chain(arr.replace(Vec::default()))
                 .collect();
             invokable.invoke(universe, args)
         }
         None => {
             let args = std::iter::once(object.clone())
-                .chain(arr.replace(Vec::default()).into_iter())
+                .chain(arr.replace(Vec::default()))
                 .collect();
             let signature = signature.to_string();
             universe
@@ -234,11 +234,11 @@ fn inst_var_at(_: &mut UniverseAST, args: Vec<Value>) -> Return {
             c.borrow().locals.get(index).cloned().unwrap_or(Value::Nil)
         }
         Value::Class(c) => {
-            c.clone().borrow().locals.get(index).cloned().unwrap_or(Value::Nil)
+            c.clone().borrow().fields.get(index).cloned().unwrap_or(Value::Nil)
         },
         _ => unreachable!("instVarAt called not on an instance or a class")
     };
-    
+
     Return::Local(local)
 }
 
@@ -255,17 +255,21 @@ fn inst_var_at_put(_: &mut UniverseAST, args: Vec<Value>) -> Return {
         Ok(index) => index,
         Err(err) => return Return::Exception(format!("'{}': {}", SIGNATURE, err)),
     };
-    
+
     let does_have_local = match &object {
         Value::Instance(c) => { c.borrow().locals.len() > index }
-        Value::Class(c) => { c.clone().borrow().locals.len() > index },
+        Value::Class(c) => { c.clone().borrow().fields.len() > index },
         _ => unreachable!("instVarAtPut called not on an instance or a class")
     };
 
     if does_have_local {
-        object.assign_local(index, &value);
+        match object {
+            Value::Instance(instance) => instance.borrow_mut().assign_local(index, value.clone()),
+            Value::Class(class) => class.borrow_mut().assign_field(index, value.clone()),
+            v => unreachable!("Assigning a local binding in a {:?} value type?", v),
+        }
     }
-    
+
     Return::Local(value)
 }
 

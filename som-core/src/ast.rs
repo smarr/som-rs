@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 /// Represents a class definition.
 ///
 /// Example:
@@ -26,30 +28,6 @@ pub struct ClassDef {
     pub static_methods: Vec<MethodDef>,
 }
 
-/// Represents a method's kind.
-///
-/// Example:
-/// ```text
-/// "unary method"       increment = ( self increment: 1 )
-/// "positional method"  increment: value = ( total := total + value )
-/// "operator method"    + value = ( self increment: value )
-/// ```
-#[derive(Debug, Clone, PartialEq)]
-pub enum MethodKind {
-    /// A unary method definition.
-    Unary,
-    /// A positional method definition (keyword-based).
-    Positional {
-        /// The binding names for the method's parameters.
-        parameters: Vec<String>,
-    },
-    /// A binary operator method definiton.
-    Operator {
-        /// The binding name for the right-hand side.
-        rhs: String,
-    },
-}
-
 /// Represents a method definition.
 ///
 /// Example:
@@ -59,21 +37,11 @@ pub enum MethodKind {
 /// "operator method"    + value = ( self increment: value )
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub struct GenericMethodDef {
-    /// The method's kind.
-    pub kind: MethodKind,
+pub struct MethodDef {
     /// The method's signature (eg. `println`, `at:put:` or `==`).
     pub signature: String,
     /// The method's body.
     pub body: MethodBody,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum MethodDef {
-    Generic(GenericMethodDef),
-    InlinedWhile(GenericMethodDef, bool),
-    InlinedIf(GenericMethodDef, bool),
-    InlinedIfTrueIfFalse(GenericMethodDef),
 }
 
 /// Represents a method's body.
@@ -153,17 +121,17 @@ pub enum Expression {
     ArgWrite(usize, usize, Box<Expression>),
     FieldWrite(usize, Box<Expression>),
     /// A message send (eg. `counter incrementBy: 5`).
-    Message(Message),
+    Message(Box<Message>),
     /// A message send to a superclass.
-    SuperMessage(SuperMessage),
+    SuperMessage(Box<SuperMessage>),
     /// A binary operation (eg. `counter <= 5`).
-    BinaryOp(BinaryOp),
+    BinaryOp(Box<BinaryOp>),
     /// An exit operation (eg. `^counter`). Second argument is the scope level to differentiate local and nonlocal returns
     Exit(Box<Expression>, usize),
     /// A literal (eg. `'foo'`, `10`, `#foo`, ...).
     Literal(Literal),
     /// A block (eg. `[ :value | counter incrementBy: value ]`).
-    Block(Block),
+    Block(Rc<Block>),
 }
 
 /// Represents a message send.
@@ -182,7 +150,7 @@ pub enum Expression {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Message {
     /// The object to which the message is sent to.
-    pub receiver: Box<Expression>,
+    pub receiver: Expression,
     /// The signature of the message (eg. "ifTrue:ifFalse:").
     pub signature: String,
     /// The list of dynamic values that are passed.
@@ -213,9 +181,9 @@ pub struct BinaryOp {
     /// Represents the operator symbol.
     pub op: String,
     /// Represents the left-hand side.
-    pub lhs: Box<Expression>,
+    pub lhs: Expression,
     /// Represents the right-hand side.
-    pub rhs: Box<Expression>,
+    pub rhs: Expression,
 }
 
 /// Represents a block.
@@ -276,9 +244,9 @@ pub struct Term {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Literal {
     /// Represents a symbol literal (eg. `#foo`).
-    Symbol(String),
+    Symbol(String), // todo: in a perfect world, this would be 'static str. that requires we store source code as static though, which sounds like a lot of refactoring.
     /// Represents a string literal (eg. `'hello'`).
-    String(String),
+    String(String), // todo: ditto, maybe.
     /// Represents a decimal number literal (eg. `3.14`).
     Double(f64),
     /// Represents a integer number literal (eg. `42`).

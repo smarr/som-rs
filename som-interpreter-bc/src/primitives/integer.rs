@@ -564,7 +564,6 @@ fn shift_right(interpreter: &mut Interpreter, _: &mut UniverseBC) {
     interpreter.stack.push(value);
 }
 
-#[allow(dead_code)]
 fn to_do(interpreter: &mut Interpreter, _: &mut UniverseBC) {
     const SIGNATURE: &str = "Integer>>to:do:";
 
@@ -585,7 +584,6 @@ fn to_do(interpreter: &mut Interpreter, _: &mut UniverseBC) {
     interpreter.stack.push(Value::Integer(start));
 }
 
-#[allow(dead_code)]
 fn to_by_do(interpreter: &mut Interpreter, _: &mut UniverseBC) {
     const SIGNATURE: &str = "Integer>>to:by:do:";
 
@@ -604,7 +602,6 @@ fn to_by_do(interpreter: &mut Interpreter, _: &mut UniverseBC) {
     interpreter.stack.push(Value::Integer(start));
 }
 
-#[allow(dead_code)]
 fn down_to_do(interpreter: &mut Interpreter, _: &mut UniverseBC) {
     const SIGNATURE: &str = "Integer>>downTo:do:";
 
@@ -616,13 +613,13 @@ fn down_to_do(interpreter: &mut Interpreter, _: &mut UniverseBC) {
 
     let new_blk = blk.make_equivalent_with_no_return();
     for i in end..=start {
+        dbg!(&i);
         interpreter.push_block_frame(Rc::clone(&new_blk), vec![Value::Block(Rc::clone(&new_blk)), Value::Integer(i)]);
     }
 
     interpreter.stack.push(Value::Integer(start));
 }
 
-#[allow(dead_code)]
 // NB: this guy isn't a speedup, it's never used in our benchmarks as far as I'm aware.
 fn down_to_by_do(interpreter: &mut Interpreter, _: &mut UniverseBC) {
     const SIGNATURE: &str = "Integer>>downTo:by:do:";
@@ -642,7 +639,6 @@ fn down_to_by_do(interpreter: &mut Interpreter, _: &mut UniverseBC) {
     interpreter.stack.push(Value::Integer(start));
 }
 
-#[allow(dead_code)]
 // NB: also not a speedup, also unused.
 fn times_repeat(interpreter: &mut Interpreter, _: &mut UniverseBC) {
     const SIGNATURE: &str = "Integer>>timesRepeat:";

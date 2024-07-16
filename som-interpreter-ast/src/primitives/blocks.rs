@@ -1,5 +1,4 @@
 use crate::expect_args;
-use crate::invokable::Invoke;
 use crate::invokable::Return;
 use crate::primitives::PrimitiveFn;
 use crate::universe::UniverseAST;
@@ -7,6 +6,7 @@ use crate::value::Value;
 
 /// Primitives for the **Block** and **Block1** class.
 pub mod block1 {
+    use crate::evaluate::Evaluate;
     use super::*;
 
     pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[
@@ -16,27 +16,19 @@ pub mod block1 {
     pub static CLASS_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[];
 
     fn value(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
-        const SIGNATURE: &str = "Block1>>#value";
-
-        expect_args!(SIGNATURE, &args, [
-            Value::Block(block) => block,
-        ]);
-
-        // let block_self = block.frame.borrow().get_self();
-        let block_self = Value::Block(block.clone());
-        let block_args = vec![];
+        let block = match args.first() {
+            Some(Value::Block(b)) => b.clone(),
+            _ => panic!("Calling value: on a block... not on a block?")
+        };
 
         universe.with_frame(
-            // FrameKind::Block {
-            //     block: block.clone(),
-            // },
-            block_self,
             block.block.nbr_locals,
-            1,
-            |universe| block.invoke(universe, block_args),
+            args,
+            |universe| block.evaluate(universe),
         )
     }
 
+    // TODO: with inlining, this is never called. Maybe it could be removed for better perf since we could forego Return::Restart? but this wouldn't be fully valid interpreter behaviour.
     fn restart(_: &mut UniverseAST, args: Vec<Value>) -> Return {
         const SIGNATURE: &str = "Block>>#restart";
 
@@ -64,30 +56,22 @@ pub mod block1 {
 
 /// Primitives for the **Block2** class.
 pub mod block2 {
+    use crate::evaluate::Evaluate;
     use super::*;
 
     pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[("value:", self::value, true)];
     pub static CLASS_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[];
 
     fn value(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
-        const SIGNATURE: &str = "Block2>>#value:";
-
-        expect_args!(SIGNATURE, args, [
-            Value::Block(block) => block,
-            a => a,
-        ]);
-
-        let block_self = Value::Block(block.clone());
-        let block_args = Vec::from([a]);
+        let block = match args.first() {
+            Some(Value::Block(b)) => b.clone(),
+            _ => panic!("Calling value: on a block... not on a block?")
+        };
 
         universe.with_frame(
-            // FrameKind::Block {
-            //     block: block.clone(),
-            // },
-            block_self,
             block.block.nbr_locals,
-            2,
-            |universe| block.invoke(universe, block_args),
+            args,
+            |universe| block.evaluate(universe),
         )
     }
 
@@ -110,6 +94,7 @@ pub mod block2 {
 
 /// Primitives for the **Block3** class.
 pub mod block3 {
+    use crate::evaluate::Evaluate;
     use super::*;
 
     pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] =
@@ -117,26 +102,15 @@ pub mod block3 {
     pub static CLASS_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[];
 
     fn value_with(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
-        const SIGNATURE: &str = "Block3>>#value:with:";
-
-        expect_args!(SIGNATURE, args, [
-            Value::Block(block) => block,
-            a => a,
-            b => b,
-        ]);
-
-        // let block_self = block.frame.borrow().get_self();
-        let block_self = Value::Block(block.clone());
-        let block_args = Vec::from([a, b]);
+        let block = match args.first() {
+            Some(Value::Block(b)) => b.clone(),
+            _ => panic!("Calling value: on a block... not on a block?")
+        };
 
         universe.with_frame(
-            // FrameKind::Block {
-            //     block: block.clone(),
-            // },
-            block_self,
             block.block.nbr_locals,
-            3,
-            |universe| block.invoke(universe, block_args),
+            args,
+            |universe| block.evaluate(universe),
         )
     }
 

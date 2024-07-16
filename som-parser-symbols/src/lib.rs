@@ -112,12 +112,19 @@ impl<'a> AstGenCtxtData<'a> {
         }
     }
 
+    pub fn get_outer(&mut self) -> AstGenCtxt<'a> {
+        let outer = self.outer_ctxt.as_ref().unwrap();
+        outer.borrow_mut().universe = mem::take(&mut self.universe);
+        Rc::clone(outer)
+    }
+
+
     pub fn get_super_class_name(&self) -> Option<String> {
         match &self.kind {
             AstGenCtxtType::Class => { self.super_class_name.clone() }
             AstGenCtxtType::Method(method_type) => {
                 let s_cl_name = self.outer_ctxt.as_ref().unwrap().borrow_mut().get_super_class_name();
-                
+
                 match (&s_cl_name, method_type) {
                     (Some(_), _) => s_cl_name,
                     (None, AstMethodGenCtxtType::INSTANCE) => Some(String::from("Object")),
@@ -127,7 +134,7 @@ impl<'a> AstGenCtxtData<'a> {
             _ => self.outer_ctxt.as_ref().unwrap().borrow_mut().get_super_class_name()
         }
     }
-    
+
     pub fn is_method_static(&self) -> bool {
         match &self.kind {
             AstGenCtxtType::Class => { panic!("We went too high up when checking if a method is static: we're in the class AST context") }
@@ -141,12 +148,6 @@ impl<'a> AstGenCtxtData<'a> {
         }
     }
     
-    pub fn get_outer(&mut self) -> AstGenCtxt<'a> {
-        let outer = self.outer_ctxt.as_ref().unwrap();
-        outer.borrow_mut().universe = mem::take(&mut self.universe);
-        Rc::clone(outer)
-    }
-    
     pub fn load_super_class_and_set_fields(&mut self, name: &String) {
         let fields = match self.universe.as_mut() {
             Some(universe) => universe.load_class_and_get_all_fields(name),
@@ -154,6 +155,7 @@ impl<'a> AstGenCtxtData<'a> {
         };
         self.add_instance_fields(fields.0);
         self.add_static_fields(fields.1);
+        self.super_class_name = Some(name.clone());
     }
 
     pub fn add_instance_fields(&mut self, fields_names: Vec<String>) {
@@ -181,7 +183,7 @@ impl<'a> AstGenCtxtData<'a> {
     pub fn get_param(&self, name: &String) -> Option<usize> {
         self.param_names.iter().position(|local| *local == *name)
     }
-    
+
     pub fn get_instance_field(&self, name: &String) -> Option<usize> {
         self.class_instance_fields.iter().position(|c| c == name)
     }

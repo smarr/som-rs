@@ -222,7 +222,10 @@ fn inst_var_at(interpreter: &mut Interpreter, _: &mut UniverseBC) {
         Err(err) => panic!("'{}': {}", SIGNATURE, err),
     };
 
-    let local = object.lookup_local(index).unwrap_or(Value::Nil);
+    let local = match object.has_local(index) {
+        true => object.lookup_local(index),
+        false => Value::Nil
+    };
 
     interpreter.stack.push(local);
 }
@@ -236,15 +239,17 @@ fn inst_var_at_put(interpreter: &mut Interpreter, _: &mut UniverseBC) {
         value => value,
     ]);
 
+    let mut obj = object.clone();
+
     let index = match usize::try_from(index - 1) {
         Ok(index) => index,
         Err(err) => panic!("'{}': {}", SIGNATURE, err),
     };
 
-    let local = object
-        .assign_local(index, value.clone())
-        .map(|_| value)
-        .unwrap_or(Value::Nil);
+    let local = match obj.has_local(index) {
+        true => { obj.assign_local(index, value.clone()); obj },
+        false => Value::Nil
+    };
 
     interpreter.stack.push(local);
 }

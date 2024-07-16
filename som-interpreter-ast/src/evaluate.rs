@@ -8,15 +8,6 @@ use crate::invokable::{Invoke, Return};
 use crate::universe::UniverseAST;
 use crate::value::Value;
 
-macro_rules! propagate {
-    ($expr:expr) => {
-        match $expr {
-            Return::Local(value) => value,
-            ret => return ret,
-        }
-    };
-}
-
 /// The trait for evaluating AST nodes.
 pub trait Evaluate {
     /// Evaluate the node within a given universe.
@@ -29,32 +20,24 @@ impl Evaluate for ast::Expression {
             Self::LocalVarWrite(idx, expr) => {
                 // TODO: this doesn't call the fastest path for evaluate, still has to dispatch the right expr even though it's always a var write. potential minor speedup there
                 let value = propagate!(expr.evaluate(universe));
-                universe.assign_local(*idx, &value)
-                    .map(|_| Return::Local(value))
-                    .unwrap_or_else(||
-                    Return::Exception(format!("local var write: idx '{}' not found", idx)))
-            }
+                universe.assign_local(*idx, &value);
+                Return::Local(value)
+            },
             Self::NonLocalVarWrite(scope, idx, expr) => {
                 let value = propagate!(expr.evaluate(universe));
-                universe.assign_non_local(*idx, *scope, &value)
-                    .map(|_| Return::Local(value))
-                    .unwrap_or_else(||
-                    Return::Exception(format!("non local var write: idx '{}' not found", idx)))
-            }
+                universe.assign_non_local(*idx, *scope, &value);
+                Return::Local(value)
+            },
             Self::FieldWrite(idx, expr) => {
                 let value = propagate!(expr.evaluate(universe));
-                universe.assign_field(*idx, &value)
-                    .map(|_| Return::Local(value))
-                    .unwrap_or_else(||
-                    Return::Exception(format!("field write: idx '{}' not found", idx)))
-            }
+                universe.assign_field(*idx, &value);
+                Return::Local(value)
+            },
             Self::ArgWrite(scope, idx, expr) => {
                 let value = propagate!(expr.evaluate(universe));
-                universe.assign_arg(*idx, *scope, &value)
-                    .map(|_| Return::Local(value))
-                    .unwrap_or_else(||
-                    Return::Exception(format!("arg write: idx '{}', scope '{}' not found", idx, scope)))
-            }
+                universe.assign_arg(*idx, *scope, &value);
+                Return::Local(value)
+            },
             Self::BinaryOp(bin_op) => bin_op.evaluate(universe),
             Self::Block(blk) => blk.evaluate(universe),
             Self::Exit(expr, _scope) => {
@@ -64,21 +47,19 @@ impl Evaluate for ast::Expression {
                     .frames
                     .iter()
                     .rev()
-                    .any(|live_frame| Rc::ptr_eq(&live_frame, &frame));
+                    .any(|live_frame| Rc::ptr_eq(live_frame, &frame));
                 if has_not_escaped {
                     Return::NonLocal(value, frame)
                 } else {
                     // Block has escaped its method frame.
                     let instance = frame.borrow().get_self();
                     let frame = universe.current_frame();
-                    let block = match frame.borrow().params.get(0) {
+                    let block = match frame.borrow().params.first() {
                         Some(Value::Block(b)) => b.clone(),
                         _ => {
                             // Should never happen, because `universe.current_frame()` would
                             // have been equal to `universe.current_method_frame()`.
-                            return Return::Exception(format!(
-                                "A method frame has escaped itself ??"
-                            ));
+                            return Return::Exception("A method frame has escaped itself ??".to_string());
                         }
                     };
                     universe.escaped_block(instance, block).unwrap_or_else(|| {
@@ -92,32 +73,17 @@ impl Evaluate for ast::Expression {
             }
             Self::Literal(literal) => literal.evaluate(universe),
             Self::LocalVarRead(idx) => {
-                universe.lookup_local(*idx)
-                    .map(|v| Return::Local(v.clone()))
-                    .unwrap_or_else(||
-                    Return::Exception(format!("local var read: idx '{}' not found", idx)))
-            }
+                Return::Local(universe.lookup_local(*idx))
+            },
             Self::NonLocalVarRead(scope, idx) => {
-                universe.lookup_non_local(*idx, *scope)
-                    .map(Return::Local)
-                    .unwrap_or_else(|| {
-                        Return::Exception(format!("non local var read: idx '{}' not found", idx))
-                    })
-            }
+                Return::Local(universe.lookup_non_local(*idx, *scope))
+            },
             Self::FieldRead(idx) => {
-                universe.lookup_field(*idx)
-                    .map(Return::Local)
-                    .unwrap_or_else(|| {
-                        Return::Exception(format!("field read: idx '{}' not found", idx))
-                    })
-            }
+                Return::Local(universe.lookup_field(*idx))
+            },
             Self::ArgRead(scope, idx) => {
-                universe.lookup_arg(*idx, *scope)
-                    .map(Return::Local)
-                    .unwrap_or_else(|| {
-                        Return::Exception(format!("arg read: idx '{}', scope '{}' not found", idx, scope))
-                    })
-            }
+                Return::Local(universe.lookup_arg(*idx, *scope))
+            },
             Self::GlobalRead(name) =>
                 match name.as_str() {
                     "super" => Return::Local(universe.current_frame().borrow().get_self()),
@@ -138,7 +104,7 @@ impl Evaluate for ast::Expression {
 
 impl Evaluate for ast::BinaryOp {
     fn evaluate(&self, universe: &mut UniverseAST) -> Return {
-        let (lhs, invokable) = match self.lhs.as_ref() {
+        let (lhs, invokable) = match &self.lhs {
             ast::Expression::GlobalRead(ident) if ident == "super" => {
                 let frame = universe.current_frame();
                 let lhs = frame.borrow().get_self();
@@ -215,13 +181,11 @@ impl Evaluate for ast::Term {
     }
 }
 
-impl Evaluate for ast::Block {
+impl Evaluate for Rc<ast::Block> {
     fn evaluate(&self, universe: &mut UniverseAST) -> Return {
-        let frame = universe.current_frame();
-        // TODO: avoid cloning the whole block's AST.
         Return::Local(Value::Block(Rc::new(Block {
-            block: self.clone(),
-            frame: frame.clone(),
+            block: Rc::clone(self),
+            frame: Rc::clone(universe.current_frame()),
         })))
     }
 }
@@ -247,7 +211,9 @@ impl Evaluate for ast::Message {
         //     self.values,
         // );
 
-        let value = match invokable {
+        // println!("invoking {}>>#{}", receiver.class(universe).borrow().name(), self.signature);
+
+        match invokable {
             Some(invokable) => invokable.invoke(universe, args),
             None => {
                 let mut args = args;
@@ -263,9 +229,7 @@ impl Evaluate for ast::Message {
                         // Return::Local(Value::Nil)
                     })
             }
-        };
-
-        value
+        }
     }
 }
 
@@ -316,6 +280,7 @@ impl Evaluate for ast::SuperMessage {
     }
 }
 
+
 impl Evaluate for ast::Body {
     fn evaluate(&self, universe: &mut UniverseAST) -> Return {
         let mut last_value = Value::Nil;
@@ -323,5 +288,46 @@ impl Evaluate for ast::Body {
             last_value = propagate!(expr.evaluate(universe));
         }
         Return::Local(last_value)
+    }
+}
+
+impl Evaluate for ast::MethodDef {
+    fn evaluate(&self, universe: &mut UniverseAST) -> Return {
+        let current_frame = universe.current_frame().clone();
+
+        match &self.body {
+            ast::MethodBody::Body { body, .. } => {
+                loop {
+                    match body.evaluate(universe) {
+                        Return::NonLocal(value, frame) => {
+                            if Rc::ptr_eq(&current_frame, &frame) {
+                                break Return::Local(value);
+                            } else {
+                                break Return::NonLocal(value, frame);
+                            }
+                        }
+                        Return::Local(_) => break Return::Local(current_frame.borrow().get_self()),
+                        Return::Exception(msg) => break Return::Exception(msg),
+                        Return::Restart => continue,
+                    }
+                }
+            }
+            ast::MethodBody::Primitive => Return::Exception(format!(
+                "unimplemented primitive: {}>>#{}",
+                current_frame
+                    .borrow()
+                    .get_self()
+                    .class(universe)
+                    .borrow()
+                    .name(),
+                self.signature,
+            )),
+        }
+    }
+}
+
+impl Evaluate for Block {
+    fn evaluate(&self, universe: &mut UniverseAST) -> Return {
+        self.block.body.evaluate(universe)
     }
 }

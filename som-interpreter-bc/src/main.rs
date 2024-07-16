@@ -20,6 +20,9 @@ use som_interpreter_bc::SOMRef;
 use som_interpreter_bc::universe::UniverseBC;
 use som_interpreter_bc::value::Value;
 
+#[cfg(feature = "profiler")]
+use som_interpreter_bc::profiler::Profiler;
+
 #[cfg(feature = "jemalloc")]
 #[global_allocator]
 static GLOBAL: Jemalloc = Jemalloc;
@@ -47,6 +50,13 @@ struct Options {
 }
 
 fn main() -> anyhow::Result<()> {
+    let result = run();
+    #[cfg(feature = "profiler")]
+    Profiler::global().drop();
+    result
+}
+
+fn run() -> anyhow::Result<()> {
     let opts: Options = Options::from_args();
 
     // let mut interpreter = Interpreter::new();
@@ -118,22 +128,22 @@ fn disassemble_class(opts: Options) -> anyhow::Result<()> {
         classpath.push(directory.to_path_buf());
     }
     let mut universe = UniverseBC::with_classpath(classpath.clone())?;
-    
+
     // "Object" special casing needed since `load_class` assumes the class has a superclass and Object doesn't, and I didn't want to change the class loading logic just for the disassembler (tho it's probably fine)
     let class = match file_stem {
         "Object" => UniverseBC::load_system_class(&mut universe.interner, classpath.as_slice(), "Object")?,
         _ => universe.load_class(file_stem)?
     };
-    
+
     dump_class_methods(Rc::clone(&class), &opts, file_stem, &mut universe);
-    
+
     if let MaybeWeak::Strong(cls_ref) = &class.borrow().class {
         println!("-----------------------------------------");
         dump_class_methods(Rc::clone(cls_ref), &opts, file_stem, &mut universe);
     } else {
         panic!("Weak ref for class.class in disassembler - is this possible?")
     }
-    
+
     Ok(())
 }
 
@@ -146,16 +156,16 @@ fn dump_class_methods(class: SOMRef<Class>, opts: &Options, file_stem: &str, uni
             .filter_map(|signature| {
                 let symbol = universe.intern_symbol(signature);
                 let maybe_method = class.borrow().methods.get(&symbol).cloned();
-    
+
                 // if maybe_method.is_none() {
                 //     eprintln!("No method named `{signature}` found in class `{file_stem}`.");
                 // }
-    
+
                 maybe_method
             })
             .collect()
     };
-    
+
     for method in methods {
         match &method.kind {
             MethodKind::Defined(env) => {
@@ -166,7 +176,7 @@ fn dump_class_methods(class: SOMRef<Class>, opts: &Options, file_stem: &str, uni
                     num_locals = env.nbr_locals,
                     num_literals = env.literals.len(),
                 );
-    
+
                 disassemble_method_body(&universe, &class.borrow(), env);
             }
             MethodKind::Primitive(_) => {

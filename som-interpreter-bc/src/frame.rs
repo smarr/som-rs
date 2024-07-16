@@ -11,9 +11,6 @@ use crate::value::Value;
 use crate::SOMRef;
 
 #[cfg(feature = "frame-debug-info")]
-use crate::universe::UniverseBC;
-
-#[cfg(feature = "frame-debug-info")]
 /// The kind of a given frame.
 #[derive(Clone)]
 pub enum FrameKind {
@@ -148,23 +145,11 @@ impl Frame {
         match self.args.first().unwrap() {
             Value::Block(b) => {
                 let block_frame = b.frame.as_ref().unwrap().clone();
-                let self_val = block_frame.borrow().get_self();
-                self_val
+                let x = block_frame.borrow().get_self();
+                x
             },
             s => s.clone()
         }
-    }
-
-    #[cfg(feature = "frame-debug-info")]
-    /// Get the holder for this current method. TODO maybe remove this method? barely used
-    pub fn get_method_holder(&self, universe: &mut UniverseBC) -> SOMRef<Class> {
-        let ours = match self.get_self() {
-            Value::Class(c) => c,
-            v => v.class(universe),
-            // v => panic!("self value not a class, but {:?}", v)
-        };
-
-        ours.clone().borrow().class()
     }
 
     #[cfg(feature = "frame-debug-info")]
@@ -175,23 +160,53 @@ impl Frame {
             FrameKind::Block { block, .. } => block.frame.as_ref().unwrap().borrow().get_method(),
         }
     }
-    
-    pub fn lookup_constant(&self, idx: usize) -> Option<Literal> {
-        unsafe { (*self.literals).get(idx).cloned() }
+
+    // Don't even need this function. We store a pointer to the bytecode in the interpreter directly.
+    // pub fn get_bytecode(&self, idx: usize) -> Option<Bytecode> {
+    //     self.bytecodes.get(idx).cloned()
+    // }
+
+    #[inline(always)]
+    pub fn lookup_constant(&self, idx: usize) -> Literal {
+        match cfg!(debug_assertions) {
+            true => unsafe { (*self.literals).get(idx).unwrap().clone() },
+            false => unsafe { (*self.literals).get_unchecked(idx).clone() }
+        }
     }
 
-    pub fn lookup_argument(&self, idx: usize) -> Option<Value> {
-        self.args.get(idx).cloned()
+    #[inline(always)]
+    pub fn lookup_argument(&self, idx: usize) -> Value {
+        match cfg!(debug_assertions) {
+            true => self.args.get(idx).unwrap().clone(),
+            false => unsafe { self.args.get_unchecked(idx).clone() }
+        }
     }
 
     /// Search for a local binding.
-    pub fn lookup_local(&self, idx: usize) -> Option<Value> {
-        self.locals.get(idx).cloned()
+    #[inline(always)]
+    pub fn lookup_local(&self, idx: usize) -> Value {
+        match cfg!(debug_assertions) {
+            true => self.locals.get(idx).unwrap().clone(),
+            false => unsafe { self.locals.get_unchecked(idx).clone() }
+        }
     }
 
     /// Assign to a local binding.
-    pub fn assign_local(&mut self, idx: usize, value: Value) -> Option<()> {
-        self.locals.get_mut(idx).map(|local| *local = value)
+    #[inline(always)]
+    pub fn assign_local(&mut self, idx: usize, value: Value) {
+        match cfg!(debug_assertions) {
+            true => { *self.locals.get_mut(idx).unwrap() = value; },
+            false => unsafe { *self.locals.get_unchecked_mut(idx) = value; }
+        }
+    }
+
+    /// Assign to an argument.
+    #[inline(always)]
+    pub fn assign_arg(&mut self, idx: usize, value: Value) {
+        match cfg!(debug_assertions) {
+            true => { *self.args.get_mut(idx).unwrap() = value; },
+            false => unsafe { *self.args.get_unchecked_mut(idx) = value; }
+        }
     }
 
     pub fn nth_frame_back(current_frame: SOMRef<Frame>, n: u8) -> SOMRef<Frame> {

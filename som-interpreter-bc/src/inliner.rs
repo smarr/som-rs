@@ -492,7 +492,7 @@ impl PrimMessageInliner for ast::Expression {
             return None;
         }
 
-        let idx_before_condition = ctxt.get_cur_instr_idx();
+        let idx_pre_condition = ctxt.get_cur_instr_idx();
 
         // by the time we see it's a "whileTrue:" or a "whileFalse:", there's already been a PushBlock, since they're methods defined on Block
         self.inline_last_push_block_bc(ctxt);
@@ -505,19 +505,9 @@ impl PrimMessageInliner for ast::Expression {
 
         self.inline_expression(ctxt, message.values.get(0)?);
 
-        // we push a POP, unless the body of the loop is empty.
-        match message.values.get(0).unwrap() {
-            ast::Expression::Block(block) => {
-                if block.body.exprs.len() != 0 {
-                    ctxt.push_instr(Bytecode::Pop);
-                }
-            }
-            _ => {}
-        };
-
-        ctxt.push_instr(Bytecode::JumpBackward(
-            ctxt.get_cur_instr_idx() - idx_before_condition + 1,
-        ));
+        ctxt.push_instr(Bytecode::Pop);
+        
+        ctxt.push_instr(Bytecode::JumpBackward(ctxt.get_cur_instr_idx() - idx_pre_condition + 1));
         ctxt.backpatch_jump_to_current(cond_jump_idx);
 
         ctxt.push_instr(Bytecode::PushNil);

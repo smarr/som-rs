@@ -72,24 +72,6 @@ impl Value {
         self.class(universe).borrow().lookup_method(signature)
     }
 
-    /// Search for a local binding within this value.
-    pub fn lookup_local(&self, idx: usize) -> Option<Self> {
-        match self {
-            Self::Instance(instance) => instance.borrow().lookup_local(idx),
-            Self::Class(class) => class.borrow().lookup_local(idx),
-            _ => None,
-        }
-    }
-
-    /// Assign a value to a local binding within this value.
-    pub fn assign_local(&mut self, idx: usize, value: &Self) -> Option<()> {
-        match self {
-            Self::Instance(instance) => instance.borrow_mut().assign_local(idx, value.clone()),
-            Self::Class(class) => class.borrow_mut().assign_local(idx, value),
-            _ => None,
-        }
-    }
-
     /// Get the string representation of this value.
     pub fn to_string(&self, universe: &UniverseAST) -> String {
         match self {

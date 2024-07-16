@@ -1,5 +1,6 @@
 use std::cell::{RefCell};
 use std::rc::Rc;
+use std::vec;
 
 use crate::value::Value;
 use crate::SOMRef;
@@ -47,14 +48,12 @@ impl Frame {
     //     frame.params.push(self_value);
     //     frame
     // }
-
-    pub fn new_frame(nbr_locals: usize, nbr_params: usize, self_value: Value) -> Self {
-        let mut frame = Self {
+    
+    pub fn new_frame(nbr_locals: usize, params: Vec<Value>) -> Self {
+        Self {
             locals: vec![Value::Nil; nbr_locals],
-            params: Vec::with_capacity(nbr_params + 1), // can we add all params now? it's not straightforward as it turns out, but adding some *should* be doable...
-        };
-        frame.params.push(self_value);
-        frame
+            params,
+        }
     }
 
     /// Get the frame's kind.
@@ -64,7 +63,7 @@ impl Frame {
 
     /// Get the self value for this frame.
     pub fn get_self(&self) -> Value {
-        match self.params.get(0).unwrap() {
+        match self.params.first().unwrap() {
             Value::Block(b) => b.frame.borrow().get_self(),
             s => s.clone()
         }
@@ -80,78 +79,88 @@ impl Frame {
     // }
 
     #[inline] // not sure if necessary
-    pub fn lookup_local(&self, idx: usize) -> Option<Value> {
-        self.locals.get(idx).cloned()
+    pub fn lookup_local(&self, idx: usize) -> Value {
+        match cfg!(debug_assertions) {
+            true => self.locals.get(idx).unwrap().clone(),
+            false => unsafe { self.locals.get_unchecked(idx).clone() }
+        }
     }
 
-    pub fn lookup_non_local(&self, idx: usize, scope: usize) -> Option<Value> {
+    pub fn lookup_non_local(&self, idx: usize, scope: usize) -> Value {
         self.nth_frame_back(scope).borrow().lookup_local(idx)
     }
     
-    pub fn assign_local(&mut self, idx: usize, value: &Value) -> Option<()> {
-        let local = self.locals.get_mut(idx).unwrap();
+    pub fn assign_local(&mut self, idx: usize, value: &Value) {
+        let local = match cfg!(debug_assertions) {
+            true => self.locals.get_mut(idx).unwrap(),
+            false => unsafe { self.locals.get_unchecked_mut(idx) }
+        };
         *local = value.clone();
-        Some(())
     }
 
-    pub fn assign_non_local(&mut self, idx: usize, scope: usize, value: &Value) -> Option<()> {
+    pub fn assign_non_local(&mut self, idx: usize, scope: usize, value: &Value) {
         self.nth_frame_back(scope).borrow_mut().assign_local(idx, value)
     }
 
-    pub fn lookup_arg(&self, idx: usize, scope: usize) -> Option<Value> {
+    pub fn lookup_arg(&self, idx: usize, scope: usize) -> Value {
         match (idx, scope) {
-            (0, 0) => Some(self.get_self()),
+            (0, 0) => self.get_self(),
             (_, 0) => self.lookup_local_arg(idx),
             _ => self.lookup_non_local_arg(idx, scope),
         }
     }
 
-    pub fn lookup_local_arg(&self, idx: usize) -> Option<Value> {
-        self.params.get(idx).cloned()
+    pub fn lookup_local_arg(&self, idx: usize) -> Value {
+        match cfg!(debug_assertions) {
+            true => self.params.get(idx).unwrap().clone(),
+            false => unsafe { self.params.get_unchecked(idx).clone() }
+        }
     }
 
-    pub fn lookup_non_local_arg(&self, idx: usize, scope: usize) -> Option<Value> {
+    pub fn lookup_non_local_arg(&self, idx: usize, scope: usize) -> Value {
         self.nth_frame_back(scope).borrow().lookup_local_arg(idx)
     }
 
-    pub fn assign_arg_local(&mut self, idx: usize, value: &Value) -> Option<()> {
-        let val =  self.params.get_mut(idx).unwrap();
+    pub fn assign_arg_local(&mut self, idx: usize, value: &Value) {
+        let val = match cfg!(debug_assertions) {
+            true => self.params.get_mut(idx).unwrap(),
+            false => unsafe { self.params.get_unchecked_mut(idx) }
+        };
         *val = value.clone();
-        return Some(());
     }
 
-    pub fn assign_arg(&mut self, idx: usize, scope: usize, value: &Value) -> Option<()> {
+    pub fn assign_arg(&mut self, idx: usize, scope: usize, value: &Value) {
         match scope {
             0 => self.assign_arg_local(idx, value),
             _ => self.nth_frame_back(scope).borrow_mut().assign_arg_local(idx, value)
         }
     }
 
-    pub fn lookup_field(&self, idx: usize) -> Option<Value> {
+    pub fn lookup_field(&self, idx: usize) -> Value {
         match self.get_self() {
             Value::Instance(i) => { i.borrow_mut().lookup_local(idx) }
-            Value::Class(c) => { c.borrow().class().borrow_mut().lookup_local(idx) }
+            Value::Class(c) => { c.borrow().class().borrow_mut().lookup_field(idx) }
             v => { panic!("{:?}", &v) }
         }
     }
 
-    pub fn assign_field(&self, idx: usize, value: &Value) -> Option<()> {
+    pub fn assign_field(&self, idx: usize, value: &Value) {
         match self.get_self() {
             Value::Instance(i) => { i.borrow_mut().assign_local(idx, value.clone()) }
-            Value::Class(c) => { c.borrow().class().borrow_mut().assign_local(idx, &value) }
+            Value::Class(c) => { c.borrow().class().borrow_mut().assign_field(idx, value.clone()) }
             v => { panic!("{:?}", &v) }
         }
     }
 
     pub fn nth_frame_back(&self, n: usize) -> SOMRef<Frame> {
-        let mut target_frame: Rc<RefCell<Frame>> = match self.params.get(0).unwrap() {
+        let mut target_frame: Rc<RefCell<Frame>> = match self.params.first().unwrap() { // todo optimize that also
             Value::Block(block) => {
                 Rc::clone(&block.frame)
             }
             v => panic!("attempting to access a non local var/arg from a method instead of a block: self wasn't blockself but {:?}.", v)
         };
         for _ in 1..n {
-            target_frame = match Rc::clone(&target_frame).borrow().params.get(0).unwrap() {
+            target_frame = match Rc::clone(&target_frame).borrow().params.first().unwrap() {
                 Value::Block(block) => {
                     Rc::clone(&block.frame)
                 }
@@ -163,7 +172,7 @@ impl Frame {
 
         /// Get the method invocation frame for that frame.
     pub fn method_frame(frame: &SOMRef<Frame>) -> SOMRef<Frame> {
-        if let Value::Block(b) = frame.borrow().params.get(0).unwrap() {
+        if let Value::Block(b) = frame.borrow().params.first().unwrap() {
             Frame::method_frame(&b.frame)
         } else {
             Rc::clone(frame)

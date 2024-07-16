@@ -9,7 +9,7 @@ use indexmap::{IndexMap, IndexSet};
 use num_bigint::BigInt;
 
 use som_core::ast;
-use som_core::ast::{Expression, MethodBody, MethodDef};
+use som_core::ast::{Expression, MethodBody};
 #[cfg(feature = "frame-debug-info")]
 use som_core::ast::BlockDebugInfo;
 use som_core::bytecode::Bytecode;
@@ -489,7 +489,7 @@ impl MethodCodegen for ast::Expression {
             }
             ast::Expression::SuperMessage(super_message) => {
                 ast::Expression::GlobalRead(String::from("super")).codegen(ctxt)?;
-                
+
                 super_message
                     .values
                     .iter()
@@ -502,7 +502,7 @@ impl MethodCodegen for ast::Expression {
 
                 let sym = ctxt.intern_symbol(super_message.signature.as_str());
                 let idx = ctxt.push_literal(Literal::Symbol(sym));
-                
+
                 match nb_params {
                     0 => ctxt.push_instr(Bytecode::SuperSend1(idx as u8)),
                     1 => ctxt.push_instr(Bytecode::SuperSend2(idx as u8)),
@@ -512,12 +512,12 @@ impl MethodCodegen for ast::Expression {
                 Some(())
             }
             ast::Expression::BinaryOp(message) => {
-                let super_send = match message.lhs.as_ref() {
+                let super_send = match &message.lhs {
                     ast::Expression::GlobalRead(value) if value == "super" => true,
                     _ => false,
                 };
                 message.lhs.codegen(ctxt)?;
-                if (message.op == "+" || message.op == "-") && *message.rhs == Expression::Literal(ast::Literal::Integer(1)) {
+                if (message.op == "+" || message.op == "-") && message.rhs == Expression::Literal(ast::Literal::Integer(1)) {
                     match message.op.as_str() {
                         "+" => ctxt.push_instr(Bytecode::Inc), // also i was considering handling the "+ X" arbitrary case, maybe.,
                         "-" => ctxt.push_instr(Bytecode::Dec),
@@ -628,7 +628,7 @@ impl GenCtxt for ClassGenCtxt<'_> {
     }
 }
 
-fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::GenericMethodDef) -> Option<Method> {
+fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::MethodDef) -> Option<Method> {
     /// Only add a ReturnSelf at the end of a method if needed: i.e. there's no existing return, and if there is, that it can't be jumped over.
     fn should_add_return_self(ctxt: &mut MethodGenCtxt, body: &ast::Body) -> bool {
         if body.exprs.is_empty() {
@@ -681,10 +681,9 @@ fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::GenericMethodDef) -> Opti
                 }
             },
             args_nbr: {
-                match &defn.kind {
-                    ast::MethodKind::Unary => 1,
-                    ast::MethodKind::Positional { parameters } => parameters.len(),
-                    ast::MethodKind::Operator { .. } => 2
+                match defn.signature.chars().next().unwrap() {
+                    '~' | '&' | '|' | '*' | '/' | '\\' | '+' | '=' | '>' | '<' | ',' | '@' | '%' | '-' => 2,
+                    _ => defn.signature.chars().filter(|c| *c == ':').count()
                 }
             },
             #[cfg(feature = "frame-debug-info")]
@@ -782,6 +781,12 @@ fn compile_block(outer: &mut dyn GenCtxt, defn: &ast::Block) -> Option<Block> {
     }
     ctxt.remove_dup_popx_pop_sequences();
 
+    if ctxt.body.is_none() {
+        ctxt.push_instr(Bytecode::PushNil);
+        ctxt.push_instr(Bytecode::ReturnLocal);
+    }
+
+    
     let frame = None;
     // let locals = {
     // let locals = std::mem::take(&mut ctxt.locals);
@@ -859,14 +864,7 @@ pub fn compile_class(
         is_static: true,
     }));
 
-    for method_def in &defn.static_methods {
-        let method = match method_def {
-            MethodDef::Generic(v) => v,
-            MethodDef::InlinedWhile(v, _) => v,
-            MethodDef::InlinedIf(v, _) => v,
-            MethodDef::InlinedIfTrueIfFalse(v) => v
-        };
-
+    for method in &defn.static_methods {
         let signature = static_class_ctxt.interner.intern(method.signature.as_str());
         let mut method = compile_method(&mut static_class_ctxt, method)?;
         method.holder = Rc::downgrade(&static_class);
@@ -945,14 +943,7 @@ pub fn compile_class(
         is_static: false,
     }));
 
-    for method_def in &defn.instance_methods {
-        let method = match method_def {
-            MethodDef::Generic(v) => v,
-            MethodDef::InlinedWhile(v, _) => v,
-            MethodDef::InlinedIf(v, _) => v,
-            MethodDef::InlinedIfTrueIfFalse(v) => v
-        };
-
+    for method in &defn.instance_methods {
         let signature = instance_class_ctxt
             .interner
             .intern(method.signature.as_str());

@@ -1,4 +1,5 @@
 use std::fmt;
+use std::rc::Rc;
 
 use som_core::ast;
 
@@ -13,7 +14,7 @@ pub struct Block {
     /// Reference to the captured stack frame.
     pub frame: SOMRef<Frame>,
     /// Block definition from the AST.
-    pub block: ast::Block
+    pub block: Rc<ast::Block>
 }
 
 impl Block {

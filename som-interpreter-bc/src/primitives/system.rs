@@ -224,7 +224,8 @@ fn print_stack_trace(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
     expect_args!(SIGNATURE, interpreter, [Value::System]);
 
     for frame in &interpreter.frames {
-        let class = frame.borrow().get_method_holder(universe);
+        // let class = frame.borrow().get_method_holder(universe);
+        let class = frame.borrow().get_self(); // todo not quite accurate - not actual method holder
         let method = frame.borrow().get_method();
         let bytecode_idx = interpreter.bytecode_idx;
         let block = match frame.borrow().kind() {
@@ -233,8 +234,8 @@ fn print_stack_trace(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
         };
 
         println!(
-            "{}>>#{}{} @bi: {}",
-            class.borrow().name(),
+            "{:?}>>#{}{} @bi: {}",
+            class,
             method.signature(),
             block,
             bytecode_idx

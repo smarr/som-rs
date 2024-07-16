@@ -147,7 +147,7 @@ fn send_bytecodes() {
 
 #[test]
 fn super_send_bytecodes() {
-    let class_txt = "Foo = Vector (
+    let class_txt = "Foo = (
         run = (
             super send1.
             super sendtwo: 1.
