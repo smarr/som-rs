@@ -14,8 +14,12 @@ macro_rules! propagate {
     };
 }
 
-/// TODO doc
+/// AST specific to the AST interpreter
 pub mod ast;
+/// Generates the AST
+pub mod compiler;
+/// Inlining specific messages, such as control flow.
+pub mod inliner;
 
 /// Facilities for manipulating blocks.
 pub mod block;
