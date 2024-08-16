@@ -15,7 +15,7 @@ pub trait PrimMessageInliner {
     fn inline_if_possible(&mut self, msg: &ast::Message) -> Option<InlinedNode>;
     fn parse_expr_with_inlining(&mut self, expression: &Expression) -> Option<AstExpression>;
     fn inline_block(&mut self, expression: &Block) -> Option<AstBody>;
-    fn adapt_block_after_outer_inlined(&mut self, blk: &Rc<Block>) -> Option<AstBlock>;
+    fn adapt_block_after_outer_inlined(&mut self, blk: &Block) -> Option<AstBlock>;
     fn adapt_var_or_args_coords_from_inlining(&self, up_idx: usize, idx: usize, vars_or_args_fetcher_func: fn(&AstScopeCtxt) -> usize) -> (usize, usize);
     fn inline_if_true_or_if_false(&mut self, msg: &ast::Message, expected_bool: bool) -> Option<InlinedNode>;
     fn inline_if_true_if_false(&mut self, msg: &ast::Message, expected_bool: bool) -> Option<InlinedNode>;
@@ -139,7 +139,7 @@ impl PrimMessageInliner for AstMethodCompilerCtxt {
         inlined_block
     }
 
-    fn adapt_block_after_outer_inlined(&mut self, blk: &Rc<Block>) -> Option<AstBlock> {
+    fn adapt_block_after_outer_inlined(&mut self, blk: &Block) -> Option<AstBlock> {
         self.scopes.push(AstScopeCtxt::init(blk.nbr_params, blk.nbr_locals, false));
 
         let exprs: Vec<AstExpression> = blk.body.exprs.iter()

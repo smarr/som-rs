@@ -333,13 +333,13 @@ pub fn block<'a>() -> impl Parser<Expression, &'a [Token], AstGenCtxt<'a>> {
 
         let new_genctxt = genctxt.borrow_mut().get_outer();
 
-        Some((Expression::Block(Rc::new(Block {
+        Some((Expression::Block(Block {
             nbr_params: parameters.len(),
             nbr_locals: locals.len(),
             #[cfg(feature = "block-debug-info")]
             dbg_info: Rc::clone(&new_genctxt).borrow().get_debug_info(),
             body,
-        })), input, new_genctxt))
+        }), input, new_genctxt))
     }
 }
 

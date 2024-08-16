@@ -39,7 +39,7 @@ pub enum AstExpression {
     BinaryOp(Box<AstBinaryOp>),
     Exit(Box<AstExpression>, usize),
     Literal(som_core::ast::Literal),
-    Block(Rc<AstBlock>),
+    Block(Rc<AstBlock>), // Rc here, while it's not an Rc in the parser/som-core AST since BC doesn't need that same Rc.
     /// Call to an inlined method node (no dispatching like a message would)
     InlinedCall(Box<InlinedNode>)
     // todo we might want a SEQUENCENODE of some kind. instead of relying on AstBody at all, actually.

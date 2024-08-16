@@ -1,5 +1,3 @@
-use std::rc::Rc;
-
 /// Represents a class definition.
 ///
 /// Example:
@@ -131,7 +129,7 @@ pub enum Expression {
     /// A literal (eg. `'foo'`, `10`, `#foo`, ...).
     Literal(Literal),
     /// A block (eg. `[ :value | counter incrementBy: value ]`).
-    Block(Rc<Block>),
+    Block(Block),
 }
 
 /// Represents a message send.
