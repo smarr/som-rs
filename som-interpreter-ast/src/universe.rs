@@ -463,12 +463,7 @@ impl UniverseAST {
     pub fn current_frame(&self) -> &SOMRef<Frame> {
         self.frames.last().expect("no frames left")
     }
-
-    /// Get the method invocation frame for the current frame.
-    pub fn current_method_frame(&self) -> SOMRef<Frame> {
-        Frame::method_frame(self.current_frame())
-    }
-
+    
     /// Intern a symbol.
     pub fn intern_symbol(&mut self, symbol: &str) -> Interned {
         self.interner.intern(symbol)

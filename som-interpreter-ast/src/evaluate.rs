@@ -46,31 +46,22 @@ impl Evaluate for AstExpression {
                 Return::NonLocal(value, universe.current_frame().clone())  // not well named - Return::NonLocal means "exits the scope", so it can be a regular, local return. 
             }
             Self::NonLocalExit(expr, scope) => {
-                // let value = propagate!(expr.evaluate(universe));
-                // let method_frame = universe.current_frame().borrow().nth_frame_back(*scope);
-                // let escaped_frames = universe
-                //     .frames
-                //     .iter()
-                //     .rev()
-                //     .position(|live_frame| Rc::ptr_eq(live_frame, &method_frame));
-                // 
-                // if let Some(count) = escaped_frames {
-                //     (0..count).for_each(|_| { universe.frames.pop(); });
-                // 
-                //     Return::NonLocal(value, method_frame)
                 debug_assert_ne!(*scope, 0);
+                
                 let value = propagate!(expr.evaluate(universe));
-                let frame = universe.current_method_frame();
+                let method_frame = universe.current_frame().borrow().nth_frame_back(*scope);
                 let has_not_escaped = universe
                     .frames
                     .iter()
                     .rev()
-                    .any(|live_frame| Rc::ptr_eq(live_frame, &frame));
+                    .any(|live_frame| Rc::ptr_eq(live_frame, &method_frame));
+                
                 if has_not_escaped {
-                    Return::NonLocal(value, frame)
+                    // the BC interp has to pop all the escaped frames here, we don't (because we chain return nonlocals, exception-style?).
+                    Return::NonLocal(value, method_frame)
                 } else {
                     // Block has escaped its method frame.
-                    let instance = frame.borrow().get_self();
+                    let instance = method_frame.borrow().get_self();
                     let frame = universe.current_frame();
                     let block = match frame.borrow().params.first() {
                         Some(Value::Block(b)) => b.clone(),
