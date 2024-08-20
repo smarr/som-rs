@@ -37,7 +37,8 @@ pub enum AstExpression {
     Message(Box<AstMessage>),
     SuperMessage(Box<AstSuperMessage>),
     BinaryOp(Box<AstBinaryOp>),
-    Exit(Box<AstExpression>, usize),
+    LocalExit(Box<AstExpression>),
+    NonLocalExit(Box<AstExpression>, usize),
     Literal(som_core::ast::Literal),
     Block(Rc<AstBlock>), // Rc here, while it's not an Rc in the parser/som-core AST since BC doesn't need that same Rc.
     /// Call to an inlined method node (no dispatching like a message would)
@@ -192,8 +193,12 @@ impl Display for AstExpression {
                 writeln!(indented(f), "RHS:")?;
                 write!(indented(&mut indented(f)), "{}", op.rhs)
             }
-            AstExpression::Exit(expr, index) => {
-                writeln!(f, "Exit({})", index)?;
+            AstExpression::LocalExit(expr) => {
+                writeln!(f, "LocalExit")?;
+                writeln!(indented(f), "{}", expr)
+            }
+            AstExpression::NonLocalExit(expr, index) => {
+                writeln!(f, "NonLocalExit({})", index)?;
                 writeln!(indented(f), "{}", expr)
             }
             AstExpression::Literal(literal) => writeln!(f, "Literal({:?})", literal),

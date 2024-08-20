@@ -85,7 +85,11 @@ impl PrimMessageInliner for AstMethodCompilerCtxt {
             Expression::Exit(expr, scope) => {
                 let inline_expr = self.parse_expr_with_inlining(expr)?;
                 let adjust_scope_by = self.scopes.iter().rev().take(*scope).filter(|e| e.is_getting_inlined).count();
-                AstExpression::Exit(Box::new(inline_expr), scope - adjust_scope_by)
+                let new_scope = scope - adjust_scope_by;
+                match new_scope {
+                    0 => AstExpression::LocalExit(Box::new(inline_expr)),
+                    _ => AstExpression::NonLocalExit(Box::new(inline_expr), new_scope)
+                }
             }
             Expression::GlobalRead(a) => AstExpression::GlobalRead(a.clone()),
             Expression::FieldRead(idx) => AstExpression::FieldRead(*idx),

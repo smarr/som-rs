@@ -41,7 +41,24 @@ impl Evaluate for AstExpression {
             },
             Self::BinaryOp(bin_op) => bin_op.evaluate(universe),
             Self::Block(blk) => blk.evaluate(universe),
-            Self::Exit(expr, _scope) => {
+            Self::LocalExit(expr) => {
+                let value = propagate!(expr.evaluate(universe));
+                Return::NonLocal(value, universe.current_frame().clone())  // not well named - Return::NonLocal means "exits the scope", so it can be a regular, local return. 
+            }
+            Self::NonLocalExit(expr, scope) => {
+                // let value = propagate!(expr.evaluate(universe));
+                // let method_frame = universe.current_frame().borrow().nth_frame_back(*scope);
+                // let escaped_frames = universe
+                //     .frames
+                //     .iter()
+                //     .rev()
+                //     .position(|live_frame| Rc::ptr_eq(live_frame, &method_frame));
+                // 
+                // if let Some(count) = escaped_frames {
+                //     (0..count).for_each(|_| { universe.frames.pop(); });
+                // 
+                //     Return::NonLocal(value, method_frame)
+                debug_assert_ne!(*scope, 0);
                 let value = propagate!(expr.evaluate(universe));
                 let frame = universe.current_method_frame();
                 let has_not_escaped = universe

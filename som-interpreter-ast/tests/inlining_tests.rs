@@ -1,6 +1,6 @@
-use som_interpreter_ast::ast::{AstBinaryOp, AstBody, AstMethodBody};
 use som_interpreter_ast::ast::AstExpression::*;
 use som_interpreter_ast::ast::InlinedNode::IfInlined;
+use som_interpreter_ast::ast::{AstBinaryOp, AstBody, AstMethodBody};
 use som_interpreter_ast::compiler::AstMethodCompilerCtxt;
 use som_interpreter_ast::specialized::inlined::if_inlined_node::IfInlinedNode;
 use som_lexer::{Lexer, Token};
@@ -37,12 +37,12 @@ fn if_true_inlining_ok() {
                             expected_bool: true,
                             cond_expr: GlobalRead("true".to_string()),
                             body_instrs: AstBody {
-                                exprs: vec![Exit(Box::new(GlobalRead("true".to_string())), 0)],
+                                exprs: vec![LocalExit(Box::new(GlobalRead("true".to_string())))],
                             },
                         },
                     ),
                     )),
-                Exit(Box::new(GlobalRead("false".to_string())), 0),
+                LocalExit(Box::new(GlobalRead("false".to_string()))),
             ],
         },
     }
@@ -76,7 +76,7 @@ fn if_false_inlining_ok() {
                                                rhs: GlobalRead("nil".to_string()),
                                            }),
                                        ),
-                                       body_instrs: AstBody { exprs: vec![Exit(Box::new(LocalVarRead(0)), 0)] },
+                                       body_instrs: AstBody { exprs: vec![LocalExit(Box::new(LocalVarRead(0)))] },
                                    },
                                )),
                            ),
@@ -128,7 +128,7 @@ pub fn recursive_inlining() {
                                                         ArgRead(1, 1)
                                             body block:
                                                 AstBody:
-                                                    Exit(1)
+                                                    NonLocalExit(1)
                                                         GlobalRead(true)";
 
     let resolve = get_ast(contains_key_txt);

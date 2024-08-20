@@ -79,7 +79,12 @@ impl AstMethodCompilerCtxt {
             Expression::Message(msg) => self.parse_message_maybe_inline(msg.as_ref()),
             Expression::SuperMessage(a) => AstExpression::SuperMessage(Box::new(self.parse_super_message(a.as_ref()))),
             Expression::BinaryOp(a) => AstExpression::BinaryOp(Box::new(self.parse_binary_op(a.as_ref()))),
-            Expression::Exit(a, b) => AstExpression::Exit(Box::new(self.parse_expression(a.as_ref())), b),
+            Expression::Exit(a, b) => {
+                match b {
+                    0 => AstExpression::LocalExit(Box::new(self.parse_expression(a.as_ref()))),
+                    _ => AstExpression::NonLocalExit(Box::new(self.parse_expression(a.as_ref())), b)
+                }
+            },
             Expression::Literal(a) => AstExpression::Literal(a),
             Expression::Block(a) => AstExpression::Block(Rc::new(self.parse_block(&a)))
         }
