@@ -21,7 +21,7 @@ impl Invoke for ToByDoNode {
 
         let mut i = start_int;
 
-        while i < end_int {
+        while i <= end_int {
             propagate!(universe.with_frame(
                 body_block.block.nbr_locals,
                 vec![Value::Block(Rc::clone(&body_block)), Value::Integer(i)],
