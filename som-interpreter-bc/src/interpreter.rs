@@ -228,11 +228,13 @@ impl Interpreter {
                         Literal::Symbol(sym) => sym,
                         _ => panic!("Global is not a symbol."),
                     };
-                    if let Some(value) = universe.lookup_global(symbol) {
+                    if let "super" = universe.lookup_symbol(symbol) {
+                        self.stack.push(frame.borrow().get_self())
+                    } else if let Some(value) = universe.lookup_global(symbol) {
                         self.stack.push(value);
                     } else {
                         let self_value = frame.borrow().get_self();
-                        universe.unknown_global(self, self_value, symbol).unwrap();
+                        universe.unknown_global(self, self_value, symbol)?;
                     }
                 }
                 Bytecode::Push0 => {
@@ -432,7 +434,8 @@ impl Interpreter {
                     // let filter_list = [];
 
                     // if !filter_list.contains(&name.as_str()) {
-                    //     eprintln!("Invoking {:?} (in {:?})", &method.signature, &method.holder.upgrade().unwrap().borrow().name);
+                    // if !SYSTEM_CLASS_NAMES.contains(&name.as_str()) {
+                    //     eprintln!("Invoking {:?} (in {:?})", &method.signature, &name);
                     // }
 
                     let args = interpreter.stack.split_off(interpreter.stack.len() - nb_params - 1);

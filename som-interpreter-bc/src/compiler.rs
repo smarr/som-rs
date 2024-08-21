@@ -428,7 +428,7 @@ impl MethodCodegen for ast::Expression {
             ast::Expression::GlobalRead(name) => {
                 match name.as_str() {
                     "nil" => ctxt.push_instr(Bytecode::PushNil),
-                    "super" => ctxt.push_instr(Bytecode::PushSelf), // a super is a "self" read, really
+                    // todo "super" calls could be resolved here maybe? i'm not 100% sure it's possible though
                     _ => {
                         let name = ctxt.intern_symbol(name);
                         let idx = ctxt.push_literal(Literal::Symbol(name));
