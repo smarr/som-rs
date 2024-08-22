@@ -2,7 +2,7 @@
 
 BENCHMARKS=("Bounce" "Mandelbrot" "TreeSort" "List" "Permute" "Queens" "IntegerLoop" "QuickSort" "Sieve" "Fannkuch" "JsonSmall" "DeltaBlue" "Richards" "Towers")
 #COMPILATION_FLAGS="inlining-disabled"
-EXE=som-interpreter-ast
+EXE=som-interpreter-bc
 
 for bench in "${BENCHMARKS[@]}"
 do

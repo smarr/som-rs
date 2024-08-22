@@ -228,9 +228,7 @@ impl Interpreter {
                         Literal::Symbol(sym) => sym,
                         _ => panic!("Global is not a symbol."),
                     };
-                    if let "super" = universe.lookup_symbol(symbol) {
-                        self.stack.push(frame.borrow().get_self())
-                    } else if let Some(value) = universe.lookup_global(symbol) {
+                   if let Some(value) = universe.lookup_global(symbol) {
                         self.stack.push(value);
                     } else {
                         let self_value = frame.borrow().get_self();

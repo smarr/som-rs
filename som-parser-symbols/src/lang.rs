@@ -206,7 +206,6 @@ pub fn unary_send<'a>() -> impl Parser<Expression, &'a [Token], AstGenCtxt<'a>> 
             .fold(receiver, |receiver, signature| {
                 if let Expression::GlobalRead(ref s) = receiver {
                     if s.as_str() == "super" {
-                        // dbg!(genctxt.borrow().get_class_name()); // todo remove
                         let receiver_name = genctxt.borrow().get_super_class_name().unwrap();
                         return Expression::SuperMessage(Box::new(SuperMessage {
                             receiver_name,

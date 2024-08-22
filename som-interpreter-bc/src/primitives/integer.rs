@@ -613,7 +613,6 @@ fn down_to_do(interpreter: &mut Interpreter, _: &mut UniverseBC) {
 
     let new_blk = blk.make_equivalent_with_no_return();
     for i in end..=start {
-        dbg!(&i);
         interpreter.push_block_frame(Rc::clone(&new_blk), vec![Value::Block(Rc::clone(&new_blk)), Value::Integer(i)]);
     }
 

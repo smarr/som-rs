@@ -90,6 +90,7 @@ impl Hash for Literal {
 pub trait GenCtxt {
     fn intern_symbol(&mut self, name: &str) -> Interned;
     fn lookup_symbol(&self, id: Interned) -> &str;
+    fn get_scope(&self) -> usize; // todo: i think this might be better in innergenctxt
     fn class_name(&self) -> &str;
 }
 
@@ -130,6 +131,10 @@ impl GenCtxt for BlockGenCtxt<'_> {
         self.outer.lookup_symbol(id)
     }
 
+    fn get_scope(&self) -> usize {
+        self.outer.get_scope() + 1
+    }
+    
     fn class_name(&self) -> &str {
         self.outer.class_name()
     }
@@ -322,6 +327,10 @@ impl GenCtxt for MethodGenCtxt<'_> {
         self.inner.lookup_symbol(id)
     }
 
+    fn get_scope(&self) -> usize {
+        0
+    }
+    
     fn class_name(&self) -> &str {
         self.inner.class_name()
     }
@@ -428,7 +437,12 @@ impl MethodCodegen for ast::Expression {
             ast::Expression::GlobalRead(name) => {
                 match name.as_str() {
                     "nil" => ctxt.push_instr(Bytecode::PushNil),
-                    // todo "super" calls could be resolved here maybe? i'm not 100% sure it's possible though
+                    "super" => {
+                        match ctxt.get_scope() {
+                            0 => ctxt.push_instr(Bytecode::PushSelf),
+                            scope => ctxt.push_instr(Bytecode::PushNonLocalArg(scope as u8, 0))
+                        }
+                    },
                     _ => {
                         let name = ctxt.intern_symbol(name);
                         let idx = ctxt.push_literal(Literal::Symbol(name));
@@ -623,6 +637,10 @@ impl GenCtxt for ClassGenCtxt<'_> {
         self.interner.lookup(id)
     }
 
+    fn get_scope(&self) -> usize {
+        unreachable!("Asking for scope in a class generation context?")
+    }
+    
     fn class_name(&self) -> &str {
         self.name.as_str()
     }

@@ -121,7 +121,7 @@ pub enum Expression {
     /// A message send (eg. `counter incrementBy: 5`).
     Message(Box<Message>),
     /// A message send to a superclass.
-    SuperMessage(Box<SuperMessage>),
+    SuperMessage(Box<SuperMessage>), // todo: there's not really any point in this being in the parser AST. Could be handled individually by the AST and BC compilers.
     /// A binary operation (eg. `counter <= 5`).
     BinaryOp(Box<BinaryOp>),
     /// An exit operation (eg. `^counter`). Second argument is the scope level to differentiate local and nonlocal returns
