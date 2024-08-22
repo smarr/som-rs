@@ -35,6 +35,8 @@ pub struct Frame {
     /// This frame's kind.
     pub kind: FrameKind,
     pub prev_frame: GCRef<Frame>,
+    /// todo doc
+    pub current_method: *const Method,
     /// The bytecodes associated with the frame.
     pub bytecodes: *const Vec<Bytecode>,
     /// Literals/constants associated with the frame.

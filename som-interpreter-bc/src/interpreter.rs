@@ -43,8 +43,7 @@ macro_rules! super_send {
             }
         };
         let method = {
-            let receiver = $frame.get_self();
-            let holder = receiver.class($universe);
+            let holder = unsafe { (*$frame.borrow().current_method).holder().upgrade().unwrap() };
             let super_class = holder.to_obj().super_class().unwrap();
             resolve_method($frame, &super_class, symbol, $interp.bytecode_idx)
         };
@@ -86,7 +85,8 @@ impl Interpreter {
     }
 
     pub fn push_block_frame(&mut self, block: GCRef<Block>, args: Vec<Value>, mutator: &mut GCInterface) -> GCRef<Frame> {
-        let frame_ptr = Frame::alloc_from_block(block, args, self.current_frame, mutator);
+        let current_method = self.current_frame.last().unwrap().borrow().current_method;
+        let frame_ptr = Frame::alloc_from_block(block, args, current_method, self.current_frame, mutator);
         self.bytecode_idx = 0;
         self.current_bytecodes = frame_ptr.to_obj().bytecodes;
         self.current_frame = frame_ptr;
@@ -399,12 +399,12 @@ impl Interpreter {
                 }
                 Bytecode::JumpOnTruePop(offset) => {
                     let condition_result = self.stack.pop()?;
-                    
+
                     if condition_result.is_boolean_true() {
                         self.bytecode_idx += offset as usize - 1;
                     } else if condition_result.is_boolean_false() {
                         // pass
-                    } 
+                    }
                     else {
                         panic!("JumpOnTruePop condition did not evaluate to boolean (was {:?})", condition_result)
                     }
