@@ -3,7 +3,7 @@ use std::rc::Rc;
 use som_core::ast;
 use som_core::ast::{Expression, MethodBody};
 
-use crate::ast::{AstBinaryOp, AstBlock, AstBody, AstExpression, AstMessage, AstMethodBody, AstMethodDef, AstSuperMessage};
+use crate::ast::{AstBinaryOp, AstBlock, AstBody, AstExpression, AstMessage, AstMethodDef, AstSuperMessage};
 use crate::inliner::PrimMessageInliner;
 
 pub struct AstMethodCompilerCtxt {
@@ -46,23 +46,23 @@ impl AstScopeCtxt {
 
 impl AstMethodCompilerCtxt {
     pub fn parse_method_def(method_def: &ast::MethodDef) -> AstMethodDef {
-        AstMethodDef {
-            signature: method_def.signature.clone(),
-            body: {
-                match &method_def.body {
-                    MethodBody::Primitive => { AstMethodBody::Primitive }
-                    MethodBody::Body { locals_nbr, body, .. } => {
-                        let args_nbr = method_def.signature.chars().filter(|e| *e == ':').count(); // not sure if needed
-                        let mut ctxt = AstMethodCompilerCtxt { scopes: vec![AstScopeCtxt::init(args_nbr, *locals_nbr, false)] };
+        let (body, locals_nbr) = match &method_def.body {
+            MethodBody::Primitive => { unreachable!("unimplemented primitive") }
+            MethodBody::Body { locals_nbr, body, .. } => {
+                let args_nbr = method_def.signature.chars().filter(|e| *e == ':').count(); // not sure if needed
+                let mut ctxt = AstMethodCompilerCtxt { scopes: vec![AstScopeCtxt::init(args_nbr, *locals_nbr, false)] };
 
-                        AstMethodBody::Body {
-                            body: ctxt.parse_body(body),
-                            locals_nbr: ctxt.scopes.last().unwrap().get_nbr_locals(),
-                        }
-                    }
-                }
-            },
-        }
+                (ctxt.parse_body(body), ctxt.scopes.last().unwrap().get_nbr_locals())
+            }
+        };
+        
+        let ast_method_def = AstMethodDef {
+            signature: method_def.signature.clone(),
+            locals_nbr,
+            body
+        };
+        // if astmethoddef is a getter then triviall
+        ast_method_def
     }
 
     pub fn parse_expression(&mut self, expr: &Expression) -> AstExpression {

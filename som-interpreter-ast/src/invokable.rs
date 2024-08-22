@@ -1,4 +1,3 @@
-use crate::ast::AstMethodBody;
 
 use crate::evaluate::Evaluate;
 use crate::frame::Frame;
@@ -33,13 +32,8 @@ impl Invoke for Method {
 
         match self.kind() {
             MethodKind::Defined(method) => {
-                let nbr_locals = match &method.body {
-                    AstMethodBody::Body { locals_nbr, .. } => *locals_nbr,
-                    AstMethodBody::Primitive => unreachable!()
-                };
-
                 universe.with_frame(
-                    nbr_locals,
+                    method.locals_nbr,
                     args,
                     |universe| method.evaluate(universe),
                 )

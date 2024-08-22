@@ -84,43 +84,36 @@ pub struct AstSuperMessage {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum AstMethodBody {
-    Primitive,
-    Body {
-        locals_nbr: usize,
-        body: AstBody,
-    },
-}
-
-#[derive(Debug, Clone, PartialEq)]
 pub struct AstMethodDef {
     /// The method's signature (eg. `println`, `at:put:` or `==`).
     pub signature: String,
     /// The method's body.
-    pub body: AstMethodBody,
+    pub body: AstBody,
+    /// Number of local variables
+    pub locals_nbr: usize,
 }
 
 // ----------------
 
 impl Display for AstMethodDef {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!("Method {}", &self.signature))?;
+        f.write_fmt(format_args!("Method {} ({} locals):", &self.signature, self.locals_nbr))?;
         f.write_str(self.body.to_string().as_str())
     }
 }
 
-impl Display for AstMethodBody {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "AstMethodBody ")?;
-        match self {
-            AstMethodBody::Primitive => {f.write_str("(primitive)")}
-            AstMethodBody::Body { locals_nbr, body } => {
-                f.write_fmt(format_args!("({} locals):\n", locals_nbr))?;
-                indented(f).write_str(body.to_string().as_str())
-            }
-        }
-    }
-}
+// impl Display for AstMethodBody {
+//     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+//         write!(f, "AstMethodBody ")?;
+//         match self {
+//             AstMethodBody::Primitive => {f.write_str("(primitive)")}
+//             AstMethodBody::Body { locals_nbr, body } => {
+//                 f.write_fmt(format_args!("({} locals):\n", locals_nbr))?;
+//                 indented(f).write_str(body.to_string().as_str())
+//             }
+//         }
+//     }
+// }
 
 impl Display for AstBody {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {

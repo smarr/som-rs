@@ -1,8 +1,8 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use crate::ast::{AstBinaryOp, AstBlock, AstBody, AstExpression, AstMessage, AstMethodDef, AstSuperMessage, AstTerm, InlinedNode};
 use som_core::ast;
-use crate::ast::{AstBinaryOp, AstBlock, AstBody, AstExpression, AstMessage, AstMethodBody, AstMethodDef, AstSuperMessage, AstTerm, InlinedNode};
 
 use crate::block::Block;
 use crate::invokable::{Invoke, Return};
@@ -23,22 +23,22 @@ impl Evaluate for AstExpression {
                 let value = propagate!(expr.evaluate(universe));
                 universe.assign_local(*idx, &value);
                 Return::Local(value)
-            },
+            }
             Self::NonLocalVarWrite(scope, idx, expr) => {
                 let value = propagate!(expr.evaluate(universe));
                 universe.assign_non_local(*idx, *scope, &value);
                 Return::Local(value)
-            },
+            }
             Self::FieldWrite(idx, expr) => {
                 let value = propagate!(expr.evaluate(universe));
                 universe.assign_field(*idx, &value);
                 Return::Local(value)
-            },
+            }
             Self::ArgWrite(scope, idx, expr) => {
                 let value = propagate!(expr.evaluate(universe));
                 universe.assign_arg(*idx, *scope, &value);
                 Return::Local(value)
-            },
+            }
             Self::BinaryOp(bin_op) => bin_op.evaluate(universe),
             Self::Block(blk) => blk.evaluate(universe),
             Self::LocalExit(expr) => {
@@ -47,7 +47,7 @@ impl Evaluate for AstExpression {
             }
             Self::NonLocalExit(expr, scope) => {
                 debug_assert_ne!(*scope, 0);
-                
+
                 let value = propagate!(expr.evaluate(universe));
                 let method_frame = universe.current_frame().borrow().nth_frame_back(*scope);
                 let has_not_escaped = universe
@@ -55,7 +55,7 @@ impl Evaluate for AstExpression {
                     .iter()
                     .rev()
                     .any(|live_frame| Rc::ptr_eq(live_frame, &method_frame));
-                
+
                 if has_not_escaped {
                     // the BC interp has to pop all the escaped frames here, we don't (because we chain return nonlocals, exception-style?).
                     Return::NonLocal(value, method_frame)
@@ -83,16 +83,16 @@ impl Evaluate for AstExpression {
             Self::Literal(literal) => literal.evaluate(universe),
             Self::LocalVarRead(idx) => {
                 Return::Local(universe.lookup_local(*idx))
-            },
+            }
             Self::NonLocalVarRead(scope, idx) => {
                 Return::Local(universe.lookup_non_local(*idx, *scope))
-            },
+            }
             Self::FieldRead(idx) => {
                 Return::Local(universe.lookup_field(*idx))
-            },
+            }
             Self::ArgRead(scope, idx) => {
                 Return::Local(universe.lookup_arg(*idx, *scope))
-            },
+            }
             Self::GlobalRead(name) =>
                 match name.as_str() {
                     "super" => Return::Local(universe.current_frame().borrow().get_self()),
@@ -313,33 +313,19 @@ impl Evaluate for AstMethodDef {
     fn evaluate(&self, universe: &mut UniverseAST) -> Return {
         let current_frame = universe.current_frame().clone();
 
-        match &self.body {
-            AstMethodBody::Body { body, .. } => {
-                loop {
-                    match body.evaluate(universe) {
-                        Return::NonLocal(value, frame) => {
-                            if Rc::ptr_eq(&current_frame, &frame) {
-                                break Return::Local(value);
-                            } else {
-                                break Return::NonLocal(value, frame);
-                            }
-                        }
-                        Return::Local(_) => break Return::Local(current_frame.borrow().get_self()),
-                        Return::Exception(msg) => break Return::Exception(msg),
-                        Return::Restart => continue,
+        loop {
+            match self.body.evaluate(universe) {
+                Return::NonLocal(value, frame) => {
+                    if Rc::ptr_eq(&current_frame, &frame) {
+                        break Return::Local(value);
+                    } else {
+                        break Return::NonLocal(value, frame);
                     }
                 }
+                Return::Local(_) => break Return::Local(current_frame.borrow().get_self()),
+                Return::Exception(msg) => break Return::Exception(msg),
+                Return::Restart => continue,
             }
-            AstMethodBody::Primitive => Return::Exception(format!(
-                "unimplemented primitive: {}>>#{}",
-                current_frame
-                    .borrow()
-                    .get_self()
-                    .class(universe)
-                    .borrow()
-                    .name(),
-                self.signature,
-            )),
         }
     }
 }

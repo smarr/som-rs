@@ -1,12 +1,12 @@
 use som_interpreter_ast::ast::AstExpression::*;
 use som_interpreter_ast::ast::InlinedNode::IfInlined;
-use som_interpreter_ast::ast::{AstBinaryOp, AstBody, AstMethodBody};
+use som_interpreter_ast::ast::{AstBinaryOp, AstBody, AstMethodDef};
 use som_interpreter_ast::compiler::AstMethodCompilerCtxt;
 use som_interpreter_ast::specialized::inlined::if_inlined_node::IfInlinedNode;
 use som_lexer::{Lexer, Token};
 use som_parser::lang;
 
-fn get_ast(class_txt: &str) -> AstMethodBody {
+fn get_ast(class_txt: &str) -> AstMethodDef {
     let mut lexer = Lexer::new(class_txt)
         .skip_comments(true)
         .skip_whitespace(true);
@@ -15,7 +15,7 @@ fn get_ast(class_txt: &str) -> AstMethodBody {
 
     let method_def = som_parser::apply(lang::instance_method_def(), tokens.as_slice(), None).unwrap();
 
-    AstMethodCompilerCtxt::parse_method_def(&method_def).body
+    AstMethodCompilerCtxt::parse_method_def(&method_def)
 }
 
 #[test]
@@ -27,7 +27,8 @@ fn if_true_inlining_ok() {
 
     let ast = get_ast(very_basic);
 
-    assert_eq!(ast, AstMethodBody::Body {
+    assert_eq!(ast, AstMethodDef {
+        signature: "run".to_string(),
         locals_nbr: 0,
         body: AstBody {
             exprs: vec![
@@ -60,29 +61,29 @@ fn if_false_inlining_ok() {
 
     let resolve = get_ast(method_txt2);
 
-    assert_eq!(resolve,
-               AstMethodBody::Body {
-                   locals_nbr: 1,
-                   body: AstBody {
-                       exprs: vec![
-                           InlinedCall(
-                               Box::from(IfInlined(
-                                   IfInlinedNode {
-                                       expected_bool: false,
-                                       cond_expr: BinaryOp(
-                                           Box::new(AstBinaryOp {
-                                               op: "==".to_string(),
-                                               lhs: LocalVarRead(0),
-                                               rhs: GlobalRead("nil".to_string()),
-                                           }),
-                                       ),
-                                       body_instrs: AstBody { exprs: vec![LocalExit(Box::new(LocalVarRead(0)))] },
-                                   },
-                               )),
-                           ),
-                       ],
-                   },
-               });
+    assert_eq!(resolve, AstMethodDef{
+        signature: "resolve:".to_string(),
+        locals_nbr: 1,
+        body: AstBody {
+            exprs: vec![
+                InlinedCall(
+                    Box::from(IfInlined(
+                        IfInlinedNode {
+                            expected_bool: false,
+                            cond_expr: BinaryOp(
+                                Box::new(AstBinaryOp {
+                                    op: "==".to_string(),
+                                    lhs: LocalVarRead(0),
+                                    rhs: GlobalRead("nil".to_string()),
+                                }),
+                            ),
+                            body_instrs: AstBody { exprs: vec![LocalExit(Box::new(LocalVarRead(0)))] },
+                        },
+                    )),
+                ),
+            ],
+        },
+    });
 }
 
 #[test]
@@ -100,7 +101,7 @@ pub fn recursive_inlining() {
         ]. 
         )";
 
-    let ast_answer = "AstMethodBody (2 locals):
+    let ast_answer = "Method containsKey: (2 locals):
         AstBody:
             IfInlinedNode (expected bool: false):
                 condition expr:\
