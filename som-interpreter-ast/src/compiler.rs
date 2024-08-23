@@ -11,7 +11,7 @@ use crate::specialized::if_node::IfNode;
 use crate::specialized::if_true_if_false_node::IfTrueIfFalseNode;
 use crate::specialized::to_by_do_node::ToByDoNode;
 use crate::specialized::to_do_node::ToDoNode;
-use crate::specialized::trivial::literal_return::TrivialLiteralMethod;
+use crate::specialized::trivial_methods::{TrivialGlobalMethod, TrivialLiteralMethod};
 use crate::specialized::while_node::WhileNode;
 
 pub struct AstMethodCompilerCtxt {
@@ -72,8 +72,8 @@ impl AstMethodCompilerCtxt {
                     MethodBody::Body { .. } => {
                         let ast_method_def = AstMethodCompilerCtxt::parse_method_def(method);
                         
-                        if let Some(trivial_method) = AstMethodCompilerCtxt::make_trivial_literal_return_if_possible(&ast_method_def) {
-                            MethodKind::TrivialLiteral(trivial_method)
+                        if let Some(trivial_method_kind) = AstMethodCompilerCtxt::make_trivial_method_if_possible(&ast_method_def) {
+                            trivial_method_kind
                         } else {
                             MethodKind::Defined(ast_method_def)
                         }
@@ -83,23 +83,25 @@ impl AstMethodCompilerCtxt {
         }
     }
 
-    fn make_trivial_literal_return_if_possible(method_def: &AstMethodDef) -> Option<TrivialLiteralMethod> {
-        if method_def.locals_nbr == 0 && method_def.body.exprs.len() == 1 {
-            match method_def.body.exprs.first()? {
-                // AstExpression::FieldWrite(..) => {dbg!(&body);},
-                AstExpression::LocalExit(expr) => {
-                    match expr.as_ref() {
-                        AstExpression::Literal(lit) => {
-                            return Some(TrivialLiteralMethod { literal: lit.clone() });
-                        },
-                        _ => {}
-                    };
-                    // dbg!(&body);
-                },
-                _ => {}
-            }
-        };
-        None
+    fn make_trivial_method_if_possible(method_def: &AstMethodDef) -> Option<MethodKind> {
+        if method_def.locals_nbr != 0 || method_def.body.exprs.len() != 1 {
+            return None;
+        }
+        
+        match method_def.body.exprs.first()? {
+            AstExpression::LocalExit(expr) => {
+                match expr.as_ref() {
+                    AstExpression::Literal(lit) => {
+                        Some(MethodKind::TrivialLiteral(TrivialLiteralMethod { literal: lit.clone() })) // todo avoid clone by moving code to previous function tbh
+                    },
+                    AstExpression::GlobalRead(global) => {
+                        Some(MethodKind::TrivialGlobal(TrivialGlobalMethod{ global_name: global.clone() }))
+                    }
+                    _ => None
+                }
+            },
+            _ => None
+        }
     }
     
     /// Transforms a generic MethodDef into an AST-specific one.

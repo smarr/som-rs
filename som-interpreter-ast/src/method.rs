@@ -9,7 +9,7 @@ use crate::specialized::if_node::IfNode;
 use crate::specialized::if_true_if_false_node::IfTrueIfFalseNode;
 use crate::specialized::to_by_do_node::ToByDoNode;
 use crate::specialized::to_do_node::ToDoNode;
-use crate::specialized::trivial::literal_return::TrivialLiteralMethod;
+use crate::specialized::trivial_methods::{TrivialGlobalMethod, TrivialLiteralMethod};
 
 /// The kind of a class method.
 #[derive(Clone)]
@@ -20,6 +20,8 @@ pub enum MethodKind {
     Primitive(PrimitiveFn),
     /// A trivial literal read
     TrivialLiteral(TrivialLiteralMethod),
+    /// A trivial global read
+    TrivialGlobal(TrivialGlobalMethod),
     /// Specialized: whileTrue/whileFalse node.
     While(WhileNode),
     /// Specialized: ifTrue/ifFalse.
