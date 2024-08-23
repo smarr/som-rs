@@ -45,8 +45,11 @@ impl Invoke for Method {
             MethodKind::ToDo(to_do_node) => { to_do_node.invoke(universe, args) },
             MethodKind::ToByDo(to_by_do_node) => { to_by_do_node.invoke(universe, args) },
             MethodKind::DownToDo(down_to_do_node) => { down_to_do_node.invoke(universe, args) },
+            // since those two trivial methods don't need args, i guess it could be faster to handle them before args are even instantiated... probably not that useful though
             MethodKind::TrivialLiteral(trivial_literal) => { trivial_literal.literal.evaluate(universe) },
             MethodKind::TrivialGlobal(trivial_global) => { trivial_global.evaluate(universe) },
+            MethodKind::TrivialGetter(trivial_getter) => { trivial_getter.invoke(universe, args) },
+            MethodKind::TrivialSetter(trivial_setter) => { trivial_setter.invoke(universe, args) },
             MethodKind::NotImplemented(name) => { Return::Exception(format!("unimplemented primitive: {}", name)) }
         }
     }

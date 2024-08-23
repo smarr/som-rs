@@ -11,7 +11,7 @@ use crate::specialized::if_node::IfNode;
 use crate::specialized::if_true_if_false_node::IfTrueIfFalseNode;
 use crate::specialized::to_by_do_node::ToByDoNode;
 use crate::specialized::to_do_node::ToDoNode;
-use crate::specialized::trivial_methods::{TrivialGlobalMethod, TrivialLiteralMethod};
+use crate::specialized::trivial_methods::{TrivialGetterMethod, TrivialGlobalMethod, TrivialLiteralMethod, TrivialSetterMethod};
 use crate::specialized::while_node::WhileNode;
 
 pub struct AstMethodCompilerCtxt {
@@ -63,15 +63,15 @@ impl AstMethodCompilerCtxt {
             "ifTrue:ifFalse:" => MethodKind::IfTrueIfFalse(IfTrueIfFalseNode {}),
             "whileTrue:" => MethodKind::While(WhileNode { expected_bool: true }),
             "whileFalse:" => MethodKind::While(WhileNode { expected_bool: false }),
-            "to:do:" => MethodKind::ToDo(ToDoNode{}),
-            "to:by:do:" => MethodKind::ToByDo(ToByDoNode{}),
-            "downTo:do:" => MethodKind::DownToDo(DownToDoNode{}),
+            "to:do:" => MethodKind::ToDo(ToDoNode {}),
+            "to:by:do:" => MethodKind::ToByDo(ToByDoNode {}),
+            "downTo:do:" => MethodKind::DownToDo(DownToDoNode {}),
             _ => {
                 match method.body {
                     MethodBody::Primitive => MethodKind::NotImplemented(method.signature.clone()),
                     MethodBody::Body { .. } => {
                         let ast_method_def = AstMethodCompilerCtxt::parse_method_def(method);
-                        
+
                         if let Some(trivial_method_kind) = AstMethodCompilerCtxt::make_trivial_method_if_possible(&ast_method_def) {
                             trivial_method_kind
                         } else {
@@ -87,23 +87,34 @@ impl AstMethodCompilerCtxt {
         if method_def.locals_nbr != 0 || method_def.body.exprs.len() != 1 {
             return None;
         }
-        
+
         match method_def.body.exprs.first()? {
             AstExpression::LocalExit(expr) => {
                 match expr.as_ref() {
                     AstExpression::Literal(lit) => {
                         Some(MethodKind::TrivialLiteral(TrivialLiteralMethod { literal: lit.clone() })) // todo avoid clone by moving code to previous function tbh
-                    },
+                    }
                     AstExpression::GlobalRead(global) => {
-                        Some(MethodKind::TrivialGlobal(TrivialGlobalMethod{ global_name: global.clone() }))
+                        Some(MethodKind::TrivialGlobal(TrivialGlobalMethod { global_name: global.clone() }))
+                    }
+                    AstExpression::FieldRead(idx) => {
+                        Some(MethodKind::TrivialGetter(TrivialGetterMethod { field_idx: *idx }))
                     }
                     _ => None
                 }
-            },
+            }
+            AstExpression::FieldWrite(idx, expr) => {
+                match expr.as_ref() {
+                    AstExpression::ArgRead(0, 1) => {
+                        Some(MethodKind::TrivialSetter(TrivialSetterMethod { field_idx: *idx }))
+                    },
+                    _ => None
+                }
+            }
             _ => None
         }
     }
-    
+
     /// Transforms a generic MethodDef into an AST-specific one.
     /// Note: public since it's used in tests.
     pub fn parse_method_def(method_def: &ast::MethodDef) -> AstMethodDef {
@@ -116,11 +127,11 @@ impl AstMethodCompilerCtxt {
                 (ctxt.parse_body(body), ctxt.scopes.last().unwrap().get_nbr_locals())
             }
         };
-        
+
         AstMethodDef {
             signature: method_def.signature.clone(),
             locals_nbr,
-            body
+            body,
         }
     }
 
@@ -143,7 +154,7 @@ impl AstMethodCompilerCtxt {
                     0 => AstExpression::LocalExit(Box::new(self.parse_expression(a.as_ref()))),
                     _ => AstExpression::NonLocalExit(Box::new(self.parse_expression(a.as_ref())), b)
                 }
-            },
+            }
             Expression::Literal(a) => AstExpression::Literal(a),
             Expression::Block(a) => AstExpression::Block(Rc::new(self.parse_block(&a)))
         }
