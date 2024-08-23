@@ -1,7 +1,7 @@
 
 use crate::evaluate::Evaluate;
 use crate::frame::Frame;
-use crate::method::{Method, MethodKind};
+use crate::method::{Method, MethodKind, MethodKindSpecialized};
 use crate::universe::UniverseAST;
 use crate::value::Value;
 use crate::SOMRef;
@@ -39,12 +39,16 @@ impl Invoke for Method {
                 )
             }
             MethodKind::Primitive(func) => func(universe, args),
-            MethodKind::While(while_node) => { while_node.invoke(universe, args) }
-            MethodKind::If(if_node) => { if_node.invoke(universe, args) }
-            MethodKind::IfTrueIfFalse(if_true_if_false_node) => { if_true_if_false_node.invoke(universe, args) },
-            MethodKind::ToDo(to_do_node) => { to_do_node.invoke(universe, args) },
-            MethodKind::ToByDo(to_by_do_node) => { to_by_do_node.invoke(universe, args) },
-            MethodKind::DownToDo(down_to_do_node) => { down_to_do_node.invoke(universe, args) },
+            MethodKind::Specialized(specialized_kind) => {
+                match specialized_kind {
+                    MethodKindSpecialized::While(while_node) => { while_node.invoke(universe, args) }
+                    MethodKindSpecialized::If(if_node) => { if_node.invoke(universe, args) }
+                    MethodKindSpecialized::IfTrueIfFalse(if_true_if_false_node) => { if_true_if_false_node.invoke(universe, args) },
+                    MethodKindSpecialized::ToDo(to_do_node) => { to_do_node.invoke(universe, args) },
+                    MethodKindSpecialized::ToByDo(to_by_do_node) => { to_by_do_node.invoke(universe, args) },
+                    MethodKindSpecialized::DownToDo(down_to_do_node) => { down_to_do_node.invoke(universe, args) },
+                }
+            },
             // since those two trivial methods don't need args, i guess it could be faster to handle them before args are even instantiated... probably not that useful though
             MethodKind::TrivialLiteral(trivial_literal) => { trivial_literal.literal.evaluate(universe) },
             MethodKind::TrivialGlobal(trivial_global) => { trivial_global.evaluate(universe) },

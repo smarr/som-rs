@@ -26,7 +26,17 @@ pub enum MethodKind {
     TrivialGetter(TrivialGetterMethod),
     /// A trivial setter method
     TrivialSetter(TrivialSetterMethod),
-    /// Specialized: whileTrue/whileFalse node.
+    /// A call to a specialized method
+    Specialized(MethodKindSpecialized),
+    /// A non-implemented primitive.
+    NotImplemented(String),
+}
+
+/// MethodKind for specialized methods, which are very common methods whose behaviour we know ahead of time (control flow, for the most part)
+/// Importantly, many of them go unused most of the time because we usually inline control flow nodes instead. 
+#[derive(Clone)]
+pub enum MethodKindSpecialized {
+    /// Specialized whileTrue:/whileFalse:
     While(WhileNode),
     /// Specialized: ifTrue/ifFalse.
     If(IfNode),
@@ -38,8 +48,6 @@ pub enum MethodKind {
     ToByDo(ToByDoNode),
     /// Specialized: downTo:do:.
     DownToDo(DownToDoNode),
-    /// A non-implemented primitive.
-    NotImplemented(String),
 }
 
 impl MethodKind {

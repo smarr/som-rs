@@ -5,7 +5,7 @@ use som_core::ast::{Expression, MethodBody};
 
 use crate::ast::{AstBinaryOp, AstBlock, AstBody, AstExpression, AstMessage, AstMethodDef, AstSuperMessage};
 use crate::inliner::PrimMessageInliner;
-use crate::method::MethodKind;
+use crate::method::{MethodKind, MethodKindSpecialized};
 use crate::specialized::down_to_do_node::DownToDoNode;
 use crate::specialized::if_node::IfNode;
 use crate::specialized::if_true_if_false_node::IfTrueIfFalseNode;
@@ -58,14 +58,14 @@ impl AstMethodCompilerCtxt {
         // But we don't do inlining when e.g. the condition for ifTrue: isn't a block.
         // so there is *some* occasional benefit in having those specialized method nodes around for those cases.
         match method.signature.as_str() {
-            "ifTrue:" => MethodKind::If(IfNode { expected_bool: true }),
-            "ifFalse:" => MethodKind::If(IfNode { expected_bool: false }),
-            "ifTrue:ifFalse:" => MethodKind::IfTrueIfFalse(IfTrueIfFalseNode {}),
-            "whileTrue:" => MethodKind::While(WhileNode { expected_bool: true }),
-            "whileFalse:" => MethodKind::While(WhileNode { expected_bool: false }),
-            "to:do:" => MethodKind::ToDo(ToDoNode {}),
-            "to:by:do:" => MethodKind::ToByDo(ToByDoNode {}),
-            "downTo:do:" => MethodKind::DownToDo(DownToDoNode {}),
+            "ifTrue:" => MethodKind::Specialized(MethodKindSpecialized::If(IfNode { expected_bool: true })),
+            "ifFalse:" => MethodKind::Specialized(MethodKindSpecialized::If(IfNode { expected_bool: false })),
+            "ifTrue:ifFalse:" => MethodKind::Specialized(MethodKindSpecialized::IfTrueIfFalse(IfTrueIfFalseNode {})),
+            "whileTrue:" => MethodKind::Specialized(MethodKindSpecialized::While(WhileNode { expected_bool: true })),
+            "whileFalse:" => MethodKind::Specialized(MethodKindSpecialized::While(WhileNode { expected_bool: false })),
+            "to:do:" => MethodKind::Specialized(MethodKindSpecialized::ToDo(ToDoNode {})),
+            "to:by:do:" => MethodKind::Specialized(MethodKindSpecialized::ToByDo(ToByDoNode {})),
+            "downTo:do:" => MethodKind::Specialized(MethodKindSpecialized::DownToDo(DownToDoNode {})),
             _ => {
                 match method.body {
                     MethodBody::Primitive => MethodKind::NotImplemented(method.signature.clone()),
