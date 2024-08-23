@@ -45,6 +45,7 @@ impl Invoke for Method {
             MethodKind::ToDo(to_do_node) => { to_do_node.invoke(universe, args) },
             MethodKind::ToByDo(to_by_do_node) => { to_by_do_node.invoke(universe, args) },
             MethodKind::DownToDo(down_to_do_node) => { down_to_do_node.invoke(universe, args) },
+            MethodKind::TrivialLiteral(trivial_literal) => { trivial_literal.literal.evaluate(universe) },
             MethodKind::NotImplemented(name) => { Return::Exception(format!("unimplemented primitive: {}", name)) }
         }
     }

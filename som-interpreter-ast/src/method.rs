@@ -9,6 +9,7 @@ use crate::specialized::if_node::IfNode;
 use crate::specialized::if_true_if_false_node::IfTrueIfFalseNode;
 use crate::specialized::to_by_do_node::ToByDoNode;
 use crate::specialized::to_do_node::ToDoNode;
+use crate::specialized::trivial::literal_return::TrivialLiteralMethod;
 
 /// The kind of a class method.
 #[derive(Clone)]
@@ -17,7 +18,8 @@ pub enum MethodKind {
     Defined(AstMethodDef),
     /// An interpreter primitive.
     Primitive(PrimitiveFn),
-    // TrivialLiteral(AstMethodDef),
+    /// A trivial literal read
+    TrivialLiteral(TrivialLiteralMethod),
     /// Specialized: whileTrue/whileFalse node.
     While(WhileNode),
     /// Specialized: ifTrue/ifFalse.

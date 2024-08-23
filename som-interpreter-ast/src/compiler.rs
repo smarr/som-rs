@@ -11,6 +11,7 @@ use crate::specialized::if_node::IfNode;
 use crate::specialized::if_true_if_false_node::IfTrueIfFalseNode;
 use crate::specialized::to_by_do_node::ToByDoNode;
 use crate::specialized::to_do_node::ToDoNode;
+use crate::specialized::trivial::literal_return::TrivialLiteralMethod;
 use crate::specialized::while_node::WhileNode;
 
 pub struct AstMethodCompilerCtxt {
@@ -68,10 +69,37 @@ impl AstMethodCompilerCtxt {
             _ => {
                 match method.body {
                     MethodBody::Primitive => MethodKind::NotImplemented(method.signature.clone()),
-                    MethodBody::Body { .. } => MethodKind::Defined(AstMethodCompilerCtxt::parse_method_def(method))
+                    MethodBody::Body { .. } => {
+                        let ast_method_def = AstMethodCompilerCtxt::parse_method_def(method);
+                        
+                        if let Some(trivial_method) = AstMethodCompilerCtxt::make_trivial_literal_return_if_possible(&ast_method_def) {
+                            MethodKind::TrivialLiteral(trivial_method)
+                        } else {
+                            MethodKind::Defined(ast_method_def)
+                        }
+                    }
                 }
             }
         }
+    }
+
+    fn make_trivial_literal_return_if_possible(method_def: &AstMethodDef) -> Option<TrivialLiteralMethod> {
+        if method_def.locals_nbr == 0 && method_def.body.exprs.len() == 1 {
+            match method_def.body.exprs.first()? {
+                // AstExpression::FieldWrite(..) => {dbg!(&body);},
+                AstExpression::LocalExit(expr) => {
+                    match expr.as_ref() {
+                        AstExpression::Literal(lit) => {
+                            return Some(TrivialLiteralMethod { literal: lit.clone() });
+                        },
+                        _ => {}
+                    };
+                    // dbg!(&body);
+                },
+                _ => {}
+            }
+        };
+        None
     }
     
     /// Transforms a generic MethodDef into an AST-specific one.
@@ -86,23 +114,6 @@ impl AstMethodCompilerCtxt {
                 (ctxt.parse_body(body), ctxt.scopes.last().unwrap().get_nbr_locals())
             }
         };
-        
-        /*if locals_nbr == 0 && body.exprs.len() == 1 {
-            match body.exprs.first().unwrap() {
-                // AstExpression::FieldWrite(..) => {dbg!(&body);},
-                AstExpression::LocalExit(expr) => {
-                    match expr.as_ref() {
-                        AstExpression::Literal(lit) => {
-                            dbg!(&body);
-                            return LiteralTrivialMethod(lit);
-                        },
-                        _ => {}
-                    };
-                    // dbg!(&body);
-                },
-                _ => {}
-            }
-        }*/
         
         AstMethodDef {
             signature: method_def.signature.clone(),
