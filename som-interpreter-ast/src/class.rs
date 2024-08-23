@@ -4,19 +4,13 @@ use std::rc::{Rc, Weak};
 
 use indexmap::IndexMap;
 
-use som_core::ast::{ClassDef, MethodBody};
+use som_core::ast::ClassDef;
 
 use crate::method::{Method, MethodKind};
 use crate::primitives;
 use crate::value::Value;
 use crate::{SOMRef, SOMWeakRef};
 use crate::compiler::AstMethodCompilerCtxt;
-use crate::specialized::down_to_do_node::DownToDoNode;
-use crate::specialized::if_node::IfNode;
-use crate::specialized::if_true_if_false_node::IfTrueIfFalseNode;
-use crate::specialized::to_by_do_node::ToByDoNode;
-use crate::specialized::to_do_node::ToDoNode;
-use crate::specialized::while_node::WhileNode;
 
 /// A reference that may be either weak or owned/strong.
 #[derive(Debug, Clone)]
@@ -101,10 +95,7 @@ impl Class {
             .iter()
             .map(|method| {
                 let signature = method.signature.clone();
-                let kind = match method.body {
-                    MethodBody::Primitive => MethodKind::NotImplemented(signature.clone()),
-                    MethodBody::Body { .. } => MethodKind::Defined(AstMethodCompilerCtxt::parse_method_def(method)),
-                };
+                let kind = AstMethodCompilerCtxt::get_method_kind(method);
                 let method = Method {
                     kind,
                     signature: signature.clone(),
@@ -137,22 +128,7 @@ impl Class {
             .iter()
             .map(|method| {
                 let signature = method.signature.clone();
-                let kind = match signature.as_str() {
-                    "ifTrue:" => MethodKind::IfInlined(IfNode { expected_bool: true }),
-                    "ifFalse:" => MethodKind::IfInlined(IfNode { expected_bool: false }),
-                    "ifTrue:ifFalse:" => MethodKind::IfTrueIfFalseInlined(IfTrueIfFalseNode {}),
-                    "whileTrue:" => MethodKind::WhileInlined(WhileNode { expected_bool: true }),
-                    "whileFalse:" => MethodKind::WhileInlined(WhileNode { expected_bool: false }),
-                    "to:do:" => MethodKind::ToDoInlined(ToDoNode{}),
-                    "to:by:do:" => MethodKind::ToByDoInlined(ToByDoNode{}),
-                    "downTo:do:" => MethodKind::DownToDoInlined(DownToDoNode{}),
-                    _ => {
-                        match method.body {
-                            MethodBody::Primitive => MethodKind::NotImplemented(signature.clone()),
-                            MethodBody::Body { .. } => MethodKind::Defined(AstMethodCompilerCtxt::parse_method_def(method))
-                        }
-                    }
-                };
+                let kind = AstMethodCompilerCtxt::get_method_kind(method);
                 let method = Method {
                     kind,
                     signature: signature.clone(),

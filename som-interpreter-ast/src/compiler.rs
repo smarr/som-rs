@@ -5,6 +5,13 @@ use som_core::ast::{Expression, MethodBody};
 
 use crate::ast::{AstBinaryOp, AstBlock, AstBody, AstExpression, AstMessage, AstMethodDef, AstSuperMessage};
 use crate::inliner::PrimMessageInliner;
+use crate::method::MethodKind;
+use crate::specialized::down_to_do_node::DownToDoNode;
+use crate::specialized::if_node::IfNode;
+use crate::specialized::if_true_if_false_node::IfTrueIfFalseNode;
+use crate::specialized::to_by_do_node::ToByDoNode;
+use crate::specialized::to_do_node::ToDoNode;
+use crate::specialized::while_node::WhileNode;
 
 pub struct AstMethodCompilerCtxt {
     pub scopes: Vec<AstScopeCtxt>,
@@ -45,6 +52,30 @@ impl AstScopeCtxt {
 }
 
 impl AstMethodCompilerCtxt {
+    pub fn get_method_kind(method: &ast::MethodDef) -> MethodKind {
+        // NB: these If/IfTrueIfFalse/While are very rare cases, since we normally inline those functions.
+        // But we don't do inlining when e.g. the condition for ifTrue: isn't a block.
+        // so there is *some* occasional benefit in having those specialized method nodes around for those cases.
+        match method.signature.as_str() {
+            "ifTrue:" => MethodKind::If(IfNode { expected_bool: true }),
+            "ifFalse:" => MethodKind::If(IfNode { expected_bool: false }),
+            "ifTrue:ifFalse:" => MethodKind::IfTrueIfFalse(IfTrueIfFalseNode {}),
+            "whileTrue:" => MethodKind::While(WhileNode { expected_bool: true }),
+            "whileFalse:" => MethodKind::While(WhileNode { expected_bool: false }),
+            "to:do:" => MethodKind::ToDo(ToDoNode{}),
+            "to:by:do:" => MethodKind::ToByDo(ToByDoNode{}),
+            "downTo:do:" => MethodKind::DownToDo(DownToDoNode{}),
+            _ => {
+                match method.body {
+                    MethodBody::Primitive => MethodKind::NotImplemented(method.signature.clone()),
+                    MethodBody::Body { .. } => MethodKind::Defined(AstMethodCompilerCtxt::parse_method_def(method))
+                }
+            }
+        }
+    }
+    
+    /// Transforms a generic MethodDef into an AST-specific one.
+    /// Note: public since it's used in tests.
     pub fn parse_method_def(method_def: &ast::MethodDef) -> AstMethodDef {
         let (body, locals_nbr) = match &method_def.body {
             MethodBody::Primitive => { unreachable!("unimplemented primitive") }
@@ -56,13 +87,28 @@ impl AstMethodCompilerCtxt {
             }
         };
         
-        let ast_method_def = AstMethodDef {
+        /*if locals_nbr == 0 && body.exprs.len() == 1 {
+            match body.exprs.first().unwrap() {
+                // AstExpression::FieldWrite(..) => {dbg!(&body);},
+                AstExpression::LocalExit(expr) => {
+                    match expr.as_ref() {
+                        AstExpression::Literal(lit) => {
+                            dbg!(&body);
+                            return LiteralTrivialMethod(lit);
+                        },
+                        _ => {}
+                    };
+                    // dbg!(&body);
+                },
+                _ => {}
+            }
+        }*/
+        
+        AstMethodDef {
             signature: method_def.signature.clone(),
             locals_nbr,
             body
-        };
-        // if astmethoddef is a getter then triviall
-        ast_method_def
+        }
     }
 
     pub fn parse_expression(&mut self, expr: &Expression) -> AstExpression {

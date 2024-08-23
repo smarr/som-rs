@@ -102,19 +102,6 @@ impl Display for AstMethodDef {
     }
 }
 
-// impl Display for AstMethodBody {
-//     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-//         write!(f, "AstMethodBody ")?;
-//         match self {
-//             AstMethodBody::Primitive => {f.write_str("(primitive)")}
-//             AstMethodBody::Body { locals_nbr, body } => {
-//                 f.write_fmt(format_args!("({} locals):\n", locals_nbr))?;
-//                 indented(f).write_str(body.to_string().as_str())
-//             }
-//         }
-//     }
-// }
-
 impl Display for AstBody {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "AstBody:")?;

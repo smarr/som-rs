@@ -17,18 +17,19 @@ pub enum MethodKind {
     Defined(AstMethodDef),
     /// An interpreter primitive.
     Primitive(PrimitiveFn),
+    // TrivialLiteral(AstMethodDef),
     /// Specialized: whileTrue/whileFalse node.
-    WhileInlined(WhileNode),
+    While(WhileNode),
     /// Specialized: ifTrue/ifFalse.
-    IfInlined(IfNode),
+    If(IfNode),
     /// Specialized: ifTrue:ifFalse.
-    IfTrueIfFalseInlined(IfTrueIfFalseNode),
+    IfTrueIfFalse(IfTrueIfFalseNode),
     /// Specialized: to:do:.
-    ToDoInlined(ToDoNode),
+    ToDo(ToDoNode),
     /// Specialized: to:by:do:.
-    ToByDoInlined(ToByDoNode),
+    ToByDo(ToByDoNode),
     /// Specialized: downTo:do:.
-    DownToDoInlined(DownToDoNode),
+    DownToDo(DownToDoNode),
     /// A non-implemented primitive.
     NotImplemented(String),
 }

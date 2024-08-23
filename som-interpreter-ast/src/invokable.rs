@@ -39,12 +39,12 @@ impl Invoke for Method {
                 )
             }
             MethodKind::Primitive(func) => func(universe, args),
-            MethodKind::WhileInlined(while_node) => { while_node.invoke(universe, args) }
-            MethodKind::IfInlined(if_node) => { if_node.invoke(universe, args) }
-            MethodKind::IfTrueIfFalseInlined(if_true_if_false_node) => { if_true_if_false_node.invoke(universe, args) },
-            MethodKind::ToDoInlined(to_do_node) => { to_do_node.invoke(universe, args) },
-            MethodKind::ToByDoInlined(to_by_do_node) => { to_by_do_node.invoke(universe, args) },
-            MethodKind::DownToDoInlined(down_to_do_node) => { down_to_do_node.invoke(universe, args) },
+            MethodKind::While(while_node) => { while_node.invoke(universe, args) }
+            MethodKind::If(if_node) => { if_node.invoke(universe, args) }
+            MethodKind::IfTrueIfFalse(if_true_if_false_node) => { if_true_if_false_node.invoke(universe, args) },
+            MethodKind::ToDo(to_do_node) => { to_do_node.invoke(universe, args) },
+            MethodKind::ToByDo(to_by_do_node) => { to_by_do_node.invoke(universe, args) },
+            MethodKind::DownToDo(down_to_do_node) => { down_to_do_node.invoke(universe, args) },
             MethodKind::NotImplemented(name) => { Return::Exception(format!("unimplemented primitive: {}", name)) }
         }
     }
