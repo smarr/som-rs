@@ -43,8 +43,11 @@ macro_rules! super_send {
             }
         };
         let method = {
-            let holder = unsafe { (*$frame.borrow().current_method).holder().upgrade().unwrap() };
-            let super_class = holder.to_obj().super_class().unwrap();
+            // let method_with_holder = $frame.borrow().get_holding_method();
+            let holder = $frame.get_method_holder();
+            // dbg!(&holder);
+            let super_class = holder.borrow().super_class().unwrap();
+            // dbg!(&super_class);
             resolve_method($frame, &super_class, symbol, $interp.bytecode_idx)
         };
         do_send($interp, $universe, method, symbol, nb_params as usize);
@@ -85,7 +88,7 @@ impl Interpreter {
     }
 
     pub fn push_block_frame(&mut self, block: GCRef<Block>, args: Vec<Value>, mutator: &mut GCInterface) -> GCRef<Frame> {
-        let current_method = self.current_frame.last().unwrap().borrow().current_method;
+        let current_method = self.current_frame.borrow().current_method;
         let frame_ptr = Frame::alloc_from_block(block, args, current_method, self.current_frame, mutator);
         self.bytecode_idx = 0;
         self.current_bytecodes = frame_ptr.to_obj().bytecodes;

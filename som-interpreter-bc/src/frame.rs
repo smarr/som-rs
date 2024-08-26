@@ -34,8 +34,9 @@ pub struct Frame {
     #[cfg(feature = "frame-debug-info")]
     /// This frame's kind.
     pub kind: FrameKind,
+    /// The previous frame. Frames are handled as a linked list
     pub prev_frame: GCRef<Frame>,
-    /// todo doc
+    /// The method the execution context currently is in.
     pub current_method: *const Method,
     /// The bytecodes associated with the frame.
     pub bytecodes: *const Vec<Bytecode>,
@@ -71,8 +72,8 @@ impl Frame {
         frame_ptr
     }
 
-    pub fn alloc_from_block(block: GCRef<Block>, mut args: Vec<Value>, prev_frame: GCRef<Frame>, mutator: &mut GCInterface) -> GCRef<Frame> {
-        let mut frame_ptr = Frame::alloc(Frame::from_block(block, args.len(), prev_frame), mutator);
+    pub fn alloc_from_block(block: GCRef<Block>, mut args: Vec<Value>, current_method: *const Method, prev_frame: GCRef<Frame>, mutator: &mut GCInterface) -> GCRef<Frame> {
+        let mut frame_ptr = Frame::alloc(Frame::from_block(block, args.len(), current_method, prev_frame), mutator);
 
         for i in (0..args.len()).rev() {
             frame_ptr.assign_arg(i, args.pop().unwrap())
@@ -81,12 +82,13 @@ impl Frame {
         frame_ptr
     }
 
-    fn from_block(block: GCRef<Block>, nbr_args: usize, prev_frame: GCRef<Frame>) -> Self {
+    fn from_block(block: GCRef<Block>, nbr_args: usize, current_method: *const Method, prev_frame: GCRef<Frame>) -> Self {
         let block_obj = block.to_obj();
         Self {
             #[cfg(feature = "frame-debug-info")]
             kind: FrameKind::Block { block },
             prev_frame,
+            current_method,
             nbr_locals: block_obj.blk_info.to_obj().nb_locals,
             nbr_args,
             literals: &block_obj.blk_info.to_obj().literals,
@@ -116,6 +118,7 @@ impl Frame {
                     nbr_args,
                     literals: &env.literals,
                     bytecodes: &env.body,
+                    current_method: method.as_ref(),
                     bytecode_idx: 0,
                     inline_cache: std::ptr::addr_of!(env.inline_cache),
                     args_marker: PhantomData,
@@ -242,6 +245,7 @@ impl Frame {
 pub trait FrameAccess {
     const ARG_OFFSET: usize = size_of::<Frame>();
     fn get_self(&self) -> Value;
+    fn get_method_holder(&self) -> GCRef<Class>;
     fn lookup_argument(&self, idx: usize) -> &Value;
     fn assign_arg(&mut self, idx: usize, value: Value);
     fn lookup_local(&self, idx: usize) -> &Value;
@@ -260,6 +264,20 @@ impl FrameAccess for GCRef<Frame> {
                 block_frame.get_self()
             }
             None => self_arg.clone()
+        }
+    }
+
+    /// Get the holder for this current method.
+    fn get_method_holder(&self) -> GCRef<Class> {
+        match self.lookup_argument(0).as_block() {
+            Some(b) => {
+                let block_frame = b.to_obj().frame.as_ref().unwrap();
+                let x = block_frame.get_method_holder();
+                x
+            },
+            None => {
+                unsafe { (*self.to_obj().current_method).holder }
+            }
         }
     }
 
