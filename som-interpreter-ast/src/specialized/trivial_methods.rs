@@ -4,6 +4,7 @@ use crate::universe::UniverseAST;
 use crate::value::Value;
 use som_core::ast::Literal;
 use std::rc::Rc;
+use crate::SOMRef;
 
 #[derive(Clone)]
 pub struct TrivialLiteralMethod {
@@ -36,7 +37,11 @@ pub struct TrivialGetterMethod {
 }
 
 impl Invoke for TrivialGetterMethod {
-    fn invoke(&self, _: &mut UniverseAST, args: Vec<Value>) -> Return {
+    fn invoke_somref(self_: SOMRef<Self>, universe: &mut UniverseAST, args: Vec<Value>) -> Return {
+        self_.borrow_mut().invoke(universe, args)
+    }
+    
+    fn invoke(&mut self, _: &mut UniverseAST, args: Vec<Value>) -> Return {
         match args.first().unwrap() {
             Value::Class(cls) => Return::Local(cls.borrow().class().borrow().lookup_field(self.field_idx)),
             Value::Instance(instance) => Return::Local(instance.borrow().lookup_local(self.field_idx)),
@@ -51,7 +56,11 @@ pub struct TrivialSetterMethod {
 }
 
 impl Invoke for TrivialSetterMethod {
-    fn invoke(&self, _: &mut UniverseAST, args: Vec<Value>) -> Return {
+    fn invoke_somref(self_: SOMRef<Self>, universe: &mut UniverseAST, args: Vec<Value>) -> Return {
+        self_.borrow_mut().invoke(universe, args)
+    }
+    
+    fn invoke(&mut self, _: &mut UniverseAST, args: Vec<Value>) -> Return {
         let val = args.get(1).unwrap();
         match args.first().unwrap() {
             Value::Class(cls) => {

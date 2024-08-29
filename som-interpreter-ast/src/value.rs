@@ -39,7 +39,7 @@ pub enum Value {
     /// A bare class object.
     Class(SOMRef<Class>),
     /// A bare invokable.
-    Invokable(Rc<Method>),
+    Invokable(SOMRef<Method>),
 }
 
 impl Value {
@@ -59,7 +59,7 @@ impl Value {
             Self::Block(block) => block.class(universe),
             Self::Instance(instance) => instance.borrow().class(),
             Self::Class(class) => class.borrow().class(),
-            Self::Invokable(invokable) => invokable.class(universe),
+            Self::Invokable(invokable) => invokable.borrow().class(universe),
         }
     }
 
@@ -68,7 +68,7 @@ impl Value {
         &self,
         universe: &UniverseAST,
         signature: impl AsRef<str>,
-    ) -> Option<Rc<Method>> {
+    ) -> Option<SOMRef<Method>> {
         self.class(universe).borrow().lookup_method(signature)
     }
 
@@ -105,11 +105,11 @@ impl Value {
                 instance.borrow().class().borrow().name(),
             ),
             Self::Class(class) => class.borrow().name().to_string(),
-            Self::Invokable(invokable) => invokable
+            Self::Invokable(invokable) => invokable.borrow()
                 .holder()
                 .upgrade()
-                .map(|holder| format!("{}>>#{}", holder.borrow().name(), invokable.signature()))
-                .unwrap_or_else(|| format!("??>>#{}", invokable.signature())),
+                .map(|holder| format!("{}>>#{}", holder.borrow().name(), invokable.borrow().signature()))
+                .unwrap_or_else(|| format!("??>>#{}", invokable.borrow().signature())),
         }
     }
 }
@@ -156,11 +156,11 @@ impl fmt::Debug for Value {
             Self::Instance(val) => f.debug_tuple("Instance").field(&val.borrow()).finish(),
             Self::Class(val) => f.debug_tuple("Class").field(&val.borrow()).finish(),
             Self::Invokable(val) => {
-                let signature = val
+                let signature = val.borrow()
                     .holder()
                     .upgrade()
-                    .map(|holder| format!("{}>>#{}", holder.borrow().name(), val.signature()))
-                    .unwrap_or_else(|| format!("??>>#{}", val.signature()));
+                    .map(|holder| format!("{}>>#{}", holder.borrow().name(), val.borrow().signature()))
+                    .unwrap_or_else(|| format!("??>>#{}", val.borrow().signature()));
                 f.debug_tuple("Invokable").field(&signature).finish()
             },
         }

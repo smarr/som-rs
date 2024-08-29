@@ -154,7 +154,7 @@ impl Evaluate for AstBinaryOp {
         // );
 
         if let Some(invokable) = invokable {
-            invokable.invoke(universe, vec![lhs, rhs])
+            Invoke::invoke_somref(invokable, universe, vec![lhs, rhs])
         } else {
             universe
                 .does_not_understand(lhs.clone(), &self.op, vec![rhs])
@@ -232,7 +232,7 @@ impl Evaluate for AstMessage {
         // println!("invoking {}>>#{}", receiver.class(universe).borrow().name(), self.signature);
 
         match invokable {
-            Some(invokable) => invokable.invoke(universe, args),
+            Some(invokable) => Invoke::invoke_somref(invokable, universe, args),
             None => {
                 let mut args = args;
                 args.remove(0);
@@ -277,7 +277,7 @@ impl Evaluate for AstSuperMessage {
         };
 
         let value = match invokable {
-            Some(invokable) => invokable.invoke(universe, args),
+            Some(invokable) => invokable.borrow_mut().invoke(universe, args),
             None => {
                 let mut args = args;
                 args.remove(0);

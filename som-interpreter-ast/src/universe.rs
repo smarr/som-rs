@@ -535,7 +535,8 @@ impl UniverseAST {
     pub fn escaped_block(&mut self, value: Value, block: Rc<Block>) -> Option<Return> {
         let initialize = value.lookup_method(self, "escapedBlock:")?;
 
-        Some(initialize.invoke(self, vec![value, Value::Block(block)]))
+        let escaped_block_result = initialize.borrow_mut().invoke(self, vec![value, Value::Block(block)]);
+        Some(escaped_block_result)
     }
 
     /// Call `doesNotUnderstand:` on the given value, if it is defined.
@@ -551,8 +552,9 @@ impl UniverseAST {
         let args = Value::Array(Rc::new(RefCell::new(args)));
 
        // eprintln!("Couldn't invoke {}; exiting.", symbol.as_ref()); std::process::exit(1);
-
-        Some(initialize.invoke(self, vec![value, sym, args]))
+        
+        let dnu_result = initialize.borrow_mut().invoke(self, vec![value, sym, args]);
+        Some(dnu_result)
     }
 
     /// Call `unknownGlobal:` on the given value, if it is defined.
@@ -560,7 +562,8 @@ impl UniverseAST {
         let sym = self.intern_symbol(name.as_ref());
         let method = value.lookup_method(self, "unknownGlobal:")?;
 
-        match method.invoke(self, vec![value, Value::Symbol(sym)]) {
+        let unknown_global_result = method.borrow_mut().invoke(self, vec![value, Value::Symbol(sym)]);
+        match unknown_global_result {
             Return::Local(value) | Return::NonLocal(value, _) => Some(Return::Local(value)),
             Return::Exception(err) => Some(Return::Exception(format!(
                 "(from 'System>>#unknownGlobal:') {}",
@@ -577,7 +580,8 @@ impl UniverseAST {
         let initialize = Value::System.lookup_method(self, "initialize:")?;
         let args = Value::Array(Rc::new(RefCell::new(args)));
 
-        Some(initialize.invoke(self, vec![Value::System, args]))
+        let program_result = initialize.borrow_mut().invoke(self, vec![Value::System, args]);
+        Some(program_result)
     }
 }
 
