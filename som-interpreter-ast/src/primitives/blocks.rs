@@ -16,13 +16,14 @@ pub mod block1 {
     pub static CLASS_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[];
 
     fn value(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
-        let block = match args.first() {
+        let mut block = match args.first() {
             Some(Value::Block(b)) => b.clone(),
             _ => panic!("Calling value: on a block... not on a block?")
         };
 
+        let nbr_locals = block.borrow().block.borrow().nbr_locals;
         universe.with_frame(
-            block.block.nbr_locals,
+            nbr_locals,
             args,
             |universe| block.evaluate(universe),
         )
@@ -63,13 +64,15 @@ pub mod block2 {
     pub static CLASS_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[];
 
     fn value(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
-        let block = match args.first() {
+        let mut block = match args.first() {
             Some(Value::Block(b)) => b.clone(),
             _ => panic!("Calling value: on a block... not on a block?")
         };
 
+        let nbr_locals = block.borrow().block.borrow().nbr_locals;
+        
         universe.with_frame(
-            block.block.nbr_locals,
+            nbr_locals,
             args,
             |universe| block.evaluate(universe),
         )
@@ -102,13 +105,15 @@ pub mod block3 {
     pub static CLASS_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[];
 
     fn value_with(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
-        let block = match args.first() {
+        let mut block = match args.first() {
             Some(Value::Block(b)) => b.clone(),
             _ => panic!("Calling value: on a block... not on a block?")
         };
 
+        let nbr_locals = block.borrow().block.borrow().nbr_locals;
+        
         universe.with_frame(
-            block.block.nbr_locals,
+            nbr_locals,
             args,
             |universe| block.evaluate(universe),
         )

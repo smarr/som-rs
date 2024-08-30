@@ -27,10 +27,12 @@ impl Invoke for ToDoNode {
 }
 
 impl ToDoNode {
-    fn do_int_loop(start_int: i64, end_int: i64, body_block: Rc<Block>, universe: &mut UniverseAST) -> Return {
+    fn do_int_loop(start_int: i64, end_int: i64, mut body_block: SOMRef<Block>, universe: &mut UniverseAST) -> Return {
+        let nbr_locals = body_block.borrow().block.borrow().nbr_locals;
+        
         for i in start_int..=end_int {
             propagate!(universe.with_frame(
-                body_block.block.nbr_locals,
+                nbr_locals,
                 vec![Value::Block(Rc::clone(&body_block)), Value::Integer(i)],
                 |universe| body_block.evaluate(universe),
             ));
@@ -38,16 +40,19 @@ impl ToDoNode {
         Return::Local(Value::Integer(start_int))
     }
 
-    fn do_double_loop(start_double: f64, end_double: f64, body_block: Rc<Block>, universe: &mut UniverseAST) -> Return {
+    fn do_double_loop(start_double: f64, end_double: f64, mut body_block: SOMRef<Block>, universe: &mut UniverseAST) -> Return {
+        let nbr_locals = body_block.borrow().block.borrow().nbr_locals;
         let mut i = start_double;
+
         while i <= end_double {
             propagate!(universe.with_frame(
-                body_block.block.nbr_locals,
+                nbr_locals,
                 vec![Value::Block(Rc::clone(&body_block)), Value::Double(i)],
                 |universe| body_block.evaluate(universe),
             ));
             i += 1.0
         }
+
         Return::Local(Value::Double(start_double))
     }
 }

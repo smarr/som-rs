@@ -32,10 +32,12 @@ impl Invoke for IfTrueIfFalseNode {
 
         match block_to_evaluate {
             Value::Block(b) => {
+                let nbr_locals = b.borrow().block.borrow().nbr_locals;
+                
                 universe.with_frame(
-                    b.block.nbr_locals,
+                    nbr_locals,
                     vec![Value::Block(Rc::clone(b))],
-                    |universe| b.evaluate(universe),
+                    |universe| Rc::clone(b).evaluate(universe),
                 )
             },
             a => Return::Local(a.clone()),

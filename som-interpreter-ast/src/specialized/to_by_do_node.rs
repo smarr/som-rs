@@ -19,16 +19,17 @@ impl Invoke for ToByDoNode {
         let end_int_val = args.get(2).unwrap();
         let body_block_val = args.get(3).unwrap();
 
-        let (start_int, end_int, step_int, body_block) = match (start_int_val, step_int_val, end_int_val, body_block_val) {
+        let (start_int, end_int, step_int, mut body_block) = match (start_int_val, step_int_val, end_int_val, body_block_val) {
             (Value::Integer(a), Value::Integer(b), Value::Integer(c), Value::Block(d)) => (*a, *b, *c, d.clone()),
             (a, b, c, d) => panic!("to:by:do: was not given three ints and a block as arguments, but {:?} and {:?} and {:?} and {:?}", a, b, c, d)
         };
 
         let mut i = start_int;
 
+        let nbr_locals = body_block.borrow().block.borrow().nbr_locals;
         while i <= end_int {
             propagate!(universe.with_frame(
-                body_block.block.nbr_locals,
+                nbr_locals,
                 vec![Value::Block(Rc::clone(&body_block)), Value::Integer(i)],
                 |universe| body_block.evaluate(universe),
             ));

@@ -20,12 +20,12 @@ impl Invoke for IfNode {
         let cond_block_val = unsafe { args.get_unchecked(0) };
         let body_block_arg = unsafe { args.get_unchecked(1) };
 
-        let (bool_val, body_block) = match (cond_block_val, body_block_arg) {
+        let (bool_val, mut body_block) = match (cond_block_val, body_block_arg) {
             (Value::Boolean(b), Value::Block(c)) => (*b, Rc::clone(c)),
             (a, b) => panic!("if[True|False] was not given a bool and a block as arguments, but {:?} and {:?}", a, b)
         };
 
-        let nbr_locals = body_block.block.nbr_locals;
+        let nbr_locals = body_block.borrow().block.borrow().nbr_locals;
 
         if bool_val != self.expected_bool {
             Return::Local(Nil)

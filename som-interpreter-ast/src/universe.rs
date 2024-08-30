@@ -532,7 +532,7 @@ impl UniverseAST {
 
 impl UniverseAST {
     /// Call `escapedBlock:` on the given value, if it is defined.
-    pub fn escaped_block(&mut self, value: Value, block: Rc<Block>) -> Option<Return> {
+    pub fn escaped_block(&mut self, value: Value, block: SOMRef<Block>) -> Option<Return> {
         let initialize = value.lookup_method(self, "escapedBlock:")?;
 
         let escaped_block_result = initialize.borrow_mut().invoke(self, vec![value, Value::Block(block)]);

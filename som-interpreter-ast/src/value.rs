@@ -33,7 +33,7 @@ pub enum Value {
     /// An array of values.
     Array(SOMRef<Vec<Self>>),
     /// A block value, ready to be evaluated.
-    Block(Rc<Block>),
+    Block(SOMRef<Block>),
     /// A generic (non-primitive) class instance.
     Instance(SOMRef<Instance>),
     /// A bare class object.
@@ -56,7 +56,7 @@ impl Value {
             Self::Symbol(_) => universe.symbol_class(),
             Self::String(_) => universe.string_class(),
             Self::Array(_) => universe.array_class(),
-            Self::Block(block) => block.class(universe),
+            Self::Block(block) => block.borrow().class(universe),
             Self::Instance(instance) => instance.borrow().class(),
             Self::Class(class) => class.borrow().class(),
             Self::Invokable(invokable) => invokable.borrow().class(universe),
@@ -99,7 +99,7 @@ impl Value {
                     .collect();
                 format!("#({})", strings.join(" "))
             }
-            Self::Block(block) => format!("instance of Block{}", block.nb_parameters() + 1),
+            Self::Block(block) => format!("instance of Block{}", block.borrow().nb_parameters() + 1),
             Self::Instance(instance) => format!(
                 "instance of {} class",
                 instance.borrow().class().borrow().name(),

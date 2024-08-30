@@ -20,14 +20,16 @@ impl Invoke for WhileNode {
         let cond_block_val = unsafe { args.get_unchecked(0) };
         let body_block_arg = unsafe { args.get_unchecked(1) };
 
-        let (cond_block, body_block) = match (cond_block_val, body_block_arg) {
+        let (mut cond_block, mut body_block) = match (cond_block_val, body_block_arg) {
             (Value::Block(b), Value::Block(c)) => (b.clone(), c.clone()),
             _ => panic!("while[True|False] was not given two blocks as arguments")
         };
 
+        let nbr_locals = cond_block.borrow().block.borrow().nbr_locals;
+        
         loop {
             let cond_block_return = universe.with_frame(
-                cond_block.block.nbr_locals,
+                nbr_locals,
                 vec![Value::Block(Rc::clone(&cond_block))],
                 |universe| cond_block.evaluate(universe),
             );
@@ -40,8 +42,10 @@ impl Invoke for WhileNode {
             if bool_val != self.expected_bool {
                 return Return::Local(Nil)
             } else {
+                let nbr_locals = body_block.borrow().block.borrow().nbr_locals;
+                
                 propagate!(universe.with_frame(
-                    body_block.block.nbr_locals,
+                    nbr_locals,
                     vec![Value::Block(Rc::clone(&body_block))],
                     |universe| body_block.evaluate(universe),
                 ));
