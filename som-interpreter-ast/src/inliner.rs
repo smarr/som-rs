@@ -4,7 +4,7 @@ use std::rc::Rc;
 use som_core::ast;
 use som_core::ast::{Block, Expression};
 
-use crate::ast::{AstBinaryOp, AstBlock, AstBody, AstExpression, AstMessage, AstMessageDispatch, AstSuperMessage, InlinedNode};
+use crate::ast::{AstBinaryOpDispatch, AstBlock, AstBody, AstExpression, AstMessage, AstMessageDispatch, AstSuperMessage, InlinedNode};
 use crate::compiler::{AstMethodCompilerCtxt, AstScopeCtxt};
 use crate::specialized::inlined::and_inlined_node::AndInlinedNode;
 use crate::specialized::inlined::if_inlined_node::IfInlinedNode;
@@ -114,10 +114,11 @@ impl PrimMessageInliner for AstMethodCompilerCtxt {
                 }))
             }
             Expression::BinaryOp(bin_op) => {
-                AstExpression::BinaryOp(Box::new(AstBinaryOp {
+                AstExpression::BinaryOp(Box::new(AstBinaryOpDispatch {
                     op: bin_op.op.clone(),
                     lhs: self.parse_expr_with_inlining(&bin_op.lhs)?,
                     rhs: self.parse_expr_with_inlining(&bin_op.rhs)?,
+                    inline_cache: None
                 }))
             }
             Expression::Literal(lit) => AstExpression::Literal(lit.clone()),

@@ -40,7 +40,7 @@ pub enum AstExpression {
     FieldWrite(usize, Box<AstExpression>),
     Message(Box<AstMessageDispatch>),
     SuperMessage(Box<AstSuperMessage>),
-    BinaryOp(Box<AstBinaryOp>),
+    BinaryOp(Box<AstBinaryOpDispatch>),
     LocalExit(Box<AstExpression>),
     NonLocalExit(Box<AstExpression>, usize),
     Literal(som_core::ast::Literal),
@@ -62,14 +62,28 @@ pub struct AstBlock {
     pub body: AstBody
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct AstBinaryOp {
+#[derive(Clone)]
+pub struct AstBinaryOpDispatch {
     /// Represents the operator symbol.
     pub op: String,
     /// Represents the left-hand side.
     pub lhs: AstExpression,
     /// Represents the right-hand side.
     pub rhs: AstExpression,
+    /// Inline cache
+    pub inline_cache: Option<CacheEntry>,
+}
+
+impl Debug for AstBinaryOpDispatch {
+    fn fmt(&self, _f: &mut Formatter<'_>) -> std::fmt::Result {
+        todo!("no debug for binary op, todo")
+    }
+}
+
+impl PartialEq for AstBinaryOpDispatch {
+    fn eq(&self, other: &Self) -> bool {
+        self.lhs == other.lhs && self.rhs == other.rhs && self.op == other.op
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -94,8 +108,8 @@ impl Debug for AstMessageDispatch {
 }
 
 impl PartialEq for AstMessageDispatch {
-    fn eq(&self, _other: &Self) -> bool {
-        todo!("need to write partialeq for messagecall or implement it in method")
+    fn eq(&self, other: &Self) -> bool {
+        self.message == other.message
     }
 }
 

@@ -1,6 +1,6 @@
 use som_interpreter_ast::ast::AstExpression::*;
 use som_interpreter_ast::ast::InlinedNode::IfInlined;
-use som_interpreter_ast::ast::{AstBinaryOp, AstBody, AstMethodDef};
+use som_interpreter_ast::ast::{AstBinaryOpDispatch, AstBody, AstMethodDef};
 use som_interpreter_ast::compiler::AstMethodCompilerCtxt;
 use som_interpreter_ast::specialized::inlined::if_inlined_node::IfInlinedNode;
 use som_lexer::{Lexer, Token};
@@ -71,10 +71,11 @@ fn if_false_inlining_ok() {
                         IfInlinedNode {
                             expected_bool: false,
                             cond_expr: BinaryOp(
-                                Box::new(AstBinaryOp {
+                                Box::new(AstBinaryOpDispatch {
                                     op: "==".to_string(),
                                     lhs: LocalVarRead(0),
                                     rhs: GlobalRead("nil".to_string()),
+                                    inline_cache: None
                                 }),
                             ),
                             body_instrs: AstBody { exprs: vec![LocalExit(Box::new(LocalVarRead(0)))] },

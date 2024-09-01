@@ -4,7 +4,7 @@ use std::rc::Rc;
 use som_core::ast;
 use som_core::ast::{Expression, MethodBody};
 
-use crate::ast::{AstBinaryOp, AstBlock, AstBody, AstExpression, AstMessage, AstMessageDispatch, AstMethodDef, AstSuperMessage};
+use crate::ast::{AstBinaryOpDispatch, AstBlock, AstBody, AstExpression, AstMessage, AstMessageDispatch, AstMethodDef, AstSuperMessage};
 use crate::inliner::PrimMessageInliner;
 use crate::method::{MethodKind, MethodKindSpecialized};
 use crate::specialized::down_to_do_node::DownToDoNode;
@@ -182,11 +182,12 @@ impl AstMethodCompilerCtxt {
         output_blk
     }
 
-    pub fn parse_binary_op(&mut self, binary_op: &ast::BinaryOp) -> AstBinaryOp {
-        AstBinaryOp {
+    pub fn parse_binary_op(&mut self, binary_op: &ast::BinaryOp) -> AstBinaryOpDispatch {
+        AstBinaryOpDispatch {
             op: binary_op.op.clone(),
             lhs: self.parse_expression(&binary_op.lhs),
             rhs: self.parse_expression(&binary_op.rhs),
+            inline_cache: None
         }
     }
 

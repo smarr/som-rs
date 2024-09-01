@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use crate::ast::{AstBinaryOp, AstBlock, AstBody, AstExpression, AstMessageDispatch, AstMethodDef, AstSuperMessage, AstTerm, InlinedNode};
+use crate::ast::{AstBinaryOpDispatch, AstBlock, AstBody, AstExpression, AstMessageDispatch, AstMethodDef, AstSuperMessage, AstTerm, InlinedNode};
 use som_core::ast;
 
 use crate::block::Block;
@@ -120,8 +120,9 @@ impl Evaluate for AstExpression {
     }
 }
 
-impl Evaluate for AstBinaryOp {
+impl Evaluate for AstBinaryOpDispatch {
     fn evaluate(&mut self, universe: &mut UniverseAST) -> Return {
+        let mut is_cache_hit = false;
         let (lhs, invokable) = match &mut self.lhs {
             AstExpression::GlobalRead(ident) if ident == "super" => {
                 let frame = universe.current_frame();
@@ -140,7 +141,20 @@ impl Evaluate for AstBinaryOp {
             }
             lhs => {
                 let lhs = propagate!(lhs.evaluate(universe));
-                let invokable = lhs.lookup_method(universe, &self.op);
+                let invokable = match &self.inline_cache {
+                    Some((cached_rcvr_ptr, method)) => {
+                        if std::ptr::eq(*cached_rcvr_ptr, lhs.class(universe).as_ptr()) {
+                            // dbg!("cache hit");
+                            is_cache_hit = true;
+                            Some(Rc::clone(method))
+                        } else {
+                            // dbg!("cache miss");
+                            lhs.lookup_method(universe, &self.op)
+                        }
+                    },
+                    None => lhs.lookup_method(universe, &self.op)
+                };
+                
                 (lhs, invokable)
             }
         };
@@ -154,7 +168,17 @@ impl Evaluate for AstBinaryOp {
         // );
 
         if let Some(invokable) = invokable {
-            Invoke::invoke_somref(invokable, universe, vec![lhs, rhs])
+            match is_cache_hit {
+                true => Invoke::invoke_somref(Rc::clone(&invokable), universe, vec![lhs, rhs]),
+                false => {
+                    let invoke_ret = Invoke::invoke_somref(Rc::clone(&invokable), universe, vec![lhs.clone(), rhs]);
+
+                    let rcvr_ptr = lhs.class(universe).as_ptr();
+                    self.inline_cache = Some((rcvr_ptr, invokable));
+                    
+                    invoke_ret
+                }
+            }
         } else {
             universe
                 .does_not_understand(lhs.clone(), &self.op, vec![rhs])
