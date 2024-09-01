@@ -4,7 +4,7 @@ use std::rc::Rc;
 use som_core::ast;
 use som_core::ast::{Expression, MethodBody};
 
-use crate::ast::{AstBinaryOp, AstBlock, AstBody, AstExpression, AstMessage, AstMethodDef, AstSuperMessage};
+use crate::ast::{AstBinaryOp, AstBlock, AstBody, AstExpression, AstMessage, AstMessageDispatch, AstMethodDef, AstSuperMessage};
 use crate::inliner::PrimMessageInliner;
 use crate::method::{MethodKind, MethodKindSpecialized};
 use crate::specialized::down_to_do_node::DownToDoNode;
@@ -108,7 +108,7 @@ impl AstMethodCompilerCtxt {
                 match expr.as_ref() {
                     AstExpression::ArgRead(0, 1) => {
                         Some(MethodKind::TrivialSetter(TrivialSetterMethod { field_idx: *idx }))
-                    },
+                    }
                     _ => None
                 }
             }
@@ -197,11 +197,12 @@ impl AstMethodCompilerCtxt {
         }
 
         AstExpression::Message(Box::new(
-            AstMessage {
-                receiver: self.parse_expression(&msg.receiver),
-                signature: msg.signature.clone(),
-                values: msg.values.iter().map(|e| self.parse_expression(e)).collect(),
-            })
+            AstMessageDispatch::from_message(
+                AstMessage {
+                    receiver: self.parse_expression(&msg.receiver),
+                    signature: msg.signature.clone(),
+                    values: msg.values.iter().map(|e| self.parse_expression(e)).collect(),
+                }))
         )
     }
 

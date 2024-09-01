@@ -1,8 +1,11 @@
 use std::cell::RefCell;
-use std::fmt::{Display, Formatter};
+use std::fmt::{Debug, Display, Formatter};
 use std::rc::Rc;
 use indenter::indented;
 use std::fmt::Write;
+use crate::class::Class;
+use crate::method::Method;
+use crate::SOMRef;
 use crate::specialized::inlined::and_inlined_node::AndInlinedNode;
 use crate::specialized::inlined::if_inlined_node::IfInlinedNode;
 use crate::specialized::inlined::if_true_if_false_inlined_node::IfTrueIfFalseInlinedNode;
@@ -35,7 +38,7 @@ pub enum AstExpression {
     NonLocalVarWrite(usize, usize, Box<AstExpression>),
     ArgWrite(usize, usize, Box<AstExpression>),
     FieldWrite(usize, Box<AstExpression>),
-    Message(Box<AstMessage>),
+    Message(Box<AstMessageDispatch>),
     SuperMessage(Box<AstSuperMessage>),
     BinaryOp(Box<AstBinaryOp>),
     LocalExit(Box<AstExpression>),
@@ -74,6 +77,72 @@ pub struct AstMessage {
     pub receiver: AstExpression,
     pub signature: String,
     pub values: Vec<AstExpression>,
+}
+
+type CacheEntry = (*const Class, SOMRef<Method>);
+#[derive(Clone)]
+pub struct AstMessageDispatch {
+    pub message: AstMessage,
+    pub inline_cache: Option<CacheEntry>,
+    // pub inline_cache: Box<[Option<CacheEntry>; INLINE_CACHE_SIZE]>,
+}
+
+impl Debug for AstMessageDispatch {
+    fn fmt(&self, _f: &mut Formatter<'_>) -> std::fmt::Result {
+        todo!("no debug for astmessagecall, todo")
+    }
+}
+
+impl PartialEq for AstMessageDispatch {
+    fn eq(&self, _other: &Self) -> bool {
+        todo!("need to write partialeq for messagecall or implement it in method")
+    }
+}
+
+
+impl AstMessageDispatch {
+    pub fn from_message(message: AstMessage) -> Self {
+        Self {
+            message,
+            inline_cache: None
+        }
+    }
+
+    // todo remove?
+    // pub fn lookup_cache(&self, key: &ClassPtr) -> Option<SOMRef<Method>> {
+    //     for (cached_class, cached_method) in self.inline_cache.iter().flatten() {
+    //         if cached_class == key {
+    //             return Some(Rc::clone(&cached_method));
+    //         }
+    //     }
+    // 
+    //     None
+    // }
+    // 
+    // pub fn cache_some_entry(&mut self, class_ptr: &ClassPtr, method_ptr: SOMRef<Method>) {
+    //     for cache_elem in self.inline_cache.iter_mut() {
+    //         if cache_elem.is_none() {
+    //             *cache_elem = Some((*class_ptr, method_ptr));
+    //             return;
+    //         }
+    //     }
+    // }
+
+    /* #[cfg(debug_assertions)]
+     pub fn debug_cache_len(&self) -> usize {
+         let mut i = 0;
+         let mut cache_elem = self.inline_cache.as_ref();
+
+         while let Some(elem) = cache_elem {
+             // dbg!(&cache_elem.unwrap().class_ptr);
+             cache_elem = elem.next.as_ref();
+             i += 1;
+         }
+
+         // dbg!();
+
+         i
+     }*/
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -148,7 +217,8 @@ impl Display for AstExpression {
                 writeln!(f, "FieldWrite({}):", index)?;
                 write!(indented(f), "{}", expr)
             }
-            AstExpression::Message(msg) => {
+            AstExpression::Message(message) => {
+                let msg = &message.message;
                 writeln!(f, "Message \"{}\":", msg.signature)?;
                 writeln!(indented(f), "Receiver:")?;
                 write!(indented(&mut indented(f)), "{}", msg.receiver)?;

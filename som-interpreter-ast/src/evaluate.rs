@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use crate::ast::{AstBinaryOp, AstBlock, AstBody, AstExpression, AstMessage, AstMethodDef, AstSuperMessage, AstTerm, InlinedNode};
+use crate::ast::{AstBinaryOp, AstBlock, AstBody, AstExpression, AstMessageDispatch, AstMethodDef, AstSuperMessage, AstTerm, InlinedNode};
 use som_core::ast;
 
 use crate::block::Block;
@@ -208,14 +208,26 @@ impl Evaluate for Rc<RefCell<AstBlock>> {
     }
 }
 
-impl Evaluate for AstMessage {
+impl Evaluate for AstMessageDispatch {
     fn evaluate(&mut self, universe: &mut UniverseAST) -> Return {
-        let receiver = propagate!(self.receiver.evaluate(universe));
-        let invokable = receiver.lookup_method(universe, &self.signature);
+        let receiver = propagate!(self.message.receiver.evaluate(universe));
+        let invokable = match &self.inline_cache {
+            Some((cached_rcvr_ptr, method)) => {
+                if std::ptr::eq(*cached_rcvr_ptr, receiver.class(universe).as_ptr()) {
+                    // dbg!("cache hit");
+                    Some(Rc::clone(method)) 
+                } else {
+                    // dbg!("cache miss");
+                    receiver.lookup_method(universe, &self.message.signature)
+                }
+            },
+            None => receiver.lookup_method(universe, &self.message.signature)
+        };
+        
         let args = {
-            let mut output = Vec::with_capacity(self.values.len() + 1);
+            let mut output = Vec::with_capacity(self.message.values.len() + 1);
             output.push(receiver.clone());
-            for expr in &mut self.values {
+            for expr in &mut self.message.values {
                 let value = propagate!(expr.evaluate(universe));
                 output.push(value);
             }
@@ -232,17 +244,24 @@ impl Evaluate for AstMessage {
         // println!("invoking {}>>#{}", receiver.class(universe).borrow().name(), self.signature);
 
         match invokable {
-            Some(invokable) => Invoke::invoke_somref(invokable, universe, args),
+            Some(invokable) => {
+                let invoke_ret = Invoke::invoke_somref(Rc::clone(&invokable), universe, args);
+
+                let rcvr_ptr = receiver.class(universe).as_ptr();
+                self.inline_cache = Some((rcvr_ptr, invokable));
+                
+                invoke_ret
+            },
             None => {
                 let mut args = args;
                 args.remove(0);
                 universe
-                    .does_not_understand(receiver.clone(), &self.signature, args)
+                    .does_not_understand(receiver.clone(), &self.message.signature, args)
                     .unwrap_or_else(|| {
                         Return::Exception(format!(
                             "could not find method '{}>>#{}'",
                             receiver.class(universe).borrow().name(),
-                            self.signature
+                            self.message.signature
                         ))
                         // Return::Local(Value::Nil)
                     })
