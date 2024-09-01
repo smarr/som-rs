@@ -211,10 +211,13 @@ impl Evaluate for Rc<RefCell<AstBlock>> {
 impl Evaluate for AstMessageDispatch {
     fn evaluate(&mut self, universe: &mut UniverseAST) -> Return {
         let receiver = propagate!(self.message.receiver.evaluate(universe));
+        let mut is_cache_hit = false;
+        
         let invokable = match &self.inline_cache {
             Some((cached_rcvr_ptr, method)) => {
                 if std::ptr::eq(*cached_rcvr_ptr, receiver.class(universe).as_ptr()) {
                     // dbg!("cache hit");
+                    is_cache_hit = true;
                     Some(Rc::clone(method)) 
                 } else {
                     // dbg!("cache miss");
@@ -247,8 +250,10 @@ impl Evaluate for AstMessageDispatch {
             Some(invokable) => {
                 let invoke_ret = Invoke::invoke_somref(Rc::clone(&invokable), universe, args);
 
-                let rcvr_ptr = receiver.class(universe).as_ptr();
-                self.inline_cache = Some((rcvr_ptr, invokable));
+                if !is_cache_hit {
+                    let rcvr_ptr = receiver.class(universe).as_ptr();
+                    self.inline_cache = Some((rcvr_ptr, invokable));
+                }
                 
                 invoke_ret
             },
