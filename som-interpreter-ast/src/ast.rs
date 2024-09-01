@@ -86,17 +86,12 @@ impl PartialEq for AstBinaryOpDispatch {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct AstMessage {
-    pub receiver: AstExpression,
-    pub signature: String,
-    pub values: Vec<AstExpression>,
-}
-
 type CacheEntry = (*const Class, SOMRef<Method>);
 #[derive(Clone)]
 pub struct AstMessageDispatch {
-    pub message: AstMessage,
+    pub receiver: AstExpression,
+    pub signature: String,
+    pub values: Vec<AstExpression>,
     pub inline_cache: Option<CacheEntry>,
     // pub inline_cache: Box<[Option<CacheEntry>; INLINE_CACHE_SIZE]>,
 }
@@ -109,54 +104,8 @@ impl Debug for AstMessageDispatch {
 
 impl PartialEq for AstMessageDispatch {
     fn eq(&self, other: &Self) -> bool {
-        self.message == other.message
+        self.receiver == other.receiver && self.signature == other.signature && self.values == other.values
     }
-}
-
-
-impl AstMessageDispatch {
-    pub fn from_message(message: AstMessage) -> Self {
-        Self {
-            message,
-            inline_cache: None
-        }
-    }
-
-    // todo remove?
-    // pub fn lookup_cache(&self, key: &ClassPtr) -> Option<SOMRef<Method>> {
-    //     for (cached_class, cached_method) in self.inline_cache.iter().flatten() {
-    //         if cached_class == key {
-    //             return Some(Rc::clone(&cached_method));
-    //         }
-    //     }
-    // 
-    //     None
-    // }
-    // 
-    // pub fn cache_some_entry(&mut self, class_ptr: &ClassPtr, method_ptr: SOMRef<Method>) {
-    //     for cache_elem in self.inline_cache.iter_mut() {
-    //         if cache_elem.is_none() {
-    //             *cache_elem = Some((*class_ptr, method_ptr));
-    //             return;
-    //         }
-    //     }
-    // }
-
-    /* #[cfg(debug_assertions)]
-     pub fn debug_cache_len(&self) -> usize {
-         let mut i = 0;
-         let mut cache_elem = self.inline_cache.as_ref();
-
-         while let Some(elem) = cache_elem {
-             // dbg!(&cache_elem.unwrap().class_ptr);
-             cache_elem = elem.next.as_ref();
-             i += 1;
-         }
-
-         // dbg!();
-
-         i
-     }*/
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -231,8 +180,7 @@ impl Display for AstExpression {
                 writeln!(f, "FieldWrite({}):", index)?;
                 write!(indented(f), "{}", expr)
             }
-            AstExpression::Message(message) => {
-                let msg = &message.message;
+            AstExpression::Message(msg) => {
                 writeln!(f, "Message \"{}\":", msg.signature)?;
                 writeln!(indented(f), "Receiver:")?;
                 write!(indented(&mut indented(f)), "{}", msg.receiver)?;

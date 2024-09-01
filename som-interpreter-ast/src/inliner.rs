@@ -4,7 +4,7 @@ use std::rc::Rc;
 use som_core::ast;
 use som_core::ast::{Block, Expression};
 
-use crate::ast::{AstBinaryOpDispatch, AstBlock, AstBody, AstExpression, AstMessage, AstMessageDispatch, AstSuperMessage, InlinedNode};
+use crate::ast::{AstBinaryOpDispatch, AstBlock, AstBody, AstExpression, AstMessageDispatch, AstSuperMessage, InlinedNode};
 use crate::compiler::{AstMethodCompilerCtxt, AstScopeCtxt};
 use crate::specialized::inlined::and_inlined_node::AndInlinedNode;
 use crate::specialized::inlined::if_inlined_node::IfInlinedNode;
@@ -99,11 +99,12 @@ impl PrimMessageInliner for AstMethodCompilerCtxt {
                 if let Some(inlined_node) = self.inline_if_possible(msg) {
                     return Some(AstExpression::InlinedCall(Box::new(inlined_node)));
                 }
-                AstExpression::Message(Box::new(AstMessageDispatch::from_message(AstMessage {
+                AstExpression::Message(Box::new(AstMessageDispatch {
                     receiver: self.parse_expr_with_inlining(&msg.receiver)?,
                     signature: msg.signature.clone(),
                     values: msg.values.iter().filter_map(|val| self.parse_expr_with_inlining(val)).collect(),
-                })))
+                    inline_cache: None
+                }))
             }
             Expression::SuperMessage(super_msg) => {
                 AstExpression::SuperMessage(Box::new(AstSuperMessage {

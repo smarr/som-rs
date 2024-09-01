@@ -4,7 +4,7 @@ use std::rc::Rc;
 use som_core::ast;
 use som_core::ast::{Expression, MethodBody};
 
-use crate::ast::{AstBinaryOpDispatch, AstBlock, AstBody, AstExpression, AstMessage, AstMessageDispatch, AstMethodDef, AstSuperMessage};
+use crate::ast::{AstBinaryOpDispatch, AstBlock, AstBody, AstExpression, AstMessageDispatch, AstMethodDef, AstSuperMessage};
 use crate::inliner::PrimMessageInliner;
 use crate::method::{MethodKind, MethodKindSpecialized};
 use crate::specialized::down_to_do_node::DownToDoNode;
@@ -187,7 +187,7 @@ impl AstMethodCompilerCtxt {
             op: binary_op.op.clone(),
             lhs: self.parse_expression(&binary_op.lhs),
             rhs: self.parse_expression(&binary_op.rhs),
-            inline_cache: None
+            inline_cache: None,
         }
     }
 
@@ -198,13 +198,12 @@ impl AstMethodCompilerCtxt {
         }
 
         AstExpression::Message(Box::new(
-            AstMessageDispatch::from_message(
-                AstMessage {
-                    receiver: self.parse_expression(&msg.receiver),
-                    signature: msg.signature.clone(),
-                    values: msg.values.iter().map(|e| self.parse_expression(e)).collect(),
-                }))
-        )
+            AstMessageDispatch {
+                receiver: self.parse_expression(&msg.receiver),
+                signature: msg.signature.clone(),
+                values: msg.values.iter().map(|e| self.parse_expression(e)).collect(),
+                inline_cache: None,
+            }))
     }
 
     pub fn parse_super_message(&mut self, super_msg: &ast::SuperMessage) -> AstSuperMessage {

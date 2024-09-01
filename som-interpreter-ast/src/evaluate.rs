@@ -234,7 +234,7 @@ impl Evaluate for Rc<RefCell<AstBlock>> {
 
 impl Evaluate for AstMessageDispatch {
     fn evaluate(&mut self, universe: &mut UniverseAST) -> Return {
-        let receiver = propagate!(self.message.receiver.evaluate(universe));
+        let receiver = propagate!(self.receiver.evaluate(universe));
         let mut is_cache_hit = false;
         
         let invokable = match &self.inline_cache {
@@ -245,16 +245,16 @@ impl Evaluate for AstMessageDispatch {
                     Some(Rc::clone(method)) 
                 } else {
                     // dbg!("cache miss");
-                    receiver.lookup_method(universe, &self.message.signature)
+                    receiver.lookup_method(universe, &self.signature)
                 }
             },
-            None => receiver.lookup_method(universe, &self.message.signature)
+            None => receiver.lookup_method(universe, &self.signature)
         };
         
         let args = {
-            let mut output = Vec::with_capacity(self.message.values.len() + 1);
+            let mut output = Vec::with_capacity(self.values.len() + 1);
             output.push(receiver.clone());
-            for expr in &mut self.message.values {
+            for expr in &mut self.values {
                 let value = propagate!(expr.evaluate(universe));
                 output.push(value);
             }
@@ -285,12 +285,12 @@ impl Evaluate for AstMessageDispatch {
                 let mut args = args;
                 args.remove(0);
                 universe
-                    .does_not_understand(receiver.clone(), &self.message.signature, args)
+                    .does_not_understand(receiver.clone(), &self.signature, args)
                     .unwrap_or_else(|| {
                         Return::Exception(format!(
                             "could not find method '{}>>#{}'",
                             receiver.class(universe).borrow().name(),
-                            self.message.signature
+                            self.signature
                         ))
                         // Return::Local(Value::Nil)
                     })
