@@ -1,7 +1,6 @@
 use std::rc::Rc;
 use crate::evaluate::Evaluate;
 use crate::invokable::{Invoke, Return};
-use crate::SOMRef;
 use crate::universe::UniverseAST;
 use crate::value::Value;
 
@@ -9,8 +8,8 @@ use crate::value::Value;
 pub struct IfTrueIfFalseNode {}
 
 impl Invoke for IfTrueIfFalseNode {
-    fn invoke_somref(self_: SOMRef<Self>, universe: &mut UniverseAST, args: Vec<Value>) -> Return {
-        self_.borrow_mut().invoke(universe, args)
+    fn unsafe_invoke(self_: *mut Self, universe: &mut UniverseAST, args: Vec<Value>) -> Return {
+        unsafe { (*self_).invoke(universe, args) }
     }
     
     fn invoke(&mut self, universe: &mut UniverseAST, args: Vec<Value>) -> Return {

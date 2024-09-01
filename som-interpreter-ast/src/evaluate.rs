@@ -169,9 +169,9 @@ impl Evaluate for AstBinaryOpDispatch {
 
         if let Some(invokable) = invokable {
             match is_cache_hit {
-                true => Invoke::invoke_somref(Rc::clone(&invokable), universe, vec![lhs, rhs]),
+                true => Invoke::unsafe_invoke(invokable.as_ptr(), universe, vec![lhs, rhs]),
                 false => {
-                    let invoke_ret = Invoke::invoke_somref(Rc::clone(&invokable), universe, vec![lhs.clone(), rhs]);
+                    let invoke_ret = Invoke::unsafe_invoke(invokable.as_ptr(), universe, vec![lhs.clone(), rhs]);
 
                     let rcvr_ptr = lhs.class(universe).as_ptr();
                     self.inline_cache = Some((rcvr_ptr, invokable));
@@ -272,7 +272,7 @@ impl Evaluate for AstMessageDispatch {
 
         match invokable {
             Some(invokable) => {
-                let invoke_ret = Invoke::invoke_somref(Rc::clone(&invokable), universe, args);
+                let invoke_ret = Invoke::unsafe_invoke(invokable.as_ptr(), universe, args);
 
                 if !is_cache_hit {
                     let rcvr_ptr = receiver.class(universe).as_ptr();
@@ -325,7 +325,7 @@ impl Evaluate for AstSuperMessage {
         };
 
         let value = match invokable {
-            Some(invokable) => Invoke::invoke_somref(invokable, universe, args),
+            Some(invokable) => Invoke::unsafe_invoke(invokable.as_ptr(), universe, args),
             None => {
                 let mut args = args;
                 args.remove(0);

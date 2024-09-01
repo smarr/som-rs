@@ -1,5 +1,3 @@
-use std::cell::RefCell;
-use std::rc::Rc;
 use crate::evaluate::Evaluate;
 use crate::frame::Frame;
 use crate::method::{Method, MethodKind, MethodKindSpecialized};
@@ -25,14 +23,15 @@ pub trait Invoke {
     /// HACK. Accesses the pointer directly in the Invokable SOMRef as to NOT BORROW (which is very evil), to avoid "already mutably borrowed" errors when executing the AST.
     /// Necessary to have a self-modifiable AST without changing the structure of the AST interpreter entirely. The actual solution would be a non recursive interp, with a main AST loop.
     /// Though TODO: it might be worth it to only call this when absolutely necessary. It's not entirely clear to me when that is - right now I call it "wherever a run of the interpreter gave me a borrowmut error without it" 
-    fn invoke_somref(self_: Rc<RefCell<Self>>, universe: &mut UniverseAST, args: Vec<Value>) -> Return;
+    /// also TODO: needs to be moved out the Invoke trait for cleanliness (well it's a hack anyway, but still...) since it's only needed for Method.
+    fn unsafe_invoke(self_: *mut Self, universe: &mut UniverseAST, args: Vec<Value>) -> Return;
     /// Invoke within the given universe and with the given arguments.
     fn invoke(&mut self, universe: &mut UniverseAST, args: Vec<Value>) -> Return;
 }
 
 impl Invoke for Method {
-    fn invoke_somref(self_: Rc<RefCell<Self>>, universe: &mut UniverseAST, args: Vec<Value>) -> Return {
-        unsafe { (*self_.as_ptr()).invoke(universe, args) }
+    fn unsafe_invoke(self_: *mut Self, universe: &mut UniverseAST, args: Vec<Value>) -> Return {
+        unsafe { (*self_).invoke(universe, args) }
     }
     
     fn invoke(&mut self, universe: &mut UniverseAST, args: Vec<Value>) -> Return {

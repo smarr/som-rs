@@ -10,8 +10,8 @@ use crate::value::Value;
 pub struct ToDoNode {}
 
 impl Invoke for ToDoNode {
-    fn invoke_somref(self_: SOMRef<Self>, universe: &mut UniverseAST, args: Vec<Value>) -> Return {
-        self_.borrow_mut().invoke(universe, args)
+    fn unsafe_invoke(self_: *mut Self, universe: &mut UniverseAST, args: Vec<Value>) -> Return {
+        unsafe { (*self_).invoke(universe, args) }
     }
     fn invoke(&mut self, universe: &mut UniverseAST, args: Vec<Value>) -> Return {
         let start_int_val = args.first().unwrap();

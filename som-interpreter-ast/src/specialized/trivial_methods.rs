@@ -4,7 +4,6 @@ use crate::universe::UniverseAST;
 use crate::value::Value;
 use som_core::ast::Literal;
 use std::rc::Rc;
-use crate::SOMRef;
 
 #[derive(Clone)]
 pub struct TrivialLiteralMethod {
@@ -37,8 +36,8 @@ pub struct TrivialGetterMethod {
 }
 
 impl Invoke for TrivialGetterMethod {
-    fn invoke_somref(self_: SOMRef<Self>, universe: &mut UniverseAST, args: Vec<Value>) -> Return {
-        self_.borrow_mut().invoke(universe, args)
+    fn unsafe_invoke(self_: *mut Self, universe: &mut UniverseAST, args: Vec<Value>) -> Return {
+        unsafe { (*self_).invoke(universe, args) }
     }
     
     fn invoke(&mut self, _: &mut UniverseAST, args: Vec<Value>) -> Return {
@@ -56,8 +55,8 @@ pub struct TrivialSetterMethod {
 }
 
 impl Invoke for TrivialSetterMethod {
-    fn invoke_somref(self_: SOMRef<Self>, universe: &mut UniverseAST, args: Vec<Value>) -> Return {
-        self_.borrow_mut().invoke(universe, args)
+    fn unsafe_invoke(self_: *mut Self, universe: &mut UniverseAST, args: Vec<Value>) -> Return {
+        unsafe { (*self_).invoke(universe, args) }
     }
     
     fn invoke(&mut self, _: &mut UniverseAST, args: Vec<Value>) -> Return {
