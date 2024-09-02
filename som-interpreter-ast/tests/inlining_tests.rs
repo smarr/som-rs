@@ -15,7 +15,7 @@ fn get_ast(class_txt: &str) -> AstMethodDef {
 
     let method_def = som_parser::apply(lang::instance_method_def(), tokens.as_slice(), None).unwrap();
 
-    AstMethodCompilerCtxt::parse_method_def(&method_def)
+    AstMethodCompilerCtxt::parse_method_def(&method_def, None)
 }
 
 #[test]

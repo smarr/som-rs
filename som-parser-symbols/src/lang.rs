@@ -204,18 +204,6 @@ pub fn unary_send<'a>() -> impl Parser<Expression, &'a [Token], AstGenCtxt<'a>> 
         let a = signatures
             .into_iter()
             .fold(receiver, |receiver, signature| {
-                if let Expression::GlobalRead(ref s) = receiver {
-                    if s.as_str() == "super" {
-                        let receiver_name = genctxt.borrow().get_super_class_name().unwrap();
-                        return Expression::SuperMessage(Box::new(SuperMessage {
-                            receiver_name,
-                            is_static_class_call: genctxt.borrow().is_method_static(),
-                            signature,
-                            values: Vec::new(),
-                        }))
-                    }
-                }
-
                 Expression::Message(Box::new(Message {
                     receiver,
                     signature,
@@ -248,20 +236,6 @@ pub fn positional_send<'a>() -> impl Parser<Expression, &'a [Token], AstGenCtxt<
             Some((receiver, input, genctxt))
         } else {
             let (signature, values) = pairs.into_iter().unzip();
-
-            if let Expression::GlobalRead(ref s) = receiver {
-                if s.as_str() == "super" {
-                    let receiver_name = genctxt.borrow().get_super_class_name().unwrap();
-                    let is_static_class = genctxt.borrow().is_method_static();
-                    return Some((Expression::SuperMessage(Box::new(SuperMessage {
-                        receiver_name,
-                        is_static_class_call: is_static_class,
-                        signature,
-                        values,
-                    })), input, genctxt))
-                }
-            }
-
             Some((Expression::Message(Box::new(Message {
                 receiver,
                 signature,

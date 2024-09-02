@@ -107,28 +107,28 @@ impl UniverseAST {
         let interner = Interner::with_capacity(100);
         let mut globals = HashMap::new();
 
-        let object_class = Self::load_system_class(classpath.as_slice(), "Object")?;
-        let class_class = Self::load_system_class(classpath.as_slice(), "Class")?;
-        let metaclass_class = Self::load_system_class(classpath.as_slice(), "Metaclass")?;
+        let object_class = Self::load_system_class(classpath.as_slice(), "Object", None)?;
+        let class_class = Self::load_system_class(classpath.as_slice(), "Class", Some(object_class.clone()))?;
+        let metaclass_class = Self::load_system_class(classpath.as_slice(), "Metaclass", Some(class_class.clone()))?;
 
-        let nil_class = Self::load_system_class(classpath.as_slice(), "Nil")?;
-        let integer_class = Self::load_system_class(classpath.as_slice(), "Integer")?;
-        let array_class = Self::load_system_class(classpath.as_slice(), "Array")?;
-        let method_class = Self::load_system_class(classpath.as_slice(), "Method")?;
-        let symbol_class = Self::load_system_class(classpath.as_slice(), "Symbol")?;
-        let primitive_class = Self::load_system_class(classpath.as_slice(), "Primitive")?;
-        let string_class = Self::load_system_class(classpath.as_slice(), "String")?;
-        let system_class = Self::load_system_class(classpath.as_slice(), "System")?;
-        let double_class = Self::load_system_class(classpath.as_slice(), "Double")?;
+        let nil_class = Self::load_system_class(classpath.as_slice(), "Nil", Some(object_class.clone()))?;
+        let integer_class = Self::load_system_class(classpath.as_slice(), "Integer", Some(object_class.clone()))?;
+        let array_class = Self::load_system_class(classpath.as_slice(), "Array", Some(object_class.clone()))?;
+        let method_class = Self::load_system_class(classpath.as_slice(), "Method", Some(object_class.clone()))?; // was array_class in original code?
+        let string_class = Self::load_system_class(classpath.as_slice(), "String", Some(object_class.clone()))?;
+        let symbol_class = Self::load_system_class(classpath.as_slice(), "Symbol", Some(string_class.clone()))?;
+        let primitive_class = Self::load_system_class(classpath.as_slice(), "Primitive", Some(object_class.clone()))?;
+        let system_class = Self::load_system_class(classpath.as_slice(), "System", Some(object_class.clone()))?;
+        let double_class = Self::load_system_class(classpath.as_slice(), "Double", Some(object_class.clone()))?;
 
-        let block_class = Self::load_system_class(classpath.as_slice(), "Block")?;
-        let block1_class = Self::load_system_class(classpath.as_slice(), "Block1")?;
-        let block2_class = Self::load_system_class(classpath.as_slice(), "Block2")?;
-        let block3_class = Self::load_system_class(classpath.as_slice(), "Block3")?;
+        let block_class = Self::load_system_class(classpath.as_slice(), "Block", Some(object_class.clone()))?;
+        let block1_class = Self::load_system_class(classpath.as_slice(), "Block1", Some(block_class.clone()))?;
+        let block2_class = Self::load_system_class(classpath.as_slice(), "Block2", Some(block_class.clone()))?;
+        let block3_class = Self::load_system_class(classpath.as_slice(), "Block3", Some(block_class.clone()))?;
 
-        let boolean_class = Self::load_system_class(classpath.as_slice(), "Boolean")?;
-        let true_class = Self::load_system_class(classpath.as_slice(), "True")?;
-        let false_class = Self::load_system_class(classpath.as_slice(), "False")?;
+        let boolean_class = Self::load_system_class(classpath.as_slice(), "Boolean", Some(object_class.clone()))?;
+        let true_class = Self::load_system_class(classpath.as_slice(), "True", Some(boolean_class.clone()))?;
+        let false_class = Self::load_system_class(classpath.as_slice(), "False", Some(boolean_class.clone()))?;
 
         // initializeSystemClass(objectClass, null, "Object");
         // set_super_class(&object_class, &nil_class, &metaclass_class);
@@ -142,6 +142,7 @@ impl UniverseAST {
             .class()
             .borrow_mut()
             .set_super_class(&class_class);
+        
         // initializeSystemClass(classClass, objectClass, "Class");
         set_super_class(&class_class, &object_class, &metaclass_class);
         // initializeSystemClass(metaclassClass, classClass, "Metaclass");
@@ -272,7 +273,7 @@ impl UniverseAST {
                 self.core.object_class.clone()
             };
 
-            let class = Class::from_class_def(defn).map_err(Error::msg)?;
+            let class = Class::from_class_def(defn, Some(Rc::clone(&super_class))).map_err(Error::msg)?;
             set_super_class(&class, &super_class, &self.core.metaclass_class);
 
             /*fn has_duplicated_field(class: &SOMRef<Class>) -> Option<(String, (String, String))> {
@@ -326,6 +327,7 @@ impl UniverseAST {
     pub fn load_system_class(
         classpath: &[impl AsRef<Path>],
         class_name: impl Into<String>,
+        super_class: Option<SOMRef<Class>>,
     ) -> Result<SOMRef<Class>, Error> {
         let class_name = class_name.into();
         for path in classpath {
@@ -358,7 +360,7 @@ impl UniverseAST {
                 ));
             }
 
-            return Class::from_class_def(defn).map_err(Error::msg);
+            return Class::from_class_def(defn, super_class).map_err(Error::msg);
         }
 
         Err(anyhow!("could not find the '{}' system class", class_name))

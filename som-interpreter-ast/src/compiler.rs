@@ -5,8 +5,10 @@ use som_core::ast;
 use som_core::ast::{Expression, MethodBody};
 
 use crate::ast::{AstBinaryOpDispatch, AstBlock, AstBody, AstExpression, AstMessageDispatch, AstMethodDef, AstSuperMessage};
+use crate::class::Class;
 use crate::inliner::PrimMessageInliner;
 use crate::method::{MethodKind, MethodKindSpecialized};
+use crate::SOMRef;
 use crate::specialized::down_to_do_node::DownToDoNode;
 use crate::specialized::if_node::IfNode;
 use crate::specialized::if_true_if_false_node::IfTrueIfFalseNode;
@@ -17,6 +19,7 @@ use crate::specialized::while_node::WhileNode;
 
 pub struct AstMethodCompilerCtxt {
     pub scopes: Vec<AstScopeCtxt>,
+    pub super_class: Option<SOMRef<Class>>,
 }
 
 #[derive(Debug, Default)]
@@ -54,7 +57,7 @@ impl AstScopeCtxt {
 }
 
 impl AstMethodCompilerCtxt {
-    pub fn get_method_kind(method: &ast::MethodDef) -> MethodKind {
+    pub fn get_method_kind(method: &ast::MethodDef, super_class: Option<SOMRef<Class>>) -> MethodKind {
         // NB: these If/IfTrueIfFalse/While are very rare cases, since we normally inline those functions.
         // But we don't do inlining when e.g. the condition for ifTrue: isn't a block.
         // so there is *some* occasional benefit in having those specialized method nodes around for those cases.
@@ -71,7 +74,7 @@ impl AstMethodCompilerCtxt {
                 match method.body {
                     MethodBody::Primitive => MethodKind::NotImplemented(method.signature.clone()),
                     MethodBody::Body { .. } => {
-                        let ast_method_def = AstMethodCompilerCtxt::parse_method_def(method);
+                        let ast_method_def = AstMethodCompilerCtxt::parse_method_def(method, super_class);
 
                         if let Some(trivial_method_kind) = AstMethodCompilerCtxt::make_trivial_method_if_possible(&ast_method_def) {
                             trivial_method_kind
@@ -118,12 +121,12 @@ impl AstMethodCompilerCtxt {
 
     /// Transforms a generic MethodDef into an AST-specific one.
     /// Note: public since it's used in tests.
-    pub fn parse_method_def(method_def: &ast::MethodDef) -> AstMethodDef {
+    pub fn parse_method_def(method_def: &ast::MethodDef, super_class: Option<SOMRef<Class>>) -> AstMethodDef {
         let (body, locals_nbr) = match &method_def.body {
             MethodBody::Primitive => { unreachable!("unimplemented primitive") }
             MethodBody::Body { locals_nbr, body, .. } => {
                 let args_nbr = method_def.signature.chars().filter(|e| *e == ':').count(); // not sure if needed
-                let mut ctxt = AstMethodCompilerCtxt { scopes: vec![AstScopeCtxt::init(args_nbr, *locals_nbr, false)] };
+                let mut ctxt = AstMethodCompilerCtxt { scopes: vec![AstScopeCtxt::init(args_nbr, *locals_nbr, false)], super_class };
 
                 (ctxt.parse_body(body), ctxt.scopes.last().unwrap().get_nbr_locals())
             }
@@ -148,7 +151,6 @@ impl AstMethodCompilerCtxt {
             Expression::ArgWrite(a, b, c) => AstExpression::ArgWrite(a, b, Box::new(self.parse_expression(c.as_ref()))),
             Expression::FieldWrite(a, b) => AstExpression::FieldWrite(a, Box::new(self.parse_expression(b.as_ref()))),
             Expression::Message(msg) => self.parse_message_maybe_inline(msg.as_ref()),
-            Expression::SuperMessage(a) => AstExpression::SuperMessage(Box::new(self.parse_super_message(a.as_ref()))),
             Expression::BinaryOp(a) => AstExpression::BinaryOp(Box::new(self.parse_binary_op(a.as_ref()))),
             Expression::Exit(a, b) => {
                 match b {
@@ -197,21 +199,25 @@ impl AstMethodCompilerCtxt {
             return AstExpression::InlinedCall(Box::new(inlined_node));
         }
 
-        AstExpression::Message(Box::new(
-            AstMessageDispatch {
-                receiver: self.parse_expression(&msg.receiver),
-                signature: msg.signature.clone(),
-                values: msg.values.iter().map(|e| self.parse_expression(e)).collect(),
-                inline_cache: None,
-            }))
-    }
-
-    pub fn parse_super_message(&mut self, super_msg: &ast::SuperMessage) -> AstSuperMessage {
-        AstSuperMessage {
-            receiver_name: super_msg.receiver_name.clone(),
-            is_static_class_call: super_msg.is_static_class_call,
-            signature: super_msg.signature.clone(),
-            values: super_msg.values.iter().map(|e| self.parse_expression(e)).collect(),
+        let receiver = self.parse_expression(&msg.receiver);
+        match receiver {
+            _super if _super == AstExpression::GlobalRead(String::from("super")) => {
+                AstExpression::SuperMessage(Box::new(
+                AstSuperMessage {
+                    super_class: self.super_class.clone().unwrap_or_else(|| panic!("no super class set, even though the method has a super call?")),
+                    signature: msg.signature.clone(),
+                    values: msg.values.iter().map(|e| self.parse_expression(e)).collect(),
+                }))
+            },
+            _ => {
+                AstExpression::Message(Box::new(
+                    AstMessageDispatch {
+                        receiver,
+                        signature: msg.signature.clone(),
+                        values: msg.values.iter().map(|e| self.parse_expression(e)).collect(),
+                        inline_cache: None,
+                    }))
+            }
         }
     }
 }

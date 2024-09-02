@@ -301,17 +301,7 @@ impl Evaluate for AstMessageDispatch {
 
 impl Evaluate for AstSuperMessage {
     fn evaluate(&mut self, universe: &mut UniverseAST) -> Return {
-        let super_class = match universe.lookup_global(&self.receiver_name) {
-            Some(Value::Class(cls)) => {
-                match self.is_static_class_call {
-                    true => cls.borrow().class(),
-                    false => Rc::clone(&cls),
-                }
-            }
-            Some(_) => return Return::Exception(format!("superclass name \"{}\" is not associated with a super class?", &self.receiver_name)),
-            None => return Return::Exception(format!("superclass \"{}\" does not exist?", &self.receiver_name))
-        };
-
+        let super_class = Rc::clone(&self.super_class);
         let invokable = super_class.borrow().lookup_method(&self.signature);
         let receiver = universe.current_frame().borrow().get_self();
         let args = {

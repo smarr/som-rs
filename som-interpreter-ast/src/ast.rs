@@ -108,12 +108,17 @@ impl PartialEq for AstMessageDispatch {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct AstSuperMessage {
-    pub receiver_name: String,
-    pub is_static_class_call: bool,
+    pub super_class: SOMRef<Class>,
     pub signature: String,
     pub values: Vec<AstExpression>,
+}
+
+impl PartialEq for AstSuperMessage {
+    fn eq(&self, other: &Self) -> bool {
+        std::ptr::eq(self.super_class.as_ptr(), other.super_class.as_ptr()) && self.signature == other.signature && self.values == other.values
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -192,7 +197,7 @@ impl Display for AstExpression {
             }
             AstExpression::SuperMessage(msg) => {
                 writeln!(f, "SuperMessage \"{}\":", msg.signature)?;
-                writeln!(indented(f), "Receiver: {} (is static: {})", msg.receiver_name, msg.is_static_class_call)?;
+                writeln!(indented(f), "Receiver: {}", msg.super_class.borrow().name)?;
                 writeln!(indented(f), "Values: {}", if msg.values.is_empty() { "(none)" } else { "" })?;
                 for value in &msg.values {
                     write!(indented(&mut indented(f)), "{}", value)?;

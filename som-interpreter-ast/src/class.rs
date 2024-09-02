@@ -43,7 +43,9 @@ pub struct Class {
 
 impl Class {
     /// Load up a class from its class definition from the AST.
-    pub fn from_class_def(defn: ClassDef) -> Result<SOMRef<Class>, String> {
+    /// NB: super_class is only ever None for one class: the core Object class, which all other classes inherit from.
+    /// NB: while it takes the super_class as argument, it's not in charge of hooking it up to the class itself. That's `set_super_class`. Might need changing for clarity.
+    pub fn from_class_def(defn: ClassDef, super_class: Option<SOMRef<Class>>) -> Result<SOMRef<Class>, String> {
         let static_locals = {
             let mut static_locals = IndexMap::new();
             for field in defn.static_locals.iter() {
@@ -90,12 +92,14 @@ impl Class {
             is_static: false,
         }));
 
+        let maybe_static_superclass = super_class.as_ref().map(|super_class| super_class.borrow().class());
+        
         let mut static_methods: IndexMap<String, SOMRef<Method>> = defn
             .static_methods
             .iter()
             .map(|method| {
                 let signature = method.signature.clone();
-                let kind = AstMethodCompilerCtxt::get_method_kind(method);
+                let kind = AstMethodCompilerCtxt::get_method_kind(method, maybe_static_superclass.clone());
                 let method = Method {
                     kind,
                     signature: signature.clone(),
@@ -128,7 +132,7 @@ impl Class {
             .iter()
             .map(|method| {
                 let signature = method.signature.clone();
-                let kind = AstMethodCompilerCtxt::get_method_kind(method);
+                let kind = AstMethodCompilerCtxt::get_method_kind(method, super_class.clone());
                 let method = Method {
                     kind,
                     signature: signature.clone(),

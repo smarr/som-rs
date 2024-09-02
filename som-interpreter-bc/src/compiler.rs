@@ -474,6 +474,11 @@ impl MethodCodegen for ast::Expression {
                 Some(())
             }
             ast::Expression::Message(message) => {
+                let is_super_call = match &message.receiver {
+                    _super if _super == &Expression::GlobalRead(String::from("super")) => true,
+                    _ => false
+                };
+                
                 message.receiver.codegen(ctxt)?;
 
                 #[cfg(not(feature = "inlining-disabled"))]
@@ -493,36 +498,26 @@ impl MethodCodegen for ast::Expression {
 
                 let sym = ctxt.intern_symbol(message.signature.as_str());
                 let idx = ctxt.push_literal(Literal::Symbol(sym));
-                match nb_params {
-                    0 => ctxt.push_instr(Bytecode::Send1(idx as u8)),
-                    1 => ctxt.push_instr(Bytecode::Send2(idx as u8)),
-                    2 => ctxt.push_instr(Bytecode::Send3(idx as u8)),
-                    _ => ctxt.push_instr(Bytecode::SendN(idx as u8)),
+                
+                match is_super_call {
+                    false => {
+                        match nb_params {
+                            0 => ctxt.push_instr(Bytecode::Send1(idx as u8)),
+                            1 => ctxt.push_instr(Bytecode::Send2(idx as u8)),
+                            2 => ctxt.push_instr(Bytecode::Send3(idx as u8)),
+                            _ => ctxt.push_instr(Bytecode::SendN(idx as u8)),
+                        }
+                    },
+                    true => {
+                        match nb_params {
+                            0 => ctxt.push_instr(Bytecode::SuperSend1(idx as u8)),
+                            1 => ctxt.push_instr(Bytecode::SuperSend2(idx as u8)),
+                            2 => ctxt.push_instr(Bytecode::SuperSend3(idx as u8)),
+                            _ => ctxt.push_instr(Bytecode::SuperSendN(idx as u8)),
+                        }
+                    }
                 }
-                Some(())
-            }
-            ast::Expression::SuperMessage(super_message) => {
-                ast::Expression::GlobalRead(String::from("super")).codegen(ctxt)?;
-
-                super_message
-                    .values
-                    .iter()
-                    .try_for_each(|value| value.codegen(ctxt))?;
-
-                let nb_params = match super_message.signature.chars().nth(0) {
-                    Some(ch) if !ch.is_alphabetic() => 1,
-                    _ => super_message.signature.chars().filter(|ch| *ch == ':').count(),
-                };
-
-                let sym = ctxt.intern_symbol(super_message.signature.as_str());
-                let idx = ctxt.push_literal(Literal::Symbol(sym));
-
-                match nb_params {
-                    0 => ctxt.push_instr(Bytecode::SuperSend1(idx as u8)),
-                    1 => ctxt.push_instr(Bytecode::SuperSend2(idx as u8)),
-                    2 => ctxt.push_instr(Bytecode::SuperSend3(idx as u8)),
-                    _ => ctxt.push_instr(Bytecode::SuperSendN(idx as u8)),
-                }
+                
                 Some(())
             }
             ast::Expression::BinaryOp(message) => {

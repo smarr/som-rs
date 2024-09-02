@@ -135,19 +135,6 @@ impl<'a> AstGenCtxtData<'a> {
         }
     }
 
-    pub fn is_method_static(&self) -> bool {
-        match &self.kind {
-            AstGenCtxtType::Class => { panic!("We went too high up when checking if a method is static: we're in the class AST context") }
-            AstGenCtxtType::Method(method_type) => {
-                match method_type {
-                    AstMethodGenCtxtType::INSTANCE => false,
-                    AstMethodGenCtxtType::CLASS => true,
-                }
-            }
-            _ => self.outer_ctxt.as_ref().unwrap().borrow().is_method_static()
-        }
-    }
-    
     pub fn load_super_class_and_set_fields(&mut self, name: &String) {
         let fields = match self.universe.as_mut() {
             Some(universe) => universe.load_class_and_get_all_fields(name),
