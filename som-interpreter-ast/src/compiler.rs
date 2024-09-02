@@ -4,7 +4,7 @@ use std::rc::Rc;
 use som_core::ast;
 use som_core::ast::{Expression, MethodBody};
 
-use crate::ast::{AstBinaryOpDispatch, AstBlock, AstBody, AstExpression, AstMessageDispatch, AstMethodDef, AstSuperMessage};
+use crate::ast::{AstBinaryDispatch, AstBlock, AstBody, AstExpression, AstNAryDispatch, AstMethodDef, AstSuperMessage, AstUnaryDispatch, AstTernaryDispatch};
 use crate::class::Class;
 use crate::inliner::PrimMessageInliner;
 use crate::method::{MethodKind, MethodKindSpecialized};
@@ -195,10 +195,10 @@ impl AstMethodCompilerCtxt {
                     }))
             },
             lhs => {
-                AstExpression::BinaryOp(Box::new(AstBinaryOpDispatch {
-                    op: binary_op.op.clone(),
-                    lhs,
-                    rhs: self.parse_expression(&binary_op.rhs),
+                AstExpression::BinaryDispatch(Box::new(AstBinaryDispatch {
+                    signature: binary_op.op.clone(),
+                    receiver: lhs,
+                    arg: self.parse_expression(&binary_op.rhs),
                     inline_cache: None
                 }))
             }
@@ -222,13 +222,44 @@ impl AstMethodCompilerCtxt {
                 }))
             },
             _ => {
-                AstExpression::Message(Box::new(
-                    AstMessageDispatch {
-                        receiver,
-                        signature: msg.signature.clone(),
-                        values: msg.values.iter().map(|e| self.parse_expression(e)).collect(),
-                        inline_cache: None,
-                    }))
+                match msg.values.len() {
+                    0 => {
+                        AstExpression::UnaryDispatch(Box::new(
+                            AstUnaryDispatch {
+                                receiver,
+                                signature: msg.signature.clone(),
+                                inline_cache: None,
+                            }))
+                    },
+                    1 => {
+                        AstExpression::BinaryDispatch(Box::new(
+                            AstBinaryDispatch {
+                                receiver,
+                                arg: self.parse_expression(msg.values.first().unwrap()),
+                                signature: msg.signature.clone(),
+                                inline_cache: None,
+                            }))
+                    },
+                    2 => {
+                        AstExpression::TernaryDispatch(Box::new(
+                            AstTernaryDispatch {
+                                receiver,
+                                arg1: self.parse_expression(msg.values.first().unwrap()),
+                                arg2: self.parse_expression(msg.values.get(1).unwrap()),
+                                signature: msg.signature.clone(),
+                                inline_cache: None,
+                            }))
+                    },
+                    _ => {
+                        AstExpression::NAryDispatch(Box::new(
+                            AstNAryDispatch {
+                                receiver,
+                                signature: msg.signature.clone(),
+                                values: msg.values.iter().map(|e| self.parse_expression(e)).collect(),
+                                inline_cache: None,
+                            }))
+                    }
+                }
             }
         }
     }

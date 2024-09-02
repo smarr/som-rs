@@ -1,6 +1,6 @@
 use som_interpreter_ast::ast::AstExpression::*;
 use som_interpreter_ast::ast::InlinedNode::IfInlined;
-use som_interpreter_ast::ast::{AstBinaryOpDispatch, AstBody, AstMethodDef};
+use som_interpreter_ast::ast::{AstBinaryDispatch, AstBody, AstMethodDef};
 use som_interpreter_ast::compiler::AstMethodCompilerCtxt;
 use som_interpreter_ast::specialized::inlined::if_inlined_node::IfInlinedNode;
 use som_lexer::{Lexer, Token};
@@ -70,11 +70,11 @@ fn if_false_inlining_ok() {
                     Box::from(IfInlined(
                         IfInlinedNode {
                             expected_bool: false,
-                            cond_expr: BinaryOp(
-                                Box::new(AstBinaryOpDispatch {
-                                    op: "==".to_string(),
-                                    lhs: LocalVarRead(0),
-                                    rhs: GlobalRead("nil".to_string()),
+                            cond_expr: BinaryDispatch(
+                                Box::new(AstBinaryDispatch {
+                                    signature: "==".to_string(),
+                                    receiver: LocalVarRead(0),
+                                    arg: GlobalRead("nil".to_string()),
                                     inline_cache: None
                                 }),
                             ),
@@ -123,10 +123,10 @@ pub fn recursive_inlining() {
                                     AstBlock(1 params, 0 locals):
                                         IfInlinedNode (expected bool: true):
                                             condition expr:
-                                                BinaryOp(=)
-                                                    LHS:
+                                                BinaryDispatch(=)
+                                                    Receiver:
                                                         ArgRead(0, 1)
-                                                    RHS:
+                                                    arg:
                                                         ArgRead(1, 1)
                                             body block:
                                                 AstBody:

@@ -38,9 +38,11 @@ pub enum AstExpression {
     NonLocalVarWrite(usize, usize, Box<AstExpression>),
     ArgWrite(usize, usize, Box<AstExpression>),
     FieldWrite(usize, Box<AstExpression>),
-    Message(Box<AstMessageDispatch>),
+    UnaryDispatch(Box<AstUnaryDispatch>),
+    BinaryDispatch(Box<AstBinaryDispatch>),
+    TernaryDispatch(Box<AstTernaryDispatch>),
+    NAryDispatch(Box<AstNAryDispatch>),
     SuperMessage(Box<AstSuperMessage>),
-    BinaryOp(Box<AstBinaryOpDispatch>),
     LocalExit(Box<AstExpression>),
     NonLocalExit(Box<AstExpression>, usize),
     Literal(som_core::ast::Literal),
@@ -62,26 +64,41 @@ pub struct AstBlock {
     pub body: AstBody
 }
 
+type CacheEntry = (*const Class, SOMRef<Method>);
+
 #[derive(Debug, Clone, PartialEq)]
-pub struct AstBinaryOpDispatch {
-    /// Represents the operator symbol.
-    pub op: String,
-    /// Represents the left-hand side.
-    pub lhs: AstExpression,
-    /// Represents the right-hand side.
-    pub rhs: AstExpression,
-    /// Inline cache
-    pub inline_cache: Option<CacheEntry>,
+pub struct AstUnaryDispatch {
+    pub signature: String,
+    pub receiver: AstExpression,
+    pub inline_cache: Option<CacheEntry>
 }
 
-type CacheEntry = (*const Class, SOMRef<Method>);
 #[derive(Debug, Clone, PartialEq)]
-pub struct AstMessageDispatch {
-    pub receiver: AstExpression,
+pub struct AstBinaryDispatch {
     pub signature: String,
-    pub values: Vec<AstExpression>,
+    pub receiver: AstExpression,
     pub inline_cache: Option<CacheEntry>,
-    // pub inline_cache: Box<[Option<CacheEntry>; INLINE_CACHE_SIZE]>,
+
+    pub arg: AstExpression,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct AstTernaryDispatch {
+    pub signature: String,
+    pub receiver: AstExpression,
+    pub inline_cache: Option<CacheEntry>,
+
+    pub arg1: AstExpression,
+    pub arg2: AstExpression,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct AstNAryDispatch {
+    pub signature: String,
+    pub receiver: AstExpression,
+    pub inline_cache: Option<CacheEntry>,
+
+    pub values: Vec<AstExpression>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -156,7 +173,28 @@ impl Display for AstExpression {
                 writeln!(f, "FieldWrite({}):", index)?;
                 write!(indented(f), "{}", expr)
             }
-            AstExpression::Message(msg) => {
+            AstExpression::UnaryDispatch(op) => {
+                writeln!(f, "UnaryDispatch({})", op.signature)?;
+                writeln!(indented(f), "Receiver:")?;
+                write!(indented(&mut indented(f)), "{}", op.receiver)
+            }
+            AstExpression::BinaryDispatch(op) => {
+                writeln!(f, "BinaryDispatch({})", op.signature)?;
+                writeln!(indented(f), "Receiver:")?;
+                write!(indented(&mut indented(f)), "{}", op.receiver)?;
+                writeln!(indented(f), "arg:")?;
+                write!(indented(&mut indented(f)), "{}", op.arg)
+            }
+            AstExpression::TernaryDispatch(op) => {
+                writeln!(f, "TernaryDispatch({})", op.signature)?;
+                writeln!(indented(f), "Receiver:")?;
+                write!(indented(&mut indented(f)), "{}", op.receiver)?;
+                writeln!(indented(f), "arg1:")?;
+                write!(indented(&mut indented(f)), "{}", op.arg1)?;
+                writeln!(indented(f), "arg2:")?;
+                write!(indented(&mut indented(f)), "{}", op.arg2)
+            }
+            AstExpression::NAryDispatch(msg) => {
                 writeln!(f, "Message \"{}\":", msg.signature)?;
                 writeln!(indented(f), "Receiver:")?;
                 write!(indented(&mut indented(f)), "{}", msg.receiver)?;
@@ -174,13 +212,6 @@ impl Display for AstExpression {
                     write!(indented(&mut indented(f)), "{}", value)?;
                 }
                 Ok(())
-            }
-            AstExpression::BinaryOp(op) => {
-                writeln!(f, "BinaryOp({})", op.op)?;
-                writeln!(indented(f), "LHS:")?;
-                write!(indented(&mut indented(f)), "{}", op.lhs)?;
-                writeln!(indented(f), "RHS:")?;
-                write!(indented(&mut indented(f)), "{}", op.rhs)
             }
             AstExpression::LocalExit(expr) => {
                 writeln!(f, "LocalExit")?;
