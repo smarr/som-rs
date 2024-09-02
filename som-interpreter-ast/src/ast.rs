@@ -75,8 +75,13 @@ pub struct AstBinaryOpDispatch {
 }
 
 impl Debug for AstBinaryOpDispatch {
-    fn fmt(&self, _f: &mut Formatter<'_>) -> std::fmt::Result {
-        todo!("no debug for binary op, todo")
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AstBinaryOpDispatch")
+            .field("op", &self.op)
+            .field("lhs", &self.lhs)
+            .field("rhs", &self.rhs)
+            .field("has cache:", &self.inline_cache.is_some())
+            .finish()
     }
 }
 
@@ -97,8 +102,13 @@ pub struct AstMessageDispatch {
 }
 
 impl Debug for AstMessageDispatch {
-    fn fmt(&self, _f: &mut Formatter<'_>) -> std::fmt::Result {
-        todo!("no debug for astmessagecall, todo")
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AstMessageDispatch")
+            .field("receiver", &self.receiver)
+            .field("signature", &self.signature)
+            .field("values", &self.values)
+            .field("has cache:", &self.inline_cache.is_some())
+            .finish()
     }
 }
 
@@ -113,6 +123,7 @@ pub struct AstSuperMessage {
     pub super_class: SOMRef<Class>,
     pub signature: String,
     pub values: Vec<AstExpression>,
+    // NB: no inline cache. I don't think it's super worth it since super calls are uncommon. Easy to implement though
 }
 
 impl PartialEq for AstSuperMessage {
