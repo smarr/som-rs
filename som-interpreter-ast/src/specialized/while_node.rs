@@ -5,7 +5,7 @@ use crate::universe::UniverseAST;
 use crate::value::Value;
 use crate::value::Value::Nil;
 
-#[derive(Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct WhileNode {
     pub(crate) expected_bool: bool
 }

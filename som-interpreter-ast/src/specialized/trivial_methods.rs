@@ -5,12 +5,12 @@ use crate::value::Value;
 use som_core::ast::Literal;
 use std::rc::Rc;
 
-#[derive(Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct TrivialLiteralMethod {
     pub(crate) literal: Literal,
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct TrivialGlobalMethod {
     pub(crate) global_name: String,
 }
@@ -30,7 +30,7 @@ impl Evaluate for TrivialGlobalMethod {
     }
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct TrivialGetterMethod {
     pub(crate) field_idx: usize,
 }
@@ -49,7 +49,7 @@ impl Invoke for TrivialGetterMethod {
     }
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct TrivialSetterMethod {
     pub(crate) field_idx: usize,
 }

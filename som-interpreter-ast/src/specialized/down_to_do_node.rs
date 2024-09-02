@@ -6,7 +6,7 @@ use crate::SOMRef;
 use crate::universe::UniverseAST;
 use crate::value::Value;
 
-#[derive(Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct DownToDoNode {}
 
 impl Invoke for DownToDoNode {

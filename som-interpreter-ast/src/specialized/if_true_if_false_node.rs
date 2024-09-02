@@ -4,7 +4,7 @@ use crate::invokable::{Invoke, Return};
 use crate::universe::UniverseAST;
 use crate::value::Value;
 
-#[derive(Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct IfTrueIfFalseNode {}
 
 impl Invoke for IfTrueIfFalseNode {

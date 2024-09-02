@@ -62,7 +62,7 @@ pub struct AstBlock {
     pub body: AstBody
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct AstBinaryOpDispatch {
     /// Represents the operator symbol.
     pub op: String,
@@ -74,25 +74,8 @@ pub struct AstBinaryOpDispatch {
     pub inline_cache: Option<CacheEntry>,
 }
 
-impl Debug for AstBinaryOpDispatch {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("AstBinaryOpDispatch")
-            .field("op", &self.op)
-            .field("lhs", &self.lhs)
-            .field("rhs", &self.rhs)
-            .field("has cache:", &self.inline_cache.is_some())
-            .finish()
-    }
-}
-
-impl PartialEq for AstBinaryOpDispatch {
-    fn eq(&self, other: &Self) -> bool {
-        self.lhs == other.lhs && self.rhs == other.rhs && self.op == other.op
-    }
-}
-
 type CacheEntry = (*const Class, SOMRef<Method>);
-#[derive(Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct AstMessageDispatch {
     pub receiver: AstExpression,
     pub signature: String,
@@ -101,35 +84,12 @@ pub struct AstMessageDispatch {
     // pub inline_cache: Box<[Option<CacheEntry>; INLINE_CACHE_SIZE]>,
 }
 
-impl Debug for AstMessageDispatch {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("AstMessageDispatch")
-            .field("receiver", &self.receiver)
-            .field("signature", &self.signature)
-            .field("values", &self.values)
-            .field("has cache:", &self.inline_cache.is_some())
-            .finish()
-    }
-}
-
-impl PartialEq for AstMessageDispatch {
-    fn eq(&self, other: &Self) -> bool {
-        self.receiver == other.receiver && self.signature == other.signature && self.values == other.values
-    }
-}
-
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct AstSuperMessage {
     pub super_class: SOMRef<Class>,
     pub signature: String,
     pub values: Vec<AstExpression>,
     // NB: no inline cache. I don't think it's super worth it since super calls are uncommon. Easy to implement though
-}
-
-impl PartialEq for AstSuperMessage {
-    fn eq(&self, other: &Self) -> bool {
-        std::ptr::eq(self.super_class.as_ptr(), other.super_class.as_ptr()) && self.signature == other.signature && self.values == other.values
-    }
 }
 
 #[derive(Debug, Clone, PartialEq)]

@@ -12,7 +12,7 @@ use crate::specialized::to_do_node::ToDoNode;
 use crate::specialized::trivial_methods::{TrivialGetterMethod, TrivialGlobalMethod, TrivialLiteralMethod, TrivialSetterMethod};
 
 /// The kind of a class method.
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum MethodKind {
     /// A user-defined method from the AST.
     Defined(AstMethodDef),
@@ -34,7 +34,7 @@ pub enum MethodKind {
 
 /// MethodKind for specialized methods, which are very common methods whose behaviour we know ahead of time (control flow, for the most part)
 /// Importantly, many of them go unused most of the time because we usually inline control flow nodes instead. 
-#[derive(Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum MethodKindSpecialized {
     /// Specialized whileTrue:/whileFalse:
     While(WhileNode),
@@ -58,11 +58,17 @@ impl MethodKind {
 }
 
 /// Represents a class method.
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Method {
     pub kind: MethodKind,
     pub holder: SOMWeakRef<Class>,
     pub signature: String,
+}
+
+impl PartialEq for Method {
+    fn eq(&self, other: &Self) -> bool {
+        self.kind == other.kind && self.signature == other.signature && std::ptr::eq(self.holder.as_ptr(), other.holder.as_ptr()) 
+    }
 }
 
 impl Method {

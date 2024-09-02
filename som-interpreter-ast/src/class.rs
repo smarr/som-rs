@@ -41,6 +41,13 @@ pub struct Class {
     pub is_static: bool,
 }
 
+// I don't test every field, but this should be good enough, AFAIK.
+impl PartialEq for Class {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name && self.fields == other.fields && self.field_names == other.field_names && self.methods == other.methods && self.is_static == other.is_static
+    }
+}
+
 impl Class {
     /// Load up a class from its class definition from the AST.
     /// NB: super_class is only ever None for one class: the core Object class, which all other classes inherit from.
