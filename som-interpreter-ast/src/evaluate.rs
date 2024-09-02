@@ -123,40 +123,19 @@ impl Evaluate for AstExpression {
 impl Evaluate for AstBinaryOpDispatch {
     fn evaluate(&mut self, universe: &mut UniverseAST) -> Return {
         let mut is_cache_hit = false;
-        let (lhs, invokable) = match &mut self.lhs {
-            AstExpression::GlobalRead(ident) if ident == "super" => {
-                let frame = universe.current_frame();
-                let lhs = frame.borrow().get_self();
-                let holder = lhs.class(universe);
-                let super_class = match holder.borrow().super_class() {
-                    Some(class) => class,
-                    None => {
-                        return Return::Exception(
-                            "`super` used without any superclass available".to_string(),
-                        )
-                    }
-                };
-                let invokable = super_class.borrow().lookup_method(&self.op);
-                (lhs, invokable)
-            }
-            lhs => {
-                let lhs = propagate!(lhs.evaluate(universe));
-                let invokable = match &self.inline_cache {
-                    Some((cached_rcvr_ptr, method)) => {
-                        if std::ptr::eq(*cached_rcvr_ptr, lhs.class(universe).as_ptr()) {
-                            // dbg!("cache hit");
-                            is_cache_hit = true;
-                            Some(Rc::clone(method))
-                        } else {
-                            // dbg!("cache miss");
-                            lhs.lookup_method(universe, &self.op)
-                        }
-                    },
-                    None => lhs.lookup_method(universe, &self.op)
-                };
-                
-                (lhs, invokable)
-            }
+        let lhs = propagate!(self.lhs.evaluate(universe));
+        let invokable = match &self.inline_cache {
+            Some((cached_rcvr_ptr, method)) => {
+                if std::ptr::eq(*cached_rcvr_ptr, lhs.class(universe).as_ptr()) {
+                    // dbg!("cache hit");
+                    is_cache_hit = true;
+                    Some(Rc::clone(method))
+                } else {
+                    // dbg!("cache miss");
+                    lhs.lookup_method(universe, &self.op)
+                }
+            },
+            None => lhs.lookup_method(universe, &self.op)
         };
 
         let rhs = propagate!(self.rhs.evaluate(universe));

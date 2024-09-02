@@ -151,7 +151,7 @@ impl AstMethodCompilerCtxt {
             Expression::ArgWrite(a, b, c) => AstExpression::ArgWrite(a, b, Box::new(self.parse_expression(c.as_ref()))),
             Expression::FieldWrite(a, b) => AstExpression::FieldWrite(a, Box::new(self.parse_expression(b.as_ref()))),
             Expression::Message(msg) => self.parse_message_maybe_inline(msg.as_ref()),
-            Expression::BinaryOp(a) => AstExpression::BinaryOp(Box::new(self.parse_binary_op(a.as_ref()))),
+            Expression::BinaryOp(a) => self.parse_binary_op(a.as_ref()),
             Expression::Exit(a, b) => {
                 match b {
                     0 => AstExpression::LocalExit(Box::new(self.parse_expression(a.as_ref()))),
@@ -184,12 +184,24 @@ impl AstMethodCompilerCtxt {
         output_blk
     }
 
-    pub fn parse_binary_op(&mut self, binary_op: &ast::BinaryOp) -> AstBinaryOpDispatch {
-        AstBinaryOpDispatch {
-            op: binary_op.op.clone(),
-            lhs: self.parse_expression(&binary_op.lhs),
-            rhs: self.parse_expression(&binary_op.rhs),
-            inline_cache: None,
+    pub fn parse_binary_op(&mut self, binary_op: &ast::BinaryOp) -> AstExpression {
+        match self.parse_expression(&binary_op.lhs) {
+            _super if _super == AstExpression::GlobalRead(String::from("super")) => {
+                AstExpression::SuperMessage(Box::new(
+                    AstSuperMessage {
+                        super_class: self.super_class.clone().unwrap_or_else(|| panic!("no super class set, even though the method has a super call?")),
+                        signature: binary_op.op.clone(),
+                        values: vec![self.parse_expression(&binary_op.rhs)],
+                    }))
+            },
+            lhs => {
+                AstExpression::BinaryOp(Box::new(AstBinaryOpDispatch {
+                    op: binary_op.op.clone(),
+                    lhs,
+                    rhs: self.parse_expression(&binary_op.rhs),
+                    inline_cache: None
+                }))
+            }
         }
     }
 

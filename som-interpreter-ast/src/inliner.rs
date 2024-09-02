@@ -4,7 +4,7 @@ use std::rc::Rc;
 use som_core::ast;
 use som_core::ast::{Block, Expression};
 
-use crate::ast::{AstBinaryOpDispatch, AstBlock, AstBody, AstExpression, AstMessageDispatch, InlinedNode};
+use crate::ast::{AstBinaryOpDispatch, AstBlock, AstBody, AstExpression, AstMessageDispatch, AstSuperMessage, InlinedNode};
 use crate::compiler::{AstMethodCompilerCtxt, AstScopeCtxt};
 use crate::specialized::inlined::and_inlined_node::AndInlinedNode;
 use crate::specialized::inlined::if_inlined_node::IfInlinedNode;
@@ -107,12 +107,26 @@ impl PrimMessageInliner for AstMethodCompilerCtxt {
                 }))
             }
             Expression::BinaryOp(bin_op) => {
-                AstExpression::BinaryOp(Box::new(AstBinaryOpDispatch {
-                    op: bin_op.op.clone(),
-                    lhs: self.parse_expr_with_inlining(&bin_op.lhs)?,
-                    rhs: self.parse_expr_with_inlining(&bin_op.rhs)?,
-                    inline_cache: None
-                }))
+                // not pretty: code duplication with regular compiler. TODO honestly we should just ditch BinaryOP in the parser, turn it into a Message 
+                match self.parse_expr_with_inlining(&bin_op.lhs)? {
+                    _super if _super == AstExpression::GlobalRead(String::from("super")) => {
+                        AstExpression::SuperMessage(Box::new(
+                            AstSuperMessage {
+                                super_class: self.super_class.clone().unwrap_or_else(|| panic!("no super class set, even though the method has a super call?")),
+                                signature: bin_op.op.clone(),
+                                values: vec![self.parse_expression(&bin_op.rhs)],
+                            }))
+                    },
+                    lhs => {
+                        AstExpression::BinaryOp(Box::new(AstBinaryOpDispatch {
+                            op: bin_op.op.clone(),
+                            lhs,
+                            rhs: self.parse_expr_with_inlining(&bin_op.rhs)?,
+                            inline_cache: None
+                        }))
+                    }
+                }
+                
             }
             Expression::Literal(lit) => AstExpression::Literal(lit.clone()),
         };
