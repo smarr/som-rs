@@ -108,24 +108,22 @@ pub fn recursive_inlining() {
         AstBody:
             IfInlinedNode (expected bool: false):
                 condition expr:\
-                    Message \"isNil\":
+                    UnaryDispatch \"isNil\":
                         Receiver:
                             LocalVarRead(1)
-                        Values: (none)
                 body block:
                     AstBody:
-                        Message \"do:\":
+                        BinaryDispatch \"do:\":
                             Receiver:
-                                Message \"keys\":
+                                UnaryDispatch \"keys\":
                                     Receiver:
                                         LocalVarRead(1)
-                                    Values: (none)
-                            Values:
+                            arg:
                                 Block:
                                     AstBlock(1 params, 0 locals):
                                         IfInlinedNode (expected bool: true):
                                             condition expr:
-                                                BinaryDispatch(=)
+                                                BinaryDispatch \"=\":
                                                     Receiver:
                                                         ArgRead(0, 1)
                                                     arg:

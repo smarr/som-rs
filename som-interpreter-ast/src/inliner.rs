@@ -4,7 +4,7 @@ use std::rc::Rc;
 use som_core::ast;
 use som_core::ast::{Block, Expression};
 
-use crate::ast::{AstBinaryDispatch, AstBlock, AstBody, AstDispatchNode, AstExpression, AstNAryDispatch, AstSuperMessage, InlinedNode};
+use crate::ast::{AstBinaryDispatch, AstBlock, AstBody, AstDispatchNode, AstExpression, AstNAryDispatch, AstSuperMessage, AstTernaryDispatch, AstUnaryDispatch, InlinedNode};
 use crate::compiler::{AstMethodCompilerCtxt, AstScopeCtxt};
 use crate::specialized::inlined::and_inlined_node::AndInlinedNode;
 use crate::specialized::inlined::if_inlined_node::IfInlinedNode;
@@ -99,17 +99,52 @@ impl PrimMessageInliner for AstMethodCompilerCtxt {
                 if let Some(inlined_node) = self.inline_if_possible(msg) {
                     return Some(AstExpression::InlinedCall(Box::new(inlined_node)));
                 }
-                AstExpression::NAryDispatch(Box::new(AstNAryDispatch {
-                    dispatch_node: AstDispatchNode {
-                        receiver: self.parse_expr_with_inlining(&msg.receiver)?,
-                        signature: msg.signature.clone(),
-                        inline_cache: None
+                // todo this is duplication with the normal parser. there should be a function that takes in the message + the expr parsing function (either the normal, or the with_inlining one) and does the match
+                match msg.values.len() {
+                    0 => {
+                        AstExpression::UnaryDispatch(Box::new(AstUnaryDispatch {
+                            dispatch_node: AstDispatchNode {
+                                receiver: self.parse_expr_with_inlining(&msg.receiver)?,
+                                signature: msg.signature.clone(),
+                                inline_cache: None
+                            },
+                        }))
                     },
-                    values: msg.values.iter().filter_map(|val| self.parse_expr_with_inlining(val)).collect(),
-                }))
+                    1 => {
+                        AstExpression::BinaryDispatch(Box::new(AstBinaryDispatch {
+                            dispatch_node: AstDispatchNode {
+                                receiver: self.parse_expr_with_inlining(&msg.receiver)?,
+                                signature: msg.signature.clone(),
+                                inline_cache: None
+                            },
+                            arg: self.parse_expr_with_inlining(msg.values.first().unwrap())?,
+                        }))
+                    },
+                    2 => {
+                        AstExpression::TernaryDispatch(Box::new(AstTernaryDispatch {
+                            dispatch_node: AstDispatchNode {
+                                receiver: self.parse_expr_with_inlining(&msg.receiver)?,
+                                signature: msg.signature.clone(),
+                                inline_cache: None
+                            },
+                            arg1: self.parse_expr_with_inlining(msg.values.first().unwrap())?,
+                            arg2: self.parse_expr_with_inlining(msg.values.get(1).unwrap())?,
+                        }))
+                    },
+                    _ => {
+                        AstExpression::NAryDispatch(Box::new(AstNAryDispatch {
+                            dispatch_node: AstDispatchNode {
+                                receiver: self.parse_expr_with_inlining(&msg.receiver)?,
+                                signature: msg.signature.clone(),
+                                inline_cache: None
+                            },
+                            values: msg.values.iter().filter_map(|val| self.parse_expr_with_inlining(val)).collect(),
+                        }))
+                    }
+                }
             }
             Expression::BinaryOp(bin_op) => {
-                // not pretty: code duplication with regular compiler. TODO honestly we should just ditch BinaryOP in the parser, turn it into a Message 
+                // not pretty: code duplication with regular compiler, with only diff the call to parse_expr_with_inlining. TODO honestly we should just ditch BinaryOP in the parser, turn it into a Message 
                 match self.parse_expr_with_inlining(&bin_op.lhs)? {
                     _super if _super == AstExpression::GlobalRead(String::from("super")) => {
                         AstExpression::SuperMessage(Box::new(

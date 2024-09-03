@@ -264,7 +264,7 @@ impl Evaluate for AstNAryDispatch {
             output
         };
 
-        // debug_assert!(args.len() > 3); // todo reactivate
+        debug_assert!(args.len() > 3, "should be a specialized unary/binary/ternary node, not a generic N-ary node");
 
         self.dispatch_node.dispatch_or_dnu(invokable, args, is_cache_hit, universe)
     }
