@@ -4,7 +4,7 @@ use std::rc::Rc;
 use som_core::ast;
 use som_core::ast::{Block, Expression};
 
-use crate::ast::{AstBinaryDispatch, AstBlock, AstBody, AstExpression, AstNAryDispatch, AstSuperMessage, InlinedNode};
+use crate::ast::{AstBinaryDispatch, AstBlock, AstBody, AstDispatchNode, AstExpression, AstNAryDispatch, AstSuperMessage, InlinedNode};
 use crate::compiler::{AstMethodCompilerCtxt, AstScopeCtxt};
 use crate::specialized::inlined::and_inlined_node::AndInlinedNode;
 use crate::specialized::inlined::if_inlined_node::IfInlinedNode;
@@ -100,10 +100,12 @@ impl PrimMessageInliner for AstMethodCompilerCtxt {
                     return Some(AstExpression::InlinedCall(Box::new(inlined_node)));
                 }
                 AstExpression::NAryDispatch(Box::new(AstNAryDispatch {
-                    receiver: self.parse_expr_with_inlining(&msg.receiver)?,
-                    signature: msg.signature.clone(),
+                    dispatch_node: AstDispatchNode {
+                        receiver: self.parse_expr_with_inlining(&msg.receiver)?,
+                        signature: msg.signature.clone(),
+                        inline_cache: None
+                    },
                     values: msg.values.iter().filter_map(|val| self.parse_expr_with_inlining(val)).collect(),
-                    inline_cache: None
                 }))
             }
             Expression::BinaryOp(bin_op) => {
@@ -114,15 +116,17 @@ impl PrimMessageInliner for AstMethodCompilerCtxt {
                             AstSuperMessage {
                                 super_class: self.super_class.clone().unwrap_or_else(|| panic!("no super class set, even though the method has a super call?")),
                                 signature: bin_op.op.clone(),
-                                values: vec![self.parse_expression(&bin_op.rhs)],
+                                values: vec![self.parse_expr_with_inlining(&bin_op.rhs)?],
                             }))
                     },
-                    lhs => {
+                    receiver => {
                         AstExpression::BinaryDispatch(Box::new(AstBinaryDispatch {
-                            signature: bin_op.op.clone(),
-                            receiver: lhs,
+                            dispatch_node: AstDispatchNode {
+                                receiver,
+                                signature: bin_op.op.clone(),
+                                inline_cache: None
+                            },
                             arg: self.parse_expr_with_inlining(&bin_op.rhs)?,
-                            inline_cache: None
                         }))
                     }
                 }

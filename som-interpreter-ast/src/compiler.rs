@@ -4,7 +4,7 @@ use std::rc::Rc;
 use som_core::ast;
 use som_core::ast::{Expression, MethodBody};
 
-use crate::ast::{AstBinaryDispatch, AstBlock, AstBody, AstExpression, AstNAryDispatch, AstMethodDef, AstSuperMessage, AstUnaryDispatch, AstTernaryDispatch};
+use crate::ast::{AstBinaryDispatch, AstBlock, AstBody, AstExpression, AstNAryDispatch, AstMethodDef, AstSuperMessage, AstUnaryDispatch, AstTernaryDispatch, AstDispatchNode};
 use crate::class::Class;
 use crate::inliner::PrimMessageInliner;
 use crate::method::{MethodKind, MethodKindSpecialized};
@@ -196,10 +196,12 @@ impl AstMethodCompilerCtxt {
             },
             lhs => {
                 AstExpression::BinaryDispatch(Box::new(AstBinaryDispatch {
-                    signature: binary_op.op.clone(),
-                    receiver: lhs,
-                    arg: self.parse_expression(&binary_op.rhs),
-                    inline_cache: None
+                    dispatch_node: AstDispatchNode {
+                        signature: binary_op.op.clone(),
+                        receiver: lhs,
+                        inline_cache: None
+                    },
+                    arg: self.parse_expression(&binary_op.rhs)
                 }))
             }
         }
@@ -226,37 +228,45 @@ impl AstMethodCompilerCtxt {
                     0 => {
                         AstExpression::UnaryDispatch(Box::new(
                             AstUnaryDispatch {
-                                receiver,
-                                signature: msg.signature.clone(),
-                                inline_cache: None,
+                                dispatch_node: AstDispatchNode {
+                                    receiver,
+                                    signature: msg.signature.clone(),
+                                    inline_cache: None
+                                }
                             }))
                     },
                     1 => {
                         AstExpression::BinaryDispatch(Box::new(
                             AstBinaryDispatch {
-                                receiver,
+                                dispatch_node: AstDispatchNode {
+                                    receiver,
+                                    signature: msg.signature.clone(),
+                                    inline_cache: None
+                                },
                                 arg: self.parse_expression(msg.values.first().unwrap()),
-                                signature: msg.signature.clone(),
-                                inline_cache: None,
                             }))
                     },
                     2 => {
                         AstExpression::TernaryDispatch(Box::new(
                             AstTernaryDispatch {
-                                receiver,
+                                dispatch_node: AstDispatchNode {
+                                    receiver,
+                                    signature: msg.signature.clone(),
+                                    inline_cache: None
+                                },
                                 arg1: self.parse_expression(msg.values.first().unwrap()),
                                 arg2: self.parse_expression(msg.values.get(1).unwrap()),
-                                signature: msg.signature.clone(),
-                                inline_cache: None,
                             }))
                     },
                     _ => {
                         AstExpression::NAryDispatch(Box::new(
                             AstNAryDispatch {
-                                receiver,
-                                signature: msg.signature.clone(),
+                                dispatch_node: AstDispatchNode {
+                                    receiver,
+                                    signature: msg.signature.clone(),
+                                    inline_cache: None
+                                },
                                 values: msg.values.iter().map(|e| self.parse_expression(e)).collect(),
-                                inline_cache: None,
                             }))
                     }
                 }

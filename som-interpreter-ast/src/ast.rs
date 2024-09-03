@@ -64,40 +64,36 @@ pub struct AstBlock {
     pub body: AstBody
 }
 
-type CacheEntry = (*const Class, SOMRef<Method>);
+pub type CacheEntry = (*const Class, SOMRef<Method>);
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct AstUnaryDispatch {
+pub struct AstDispatchNode {
     pub signature: String,
     pub receiver: AstExpression,
     pub inline_cache: Option<CacheEntry>
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct AstBinaryDispatch {
-    pub signature: String,
-    pub receiver: AstExpression,
-    pub inline_cache: Option<CacheEntry>,
+pub struct AstUnaryDispatch {
+    pub dispatch_node: AstDispatchNode
+}
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct AstBinaryDispatch {
+    pub dispatch_node: AstDispatchNode,
     pub arg: AstExpression,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct AstTernaryDispatch {
-    pub signature: String,
-    pub receiver: AstExpression,
-    pub inline_cache: Option<CacheEntry>,
-
+    pub dispatch_node: AstDispatchNode,
     pub arg1: AstExpression,
     pub arg2: AstExpression,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct AstNAryDispatch {
-    pub signature: String,
-    pub receiver: AstExpression,
-    pub inline_cache: Option<CacheEntry>,
-
+    pub dispatch_node: AstDispatchNode,
     pub values: Vec<AstExpression>,
 }
 
@@ -174,30 +170,30 @@ impl Display for AstExpression {
                 write!(indented(f), "{}", expr)
             }
             AstExpression::UnaryDispatch(op) => {
-                writeln!(f, "UnaryDispatch({})", op.signature)?;
+                writeln!(f, "UnaryDispatch({})", op.dispatch_node.signature)?;
                 writeln!(indented(f), "Receiver:")?;
-                write!(indented(&mut indented(f)), "{}", op.receiver)
+                write!(indented(&mut indented(f)), "{}", op.dispatch_node.receiver)
             }
             AstExpression::BinaryDispatch(op) => {
-                writeln!(f, "BinaryDispatch({})", op.signature)?;
+                writeln!(f, "BinaryDispatch({})", op.dispatch_node.signature)?;
                 writeln!(indented(f), "Receiver:")?;
-                write!(indented(&mut indented(f)), "{}", op.receiver)?;
+                write!(indented(&mut indented(f)), "{}", op.dispatch_node.receiver)?;
                 writeln!(indented(f), "arg:")?;
                 write!(indented(&mut indented(f)), "{}", op.arg)
             }
             AstExpression::TernaryDispatch(op) => {
-                writeln!(f, "TernaryDispatch({})", op.signature)?;
+                writeln!(f, "TernaryDispatch({})", op.dispatch_node.signature)?;
                 writeln!(indented(f), "Receiver:")?;
-                write!(indented(&mut indented(f)), "{}", op.receiver)?;
+                write!(indented(&mut indented(f)), "{}", op.dispatch_node.receiver)?;
                 writeln!(indented(f), "arg1:")?;
                 write!(indented(&mut indented(f)), "{}", op.arg1)?;
                 writeln!(indented(f), "arg2:")?;
                 write!(indented(&mut indented(f)), "{}", op.arg2)
             }
             AstExpression::NAryDispatch(msg) => {
-                writeln!(f, "Message \"{}\":", msg.signature)?;
+                writeln!(f, "Message \"{}\":", msg.dispatch_node.signature)?;
                 writeln!(indented(f), "Receiver:")?;
-                write!(indented(&mut indented(f)), "{}", msg.receiver)?;
+                write!(indented(&mut indented(f)), "{}", msg.dispatch_node.receiver)?;
                 writeln!(indented(f), "Values: {}", if msg.values.is_empty() { "(none)" } else { "" })?;
                 for value in &msg.values {
                     write!(indented(&mut indented(f)), "{}", value)?;

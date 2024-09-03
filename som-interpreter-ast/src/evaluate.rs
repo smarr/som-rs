@@ -1,13 +1,15 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use crate::ast::{AstBinaryDispatch, AstBlock, AstBody, AstExpression, AstNAryDispatch, AstMethodDef, AstSuperMessage, AstTerm, InlinedNode, AstTernaryDispatch, AstUnaryDispatch};
+use crate::ast::{AstBinaryDispatch, AstBlock, AstBody, AstDispatchNode, AstExpression, AstMethodDef, AstNAryDispatch, AstSuperMessage, AstTerm, AstTernaryDispatch, AstUnaryDispatch, InlinedNode};
 use som_core::ast;
 
 use crate::block::Block;
 use crate::invokable::{Invoke, Return};
+use crate::method::Method;
 use crate::universe::UniverseAST;
 use crate::value::Value;
+use crate::SOMRef;
 
 /// The trait for evaluating AST nodes.
 pub trait Evaluate {
@@ -160,11 +162,47 @@ impl Evaluate for Rc<RefCell<AstBlock>> {
     }
 }
 
+impl AstDispatchNode {
+    #[inline(always)]
+    fn dispatch_or_dnu(&mut self, invokable: Option<SOMRef<Method>>, args: Vec<Value>, is_cache_hit: bool, universe: &mut UniverseAST) -> Return {
+        match invokable {
+            Some(invokable) => {
+                
+                match is_cache_hit {
+                    true => Invoke::unsafe_invoke(invokable.as_ptr(), universe, args),
+                    false => {
+                        let receiver = args.first().unwrap().clone();
+                        let invoke_ret = Invoke::unsafe_invoke(invokable.as_ptr(), universe, args);
+
+                        let rcvr_ptr = receiver.class(universe).as_ptr(); // first arg is the receiver
+                        self.inline_cache = Some((rcvr_ptr, invokable));
+
+                        invoke_ret
+                    }
+                }
+            }
+            None => {
+                let mut args = args;
+                let receiver = args.remove(0);
+                universe
+                    .does_not_understand(receiver.clone(), &self.signature, args)
+                    .unwrap_or_else(|| {
+                        Return::Exception(format!(
+                            "could not find method '{}>>#{}'",
+                            receiver.class(universe).borrow().name(),
+                            self.signature
+                        ))
+                    })
+            }
+        }
+    }
+}
+
 impl Evaluate for AstUnaryDispatch {
     fn evaluate(&mut self, universe: &mut UniverseAST) -> Return {
         let mut is_cache_hit = false;
-        let receiver = propagate!(self.receiver.evaluate(universe));
-        let invokable = match &self.inline_cache {
+        let receiver = propagate!(self.dispatch_node.receiver.evaluate(universe));
+        let invokable = match &self.dispatch_node.inline_cache {
             Some((cached_rcvr_ptr, method)) => {
                 if std::ptr::eq(*cached_rcvr_ptr, receiver.class(universe).as_ptr()) {
                     // dbg!("cache hit");
@@ -172,97 +210,45 @@ impl Evaluate for AstUnaryDispatch {
                     Some(Rc::clone(method))
                 } else {
                     // dbg!("cache miss");
-                    receiver.lookup_method(universe, &self.signature)
-                }
-            },
-            None => receiver.lookup_method(universe, &self.signature)
-        };
-
-        if let Some(invokable) = invokable {
-            match is_cache_hit {
-                true => Invoke::unsafe_invoke(invokable.as_ptr(), universe, vec![receiver]),
-                false => {
-                    let invoke_ret = Invoke::unsafe_invoke(invokable.as_ptr(), universe, vec![receiver.clone()]);
-
-                    let rcvr_ptr = receiver.class(universe).as_ptr();
-                    self.inline_cache = Some((rcvr_ptr, invokable));
-
-                    invoke_ret
+                    receiver.lookup_method(universe, &self.dispatch_node.signature)
                 }
             }
-        } else {
-            universe
-                .does_not_understand(receiver.clone(), &self.signature, vec![])
-                .unwrap_or_else(|| {
-                    Return::Exception(format!(
-                        "could not find method '{}>>#{}'",
-                        receiver.class(universe).borrow().name(),
-                        self.signature
-                    ))
-                    // Return::Local(Value::Nil)
-                })
-        }
+            None => receiver.lookup_method(universe, &self.dispatch_node.signature)
+        };
+
+        self.dispatch_node.dispatch_or_dnu(invokable, vec![receiver], is_cache_hit, universe)
     }
 }
 
 impl Evaluate for AstBinaryDispatch {
     fn evaluate(&mut self, universe: &mut UniverseAST) -> Return {
         let mut is_cache_hit = false;
-        let lhs = propagate!(self.receiver.evaluate(universe));
-        let invokable = match &self.inline_cache {
+        let receiver = propagate!(self.dispatch_node.receiver.evaluate(universe));
+        let invokable = match &self.dispatch_node.inline_cache {
             Some((cached_rcvr_ptr, method)) => {
-                if std::ptr::eq(*cached_rcvr_ptr, lhs.class(universe).as_ptr()) {
+                if std::ptr::eq(*cached_rcvr_ptr, receiver.class(universe).as_ptr()) {
                     // dbg!("cache hit");
                     is_cache_hit = true;
                     Some(Rc::clone(method))
                 } else {
                     // dbg!("cache miss");
-                    lhs.lookup_method(universe, &self.signature)
-                }
-            },
-            None => lhs.lookup_method(universe, &self.signature)
-        };
-
-        let rhs = propagate!(self.arg.evaluate(universe));
-
-        // println!(
-        //     "invoking {}>>#{}",
-        //     lhs.class(universe).borrow().name(),
-        //     self.signature
-        // );
-
-        if let Some(invokable) = invokable {
-            match is_cache_hit {
-                true => Invoke::unsafe_invoke(invokable.as_ptr(), universe, vec![lhs, rhs]),
-                false => {
-                    let invoke_ret = Invoke::unsafe_invoke(invokable.as_ptr(), universe, vec![lhs.clone(), rhs]);
-
-                    let rcvr_ptr = lhs.class(universe).as_ptr();
-                    self.inline_cache = Some((rcvr_ptr, invokable));
-
-                    invoke_ret
+                    receiver.lookup_method(universe, &self.dispatch_node.signature)
                 }
             }
-        } else {
-            universe
-                .does_not_understand(lhs.clone(), &self.signature, vec![rhs])
-                .unwrap_or_else(|| {
-                    Return::Exception(format!(
-                        "could not find method '{}>>#{}'",
-                        lhs.class(universe).borrow().name(),
-                        self.signature
-                    ))
-                    // Return::Local(Value::Nil)
-                })
-        }
+            None => receiver.lookup_method(universe, &self.dispatch_node.signature)
+        };
+
+        let arg = propagate!(self.arg.evaluate(universe));
+
+        self.dispatch_node.dispatch_or_dnu(invokable, vec![receiver, arg], is_cache_hit, universe)
     }
 }
 
 impl Evaluate for AstTernaryDispatch {
     fn evaluate(&mut self, universe: &mut UniverseAST) -> Return {
         let mut is_cache_hit = false;
-        let receiver = propagate!(self.receiver.evaluate(universe));
-        let invokable = match &self.inline_cache {
+        let receiver = propagate!(self.dispatch_node.receiver.evaluate(universe));
+        let invokable = match &self.dispatch_node.inline_cache {
             Some((cached_rcvr_ptr, method)) => {
                 if std::ptr::eq(*cached_rcvr_ptr, receiver.class(universe).as_ptr()) {
                     // dbg!("cache hit");
@@ -270,61 +256,38 @@ impl Evaluate for AstTernaryDispatch {
                     Some(Rc::clone(method))
                 } else {
                     // dbg!("cache miss");
-                    receiver.lookup_method(universe, &self.signature)
+                    receiver.lookup_method(universe, &self.dispatch_node.signature)
                 }
-            },
-            None => receiver.lookup_method(universe, &self.signature)
+            }
+            None => receiver.lookup_method(universe, &self.dispatch_node.signature)
         };
 
         let arg1 = propagate!(self.arg1.evaluate(universe));
         let arg2 = propagate!(self.arg2.evaluate(universe));
 
-        if let Some(invokable) = invokable {
-            match is_cache_hit {
-                true => Invoke::unsafe_invoke(invokable.as_ptr(), universe, vec![receiver, arg1, arg2]),
-                false => {
-                    let invoke_ret = Invoke::unsafe_invoke(invokable.as_ptr(), universe, vec![receiver.clone(), arg1, arg2]);
-
-                    let rcvr_ptr = receiver.class(universe).as_ptr();
-                    self.inline_cache = Some((rcvr_ptr, invokable));
-
-                    invoke_ret
-                }
-            }
-        } else {
-            universe
-                .does_not_understand(receiver.clone(), &self.signature, vec![arg1, arg2])
-                .unwrap_or_else(|| {
-                    Return::Exception(format!(
-                        "could not find method '{}>>#{}'",
-                        receiver.class(universe).borrow().name(),
-                        self.signature
-                    ))
-                    // Return::Local(Value::Nil)
-                })
-        }
+        self.dispatch_node.dispatch_or_dnu(invokable, vec![receiver, arg1, arg2], is_cache_hit, universe)
     }
 }
 
 impl Evaluate for AstNAryDispatch {
     fn evaluate(&mut self, universe: &mut UniverseAST) -> Return {
-        let receiver = propagate!(self.receiver.evaluate(universe));
+        let receiver = propagate!(self.dispatch_node.receiver.evaluate(universe));
         let mut is_cache_hit = false;
-        
-        let invokable = match &self.inline_cache {
+
+        let invokable = match &self.dispatch_node.inline_cache {
             Some((cached_rcvr_ptr, method)) => {
                 if std::ptr::eq(*cached_rcvr_ptr, receiver.class(universe).as_ptr()) {
                     // dbg!("cache hit");
                     is_cache_hit = true;
-                    Some(Rc::clone(method)) 
+                    Some(Rc::clone(method))
                 } else {
                     // dbg!("cache miss");
-                    receiver.lookup_method(universe, &self.signature)
+                    receiver.lookup_method(universe, &self.dispatch_node.signature)
                 }
-            },
-            None => receiver.lookup_method(universe, &self.signature)
+            }
+            None => receiver.lookup_method(universe, &self.dispatch_node.signature)
         };
-        
+
         let args = {
             let mut output = Vec::with_capacity(self.values.len() + 1);
             output.push(receiver.clone());
@@ -335,41 +298,9 @@ impl Evaluate for AstNAryDispatch {
             output
         };
 
-        // println!(
-        //     "invoking {}>>#{} with ({:?})",
-        //     receiver.class(universe).borrow().name(),
-        //     self.signature,
-        //     self.values,
-        // );
+        // debug_assert!(args.len() > 3); // todo reactivate
 
-        // println!("invoking {}>>#{}", receiver.class(universe).borrow().name(), self.signature);
-
-        match invokable {
-            Some(invokable) => {
-                let invoke_ret = Invoke::unsafe_invoke(invokable.as_ptr(), universe, args);
-
-                if !is_cache_hit {
-                    let rcvr_ptr = receiver.class(universe).as_ptr();
-                    self.inline_cache = Some((rcvr_ptr, invokable));
-                }
-                
-                invoke_ret
-            },
-            None => {
-                let mut args = args;
-                args.remove(0);
-                universe
-                    .does_not_understand(receiver.clone(), &self.signature, args)
-                    .unwrap_or_else(|| {
-                        Return::Exception(format!(
-                            "could not find method '{}>>#{}'",
-                            receiver.class(universe).borrow().name(),
-                            self.signature
-                        ))
-                        // Return::Local(Value::Nil)
-                    })
-            }
-        }
+        self.dispatch_node.dispatch_or_dnu(invokable, args, is_cache_hit, universe)
     }
 }
 
@@ -445,7 +376,7 @@ impl Evaluate for AstMethodDef {
 impl Evaluate for Rc<RefCell<Block>> {
     fn evaluate(&mut self, universe: &mut UniverseAST) -> Return {
         // self.borrow_mut().block.borrow_mut().body.evaluate(universe)
-        unsafe { (*(*self.as_ptr()).block.as_ptr()).body.evaluate(universe)}
+        unsafe { (*(*self.as_ptr()).block.as_ptr()).body.evaluate(universe) }
         // self.borrow_mut().block.borrow_mut().body.evaluate(universe)
     }
 }
