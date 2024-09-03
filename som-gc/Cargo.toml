@@ -1,0 +1,8 @@
+[package]
+name = "som-gc"
+version = "0.1.0"
+edition = "2018"
+description = "Garbage collector (MMTk-based)"
+
+[dependencies]
+mmtk = "0.26.0" # the latest version wants core_intrinsics, not sure I do?
