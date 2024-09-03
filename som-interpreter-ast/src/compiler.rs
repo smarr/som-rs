@@ -150,7 +150,7 @@ impl AstMethodCompilerCtxt {
             Expression::NonLocalVarWrite(a, b, c) => AstExpression::NonLocalVarWrite(a, b, Box::new(self.parse_expression(c.as_ref()))),
             Expression::ArgWrite(a, b, c) => AstExpression::ArgWrite(a, b, Box::new(self.parse_expression(c.as_ref()))),
             Expression::FieldWrite(a, b) => AstExpression::FieldWrite(a, Box::new(self.parse_expression(b.as_ref()))),
-            Expression::Message(msg) => self.parse_message_maybe_inline(msg.as_ref()),
+            Expression::Message(msg) => self.parse_message(msg.as_ref()),
             Expression::Exit(a, b) => {
                 match b {
                     0 => AstExpression::LocalExit(Box::new(self.parse_expression(a.as_ref()))),
@@ -183,43 +183,28 @@ impl AstMethodCompilerCtxt {
         output_blk
     }
 
-    pub fn parse_binary_op(&mut self, binary_op: &ast::BinaryOp) -> AstExpression {
-        match self.parse_expression(&binary_op.lhs) {
-            _super if _super == AstExpression::GlobalRead(String::from("super")) => {
-                AstExpression::SuperMessage(Box::new(
-                    AstSuperMessage {
-                        super_class: self.super_class.clone().unwrap_or_else(|| panic!("no super class set, even though the method has a super call?")),
-                        signature: binary_op.op.clone(),
-                        values: vec![self.parse_expression(&binary_op.rhs)],
-                    }))
-            },
-            lhs => {
-                AstExpression::BinaryDispatch(Box::new(AstBinaryDispatch {
-                    dispatch_node: AstDispatchNode {
-                        signature: binary_op.op.clone(),
-                        receiver: lhs,
-                        inline_cache: None
-                    },
-                    arg: self.parse_expression(&binary_op.rhs)
-                }))
-            }
-        }
+    pub fn parse_message(&mut self, msg: &ast::Message) -> AstExpression {
+        self.parse_message_with_func(msg, Self::parse_expression)
     }
 
-    pub fn parse_message_maybe_inline(&mut self, msg: &ast::Message) -> AstExpression {
+    pub fn parse_message_with_inlining(&mut self, msg: &ast::Message) -> AstExpression {
+        self.parse_message_with_func(msg, Self::parse_expression_with_inlining)
+    }
+    
+    pub fn parse_message_with_func(&mut self, msg: &ast::Message, expr_parsing_func: fn(&mut AstMethodCompilerCtxt, &Expression) -> AstExpression) -> AstExpression {
         let maybe_inlined = self.inline_if_possible(msg);
         if let Some(inlined_node) = maybe_inlined {
             return AstExpression::InlinedCall(Box::new(inlined_node));
         }
 
-        let receiver = self.parse_expression(&msg.receiver);
+        let receiver = expr_parsing_func(self, &msg.receiver);
         match receiver {
             _super if _super == AstExpression::GlobalRead(String::from("super")) => {
                 AstExpression::SuperMessage(Box::new(
                 AstSuperMessage {
                     super_class: self.super_class.clone().unwrap_or_else(|| panic!("no super class set, even though the method has a super call?")),
                     signature: msg.signature.clone(),
-                    values: msg.values.iter().map(|e| self.parse_expression(e)).collect(),
+                    values: msg.values.iter().map(|e| expr_parsing_func(self, e)).collect(),
                 }))
             },
             _ => {
@@ -242,7 +227,7 @@ impl AstMethodCompilerCtxt {
                                     signature: msg.signature.clone(),
                                     inline_cache: None
                                 },
-                                arg: self.parse_expression(msg.values.first().unwrap()),
+                                arg: expr_parsing_func(self, msg.values.first().unwrap()),
                             }))
                     },
                     2 => {
@@ -253,8 +238,8 @@ impl AstMethodCompilerCtxt {
                                     signature: msg.signature.clone(),
                                     inline_cache: None
                                 },
-                                arg1: self.parse_expression(msg.values.first().unwrap()),
-                                arg2: self.parse_expression(msg.values.get(1).unwrap()),
+                                arg1: expr_parsing_func(self, msg.values.first().unwrap()),
+                                arg2: expr_parsing_func(self, msg.values.get(1).unwrap()),
                             }))
                     },
                     _ => {
@@ -265,7 +250,7 @@ impl AstMethodCompilerCtxt {
                                     signature: msg.signature.clone(),
                                     inline_cache: None
                                 },
-                                values: msg.values.iter().map(|e| self.parse_expression(e)).collect(),
+                                values: msg.values.iter().map(|e| expr_parsing_func(self, e)).collect(),
                             }))
                     }
                 }
