@@ -485,6 +485,15 @@ impl MethodCodegen for ast::Expression {
                 if message.inline_if_possible(ctxt).is_some() {
                     return Some(());
                 }
+
+                if message.values.len() == 1 && (message.signature == "+" || message.signature == "-") && message.values.get(0)? == &Expression::Literal(ast::Literal::Integer(1)) {
+                    match message.signature.as_str() {
+                        "+" => ctxt.push_instr(Bytecode::Inc), // also i was considering handling the "+ X" arbitrary case, maybe.,
+                        "-" => ctxt.push_instr(Bytecode::Dec),
+                        _ => unreachable!()
+                    };
+                    return Some(())
+                }
                 
                 message
                     .values
@@ -518,30 +527,6 @@ impl MethodCodegen for ast::Expression {
                     }
                 }
                 
-                Some(())
-            }
-            ast::Expression::BinaryOp(message) => {
-                let super_send = match &message.lhs {
-                    ast::Expression::GlobalRead(value) if value == "super" => true,
-                    _ => false,
-                };
-                message.lhs.codegen(ctxt)?;
-                if (message.op == "+" || message.op == "-") && message.rhs == Expression::Literal(ast::Literal::Integer(1)) {
-                    match message.op.as_str() {
-                        "+" => ctxt.push_instr(Bytecode::Inc), // also i was considering handling the "+ X" arbitrary case, maybe.,
-                        "-" => ctxt.push_instr(Bytecode::Dec),
-                        _ => unreachable!()
-                    };
-                } else {
-                    message.rhs.codegen(ctxt)?;
-                    let sym = ctxt.intern_symbol(message.op.as_str());
-                    let idx = ctxt.push_literal(Literal::Symbol(sym));
-                    if super_send {
-                        ctxt.push_instr(Bytecode::SuperSend2(idx as u8));
-                    } else {
-                        ctxt.push_instr(Bytecode::Send2(idx as u8));
-                    }
-                }
                 Some(())
             }
             ast::Expression::Exit(expr, scope) => {

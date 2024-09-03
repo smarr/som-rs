@@ -1,5 +1,6 @@
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::vec;
 use som_core::ast::*;
 use som_lexer::{Lexer, Token};
 use som_parser_core::combinators::*;
@@ -41,14 +42,14 @@ fn expression_test_1() {
 
     assert_eq!(
         expression,
-        Expression::BinaryOp(Box::new(BinaryOp {
-            op: String::from("+"),
-            lhs: Expression::Literal(Literal::Integer(3)),
-            rhs: Expression::Message(Box::new(Message {
+        Expression::Message(Box::new(Message {
+            signature: String::from("+"),
+            receiver: Expression::Literal(Literal::Integer(3)),
+            values: vec![Expression::Message(Box::new(Message {
                 receiver: Expression::GlobalRead(String::from("counter")),
                 signature: String::from("get"),
                 values: vec![],
-            })),
+            }))],
         })
     ));
 }
@@ -113,10 +114,10 @@ fn expression_test_2() {
     assert_eq!(
         expression,
         Expression::Message(Box::new(Message {
-            receiver: Expression::BinaryOp(Box::new(BinaryOp {
-                op: String::from("=="),
-                lhs: Expression::Literal(Literal::Integer(3)),
-                rhs: Expression::Literal(Literal::Integer(3)),
+            receiver: Expression::Message(Box::new(Message {
+                signature: String::from("=="),
+                receiver: Expression::Literal(Literal::Integer(3)),
+                values: vec![Expression::Literal(Literal::Integer(3))],
             })),
             signature: String::from("ifTrue:ifFalse:"),
             values: vec![
@@ -187,22 +188,22 @@ fn primary_test() {
                 exprs: vec![Expression::Message(Box::new(Message {
                     receiver: Expression::ArgRead(0, 0),
                     signature: String::from("fib:"),
-                    values: vec![Expression::BinaryOp(Box::new(BinaryOp {
-                        op: String::from("+"),
-                        lhs: Expression::BinaryOp(Box::new(BinaryOp {
-                            op: String::from("-"),
-                            lhs: Expression::GlobalRead(String::from("n")),
-                            rhs: Expression::Literal(Literal::Integer(1)),
+                    values: vec![Expression::Message(Box::new(Message {
+                        signature: String::from("+"),
+                        receiver: Expression::Message(Box::new(Message {
+                            signature: String::from("-"),
+                            receiver: Expression::GlobalRead(String::from("n")),
+                            values: vec![Expression::Literal(Literal::Integer(1))],
                         })),
-                        rhs: Expression::Message(Box::new(Message {
+                        values: vec![Expression::Message(Box::new(Message {
                             receiver: Expression::ArgRead(0, 0),
                             signature: String::from("fib:"),
-                            values: vec![Expression::BinaryOp(Box::new(BinaryOp {
-                                op: String::from("-"),
-                                lhs: Expression::GlobalRead(String::from("n")),
-                                rhs: Expression::Literal(Literal::Integer(2)),
+                            values: vec![Expression::Message(Box::new(Message {
+                                signature: String::from("-"),
+                                receiver: Expression::GlobalRead(String::from("n")),
+                                values: vec![Expression::Literal(Literal::Integer(2))],
                             }))],
-                        }))
+                        }))]
                     }))],
                 }))],
                 full_stopped: false,

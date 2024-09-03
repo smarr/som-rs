@@ -219,10 +219,10 @@ pub fn binary_send<'a>() -> impl Parser<Expression, &'a [Token], AstGenCtxt<'a>>
         .and(many(operator().and(unary_send())))
         .map(|(lhs, operands)| {
             operands.into_iter().fold(lhs, |lhs, (op, rhs)| {
-                Expression::BinaryOp(Box::new(BinaryOp {
-                    lhs,
-                    op,
-                    rhs,
+                Expression::Message(Box::new(Message {
+                    receiver: lhs,
+                    signature: op,
+                    values: vec![rhs],
                 }))
             })
         })

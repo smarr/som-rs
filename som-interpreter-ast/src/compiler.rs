@@ -151,7 +151,6 @@ impl AstMethodCompilerCtxt {
             Expression::ArgWrite(a, b, c) => AstExpression::ArgWrite(a, b, Box::new(self.parse_expression(c.as_ref()))),
             Expression::FieldWrite(a, b) => AstExpression::FieldWrite(a, Box::new(self.parse_expression(b.as_ref()))),
             Expression::Message(msg) => self.parse_message_maybe_inline(msg.as_ref()),
-            Expression::BinaryOp(a) => self.parse_binary_op(a.as_ref()),
             Expression::Exit(a, b) => {
                 match b {
                     0 => AstExpression::LocalExit(Box::new(self.parse_expression(a.as_ref()))),

@@ -120,8 +120,6 @@ pub enum Expression {
     FieldWrite(usize, Box<Expression>),
     /// A message send (eg. `counter incrementBy: 5`).
     Message(Box<Message>),
-    /// A binary operation (eg. `counter <= 5`).
-    BinaryOp(Box<BinaryOp>),
     /// An exit operation (eg. `^counter`). Second argument is the scope level to differentiate local and nonlocal returns
     Exit(Box<Expression>, usize),
     /// A literal (eg. `'foo'`, `10`, `#foo`, ...).
