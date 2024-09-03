@@ -84,7 +84,7 @@ pub fn interactive(_universe: &mut UniverseAST, _verbose: bool) -> Result<(), Er
         let nbr_locals = 1; // idk. maybe 0? 
         let nbr_params = 1; // idk
         let output = universe.with_frame(Value::System, nbr_locals, nbr_params,|universe| {
-            // todo: by removing bindings, i likely broke the shell. but i don't really care about the shell, so i'll fix it way later.
+            // TODO: by removing bindings, i likely broke the shell. but i don't really care about the shell, so i'll fix it way later.
             // universe
             //     .current_frame()
             //     .borrow_mut()

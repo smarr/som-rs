@@ -116,7 +116,7 @@ impl Value {
             }
             Self::String(value) => value.to_string(),
             Self::Array(values) => {
-                // TODO: I think we can do better here (less allocations).
+                // TODO (from nicolas): I think we can do better here (less allocations).
                 let strings: Vec<String> = values
                     .borrow()
                     .iter()

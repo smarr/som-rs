@@ -290,8 +290,9 @@ impl PrimMessageInliner for ast::Message {
                         _ => *up_idx,
                     };
 
-                    // todo ACTUALLY shouldn't the idx be adjusted depending on the amount of inlined variables in the block? make a test for that!
+                    // TODO ACTUALLY shouldn't the idx be adjusted depending on the amount of inlined variables in the block? make a test for that!
                     // and for the args case too!
+                    // (present me): that's correct. see AST for correct (AFAIK) implem for inlining
                     
                     match b {
                         Bytecode::PushNonLocal(_, idx) => {

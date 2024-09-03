@@ -18,7 +18,7 @@ pub struct TrivialGlobalMethod {
 impl Evaluate for TrivialGlobalMethod {
     fn evaluate(&mut self, universe: &mut UniverseAST) -> Return {
         let name = self.global_name.as_str();
-        // todo logic duplicated with globalread - need to avoid that
+        // TODO: logic duplicated with globalread - need to avoid that somehow
         universe.lookup_global(name)
             .map(Return::Local)
             .or_else(|| {

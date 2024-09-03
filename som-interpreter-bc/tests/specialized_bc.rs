@@ -212,7 +212,7 @@ fn return_self_bytecode_explicit() {
 #[ignore]
 #[test]
 fn something_jump_bug_popx() {
-    // todo: this test is about jump BC pointing to redundant dup/popx/pop sequences...
+    // TODO: this test is about jump BC pointing to redundant dup/popx/pop sequences...
     // ...therefore breaking when they're optimized and the jump doesn't know what to do.
     // this issue is currently being circumvented by straight up not removing the sequence when it's a jump target.
     // but this needs to be changed in the future. there's likely an underlying issue that this test right there exemplifies?

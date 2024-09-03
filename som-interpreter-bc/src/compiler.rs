@@ -486,7 +486,7 @@ impl MethodCodegen for ast::Expression {
                     return Some(());
                 }
 
-                if message.values.len() == 1 && (message.signature == "+" || message.signature == "-") && message.values.get(0)? == &Expression::Literal(ast::Literal::Integer(1)) {
+                if (message.signature == "+" || message.signature == "-") && !is_super_call && message.values.len() == 1 && message.values.get(0)? == &Expression::Literal(ast::Literal::Integer(1)) {
                     match message.signature.as_str() {
                         "+" => ctxt.push_instr(Bytecode::Inc), // also i was considering handling the "+ X" arbitrary case, maybe.,
                         "-" => ctxt.push_instr(Bytecode::Dec),

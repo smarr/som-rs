@@ -26,7 +26,6 @@ pub struct AstBody {
     pub exprs: Vec<AstExpression>,
 }
 
-// identical but using refs as
 #[derive(Debug, Clone, PartialEq)]
 pub enum AstExpression {
     GlobalRead(String),
@@ -46,10 +45,10 @@ pub enum AstExpression {
     LocalExit(Box<AstExpression>),
     NonLocalExit(Box<AstExpression>, usize),
     Literal(som_core::ast::Literal),
-    Block(Rc<RefCell<AstBlock>>), // Rc here, while it's not an Rc in the parser/som-core AST since BC doesn't need that same Rc.
+    Block(Rc<RefCell<AstBlock>>),
     /// Call to an inlined method node (no dispatching like a message would)
     InlinedCall(Box<InlinedNode>),
-    // todo we might want a SEQUENCENODE of some kind. instead of relying on AstBody at all, actually.
+    // TODO: we might want a SEQUENCENODE of some kind. instead of relying on AstBody at all, actually.
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -73,6 +72,7 @@ pub struct AstDispatchNode {
     pub inline_cache: Option<CacheEntry>
 }
 
+// TODO: not positive it's better to have them all own a dispatch node, as opposed to making one "Dispatch" enum encapsulating them all. checking would be nice.
 #[derive(Debug, Clone, PartialEq)]
 pub struct AstUnaryDispatch {
     pub dispatch_node: AstDispatchNode

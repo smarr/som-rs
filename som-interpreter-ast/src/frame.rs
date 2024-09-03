@@ -153,7 +153,7 @@ impl Frame {
     }
 
     pub fn nth_frame_back(&self, n: usize) -> SOMRef<Frame> {
-        let mut target_frame: Rc<RefCell<Frame>> = match self.params.first().unwrap() { // todo optimize that also
+        let mut target_frame: Rc<RefCell<Frame>> = match self.params.first().unwrap() { // TODO: optimize that also -- what did past me mean? unsafeing I assume.
             Value::Block(block) => {
                 Rc::clone(&block.borrow().frame)
             }

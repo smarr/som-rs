@@ -233,7 +233,7 @@ impl UniverseAST {
     /// Load a class from its name into this universe.
     pub fn load_class(&mut self, class_name: impl Into<String>) -> Result<SOMRef<Class>, Error> {
         let class_name = class_name.into();
-        let paths: Vec<PathBuf> = self.classpath.to_vec(); // TODO change back, same as BC
+        let paths: Vec<PathBuf> = self.classpath.to_vec(); // TODO: change back, same as BC
 
         for path in paths {
             let mut path = path.join(class_name.as_str());
