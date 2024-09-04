@@ -9,6 +9,7 @@ members = [
     "som-gc",
 #    "som-parser-text",
 ]
+resolver = "2"
 
 [profile.release]
 # Enable link-time optimization, eliminates more code and inlines across crate boundaries.

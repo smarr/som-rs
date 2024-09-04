@@ -1,8 +1,19 @@
 [package]
 name = "som-gc"
-version = "0.1.0"
-edition = "2018"
-description = "Garbage collector (MMTk-based)"
+version = "0.0.1"
+authors = ["Octave Larose <o.larose@kent.ac.uk>"]
+edition = "2021"
+
+[lib]
+name = "som_gc_lib"
+crate-type = ["cdylib"]
 
 [dependencies]
-mmtk = "0.26.0" # the latest version wants core_intrinsics, not sure I do?
+mmtk = "0.26.0"
+libc = "0.2"
+atomic = "0.6"
+
+[features]
+default = []
+is_mmtk_object = ["mmtk/is_mmtk_object"]
+malloc_counted_size = ["mmtk/malloc_counted_size"]
