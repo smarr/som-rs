@@ -1,4 +1,4 @@
-use crate::DummyVM;
+use crate::SOMVM;
 use mmtk::util::opaque_pointer::*;
 use mmtk::vm::Collection;
 use mmtk::vm::GCThreadContext;
@@ -7,10 +7,10 @@ use mmtk::Mutator;
 pub struct VMCollection {}
 
 // Documentation: https://docs.mmtk.io/api/mmtk/vm/collection/trait.Collection.html
-impl Collection<DummyVM> for VMCollection {
+impl Collection<SOMVM> for VMCollection {
     fn stop_all_mutators<F>(_tls: VMWorkerThread, _mutator_visitor: F)
     where
-        F: FnMut(&'static mut Mutator<DummyVM>),
+        F: FnMut(&'static mut Mutator<SOMVM>),
     {
         unimplemented!()
     }
@@ -23,7 +23,7 @@ impl Collection<DummyVM> for VMCollection {
         unimplemented!()
     }
 
-    fn spawn_gc_thread(_tls: VMThread, _ctx: GCThreadContext<DummyVM>) {
+    fn spawn_gc_thread(_tls: VMThread, _ctx: GCThreadContext<SOMVM>) {
         unimplemented!()
     }
 }

@@ -1,4 +1,4 @@
-use crate::DummyVM;
+use crate::SOMVM;
 use mmtk::util::copy::{CopySemantics, GCWorkerCopyContext};
 use mmtk::util::{Address, ObjectReference};
 use mmtk::vm::*;
@@ -20,7 +20,7 @@ pub const IN_OBJECT_ADDRESS_OFFSET: isize = 0;
 pub const OBJECT_HEADER_OFFSET: usize = 0;
 
 // Documentation: https://docs.mmtk.io/api/mmtk/vm/object_model/trait.ObjectModel.html
-impl ObjectModel<DummyVM> for VMObjectModel {
+impl ObjectModel<SOMVM> for VMObjectModel {
     // Global metadata
 
     const GLOBAL_LOG_BIT_SPEC: VMGlobalLogBitSpec = VMGlobalLogBitSpec::side_first();
@@ -44,7 +44,7 @@ impl ObjectModel<DummyVM> for VMObjectModel {
     fn copy(
         _from: ObjectReference,
         _semantics: CopySemantics,
-        _copy_context: &mut GCWorkerCopyContext<DummyVM>,
+        _copy_context: &mut GCWorkerCopyContext<SOMVM>,
     ) -> ObjectReference {
         unimplemented!()
     }

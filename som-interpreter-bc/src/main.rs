@@ -82,6 +82,8 @@ fn run() -> anyhow::Result<()> {
         classpath.push(directory.to_path_buf());
     }
 
+    let _mmtk_bridge = som_gc::util::init_gc();
+    
     let mut universe = UniverseBC::with_classpath(classpath)?;
 
     let args = std::iter::once(String::from(file_stem))

@@ -1,8 +1,8 @@
-// All functions here are extern function. There is no point for marking them as unsafe.
+// All functions here are extern function. There is no point for marking them as unsafe. TODO - wrong, no longer extern since not needed, and many unsafe uses may be avoided easily.
 #![allow(clippy::not_unsafe_ptr_arg_deref)]
 
 use crate::mmtk;
-use crate::DummyVM;
+use crate::SOMVM;
 use crate::SINGLETON;
 use libc::c_char;
 use mmtk::memory_manager;
@@ -17,13 +17,11 @@ use std::ffi::CStr;
 // This file exposes MMTk Rust API to the native code. This is not an exhaustive list of all the APIs.
 // Most commonly used APIs are listed in https://docs.mmtk.io/api/mmtk/memory_manager/index.html. The binding can expose them here.
 
-#[no_mangle]
-pub extern "C" fn mmtk_create_builder() -> *mut MMTKBuilder {
+pub fn mmtk_create_builder() -> *mut MMTKBuilder {
     Box::into_raw(Box::new(mmtk::MMTKBuilder::new()))
 }
 
-#[no_mangle]
-pub extern "C" fn mmtk_set_option_from_string(
+pub fn mmtk_set_option_from_string(
     builder: *mut MMTKBuilder,
     name: *const c_char,
     value: *const c_char,
@@ -34,8 +32,7 @@ pub extern "C" fn mmtk_set_option_from_string(
     builder.set_option(name_str.to_str().unwrap(), value_str.to_str().unwrap())
 }
 
-#[no_mangle]
-pub extern "C" fn mmtk_set_fixed_heap_size(builder: *mut MMTKBuilder, heap_size: usize) -> bool {
+pub fn mmtk_set_fixed_heap_size(builder: *mut MMTKBuilder, heap_size: usize) -> bool {
     let builder = unsafe { &mut *builder };
     builder
         .options
@@ -45,12 +42,11 @@ pub extern "C" fn mmtk_set_fixed_heap_size(builder: *mut MMTKBuilder, heap_size:
         ))
 }
 
-#[no_mangle]
 pub fn mmtk_init(builder: *mut MMTKBuilder) {
     let builder = unsafe { Box::from_raw(builder) };
 
     // Create MMTK instance.
-    let mmtk = memory_manager::mmtk_init::<DummyVM>(&builder);
+    let mmtk = memory_manager::mmtk_init::<SOMVM>(&builder);
 
     // Set SINGLETON to the instance.
     SINGLETON.set(mmtk).unwrap_or_else(|_| {
@@ -58,22 +54,19 @@ pub fn mmtk_init(builder: *mut MMTKBuilder) {
     });
 }
 
-#[no_mangle]
-pub extern "C" fn mmtk_bind_mutator(tls: VMMutatorThread) -> *mut Mutator<DummyVM> {
+pub fn mmtk_bind_mutator(tls: VMMutatorThread) -> *mut Mutator<SOMVM> {
     Box::into_raw(memory_manager::bind_mutator(mmtk(), tls))
 }
 
-#[no_mangle]
-pub extern "C" fn mmtk_destroy_mutator(mutator: *mut Mutator<DummyVM>) {
+pub fn mmtk_destroy_mutator(mutator: *mut Mutator<SOMVM>) {
     // notify mmtk-core about destroyed mutator
     memory_manager::destroy_mutator(unsafe { &mut *mutator });
     // turn the ptr back to a box, and let Rust properly reclaim it
     let _ = unsafe { Box::from_raw(mutator) };
 }
 
-#[no_mangle]
-pub extern "C" fn mmtk_alloc(
-    mutator: *mut Mutator<DummyVM>,
+pub fn mmtk_alloc(
+    mutator: *mut Mutator<SOMVM>,
     size: usize,
     align: usize,
     offset: usize,
@@ -90,12 +83,11 @@ pub extern "C" fn mmtk_alloc(
     {
         semantics = AllocationSemantics::Los;
     }
-    memory_manager::alloc::<DummyVM>(unsafe { &mut *mutator }, size, align, offset, semantics)
+    memory_manager::alloc::<SOMVM>(unsafe { &mut *mutator }, size, align, offset, semantics)
 }
 
-#[no_mangle]
-pub extern "C" fn mmtk_post_alloc(
-    mutator: *mut Mutator<DummyVM>,
+pub fn mmtk_post_alloc(
+    mutator: *mut Mutator<SOMVM>,
     refer: ObjectReference,
     bytes: usize,
     mut semantics: AllocationSemantics,
@@ -111,148 +103,121 @@ pub extern "C" fn mmtk_post_alloc(
     {
         semantics = AllocationSemantics::Los;
     }
-    memory_manager::post_alloc::<DummyVM>(unsafe { &mut *mutator }, refer, bytes, semantics)
+    memory_manager::post_alloc::<SOMVM>(unsafe { &mut *mutator }, refer, bytes, semantics)
 }
 
-#[no_mangle]
-pub extern "C" fn mmtk_start_worker(tls: VMWorkerThread, worker: *mut GCWorker<DummyVM>) {
+pub fn mmtk_start_worker(tls: VMWorkerThread, worker: *mut GCWorker<SOMVM>) {
     let worker = unsafe { Box::from_raw(worker) };
-    memory_manager::start_worker::<DummyVM>(mmtk(), tls, worker)
+    memory_manager::start_worker::<SOMVM>(mmtk(), tls, worker)
 }
 
-#[no_mangle]
-pub extern "C" fn mmtk_initialize_collection(tls: VMThread) {
+pub fn mmtk_initialize_collection(tls: VMThread) {
     memory_manager::initialize_collection(mmtk(), tls)
 }
 
-#[no_mangle]
-pub extern "C" fn mmtk_used_bytes() -> usize {
+pub fn mmtk_used_bytes() -> usize {
     memory_manager::used_bytes(mmtk())
 }
 
-#[no_mangle]
-pub extern "C" fn mmtk_free_bytes() -> usize {
+pub fn mmtk_free_bytes() -> usize {
     memory_manager::free_bytes(mmtk())
 }
 
-#[no_mangle]
-pub extern "C" fn mmtk_total_bytes() -> usize {
+pub fn mmtk_total_bytes() -> usize {
     memory_manager::total_bytes(mmtk())
 }
 
-#[no_mangle]
-pub extern "C" fn mmtk_is_live_object(object: ObjectReference) -> bool {
-    memory_manager::is_live_object::<DummyVM>(object)
+pub fn mmtk_is_live_object(object: ObjectReference) -> bool {
+    memory_manager::is_live_object::<SOMVM>(object)
 }
 
-#[no_mangle]
-pub extern "C" fn mmtk_will_never_move(object: ObjectReference) -> bool {
-    !object.is_movable::<DummyVM>()
+pub fn mmtk_will_never_move(object: ObjectReference) -> bool {
+    !object.is_movable::<SOMVM>()
 }
 
 #[cfg(feature = "is_mmtk_object")]
-#[no_mangle]
-pub extern "C" fn mmtk_is_mmtk_object(addr: Address) -> bool {
+pub fn mmtk_is_mmtk_object(addr: Address) -> bool {
     memory_manager::is_mmtk_object(addr)
 }
 
-#[no_mangle]
-pub extern "C" fn mmtk_is_in_mmtk_spaces(object: ObjectReference) -> bool {
-    memory_manager::is_in_mmtk_spaces::<DummyVM>(object)
+pub fn mmtk_is_in_mmtk_spaces(object: ObjectReference) -> bool {
+    memory_manager::is_in_mmtk_spaces::<SOMVM>(object)
 }
 
-#[no_mangle]
-pub extern "C" fn mmtk_is_mapped_address(address: Address) -> bool {
+pub fn mmtk_is_mapped_address(address: Address) -> bool {
     memory_manager::is_mapped_address(address)
 }
 
-#[no_mangle]
-pub extern "C" fn mmtk_handle_user_collection_request(tls: VMMutatorThread) {
-    memory_manager::handle_user_collection_request::<DummyVM>(mmtk(), tls);
+pub fn mmtk_handle_user_collection_request(tls: VMMutatorThread) {
+    memory_manager::handle_user_collection_request::<SOMVM>(mmtk(), tls);
 }
 
-#[no_mangle]
-pub extern "C" fn mmtk_add_weak_candidate(reff: ObjectReference) {
+pub fn mmtk_add_weak_candidate(reff: ObjectReference) {
     memory_manager::add_weak_candidate(mmtk(), reff)
 }
 
-#[no_mangle]
-pub extern "C" fn mmtk_add_soft_candidate(reff: ObjectReference) {
+pub fn mmtk_add_soft_candidate(reff: ObjectReference) {
     memory_manager::add_soft_candidate(mmtk(), reff)
 }
 
-#[no_mangle]
-pub extern "C" fn mmtk_add_phantom_candidate(reff: ObjectReference) {
+pub fn mmtk_add_phantom_candidate(reff: ObjectReference) {
     memory_manager::add_phantom_candidate(mmtk(), reff)
 }
 
-#[no_mangle]
-pub extern "C" fn mmtk_harness_begin(tls: VMMutatorThread) {
+pub fn mmtk_harness_begin(tls: VMMutatorThread) {
     memory_manager::harness_begin(mmtk(), tls)
 }
 
-#[no_mangle]
-pub extern "C" fn mmtk_harness_end() {
+pub fn mmtk_harness_end() {
     memory_manager::harness_end(mmtk())
 }
 
-#[no_mangle]
-pub extern "C" fn mmtk_starting_heap_address() -> Address {
+pub fn mmtk_starting_heap_address() -> Address {
     memory_manager::starting_heap_address()
 }
 
-#[no_mangle]
-pub extern "C" fn mmtk_last_heap_address() -> Address {
+pub fn mmtk_last_heap_address() -> Address {
     memory_manager::last_heap_address()
 }
 
-#[no_mangle]
 #[cfg(feature = "malloc_counted_size")]
-pub extern "C" fn mmtk_counted_malloc(size: usize) -> Address {
-    memory_manager::counted_malloc::<DummyVM>(mmtk(), size)
+pub fn mmtk_counted_malloc(size: usize) -> Address {
+    memory_manager::counted_malloc::<SOMVM>(mmtk(), size)
 }
-#[no_mangle]
-pub extern "C" fn mmtk_malloc(size: usize) -> Address {
+pub fn mmtk_malloc(size: usize) -> Address {
     memory_manager::malloc(size)
 }
 
-#[no_mangle]
 #[cfg(feature = "malloc_counted_size")]
-pub extern "C" fn mmtk_counted_calloc(num: usize, size: usize) -> Address {
-    memory_manager::counted_calloc::<DummyVM>(mmtk(), num, size)
+pub fn mmtk_counted_calloc(num: usize, size: usize) -> Address {
+    memory_manager::counted_calloc::<SOMVM>(mmtk(), num, size)
 }
-#[no_mangle]
-pub extern "C" fn mmtk_calloc(num: usize, size: usize) -> Address {
+pub fn mmtk_calloc(num: usize, size: usize) -> Address {
     memory_manager::calloc(num, size)
 }
 
-#[no_mangle]
 #[cfg(feature = "malloc_counted_size")]
-pub extern "C" fn mmtk_realloc_with_old_size(
+pub fn mmtk_realloc_with_old_size(
     addr: Address,
     size: usize,
     old_size: usize,
 ) -> Address {
-    memory_manager::realloc_with_old_size::<DummyVM>(mmtk(), addr, size, old_size)
+    memory_manager::realloc_with_old_size::<SOMVM>(mmtk(), addr, size, old_size)
 }
-#[no_mangle]
-pub extern "C" fn mmtk_realloc(addr: Address, size: usize) -> Address {
+pub fn mmtk_realloc(addr: Address, size: usize) -> Address {
     memory_manager::realloc(addr, size)
 }
 
-#[no_mangle]
 #[cfg(feature = "malloc_counted_size")]
-pub extern "C" fn mmtk_free_with_size(addr: Address, old_size: usize) {
-    memory_manager::free_with_size::<DummyVM>(mmtk(), addr, old_size)
+pub fn mmtk_free_with_size(addr: Address, old_size: usize) {
+    memory_manager::free_with_size::<SOMVM>(mmtk(), addr, old_size)
 }
-#[no_mangle]
-pub extern "C" fn mmtk_free(addr: Address) {
+pub fn mmtk_free(addr: Address) {
     memory_manager::free(addr)
 }
 
-#[no_mangle]
 #[cfg(feature = "malloc_counted_size")]
-pub extern "C" fn mmtk_get_malloc_bytes() -> usize {
+pub fn mmtk_get_malloc_bytes() -> usize {
     memory_manager::get_malloc_bytes(mmtk())
 }
 
@@ -293,7 +258,7 @@ mod tests {
         assert!(!addr.is_zero());
 
         // Turn the allocation address into the object reference.
-        let obj = DummyVM::object_start_to_ref(addr);
+        let obj = SOMVM::object_start_to_ref(addr);
 
         // Post allocation
         mmtk_post_alloc(mutator, obj, 16, mmtk::AllocationSemantics::Default);

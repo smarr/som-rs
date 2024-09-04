@@ -942,7 +942,7 @@ dependencies = [
 
 [[package]]
 name = "som-gc"
-version = "0.0.1"
+version = "0.1.0"
 dependencies = [
  "atomic",
  "libc",
@@ -979,6 +979,7 @@ dependencies = [
  "once_cell",
  "rand",
  "som-core",
+ "som-gc",
  "som-lexer",
  "som-parser-symbols",
  "static_assertions",

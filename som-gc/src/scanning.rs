@@ -1,4 +1,4 @@
-use crate::DummyVM;
+use crate::SOMVM;
 use crate::DummyVMSlot;
 use mmtk::util::opaque_pointer::*;
 use mmtk::util::ObjectReference;
@@ -10,10 +10,10 @@ use mmtk::Mutator;
 pub struct VMScanning {}
 
 // Documentation: https://docs.mmtk.io/api/mmtk/vm/scanning/trait.Scanning.html
-impl Scanning<DummyVM> for VMScanning {
+impl Scanning<SOMVM> for VMScanning {
     fn scan_roots_in_mutator_thread(
         _tls: VMWorkerThread,
-        _mutator: &'static mut Mutator<DummyVM>,
+        _mutator: &'static mut Mutator<SOMVM>,
         _factory: impl RootsWorkFactory<DummyVMSlot>,
     ) {
         unimplemented!()

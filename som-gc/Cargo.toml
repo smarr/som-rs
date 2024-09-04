@@ -1,12 +1,12 @@
 [package]
 name = "som-gc"
-version = "0.0.1"
+version = "0.1.0"
 authors = ["Octave Larose <o.larose@kent.ac.uk>"]
 edition = "2021"
 
-[lib]
-name = "som_gc_lib"
-crate-type = ["cdylib"]
+#[lib]
+#name = "som_gc_lib"
+#crate-type = ["cdylib"]
 
 [dependencies]
 mmtk = "0.26.0"

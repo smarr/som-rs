@@ -13,13 +13,16 @@ pub mod object_model;
 pub mod reference_glue;
 pub mod scanning;
 
+/// I added that one. Trying to centralize some GC operations
+pub mod util;
+
 pub type DummyVMSlot = mmtk::vm::slot::SimpleSlot;
 
 #[derive(Default)]
-pub struct DummyVM;
+pub struct SOMVM;
 
 // Documentation: https://docs.mmtk.io/api/mmtk/vm/trait.VMBinding.html
-impl VMBinding for DummyVM {
+impl VMBinding for SOMVM {
     type VMObjectModel = object_model::VMObjectModel;
     type VMScanning = scanning::VMScanning;
     type VMCollection = collection::VMCollection;
@@ -34,7 +37,7 @@ impl VMBinding for DummyVM {
 
 use mmtk::util::{Address, ObjectReference};
 
-impl DummyVM {
+impl SOMVM {
     pub fn object_start_to_ref(start: Address) -> ObjectReference {
         // Safety: start is the allocation result, and it should not be zero with an offset.
         unsafe {
@@ -45,8 +48,8 @@ impl DummyVM {
     }
 }
 
-pub static SINGLETON: OnceLock<Box<MMTK<DummyVM>>> = OnceLock::new();
+pub static SINGLETON: OnceLock<Box<MMTK<SOMVM>>> = OnceLock::new();
 
-fn mmtk() -> &'static MMTK<DummyVM> {
+fn mmtk() -> &'static MMTK<SOMVM> {
     SINGLETON.get().unwrap()
 }
