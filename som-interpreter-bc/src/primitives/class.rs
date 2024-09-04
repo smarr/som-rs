@@ -7,6 +7,7 @@ use crate::primitives::PrimitiveFn;
 use crate::universe::UniverseBC;
 use crate::value::Value;
 use crate::{expect_args, reverse};
+use crate::gc::GCRefToInstance;
 
 pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[
     ("new", self::new, true),
@@ -30,7 +31,7 @@ fn superclass(interpreter: &mut Interpreter, _: &mut UniverseBC) {
         .push(super_class.map(Value::Class).unwrap_or(Value::Nil));
 }
 
-fn new(interpreter: &mut Interpreter, _: &mut UniverseBC) {
+fn new(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
     const SIGNATURE: &str = "Class>>#new";
 
     expect_args!(SIGNATURE, interpreter, [
@@ -38,8 +39,8 @@ fn new(interpreter: &mut Interpreter, _: &mut UniverseBC) {
     ]);
 
     let instance = Instance::from_class(class);
-    let instance = Rc::new(RefCell::new(instance));
-    interpreter.stack.push(Value::Instance(instance));
+    let instance_ref = GCRefToInstance::from_instance(instance, universe.mutator);
+    interpreter.stack.push(Value::Instance(instance_ref));
 }
 
 fn name(interpreter: &mut Interpreter, universe: &mut UniverseBC) {

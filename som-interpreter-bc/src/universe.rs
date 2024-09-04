@@ -7,7 +7,7 @@ use std::rc::Rc;
 
 use anyhow::{anyhow, Error};
 use som_core::universe::UniverseForParser;
-
+use som_gc::SOMVM;
 use crate::block::Block;
 use crate::class::Class;
 use crate::compiler;
@@ -79,6 +79,8 @@ pub struct UniverseBC {
     pub classpath: Vec<PathBuf>,
     /// The interpreter's core classes.
     pub core: CoreClasses,
+    /// mutator thread for GC.
+    pub mutator: *mut mmtk::Mutator<SOMVM>
 }
 
 impl UniverseForParser for UniverseBC {
@@ -115,7 +117,7 @@ impl UniverseForParser for UniverseBC {
 
 impl UniverseBC {
     /// Initialize the universe from the given classpath.
-    pub fn with_classpath(classpath: Vec<PathBuf>) -> Result<Self, Error> {
+    pub fn with_classpath(classpath: Vec<PathBuf>, mutator: *mut mmtk::Mutator<SOMVM>) -> Result<Self, Error> {
         let mut interner = Interner::with_capacity(100);
         let mut globals = HashMap::new();
 
@@ -242,6 +244,7 @@ impl UniverseBC {
                 true_class,
                 false_class,
             },
+            mutator
         })
     }
 

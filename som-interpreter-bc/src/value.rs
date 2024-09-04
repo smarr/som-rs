@@ -5,7 +5,7 @@ use num_bigint::BigInt;
 
 use crate::block::Block;
 use crate::class::Class;
-use crate::instance::Instance;
+use crate::gc::GCRefToInstance;
 use crate::interner::Interned;
 use crate::method::Method;
 use crate::universe::UniverseBC;
@@ -35,7 +35,7 @@ pub enum Value {
     /// A block value, ready to be evaluated.
     Block(Rc<Block>),
     /// A generic (non-primitive) class instance.
-    Instance(SOMRef<Instance>),
+    Instance(GCRefToInstance),
     /// A bare class object.
     Class(SOMRef<Class>),
     /// A bare invokable.
@@ -57,7 +57,7 @@ impl Value {
             Self::String(_) => universe.string_class(),
             Self::Array(_) => universe.array_class(),
             Self::Block(block) => block.class(universe),
-            Self::Instance(instance) => instance.borrow().class(),
+            Self::Instance(instance) => instance.to_instance().class(),
             Self::Class(class) => class.borrow().class(),
             Self::Invokable(invokable) => invokable.class(universe),
         }
@@ -71,7 +71,7 @@ impl Value {
     /// Search for a local binding within this value.
     pub fn lookup_local(&self, idx: usize) -> Self {
         match self {
-            Self::Instance(instance) => instance.borrow().lookup_local(idx),
+            Self::Instance(instance) => instance.to_instance().lookup_local(idx),
             Self::Class(class) => class.borrow().lookup_local(idx),
             v => unreachable!("Attempting to look up a local in {:?}", v),
         }
@@ -80,7 +80,7 @@ impl Value {
     /// Assign a value to a local binding within this value.
     pub fn assign_local(&mut self, idx: usize, value: Self) {
         match self {
-            Self::Instance(instance) => instance.borrow_mut().assign_local(idx, value),
+            Self::Instance(instance) => instance.to_instance().assign_local(idx, value),
             Self::Class(class) => class.borrow_mut().assign_local(idx, value),
             v => unreachable!("Attempting to assign a local in {:?}", v),
         }
@@ -91,7 +91,7 @@ impl Value {
     /// But those prims are free to be used and abused by devs, so they CAN fail, and we need to check that they won't fail before we invoke them. Hence this `has_local`.
     pub fn has_local(&self, index: usize) -> bool {
         match self {
-            Self::Instance(instance) => instance.borrow().has_local(index),
+            Self::Instance(instance) => instance.to_instance().has_local(index),
             Self::Class(class) => class.borrow().has_local(index),
             _ => false,
         }
@@ -127,7 +127,7 @@ impl Value {
             Self::Block(block) => format!("instance of Block{}", block.nb_parameters() + 1),
             Self::Instance(instance) => format!(
                 "instance of {} class",
-                instance.borrow().class().borrow().name(),
+                instance.to_instance().class().borrow().name(),
             ),
             Self::Class(class) => class.borrow().name().to_string(),
             Self::Invokable(invokable) => invokable
@@ -156,7 +156,7 @@ impl PartialEq for Value {
             (Self::Symbol(a), Self::Symbol(b)) => a.eq(b),
             (Self::String(a), Self::String(b)) => Rc::ptr_eq(a, b),
             (Self::Array(a), Self::Array(b)) => Rc::ptr_eq(a, b),
-            (Self::Instance(a), Self::Instance(b)) => Rc::ptr_eq(a, b),
+            (Self::Instance(a), Self::Instance(b)) => a == b,
             (Self::Class(a), Self::Class(b)) => Rc::ptr_eq(a, b),
             (Self::Block(a), Self::Block(b)) => Rc::ptr_eq(a, b),
             (Self::Invokable(a), Self::Invokable(b)) => Rc::ptr_eq(a, b),
@@ -178,7 +178,7 @@ impl fmt::Debug for Value {
             Self::String(val) => f.debug_tuple("String").field(val).finish(),
             Self::Array(val) => f.debug_tuple("Array").field(&val.borrow()).finish(),
             Self::Block(val) => f.debug_tuple("Block").field(val).finish(),
-            Self::Instance(val) => f.debug_tuple("Instance").field(&val.borrow()).finish(),
+            Self::Instance(val) => f.debug_tuple("Instance").field(&val.to_instance()).finish(),
             Self::Class(val) => f.debug_tuple("Class").field(&val.borrow()).finish(),
             Self::Invokable(val) => {
                 let signature = val

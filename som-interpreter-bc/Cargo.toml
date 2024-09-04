@@ -37,6 +37,8 @@ once_cell = "1.18.0"
 measureme = { version = "11.0.1", optional = true }
 static_assertions = "1.1.0"
 
+mmtk = "0.26.0"# todo stupid afaik - should be encapsulated in som-gc. added because we want to know types e.g. what a Mutator is
+
 [features]
 jemalloc = ["jemallocator"]
 frame-debug-info = []

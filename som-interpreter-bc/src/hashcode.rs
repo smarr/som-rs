@@ -61,7 +61,7 @@ impl Hash for Value {
             }
             Value::Instance(value) => {
                 hasher.write(b"#inst#");
-                value.borrow().hash(hasher);
+                value.to_instance().hash(hasher);
             }
             Value::Invokable(value) => {
                 hasher.write(b"#mthd#");

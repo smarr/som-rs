@@ -187,7 +187,7 @@ impl Interpreter {
                 }
                 Bytecode::PushField(idx) => {
                     let value = match frame.borrow().get_self() {
-                        Value::Instance(i) => { i.borrow_mut().lookup_local(idx as usize) }
+                        Value::Instance(i) => { i.to_instance().lookup_local(idx as usize) }
                         Value::Class(c) => { c.borrow().class().borrow_mut().lookup_local(idx as usize) }
                         v => { panic!("trying to read a field from a {:?}", &v) }
                     };
@@ -269,7 +269,7 @@ impl Interpreter {
                 Bytecode::PopField(idx) => {
                     let value = self.stack.pop().unwrap();
                     match frame.borrow_mut().get_self() {
-                        Value::Instance(i) => { i.borrow_mut().assign_local(idx as usize, value) }
+                        Value::Instance(i) => { i.to_instance().assign_local(idx as usize, value) }
                         Value::Class(c) => { c.borrow().class().borrow_mut().assign_local(idx as usize, value) }
                         v => { panic!("{:?}", &v) }
                     };

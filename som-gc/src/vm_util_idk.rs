@@ -1,8 +1,10 @@
 use std::ffi::CString;
+use mmtk::Mutator;
 use crate::api::*;
 use mmtk::util::opaque_pointer::*;
+use crate::SOMVM;
 
-pub fn init_gc() -> crate::SOMVM {
+pub fn init_gc() -> *mut Mutator<SOMVM> {
     let builder = mmtk_create_builder();
     mmtk_init(builder);
 
@@ -17,9 +19,7 @@ pub fn init_gc() -> crate::SOMVM {
     assert!(success);
 
     let tls = VMMutatorThread(VMThread(OpaquePointer::UNINITIALIZED)); // FIXME: Use the actual thread pointer or identifier
-    let _mutator = mmtk_bind_mutator(tls);
-
-    let vm = crate::SOMVM::default();
-
-    vm
+    let mutator = mmtk_bind_mutator(tls);
+    
+    mutator
 }

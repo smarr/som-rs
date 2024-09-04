@@ -35,6 +35,8 @@ pub mod value;
 /// Inlining some calls to a select few builtin functions for sizeable perf gains.
 pub mod inliner;
 
+pub mod gc;
+
 /// Facilities for profiling the SOM VM during execution.
 #[cfg(feature = "profiler")]
 pub mod profiler;

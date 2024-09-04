@@ -82,10 +82,10 @@ fn run() -> anyhow::Result<()> {
         classpath.push(directory.to_path_buf());
     }
 
-    let _mmtk_bridge = som_gc::util::init_gc();
+    let mutator = som_gc::vm_util_idk::init_gc();
     
-    let mut universe = UniverseBC::with_classpath(classpath)?;
-
+    let mut universe = UniverseBC::with_classpath(classpath, mutator)?;
+    
     let args = std::iter::once(String::from(file_stem))
         .chain(opts.args.iter().cloned())
         .map(Rc::new)
@@ -129,7 +129,7 @@ fn disassemble_class(opts: Options) -> anyhow::Result<()> {
     if let Some(directory) = file.parent() {
         classpath.push(directory.to_path_buf());
     }
-    let mut universe = UniverseBC::with_classpath(classpath.clone())?;
+    let mut universe = UniverseBC::with_classpath(classpath.clone(), std::ptr::null_mut())?;
 
     // "Object" special casing needed since `load_class` assumes the class has a superclass and Object doesn't, and I didn't want to change the class loading logic just for the disassembler (tho it's probably fine)
     let class = match file_stem {
