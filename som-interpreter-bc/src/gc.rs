@@ -1,4 +1,7 @@
+use std::marker::PhantomData;
 
 #[derive(Clone, PartialEq)]
-pub struct GCRefToInstance(pub usize);
-// TODO pub struct GCRef<T>(usize) instead? do we need phantomdata though?
+pub struct GCRef<T> {
+    pub ptr: usize,
+    pub _phantom: PhantomData<T>
+}

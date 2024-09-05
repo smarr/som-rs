@@ -1,26 +1,46 @@
 use std::cell::RefCell;
 use std::fmt;
+use std::marker::PhantomData;
 use std::rc::Rc;
 use mmtk::AllocationSemantics;
 use som_gc::api::{mmtk_alloc, mmtk_post_alloc};
 use som_gc::SOMVM;
 use crate::class::Class;
-use crate::gc::GCRefToInstance;
 use crate::value::Value;
 use crate::SOMRef;
+use std::mem;
+use crate::gc::GCRef;
 
 /// Represents a generic (non-primitive) class instance.
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub struct Instance {
     /// The class of which this is an instance from.
     pub class: *mut Class,
+    // /// will be used for packed repr of locals
+    // pub nbr_fields: usize,
     /// This instance's locals.
     pub locals: Vec<Value>,
 }
 
+// pub struct InstanceLayout {
+//     pub class: *mut Class,
+//     pub nbr_fields: usize,
+//     pub idk: usize // sizeof::Value * nbr_fields
+// }
+
 impl Instance {
     /// Construct an instance for a given class.
-    pub fn from_class(class: SOMRef<Class>, mutator: *mut mmtk::Mutator<SOMVM>) -> GCRefToInstance {
+    pub fn from_class(class: SOMRef<Class>, mutator: *mut mmtk::Mutator<SOMVM>) -> GCRef<Instance> {
+        // fn get_nbr_fields(class: &SOMRef<Class>) -> usize {
+        //     let mut nbr_locals = class.borrow().locals.len();
+        //     if let Some(super_class) = class.borrow().super_class() {
+        //         nbr_locals += get_nbr_fields(&super_class)
+        //     }
+        //     nbr_locals
+        // }
+        // 
+        // let nbr_fields = get_nbr_fields(&class);
+
         let mut locals = Vec::new();
 
         fn collect_locals(class: &SOMRef<Class>, locals: &mut Vec<Value>) {
@@ -31,14 +51,13 @@ impl Instance {
         }
 
         collect_locals(&class, &mut locals);
-
-        // let locals = class.borrow().locals.iter().map(|_| Value::Nil).collect();
-
+        
         let instance = Self { class: class.as_ptr(), locals };
         Self::alloc_instance(instance, mutator)
     }
 
-    fn alloc_instance(instance: Instance, mutator: *mut mmtk::Mutator<SOMVM>) -> GCRefToInstance {
+    fn alloc_instance(instance: Instance, mutator: *mut mmtk::Mutator<SOMVM>) -> GCRef<Instance> {
+        // let size = size_of::<Instance>() + (instance.nbr_fields * size_of::<Value>());
         let size = std::mem::size_of::<Instance>();
         let align= 8;
         let offset= 0;
@@ -59,16 +78,19 @@ impl Instance {
 
         // println!("allocation OK");
 
-        GCRefToInstance(addr.as_usize())
+        GCRef {
+            ptr: addr.as_usize(),
+            _phantom: PhantomData
+        }
     }
 
-    pub fn from_gc_ptr(gc_ptr: &GCRefToInstance) -> &mut Instance {
-        unsafe { &mut *(gc_ptr.0 as *mut Instance) }
+    pub fn from_gc_ptr(gc_ptr: &GCRef<Instance>) -> &mut Instance {
+        unsafe { &mut *(gc_ptr.ptr as *mut Instance) }
     }
 
     /// Get the class of which this is an instance from.
     pub fn class(&self) -> SOMRef<Class> {
-        Rc::new(RefCell::new(unsafe { (*self.class).clone() })) // todo this is stupid, but otherwise every SOMRef<Class> in related code must be turned into a pointer. which I will do tbh, I have to
+        Rc::new(RefCell::new(unsafe { (*self.class).clone() })) // todo this is stupid, but otherwise every SOMRef<Class> in related code must be turned into a pointer. which I will have to do at some point tbh, I have to
     }
 
     /// Get the superclass of this instance's class.

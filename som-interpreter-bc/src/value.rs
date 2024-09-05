@@ -5,7 +5,7 @@ use num_bigint::BigInt;
 
 use crate::block::Block;
 use crate::class::Class;
-use crate::gc::GCRefToInstance;
+use crate::gc::GCRef;
 use crate::instance::Instance;
 use crate::interner::Interned;
 use crate::method::Method;
@@ -36,7 +36,7 @@ pub enum Value {
     /// A block value, ready to be evaluated.
     Block(Rc<Block>),
     /// A generic (non-primitive) class instance.
-    Instance(GCRefToInstance),
+    Instance(GCRef<Instance>),
     /// A bare class object.
     Class(SOMRef<Class>),
     /// A bare invokable.
