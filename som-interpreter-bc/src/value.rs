@@ -6,6 +6,7 @@ use num_bigint::BigInt;
 use crate::block::Block;
 use crate::class::Class;
 use crate::gc::GCRefToInstance;
+use crate::instance::Instance;
 use crate::interner::Interned;
 use crate::method::Method;
 use crate::universe::UniverseBC;
@@ -57,7 +58,7 @@ impl Value {
             Self::String(_) => universe.string_class(),
             Self::Array(_) => universe.array_class(),
             Self::Block(block) => block.class(universe),
-            Self::Instance(instance) => instance.to_instance().class(),
+            Self::Instance(instance_ptr) => Instance::from_gc_ptr(instance_ptr).class(),
             Self::Class(class) => class.borrow().class(),
             Self::Invokable(invokable) => invokable.class(universe),
         }
@@ -71,7 +72,7 @@ impl Value {
     /// Search for a local binding within this value.
     pub fn lookup_local(&self, idx: usize) -> Self {
         match self {
-            Self::Instance(instance) => instance.to_instance().lookup_local(idx),
+            Self::Instance(instance_ptr) => Instance::from_gc_ptr(instance_ptr).lookup_local(idx),
             Self::Class(class) => class.borrow().lookup_local(idx),
             v => unreachable!("Attempting to look up a local in {:?}", v),
         }
@@ -80,7 +81,7 @@ impl Value {
     /// Assign a value to a local binding within this value.
     pub fn assign_local(&mut self, idx: usize, value: Self) {
         match self {
-            Self::Instance(instance) => instance.to_instance().assign_local(idx, value),
+            Self::Instance(instance_ptr) => Instance::from_gc_ptr(instance_ptr).assign_local(idx, value),
             Self::Class(class) => class.borrow_mut().assign_local(idx, value),
             v => unreachable!("Attempting to assign a local in {:?}", v),
         }
@@ -91,7 +92,7 @@ impl Value {
     /// But those prims are free to be used and abused by devs, so they CAN fail, and we need to check that they won't fail before we invoke them. Hence this `has_local`.
     pub fn has_local(&self, index: usize) -> bool {
         match self {
-            Self::Instance(instance) => instance.to_instance().has_local(index),
+            Self::Instance(instance_ptr) => Instance::from_gc_ptr(instance_ptr).has_local(index),
             Self::Class(class) => class.borrow().has_local(index),
             _ => false,
         }
@@ -125,9 +126,9 @@ impl Value {
                 format!("#({})", strings.join(" "))
             }
             Self::Block(block) => format!("instance of Block{}", block.nb_parameters() + 1),
-            Self::Instance(instance) => format!(
+            Self::Instance(instance_ptr) => format!(
                 "instance of {} class",
-                instance.to_instance().class().borrow().name(),
+                Instance::from_gc_ptr(instance_ptr).class().borrow().name(),
             ),
             Self::Class(class) => class.borrow().name().to_string(),
             Self::Invokable(invokable) => invokable
@@ -178,7 +179,7 @@ impl fmt::Debug for Value {
             Self::String(val) => f.debug_tuple("String").field(val).finish(),
             Self::Array(val) => f.debug_tuple("Array").field(&val.borrow()).finish(),
             Self::Block(val) => f.debug_tuple("Block").field(val).finish(),
-            Self::Instance(val) => f.debug_tuple("Instance").field(&val.to_instance()).finish(),
+            Self::Instance(val) => f.debug_tuple("Instance").field(&Instance::from_gc_ptr(val)).finish(),
             Self::Class(val) => f.debug_tuple("Class").field(&val.borrow()).finish(),
             Self::Invokable(val) => {
                 let signature = val

@@ -32,7 +32,16 @@ impl VMBinding for SOMVM {
     type VMMemorySlice = mmtk::vm::slot::UnimplementedMemorySlice;
 
     /// Allowed maximum alignment in bytes.
-    const MAX_ALIGNMENT: usize = 1 << 6;
+    // const MAX_ALIGNMENT: usize = 1 << 6;
+    
+    const ALIGNMENT_VALUE: usize = 0xdead_beef;
+    /// Allowed minimal alignment in bytes.
+    const MIN_ALIGNMENT: usize = 1 << 2;
+    /// Allowed maximum alignment in bytes.
+    const MAX_ALIGNMENT: usize = 1 << 3;
+    const USE_ALLOCATION_OFFSET: bool = true;
+    
+    const ALLOC_END_ALIGNMENT: usize = 1;
 }
 
 use mmtk::util::{Address, ObjectReference};

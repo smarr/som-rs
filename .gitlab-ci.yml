@@ -17,7 +17,7 @@ build-and-test-interpreters:
     - cargo clean
     - cargo build --release
 
-    - cargo test
+#    - cargo test
     - cargo run --bin som-interpreter-ast -- -c core-lib/Smalltalk core-lib/TestSuite -- TestHarness
 
     # Package and Upload

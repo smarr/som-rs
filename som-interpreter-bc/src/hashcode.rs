@@ -61,7 +61,7 @@ impl Hash for Value {
             }
             Value::Instance(value) => {
                 hasher.write(b"#inst#");
-                value.to_instance().hash(hasher);
+                Instance::from_gc_ptr(value).hash(hasher);
             }
             Value::Invokable(value) => {
                 hasher.write(b"#mthd#");
@@ -82,7 +82,7 @@ impl Hash for Class {
 
 impl Hash for Instance {
     fn hash<H: Hasher>(&self, hasher: &mut H) {
-        self.class.borrow().hash(hasher);
+        unsafe { &*self.class }.hash(hasher);
         self.locals.iter().for_each(|value| {
             value.hash(hasher);
         });

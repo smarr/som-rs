@@ -7,7 +7,6 @@ use crate::primitives::PrimitiveFn;
 use crate::universe::UniverseBC;
 use crate::value::Value;
 use crate::{expect_args, reverse};
-use crate::gc::GCRefToInstance;
 
 pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[
     ("new", self::new, true),
@@ -38,8 +37,7 @@ fn new(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
         Value::Class(class) => class,
     ]);
 
-    let instance = Instance::from_class(class);
-    let instance_ref = GCRefToInstance::from_instance(instance, universe.mutator);
+    let instance_ref = Instance::from_class(class, universe.mutator);
     interpreter.stack.push(Value::Instance(instance_ref));
 }
 

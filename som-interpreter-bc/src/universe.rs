@@ -7,6 +7,7 @@ use std::rc::Rc;
 
 use anyhow::{anyhow, Error};
 use som_core::universe::UniverseForParser;
+use som_gc::api::mmtk_destroy_mutator;
 use som_gc::SOMVM;
 use crate::block::Block;
 use crate::class::Class;
@@ -81,6 +82,12 @@ pub struct UniverseBC {
     pub core: CoreClasses,
     /// mutator thread for GC.
     pub mutator: *mut mmtk::Mutator<SOMVM>
+}
+
+impl Drop for UniverseBC {
+    fn drop(&mut self) {
+        mmtk_destroy_mutator(self.mutator)
+    }
 }
 
 impl UniverseForParser for UniverseBC {

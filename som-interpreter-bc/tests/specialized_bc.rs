@@ -1,7 +1,7 @@
 use som_core::bytecode::Bytecode;
 use som_core::bytecode::Bytecode::*;
 use std::path::PathBuf;
-
+use som_gc::vm_util_idk::init_gc;
 use som_interpreter_bc::compiler;
 use som_interpreter_bc::method::MethodKind;
 use som_interpreter_bc::universe::UniverseBC;
@@ -13,7 +13,8 @@ fn setup_universe() -> UniverseBC {
         PathBuf::from("../core-lib/Smalltalk"),
         PathBuf::from("../core-lib/TestSuite/BasicInterpreterTests"),
     ];
-    UniverseBC::with_classpath(classpath).expect("could not setup test universe")
+    let mutator = init_gc();
+    UniverseBC::with_classpath(classpath, mutator).expect("could not setup test universe")
 }
 
 fn get_bytecodes_from_method(class_txt: &str, method_name: &str) -> Vec<Bytecode> {
