@@ -72,7 +72,7 @@ impl Value {
     /// Search for a local binding within this value.
     pub fn lookup_local(&self, idx: usize) -> Self {
         match self {
-            Self::Instance(instance_ptr) => Instance::from_gc_ptr(instance_ptr).lookup_local(idx),
+            Self::Instance(instance_ptr) => instance_ptr.lookup_local(idx),
             Self::Class(class) => class.borrow().lookup_local(idx),
             v => unreachable!("Attempting to look up a local in {:?}", v),
         }
@@ -81,7 +81,7 @@ impl Value {
     /// Assign a value to a local binding within this value.
     pub fn assign_local(&mut self, idx: usize, value: Self) {
         match self {
-            Self::Instance(instance_ptr) => Instance::from_gc_ptr(instance_ptr).assign_local(idx, value),
+            Self::Instance(instance_ptr) => instance_ptr.assign_local(idx, value),
             Self::Class(class) => class.borrow_mut().assign_local(idx, value),
             v => unreachable!("Attempting to assign a local in {:?}", v),
         }

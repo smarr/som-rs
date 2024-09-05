@@ -83,9 +83,11 @@ impl Hash for Class {
 impl Hash for Instance {
     fn hash<H: Hasher>(&self, hasher: &mut H) {
         unsafe { &*self.class }.hash(hasher);
-        self.locals.iter().for_each(|value| {
-            value.hash(hasher);
-        });
+        self.nbr_fields.hash(hasher);
+        // todo better hash
+        // self.locals.iter().for_each(|value| {
+        //     value.hash(hasher);
+        // });
     }
 }
 
