@@ -11,13 +11,13 @@ use anyhow::{bail, Context};
 use jemallocator::Jemalloc;
 use structopt::StructOpt;
 use som_gc::vm_util_idk::init_gc;
-use som_interpreter_bc::class::{Class, MaybeWeak};
+use som_interpreter_bc::class::Class;
 
 mod shell;
 
 use som_interpreter_bc::disassembler::disassemble_method_body;
+use som_interpreter_bc::gc::GCRef;
 use som_interpreter_bc::method::{Method, MethodKind};
-use som_interpreter_bc::SOMRef;
 use som_interpreter_bc::universe::UniverseBC;
 use som_interpreter_bc::value::Value;
 
@@ -61,7 +61,7 @@ fn run() -> anyhow::Result<()> {
     let opts: Options = Options::from_args();
 
     // let mut interpreter = Interpreter::new();
-
+    
     if opts.disassemble {
         return disassemble_class(opts);
     }
@@ -83,7 +83,7 @@ fn run() -> anyhow::Result<()> {
         classpath.push(directory.to_path_buf());
     }
 
-    let mutator = som_gc::vm_util_idk::init_gc();
+    let mutator = init_gc();
     
     let mut universe = UniverseBC::with_classpath(classpath, mutator)?;
     
@@ -136,31 +136,26 @@ fn disassemble_class(opts: Options) -> anyhow::Result<()> {
 
     // "Object" special casing needed since `load_class` assumes the class has a superclass and Object doesn't, and I didn't want to change the class loading logic just for the disassembler (tho it's probably fine)
     let class = match file_stem {
-        "Object" => UniverseBC::load_system_class(&mut universe.interner, classpath.as_slice(), "Object")?,
+        "Object" => UniverseBC::load_system_class(&mut universe.interner, classpath.as_slice(), "Object", universe.mutator.as_mut())?,
         _ => universe.load_class(file_stem)?
     };
 
-    dump_class_methods(Rc::clone(&class), &opts, file_stem, &mut universe);
-
-    if let MaybeWeak::Strong(cls_ref) = &class.borrow().class {
-        println!("-----------------------------------------");
-        dump_class_methods(Rc::clone(cls_ref), &opts, file_stem, &mut universe);
-    } else {
-        panic!("Weak ref for class.class in disassembler - is this possible?")
-    }
+    dump_class_methods(class, &opts, file_stem, &mut universe);
+    println!("-----------------------------------------");
+    dump_class_methods(class.to_obj().class, &opts, file_stem, &mut universe);
 
     Ok(())
 }
 
-fn dump_class_methods(class: SOMRef<Class>, opts: &Options, file_stem: &str, universe: &mut UniverseBC) {
+fn dump_class_methods(class: GCRef<Class>, opts: &Options, file_stem: &str, universe: &mut UniverseBC) {
     let methods: Vec<Rc<Method>> = if opts.args.is_empty() {
-        class.borrow().methods.values().cloned().collect::<Vec<Rc<Method>>>()
+        class.to_obj().methods.values().cloned().collect::<Vec<Rc<Method>>>()
     } else {
         opts.args
             .iter()
             .filter_map(|signature| {
                 let symbol = universe.intern_symbol(signature);
-                let maybe_method = class.borrow().methods.get(&symbol).cloned();
+                let maybe_method = class.to_obj().methods.get(&symbol).cloned();
 
                 // if maybe_method.is_none() {
                 //     eprintln!("No method named `{signature}` found in class `{file_stem}`.");
@@ -182,7 +177,7 @@ fn dump_class_methods(class: SOMRef<Class>, opts: &Options, file_stem: &str, uni
                     num_literals = env.literals.len(),
                 );
 
-                disassemble_method_body(&universe, &class.borrow(), env);
+                disassemble_method_body(&universe, &class.to_obj(), env);
             }
             MethodKind::Primitive(_) => {
                 println!(

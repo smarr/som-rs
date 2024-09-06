@@ -2,7 +2,6 @@ use std::hash::{Hash, Hasher};
 
 use crate::block::Block;
 use crate::class::Class;
-use crate::gc::GCPtr;
 use crate::instance::Instance;
 use crate::method::Method;
 use crate::value::Value;
@@ -58,11 +57,11 @@ impl Hash for Value {
             }
             Value::Class(value) => {
                 hasher.write(b"#cls#");
-                value.borrow().hash(hasher);
+                value.to_obj().hash(hasher);
             }
             Value::Instance(value) => {
                 hasher.write(b"#inst#");
-                value.ptr_to_obj().hash(hasher);
+                value.to_obj().hash(hasher);
             }
             Value::Invokable(value) => {
                 hasher.write(b"#mthd#");
@@ -83,9 +82,9 @@ impl Hash for Class {
 
 impl Hash for Instance {
     fn hash<H: Hasher>(&self, hasher: &mut H) {
-        unsafe { &*self.class }.hash(hasher);
+        self.class.to_obj().hash(hasher);
         self.nbr_fields.hash(hasher);
-        // todo better hash
+        // todo better hash that actually reads the values
         // self.locals.iter().for_each(|value| {
         //     value.hash(hasher);
         // });
@@ -104,11 +103,7 @@ impl Hash for Block {
 
 impl Hash for Method {
     fn hash<H: Hasher>(&self, hasher: &mut H) {
-        if let Some(holder) = self.holder().upgrade() {
-            holder.borrow().hash(hasher);
-        } else {
-            hasher.write(b"??");
-        }
+        self.holder.to_obj().hash(hasher);
         hasher.write(b">>");
         self.signature.hash(hasher);
     }

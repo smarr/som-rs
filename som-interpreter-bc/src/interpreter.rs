@@ -8,6 +8,7 @@ use crate::block::Block;
 use crate::class::Class;
 use crate::compiler::Literal;
 use crate::frame::Frame;
+use crate::gc::GCRef;
 use crate::interner::Interned;
 use crate::method::{Method, MethodKind};
 use crate::universe::UniverseBC;
@@ -50,7 +51,7 @@ macro_rules! super_send {
         let method = {
             let receiver = $frame.borrow().get_self();
             let holder = receiver.class($universe);
-            let super_class = holder.borrow().super_class().unwrap();
+            let super_class = holder.to_obj().super_class().unwrap();
             resolve_method($frame, &super_class, symbol, $interp.bytecode_idx)
         };
         do_send($interp, $universe, method, symbol, nb_params as usize);
@@ -188,7 +189,7 @@ impl Interpreter {
                 Bytecode::PushField(idx) => {
                     let value = match frame.borrow().get_self() {
                         Value::Instance(i) => { i.lookup_local(idx as usize) }
-                        Value::Class(c) => { c.borrow().class().borrow_mut().lookup_local(idx as usize) }
+                        Value::Class(c) => { c.to_obj().class().to_obj().lookup_local(idx as usize) }
                         v => { panic!("trying to read a field from a {:?}", &v) }
                     };
                     self.stack.push(value);
@@ -270,7 +271,7 @@ impl Interpreter {
                     let value = self.stack.pop().unwrap();
                     match frame.borrow_mut().get_self() {
                         Value::Instance(mut i) => { i.assign_local(idx as usize, value) }
-                        Value::Class(c) => { c.borrow().class().borrow_mut().assign_local(idx as usize, value) }
+                        Value::Class(c) => { c.to_obj().class().to_obj().assign_local(idx as usize, value) }
                         v => { panic!("{:?}", &v) }
                     };
                 }
@@ -447,7 +448,7 @@ impl Interpreter {
                     let self_value = interpreter.stack.iter().nth_back(nb_params).unwrap();
                     println!(
                         "{}>>#{}",
-                        self_value.class(&universe).borrow().name(),
+                        self_value.class(&universe).to_obj().name(),
                         method.signature(),
                     );
                     panic!("Primitive `#{}` not implemented", err)
@@ -457,7 +458,7 @@ impl Interpreter {
 
         fn resolve_method(
             frame: &SOMRef<Frame>,
-            class: &SOMRef<Class>,
+            class: &GCRef<Class>,
             signature: Interned,
             bytecode_idx: usize,
         ) -> Option<Rc<Method>> {
@@ -471,17 +472,17 @@ impl Interpreter {
             let maybe_found = unsafe { inline_cache.get_unchecked_mut(bytecode_idx) };
 
             match maybe_found {
-                Some((receiver, method)) if *receiver == class.as_ptr() => {
+                Some((receiver, method)) if *receiver == class.ptr.to_ptr() => {
                     Some(Rc::clone(method))
                 }
                 place @ None => {
-                    let found = class.borrow().lookup_method(signature);
+                    let found = class.to_obj().lookup_method(signature);
                     *place = found
                         .clone()
-                        .map(|method| (class.as_ptr() as *const _, method));
+                        .map(|method| (class.ptr.to_ptr() as *const _, method));
                     found
                 }
-                _ => class.borrow().lookup_method(signature),
+                _ => class.to_obj().lookup_method(signature),
             }
         }
 

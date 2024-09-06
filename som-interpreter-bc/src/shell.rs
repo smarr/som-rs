@@ -1,3 +1,6 @@
+#![allow(dead_code)]
+#![allow(unused_imports)]
+
 use std::io;
 use std::io::{BufRead, Write};
 use std::time::Instant;
@@ -12,8 +15,8 @@ use som_interpreter_bc::interpreter::Interpreter;
 use som_interpreter_bc::universe::UniverseBC;
 use som_interpreter_bc::value::Value;
 
-/// Launches an interactive Read-Eval-Print-Loop within the given universe.
-#[allow(dead_code)]
+// /// Launches an interactive Read-Eval-Print-Loop within the given universe.
+/*
 pub fn interactive(
     interpreter: &mut Interpreter,
     universe: &mut UniverseBC,
@@ -93,20 +96,20 @@ pub fn interactive(
             }
         };
         let metaclass_class = universe.metaclass_class();
-        class.borrow_mut().set_super_class(&object_class);
+        class.to_obj().set_super_class(&object_class);
         class
-            .borrow()
+            .to_obj()
             .class()
-            .borrow_mut()
-            .set_super_class(&object_class.borrow().class());
+            .to_obj()
+            .set_super_class(&object_class.to_obj().class());
         class
-            .borrow()
+            .to_obj()
             .class()
-            .borrow_mut()
+            .to_obj()
             .set_class(&metaclass_class);
 
         let method = class
-            .borrow()
+            .to_obj()
             .lookup_method(method_name)
             .expect("method not found ??");
         let start = Instant::now();
@@ -161,4 +164,4 @@ pub fn interactive(
     }
 
     Ok(())
-}
+}*/

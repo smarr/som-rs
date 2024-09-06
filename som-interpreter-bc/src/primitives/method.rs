@@ -18,10 +18,7 @@ fn holder(interpreter: &mut Interpreter, _: &mut UniverseBC) {
         Value::Invokable(invokable) => invokable,
     ]);
 
-    match invokable.holder().upgrade() {
-        Some(holder) => interpreter.stack.push(Value::Class(holder)),
-        None => panic!("'{}': method sholder has been collected", SIGNATURE),
-    }
+    interpreter.stack.push(Value::Class(invokable.holder().clone()))
 }
 
 fn signature(interpreter: &mut Interpreter, universe: &mut UniverseBC) {

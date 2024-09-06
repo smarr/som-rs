@@ -45,9 +45,9 @@ fn basic_interpreter_tests() {
         ("Blocks testEmptyZeroArg", Value::Integer(1)),
         ("Blocks testEmptyOneArg", Value::Integer(1)),
         ("Blocks testEmptyTwoArg", Value::Integer(1)),
-        ("Return testReturnSelf", return_class.clone()),
-        ("Return testReturnSelfImplicitly", return_class.clone()),
-        ("Return testNoReturnReturnsSelf", return_class.clone()),
+        ("Return testReturnSelf", return_class),
+        ("Return testReturnSelfImplicitly", return_class),
+        ("Return testNoReturnReturnsSelf", return_class),
         (
             "Return testBlockReturnsImplicitlyLastValue",
             Value::Integer(4),
@@ -81,11 +81,11 @@ fn basic_interpreter_tests() {
         ),
         (
             "CompilerSimplification testReturnSelf",
-            compiler_simplification_class.clone(),
+            compiler_simplification_class,
         ),
         (
             "CompilerSimplification testReturnSelfImplicitly",
-            compiler_simplification_class.clone(),
+            compiler_simplification_class,
         ),
         (
             "CompilerSimplification testReturnArgumentN",

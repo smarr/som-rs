@@ -24,7 +24,7 @@ fn superclass(interpreter: &mut Interpreter, _: &mut UniverseBC) {
         Value::Class(class) => class,
     ]);
 
-    let super_class = class.borrow().super_class();
+    let super_class = class.to_obj().super_class();
     interpreter
         .stack
         .push(super_class.map(Value::Class).unwrap_or(Value::Nil));
@@ -48,7 +48,7 @@ fn name(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
         Value::Class(class) => class,
     ]);
 
-    let sym = universe.intern_symbol(class.borrow().name());
+    let sym = universe.intern_symbol(class.to_obj().name());
     interpreter.stack.push(Value::Symbol(sym));
 }
 
@@ -60,7 +60,7 @@ fn methods(interpreter: &mut Interpreter, _: &mut UniverseBC) {
     ]);
 
     let methods = class
-        .borrow()
+        .to_obj()
         .methods
         .values()
         .map(|invokable| Value::Invokable(invokable.clone()))
@@ -80,7 +80,7 @@ fn fields(interpreter: &mut Interpreter, _: &mut UniverseBC) {
 
     interpreter.stack.push(Value::Array(Rc::new(RefCell::new(
         class
-            .borrow()
+            .to_obj()
             .locals
             .keys()
             .copied()

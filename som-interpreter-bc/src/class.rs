@@ -1,12 +1,17 @@
 use std::fmt;
+use std::marker::PhantomData;
 use std::rc::Rc;
 
 use indexmap::IndexMap;
-
+use mmtk::{AllocationSemantics, Mutator};
+use som_gc::api::{mmtk_alloc, mmtk_post_alloc};
+use som_gc::SOMVM;
 use crate::interner::Interned;
 use crate::method::Method;
 use crate::value::Value;
 use crate::{SOMRef, SOMWeakRef};
+use crate::gc::{Alloc, GCRef};
+use core::mem::size_of;
 
 /// A reference that may be either weak or owned/strong.
 #[derive(Debug, Clone)]
@@ -23,15 +28,40 @@ pub struct Class {
     /// The class' name.
     pub name: String,
     /// The class of this class.
-    pub class: MaybeWeak<Class>,
+    pub class: GCRef<Class>,
     /// The superclass of this class.
-    pub super_class: Option<SOMRef<Class>>,
+    pub super_class: Option<GCRef<Class>>,
     /// The class' locals.
     pub locals: IndexMap<Interned, Value>,
     /// The class' methods/invokables.
     pub methods: IndexMap<Interned, Rc<Method>>,
     /// Is this class a static one ?
     pub is_static: bool,
+}
+
+impl Alloc<Class> for Class {
+    fn alloc(class: Class, mutator: &mut Mutator<SOMVM>) -> GCRef<Self> {
+        let size = size_of::<Class>();
+        let align= 8;
+        let offset= 0;
+        let semantics = AllocationSemantics::Default;
+
+        let class_addr = mmtk_alloc(mutator, size, align, offset, semantics);
+        debug_assert!(!class_addr.is_zero());
+
+        mmtk_post_alloc(mutator, SOMVM::object_start_to_ref(class_addr), size, semantics);
+
+        unsafe {
+            *class_addr.as_mut_ref() = class;
+        }
+
+        // println!("class allocation OK");
+
+        GCRef {
+            ptr: class_addr,
+            _phantom: PhantomData
+        }
+    }
 }
 
 impl Class {
@@ -41,40 +71,35 @@ impl Class {
     }
 
     /// Get the class of this class.
-    pub fn class(&self) -> SOMRef<Self> {
-        match self.class {
-            MaybeWeak::Weak(ref weak) => weak.upgrade().unwrap_or_else(|| {
-                panic!("superclass dropped, cannot upgrade ref ({})", self.name())
-            }),
-            MaybeWeak::Strong(ref owned) => owned.clone(),
-        }
+    pub fn class(&self) -> GCRef<Self> {
+        self.class
     }
 
     /// Set the class of this class (as a weak reference).
-    pub fn set_class(&mut self, class: &SOMRef<Self>) {
-        self.class = MaybeWeak::Weak(Rc::downgrade(class));
+    pub fn set_class(&mut self, class: &GCRef<Self>) {
+        self.class = *class;
     }
 
-    /// Set the class of this class (as a strong reference).
-    pub fn set_class_owned(&mut self, class: &SOMRef<Self>) {
-        self.class = MaybeWeak::Strong(class.clone());
+    /// Set the class of this class (as a strong reference). TODO now useless
+    pub fn set_class_owned(&mut self, class: &GCRef<Self>) {
+        self.class = *class;
     }
 
     /// Get the superclass of this class.
-    pub fn super_class(&self) -> Option<SOMRef<Self>> {
-        self.super_class.clone()
+    pub fn super_class(&self) -> Option<GCRef<Self>> {
+        self.super_class
     }
 
     /// Set the superclass of this class (as a weak reference).
-    pub fn set_super_class(&mut self, class: &SOMRef<Self>) {
-        self.super_class = Some(class.clone());
+    pub fn set_super_class(&mut self, class: &GCRef<Self>) {
+        self.super_class = Some(*class);
     }
 
     /// Search for a given method within this class.
     pub fn lookup_method(&self, signature: Interned) -> Option<Rc<Method>> {
         self.methods.get(&signature).cloned().or_else(|| {
             self.super_class.as_ref()?
-                .borrow()
+                .to_obj()
                 .lookup_method(signature)
         })
     }
@@ -83,8 +108,7 @@ impl Class {
     pub fn lookup_local(&self, idx: usize) -> Value {
         self.locals.values().nth(idx).cloned().unwrap_or_else(|| {
             let super_class = self.super_class().unwrap();
-            let super_class_ref = super_class.borrow_mut();
-            super_class_ref.lookup_local(idx)
+            super_class.to_obj().lookup_local(idx)
         })
     }
 
@@ -96,7 +120,7 @@ impl Class {
             },
             None => {
                 let super_class = self.super_class().unwrap();
-                super_class.borrow_mut().assign_local(idx, value);
+                super_class.to_obj().assign_local(idx, value);
             }
         }
     }

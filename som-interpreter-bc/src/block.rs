@@ -9,6 +9,7 @@ use som_core::bytecode::Bytecode;
 use crate::class::Class;
 use crate::compiler::Literal;
 use crate::frame::Frame;
+use crate::gc::GCRef;
 // use crate::interner::Interned;
 use crate::method::Method;
 use crate::universe::UniverseBC;
@@ -36,7 +37,7 @@ pub struct Block {
 
 impl Block {
     /// Get the block's class.
-    pub fn class(&self, universe: &UniverseBC) -> SOMRef<Class> {
+    pub fn class(&self, universe: &UniverseBC) -> GCRef<Class> {
         match self.nb_parameters() {
             0 => universe.block1_class(),
             1 => universe.block2_class(),

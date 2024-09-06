@@ -22,7 +22,7 @@ pub enum FrameKind {
     /// A frame created from a method invocation.
     Method {
         /// The holder of the current method (used for lexical self/super).
-        holder: SOMRef<Class>,
+        holder: GCRef<Class>,
         /// The current method.
         method: Rc<Method>,
         /// The self value.

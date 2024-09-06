@@ -149,7 +149,7 @@ fn perform_in_super_class(interpreter: &mut Interpreter, universe: &mut Universe
     ]);
 
     let signature = universe.lookup_symbol(sym);
-    let method = class.borrow().lookup_method(sym);
+    let method = class.to_obj().lookup_method(sym);
 
     match method {
         Some(invokable) => invokable.invoke(interpreter, universe, object, vec![]),
@@ -182,7 +182,7 @@ fn perform_with_arguments_in_super_class(interpreter: &mut Interpreter, universe
     ]);
 
     let signature = universe.lookup_symbol(sym);
-    let method = class.borrow().lookup_method(sym);
+    let method = class.to_obj().lookup_method(sym);
 
     match method {
         Some(invokable) => {

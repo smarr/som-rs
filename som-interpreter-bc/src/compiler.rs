@@ -3,9 +3,10 @@
 //!
 use std::cell::RefCell;
 use std::hash::{Hash, Hasher};
-use std::rc::{Rc, Weak};
+use std::rc::Rc;
 
 use indexmap::{IndexMap, IndexSet};
+use mmtk::Mutator;
 use num_bigint::BigInt;
 
 use som_core::ast;
@@ -13,16 +14,16 @@ use som_core::ast::{Expression, MethodBody};
 #[cfg(feature = "frame-debug-info")]
 use som_core::ast::BlockDebugInfo;
 use som_core::bytecode::Bytecode;
-
+use som_gc::SOMVM;
 use crate::block::{Block, BlockInfo};
-use crate::class::{Class, MaybeWeak};
+use crate::class::Class;
+use crate::gc::{Alloc, GCRef};
 #[cfg(not(feature = "inlining-disabled"))]
 use crate::inliner::PrimMessageInliner;
 use crate::interner::{Interned, Interner};
 use crate::method::{Method, MethodEnv, MethodKind};
 use crate::primitives;
 use crate::value::Value;
-use crate::SOMRef;
 
 #[derive(Debug, Clone)]
 pub enum Literal {
@@ -745,7 +746,7 @@ fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::MethodDef) -> Option<Meth
                 })
             }
         },
-        holder: Weak::new(),
+        holder: GCRef::default(),
         signature: ctxt.signature,
     };
 
@@ -821,23 +822,24 @@ fn compile_block(outer: &mut dyn GenCtxt, defn: &ast::Block) -> Option<Block> {
 pub fn compile_class(
     interner: &mut Interner,
     defn: &ast::ClassDef,
-    super_class: Option<&SOMRef<Class>>,
-) -> Option<SOMRef<Class>> {
+    super_class: Option<&GCRef<Class>>,
+    mutator: &mut Mutator<SOMVM>,
+) -> Option<GCRef<Class>> {
     let mut locals = IndexSet::new();
 
     fn collect_static_locals(
         interner: &mut Interner,
-        class: &SOMRef<Class>,
+        class: &GCRef<Class>,
         locals: &mut IndexSet<Interned>,
     ) {
-        if let Some(class) = class.borrow().super_class() {
+        if let Some(class) = class.to_obj().super_class() {
             collect_static_locals(interner, &class, locals);
         }
-        locals.extend(class.borrow().locals.keys().copied());
+        locals.extend(class.to_obj().locals.keys().copied());
     }
 
     if let Some(super_class) = super_class {
-        collect_static_locals(interner, &super_class.borrow().class(), &mut locals);
+        collect_static_locals(interner, &super_class.to_obj().class(), &mut locals);
     }
 
     locals.extend(
@@ -853,19 +855,21 @@ pub fn compile_class(
         interner,
     };
 
-    let static_class = Rc::new(RefCell::new(Class {
+    let static_class = Class {
         name: static_class_ctxt.name.clone(),
-        class: MaybeWeak::Weak(Weak::new()),
+        class: GCRef::default(),
         super_class: None,
         locals: IndexMap::new(),
         methods: IndexMap::new(),
         is_static: true,
-    }));
+    };
+    
+    let static_class_gc_ptr = Class::alloc(static_class, mutator);
 
     for method in &defn.static_methods {
         let signature = static_class_ctxt.interner.intern(method.signature.as_str());
         let mut method = compile_method(&mut static_class_ctxt, method)?;
-        method.holder = Rc::downgrade(&static_class);
+        method.holder = static_class_gc_ptr;
         static_class_ctxt.methods.insert(signature, Rc::new(method));
     }
 
@@ -882,21 +886,21 @@ pub fn compile_class(
             let method = Method {
                 signature: signature.to_string(),
                 kind: MethodKind::Primitive(primitive),
-                holder: Rc::downgrade(&static_class),
+                holder: static_class_gc_ptr,
             };
             let signature = static_class_ctxt.interner.intern(signature);
             static_class_ctxt.methods.insert(signature, Rc::new(method));
         }
     }
 
-    let mut static_class_mut = static_class.borrow_mut();
+    let static_class_mut = static_class_gc_ptr.to_obj(); // todo couldn't we have done that before
     static_class_mut.locals = static_class_ctxt
         .fields
         .into_iter()
         .map(|name| (name, Value::Nil))
         .collect();
     static_class_mut.methods = static_class_ctxt.methods;
-    drop(static_class_mut);
+    // drop(static_class_mut);
 
     // for method in static_class.borrow().methods.values() {
     //     println!("{}", method);
@@ -906,13 +910,13 @@ pub fn compile_class(
 
     fn collect_instance_locals(
         interner: &mut Interner,
-        class: &SOMRef<Class>,
+        class: &GCRef<Class>,
         locals: &mut IndexSet<Interned>,
     ) {
-        if let Some(class) = class.borrow().super_class() {
+        if let Some(class) = class.to_obj().super_class() {
             collect_instance_locals(interner, &class, locals);
         }
-        locals.extend(class.borrow().locals.keys());
+        locals.extend(class.to_obj().locals.keys());
     }
 
     if let Some(super_class) = super_class {
@@ -932,21 +936,23 @@ pub fn compile_class(
         interner,
     };
 
-    let instance_class = Rc::new(RefCell::new(Class {
+    let instance_class = Class {
         name: instance_class_ctxt.name.clone(),
-        class: MaybeWeak::Strong(static_class.clone()),
+        class: static_class_gc_ptr,
         super_class: None,
         locals: IndexMap::new(),
         methods: IndexMap::new(),
         is_static: false,
-    }));
+    };
+
+    let instance_class_gc_ptr = Class::alloc(instance_class, mutator);
 
     for method in &defn.instance_methods {
         let signature = instance_class_ctxt
             .interner
             .intern(method.signature.as_str());
         let mut method = compile_method(&mut instance_class_ctxt, method)?;
-        method.holder = Rc::downgrade(&instance_class);
+        method.holder = instance_class_gc_ptr;
         instance_class_ctxt
             .methods
             .insert(signature, Rc::new(method));
@@ -965,7 +971,7 @@ pub fn compile_class(
             let method = Method {
                 signature: signature.to_string(),
                 kind: MethodKind::Primitive(primitive),
-                holder: Rc::downgrade(&instance_class),
+                holder: instance_class_gc_ptr,
             };
             let signature = instance_class_ctxt.interner.intern(signature);
             instance_class_ctxt
@@ -974,14 +980,14 @@ pub fn compile_class(
         }
     }
 
-    let mut instance_class_mut = instance_class.borrow_mut();
+    let instance_class_mut = instance_class_gc_ptr.to_obj();
     instance_class_mut.locals = instance_class_ctxt
         .fields
         .into_iter()
         .map(|name| (name, Value::Nil))
         .collect();
     instance_class_mut.methods = instance_class_ctxt.methods;
-    drop(instance_class_mut);
+    // drop(instance_class_mut);
 
     // for method in instance_class.borrow().methods.values() {
     //     println!("{}", method);
@@ -989,5 +995,5 @@ pub fn compile_class(
 
     // println!("compiled '{}' !", defn.name);
 
-    Some(instance_class)
+    Some(instance_class_gc_ptr)
 }

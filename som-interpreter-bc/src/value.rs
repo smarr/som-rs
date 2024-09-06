@@ -5,7 +5,7 @@ use num_bigint::BigInt;
 
 use crate::block::Block;
 use crate::class::Class;
-use crate::gc::{GCPtr, GCRef};
+use crate::gc::GCRef;
 use crate::instance::Instance;
 use crate::interner::Interned;
 use crate::method::Method;
@@ -38,14 +38,14 @@ pub enum Value {
     /// A generic (non-primitive) class instance.
     Instance(GCRef<Instance>),
     /// A bare class object.
-    Class(SOMRef<Class>),
+    Class(GCRef<Class>),
     /// A bare invokable.
     Invokable(Rc<Method>),
 }
 
 impl Value {
     /// Get the class of the current value.
-    pub fn class(&self, universe: &UniverseBC) -> SOMRef<Class> {
+    pub fn class(&self, universe: &UniverseBC) -> GCRef<Class> {
         match self {
             Self::Nil => universe.nil_class(),
             Self::System => universe.system_class(),
@@ -58,22 +58,22 @@ impl Value {
             Self::String(_) => universe.string_class(),
             Self::Array(_) => universe.array_class(),
             Self::Block(block) => block.class(universe),
-            Self::Instance(instance_ptr) => instance_ptr.ptr_to_obj().class(),
-            Self::Class(class) => class.borrow().class(),
+            Self::Instance(instance_ptr) => instance_ptr.to_obj().class(),
+            Self::Class(class) => class.to_obj().class(),
             Self::Invokable(invokable) => invokable.class(universe),
         }
     }
 
     /// Search for a given method for this value.
     pub fn lookup_method(&self, universe: &UniverseBC, signature: Interned) -> Option<Rc<Method>> {
-        self.class(universe).borrow().lookup_method(signature)
+        self.class(universe).to_obj().lookup_method(signature)
     }
 
     /// Search for a local binding within this value.
     pub fn lookup_local(&self, idx: usize) -> Self {
         match self {
             Self::Instance(instance_ptr) => instance_ptr.lookup_local(idx),
-            Self::Class(class) => class.borrow().lookup_local(idx),
+            Self::Class(class) => class.to_obj().lookup_local(idx),
             v => unreachable!("Attempting to look up a local in {:?}", v),
         }
     }
@@ -82,7 +82,7 @@ impl Value {
     pub fn assign_local(&mut self, idx: usize, value: Self) {
         match self {
             Self::Instance(instance_ptr) => instance_ptr.assign_local(idx, value),
-            Self::Class(class) => class.borrow_mut().assign_local(idx, value),
+            Self::Class(class) => class.to_obj().assign_local(idx, value),
             v => unreachable!("Attempting to assign a local in {:?}", v),
         }
     }
@@ -92,8 +92,8 @@ impl Value {
     /// But those prims are free to be used and abused by devs, so they CAN fail, and we need to check that they won't fail before we invoke them. Hence this `has_local`.
     pub fn has_local(&self, index: usize) -> bool {
         match self {
-            Self::Instance(instance_ptr) => instance_ptr.ptr_to_obj().has_local(index),
-            Self::Class(class) => class.borrow().has_local(index),
+            Self::Instance(instance_ptr) => instance_ptr.to_obj().has_local(index),
+            Self::Class(class) => class.to_obj().has_local(index),
             _ => false,
         }
     }
@@ -128,14 +128,12 @@ impl Value {
             Self::Block(block) => format!("instance of Block{}", block.nb_parameters() + 1),
             Self::Instance(instance_ptr) => format!(
                 "instance of {} class",
-                instance_ptr.ptr_to_obj().class().borrow().name(),
+                instance_ptr.to_obj().class().to_obj().name(),
             ),
-            Self::Class(class) => class.borrow().name().to_string(),
-            Self::Invokable(invokable) => invokable
-                .holder()
-                .upgrade()
-                .map(|holder| format!("{}>>#{}", holder.borrow().name(), invokable.signature()))
-                .unwrap_or_else(|| format!("??>>#{}", invokable.signature())),
+            Self::Class(class) => class.to_obj().name().to_string(),
+            Self::Invokable(invokable) => {
+                format!("{}>>#{}", invokable.holder().to_obj().name(), invokable.signature())
+            }
         }
     }
 }
@@ -158,7 +156,7 @@ impl PartialEq for Value {
             (Self::String(a), Self::String(b)) => Rc::ptr_eq(a, b),
             (Self::Array(a), Self::Array(b)) => Rc::ptr_eq(a, b),
             (Self::Instance(a), Self::Instance(b)) => a == b,
-            (Self::Class(a), Self::Class(b)) => Rc::ptr_eq(a, b),
+            (Self::Class(a), Self::Class(b)) => a == b,
             (Self::Block(a), Self::Block(b)) => Rc::ptr_eq(a, b),
             (Self::Invokable(a), Self::Invokable(b)) => Rc::ptr_eq(a, b),
             _ => false,
@@ -179,14 +177,10 @@ impl fmt::Debug for Value {
             Self::String(val) => f.debug_tuple("String").field(val).finish(),
             Self::Array(val) => f.debug_tuple("Array").field(&val.borrow()).finish(),
             Self::Block(val) => f.debug_tuple("Block").field(val).finish(),
-            Self::Instance(val) => f.debug_tuple("Instance").field(&val.ptr_to_obj()).finish(),
-            Self::Class(val) => f.debug_tuple("Class").field(&val.borrow()).finish(),
+            Self::Instance(val) => f.debug_tuple("Instance").field(&val.to_obj()).finish(),
+            Self::Class(val) => f.debug_tuple("Class").field(&val.to_obj()).finish(),
             Self::Invokable(val) => {
-                let signature = val
-                    .holder()
-                    .upgrade()
-                    .map(|holder| format!("{}>>#{}", holder.borrow().name(), val.signature()))
-                    .unwrap_or_else(|| format!("??>>#{}", val.signature()));
+                let signature = format!("{}>>#{}", val.holder.to_obj().name(), val.signature());
                 f.debug_tuple("Invokable").field(&signature).finish()
             }
         }

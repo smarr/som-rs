@@ -10,10 +10,10 @@ use crate::interpreter::Interpreter;
 use crate::primitives::PrimitiveFn;
 use crate::universe::UniverseBC;
 use crate::value::Value;
-use crate::{SOMRef, SOMWeakRef};
 
 #[cfg(feature = "frame-debug-info")]
 use som_core::ast::BlockDebugInfo;
+use crate::gc::GCRef;
 
 #[derive(Clone)]
 pub struct MethodEnv {
@@ -47,12 +47,12 @@ impl MethodKind {
 #[derive(Clone)]
 pub struct Method {
     pub kind: MethodKind,
-    pub holder: SOMWeakRef<Class>,
+    pub holder: GCRef<Class>,
     pub signature: String,
 }
 
 impl Method {
-    pub fn class(&self, universe: &UniverseBC) -> SOMRef<Class> {
+    pub fn class(&self, universe: &UniverseBC) -> GCRef<Class> {
         if self.is_primitive() {
             universe.primitive_class()
         } else {
@@ -64,7 +64,7 @@ impl Method {
         &self.kind
     }
 
-    pub fn holder(&self) -> &SOMWeakRef<Class> {
+    pub fn holder(&self) -> &GCRef<Class> {
         &self.holder
     }
 
@@ -105,7 +105,7 @@ impl fmt::Display for Method {
         write!(
             f,
             "#{}>>#{} = ",
-            self.holder.upgrade().unwrap().borrow().name(),
+            self.holder.to_obj().name(),
             self.signature
         )?;
         match &self.kind {
