@@ -25,8 +25,7 @@ pub struct Class {
     /// The class of this class.
     pub class: MaybeWeak<Class>,
     /// The superclass of this class.
-    // TODO: Should probably be `Option<SOMRef<Class>>`.
-    pub super_class: SOMWeakRef<Class>,
+    pub super_class: Option<SOMRef<Class>>,
     /// The class' locals.
     pub locals: IndexMap<Interned, Value>,
     /// The class' methods/invokables.
@@ -63,19 +62,18 @@ impl Class {
 
     /// Get the superclass of this class.
     pub fn super_class(&self) -> Option<SOMRef<Self>> {
-        self.super_class.upgrade()
+        self.super_class.clone()
     }
 
     /// Set the superclass of this class (as a weak reference).
     pub fn set_super_class(&mut self, class: &SOMRef<Self>) {
-        self.super_class = Rc::downgrade(class);
+        self.super_class = Some(class.clone());
     }
 
     /// Search for a given method within this class.
     pub fn lookup_method(&self, signature: Interned) -> Option<Rc<Method>> {
         self.methods.get(&signature).cloned().or_else(|| {
-            self.super_class
-                .upgrade()?
+            self.super_class.as_ref()?
                 .borrow()
                 .lookup_method(signature)
         })

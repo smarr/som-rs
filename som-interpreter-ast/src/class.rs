@@ -29,8 +29,7 @@ pub struct Class {
     /// The class of this class.
     pub class: MaybeWeak<Class>,
     /// The superclass of this class.
-    // TODO: Should probably be `Option<SOMRef<Class>>`.
-    pub super_class: SOMWeakRef<Class>,
+    pub super_class: Option<SOMRef<Class>>,
     /// The class' fields.
     pub fields: Vec<Value>,
     /// The class' fields names.
@@ -82,7 +81,7 @@ impl Class {
         let static_class = Rc::new(RefCell::new(Self {
             name: format!("{} class", defn.name),
             class: MaybeWeak::Weak(Weak::new()),
-            super_class: Weak::new(),
+            super_class: None,
             fields: vec![Value::Nil; static_locals.len()],
             field_names: defn.static_locals,
             methods: IndexMap::new(),
@@ -92,7 +91,7 @@ impl Class {
         let instance_class = Rc::new(RefCell::new(Self {
             name: defn.name.clone(),
             class: MaybeWeak::Strong(static_class.clone()),
-            super_class: Weak::new(),
+            super_class: None,
             fields: vec![Value::Nil; instance_locals.len()],
             field_names: defn.instance_locals,
             methods: IndexMap::new(),
@@ -200,7 +199,7 @@ impl Class {
 
     /// Get the superclass of this class.
     pub fn super_class(&self) -> Option<SOMRef<Self>> {
-        self.super_class.upgrade()
+        self.super_class.clone()
     }
 
     /// Set the superclass of this class (as a weak reference).
@@ -212,15 +211,14 @@ impl Class {
             self.fields.insert(0, local.clone());
         }
 
-        self.super_class = Rc::downgrade(class);
+        self.super_class = Some(class.clone());
     }
 
     /// Search for a given method within this class.
     pub fn lookup_method(&self, signature: impl AsRef<str>) -> Option<SOMRef<Method>> {
         let signature = signature.as_ref();
         self.methods.get(signature).cloned().or_else(|| {
-            self.super_class
-                .upgrade()?
+            self.super_class.clone()?
                 .borrow()
                 .lookup_method(signature)
         })

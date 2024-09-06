@@ -856,7 +856,7 @@ pub fn compile_class(
     let static_class = Rc::new(RefCell::new(Class {
         name: static_class_ctxt.name.clone(),
         class: MaybeWeak::Weak(Weak::new()),
-        super_class: Weak::new(),
+        super_class: None,
         locals: IndexMap::new(),
         methods: IndexMap::new(),
         is_static: true,
@@ -935,7 +935,7 @@ pub fn compile_class(
     let instance_class = Rc::new(RefCell::new(Class {
         name: instance_class_ctxt.name.clone(),
         class: MaybeWeak::Strong(static_class.clone()),
-        super_class: Weak::new(),
+        super_class: None,
         locals: IndexMap::new(),
         methods: IndexMap::new(),
         is_static: false,
