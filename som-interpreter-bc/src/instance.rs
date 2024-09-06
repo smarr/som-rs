@@ -31,7 +31,7 @@ pub struct Instance {
 
 impl Instance {
     /// Construct an instance for a given class.
-    pub fn from_class(class: SOMRef<Class>, mutator: *mut mmtk::Mutator<SOMVM>) -> GCRef<Instance> {
+    pub fn from_class(class: SOMRef<Class>, mutator: &mut mmtk::Mutator<SOMVM>) -> GCRef<Instance> {
         fn get_nbr_fields(class: &SOMRef<Class>) -> usize {
             let mut nbr_locals = class.borrow().locals.len();
             if let Some(super_class) = class.borrow().super_class() {
@@ -46,7 +46,7 @@ impl Instance {
         Self::alloc_instance(instance, nbr_fields, mutator)
     }
 
-    fn alloc_instance(instance: Instance, nbr_fields: usize, mutator: *mut mmtk::Mutator<SOMVM>) -> GCRef<Instance> {
+    fn alloc_instance(instance: Instance, nbr_fields: usize, mutator: &mut mmtk::Mutator<SOMVM>) -> GCRef<Instance> {
         let size = size_of::<Instance>() + (instance.nbr_fields * size_of::<Value>());
         // let size = std::mem::size_of::<Instance>();
         let align= 8;

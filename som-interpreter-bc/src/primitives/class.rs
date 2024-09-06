@@ -37,7 +37,7 @@ fn new(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
         Value::Class(class) => class,
     ]);
 
-    let instance_ref = Instance::from_class(class, universe.mutator);
+    let instance_ref = Instance::from_class(class, &mut universe.mutator);
     interpreter.stack.push(Value::Instance(instance_ref));
 }
 

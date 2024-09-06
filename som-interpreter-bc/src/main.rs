@@ -10,6 +10,7 @@ use anyhow::{bail, Context};
 #[cfg(feature = "jemalloc")]
 use jemallocator::Jemalloc;
 use structopt::StructOpt;
+use som_gc::vm_util_idk::init_gc;
 use som_interpreter_bc::class::{Class, MaybeWeak};
 
 mod shell;
@@ -129,7 +130,9 @@ fn disassemble_class(opts: Options) -> anyhow::Result<()> {
     if let Some(directory) = file.parent() {
         classpath.push(directory.to_path_buf());
     }
-    let mut universe = UniverseBC::with_classpath(classpath.clone(), std::ptr::null_mut())?;
+    
+    let mutator = init_gc();
+    let mut universe = UniverseBC::with_classpath(classpath.clone(), mutator)?;
 
     // "Object" special casing needed since `load_class` assumes the class has a superclass and Object doesn't, and I didn't want to change the class loading logic just for the disassembler (tho it's probably fine)
     let class = match file_stem {

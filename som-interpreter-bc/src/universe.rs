@@ -81,12 +81,12 @@ pub struct UniverseBC {
     /// The interpreter's core classes.
     pub core: CoreClasses,
     /// mutator thread for GC.
-    pub mutator: *mut mmtk::Mutator<SOMVM>
+    pub mutator: Box<mmtk::Mutator<SOMVM>>
 }
 
 impl Drop for UniverseBC {
     fn drop(&mut self) {
-        mmtk_destroy_mutator(self.mutator)
+        mmtk_destroy_mutator(self.mutator.as_mut())
     }
 }
 
@@ -124,7 +124,7 @@ impl UniverseForParser for UniverseBC {
 
 impl UniverseBC {
     /// Initialize the universe from the given classpath.
-    pub fn with_classpath(classpath: Vec<PathBuf>, mutator: *mut mmtk::Mutator<SOMVM>) -> Result<Self, Error> {
+    pub fn with_classpath(classpath: Vec<PathBuf>, mutator: Box<mmtk::Mutator<SOMVM>>) -> Result<Self, Error> {
         let mut interner = Interner::with_capacity(100);
         let mut globals = HashMap::new();
 
