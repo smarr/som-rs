@@ -58,35 +58,22 @@ impl Instance {
 
         mmtk_post_alloc(mutator, SOMVM::object_start_to_ref(instance_addr), size, semantics);
 
-        // dbg!(&size);
-        // dbg!(size_of::<Instance>());
-        
-        let mut gc_ref_to_instance = GCRef {
-            ptr: instance_addr,
-            _phantom: PhantomData
-        };
-        
         unsafe {
-            let class_ptr = instance_addr.as_mut_ref();
-            *class_ptr = instance.class;
-            let nbr_fields_addr = instance_addr.add(size_of::<*mut Class>()).as_mut_ref();
-            *nbr_fields_addr = instance.nbr_fields;
+            *instance_addr.as_mut_ref() = instance;
 
-            // let mut values_addr = instance_addr.add(size_of::<*mut Class>()).add(size_of::<usize>());
-            // dbg!(&instance_addr);
-            // dbg!(&values_addr);
-            // dbg!(size_of::<Value>());
-            
-            for i in 0..nbr_fields {
-                gc_ref_to_instance.assign_local(i, Value::Nil); // todo do a memset! not sure there isn't a bug right now.
-                // *values_addr.as_mut_ref() = Value::Nil;
-                // values_addr = values_addr.add(size_of::<Value>());
+            let mut values_addr = instance_addr.add(size_of::<Instance>());
+            for _ in 0..nbr_fields {
+                *values_addr.as_mut_ref() = Value::Nil;
+                values_addr = values_addr.add(size_of::<Value>());
             }
         };
 
-        // println!("allocation OK");
+        // println!("instance allocation OK");
 
-        gc_ref_to_instance
+        GCRef {
+            ptr: instance_addr,
+            _phantom: PhantomData
+        }
     }
 
     pub fn from_gc_ptr(gc_ptr: &GCRef<Instance>) -> &mut Instance {
@@ -121,7 +108,7 @@ impl Instance {
 
 impl GCRef<Instance> {
     fn get_field_addr(&self, idx: usize) -> Address {
-        self.ptr.add(size_of::<*mut Class>()).add(idx * size_of::<Value>())
+        self.ptr.add(size_of::<Instance>()).add(idx * size_of::<Value>())
     }
 
     pub fn lookup_local(&self, idx: usize) -> Value {
