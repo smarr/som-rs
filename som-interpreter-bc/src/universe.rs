@@ -467,7 +467,7 @@ impl UniverseBC {
         &mut self,
         interpreter: &mut Interpreter,
         value: Value,
-        block: Rc<Block>,
+        block: GCRef<Block>,
     ) -> Option<()> {
         let method_name = self.intern_symbol("escapedBlock:");
         let method = value.lookup_method(self, method_name)?;

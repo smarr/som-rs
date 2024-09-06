@@ -5,9 +5,9 @@ use crate::inliner::JumpType::{JumpOnFalse, JumpOnTrue};
 use crate::inliner::OrAndChoice::{And, Or};
 use som_core::ast;
 use som_core::bytecode::Bytecode;
-use std::rc::Rc;
 use mmtk::Mutator;
 use som_gc::SOMVM;
+use crate::gc::{Alloc, GCRef};
 
 pub enum JumpType {
     JumpOnFalse,
@@ -33,8 +33,9 @@ pub trait PrimMessageInliner {
     fn adapt_block_after_outer_inlined(
         &self,
         ctxt: &mut dyn InnerGenCtxt,
-        block_body: &Block,
+        block_body: GCRef<Block>,
         adjust_scope_by: usize,
+        mutator: &mut Mutator<SOMVM>
     ) -> Block;
     /// Inlines `ifTrue:` and `ifFalse:`.
     fn inline_if_true_or_if_false(
@@ -108,14 +109,15 @@ impl PrimMessageInliner for ast::Message {
             _ => return None,
         };
         ctxt.remove_literal(block_idx as usize);
+        
 
-        match self.inline_compiled_block(ctxt, cond_block_ref.as_ref().blk_info.as_ref(), mutator) {
+        match self.inline_compiled_block(ctxt, cond_block_ref.to_obj().blk_info.to_obj(), mutator) {
             None => panic!("Inlining a compiled block failed!"),
             _ => Some(()),
         }
     }
 
-    fn inline_compiled_block(&self, ctxt: &mut dyn InnerGenCtxt, block: &BlockInfo, _mutator: &mut Mutator<SOMVM>) -> Option<()> {
+    fn inline_compiled_block(&self, ctxt: &mut dyn InnerGenCtxt, block: &BlockInfo, mutator: &mut Mutator<SOMVM>) -> Option<()> {
         let nbr_locals_pre_inlining = ctxt.get_nbr_locals();
         let nbr_args_pre_inlining = ctxt.get_nbr_args();
 
@@ -188,8 +190,8 @@ impl PrimMessageInliner for ast::Message {
                     Bytecode::PushBlock(block_idx) => {
                         match block.literals.get(*block_idx as usize)? {
                             Literal::Block(inner_block) => {
-                                let new_block = self.adapt_block_after_outer_inlined(ctxt, &inner_block, 1);
-                                let idx = ctxt.push_literal(Literal::Block(Rc::from(new_block)));
+                                let new_block = self.adapt_block_after_outer_inlined(ctxt, *inner_block, 1, mutator);
+                                let idx = ctxt.push_literal(Literal::Block(GCRef::<Block>::alloc(new_block, mutator)));
                                 ctxt.push_instr(Bytecode::PushBlock(idx as u8));
                             }
                             _ => panic!("PushBlock not actually pushing a block somehow"),
@@ -278,12 +280,16 @@ impl PrimMessageInliner for ast::Message {
     fn adapt_block_after_outer_inlined(
         &self,
         ctxt: &mut dyn InnerGenCtxt,
-        orig_block: &Block,
+        orig_block: GCRef<Block>,
         adjust_scope_by: usize,
+        mutator: &mut Mutator<SOMVM>
     ) -> Block {
+        let orig_block = orig_block.to_obj();
+        
         let mut block_literals_to_patch = vec![];
         let new_body = orig_block
             .blk_info
+            .to_obj()
             .body
             .iter()
             .map(|b| match b {
@@ -333,6 +339,7 @@ impl PrimMessageInliner for ast::Message {
                 Bytecode::PushBlock(block_idx) => {
                     let inner_lit = orig_block
                         .blk_info
+                        .to_obj()
                         .literals
                         .get(*block_idx as usize)
                         .unwrap_or_else(|| {
@@ -345,11 +352,12 @@ impl PrimMessageInliner for ast::Message {
 
                     let new_block = self.adapt_block_after_outer_inlined(
                         ctxt,
-                        inner_block.clone().as_ref(),
+                        *inner_block,
                         adjust_scope_by,
+                        mutator
                     );
 
-                    block_literals_to_patch.push((block_idx, Rc::from(new_block)));
+                    block_literals_to_patch.push((block_idx, GCRef::<Block>::alloc(new_block, mutator)));
 
                     Bytecode::PushBlock(*block_idx)
                 }
@@ -359,34 +367,35 @@ impl PrimMessageInliner for ast::Message {
 
         // can't just clone the inner_block then modify the body/literals because the body is behind an Rc (not Rc<RefCell<>>), so immutable
         // though if we ever want to do some runtime bytecode rewriting, it'll have to be an Rc<RefCell<>> and this code will be refactorable (not so many individual calls to .clone())
+        // TODO: we now pass a mutable pointer to a Block actually, so this is all avoidable
         Block {
             frame: orig_block.frame.clone(),
-            blk_info: Rc::new(BlockInfo {
-                // locals: orig_block.blk_info.locals.clone(),
-                nb_locals: orig_block.blk_info.nb_locals,
+            blk_info: GCRef::<BlockInfo>::alloc(BlockInfo {
+                nb_locals: orig_block.blk_info.to_obj().nb_locals,
                 literals: orig_block
                     .blk_info
+                    .to_obj()
                     .literals
                     .iter()
                     .enumerate()
                     .map(|(idx, l)| {
-                        let a = block_literals_to_patch
+                        let block_ptr = block_literals_to_patch
                             .iter()
                             .find_map(|(block_idx, blk)| (**block_idx == idx as u8).then(|| blk));
 
-                        if a.is_some() {
-                            Literal::Block(Rc::clone(a.unwrap()))
+                        if block_ptr.is_some() {
+                            Literal::Block(*block_ptr.unwrap())
                         } else {
                             l.clone()
                         }
                     })
                     .collect(),
                 body: new_body,
-                nb_params: orig_block.blk_info.nb_params,
-                inline_cache: orig_block.blk_info.inline_cache.clone(),
+                nb_params: orig_block.blk_info.to_obj().nb_params,
+                inline_cache: orig_block.blk_info.to_obj().inline_cache.clone(),
                 #[cfg(feature = "frame-debug-info")]
-                block_debug_info: orig_block.blk_info.block_debug_info.clone()
-            }),
+                block_debug_info: orig_block.blk_info.to_obj().block_debug_info.clone()
+            }, mutator),
         }
     }
 

@@ -6,7 +6,6 @@ use crate::{expect_args, reverse};
 
 /// Primitives for the **Block** and **Block1** class.
 pub mod block1 {
-    use std::rc::Rc;
     use super::*;
 
     pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[
@@ -22,10 +21,10 @@ pub mod block1 {
             Value::Block(block) => block,
         ]);
 
-        interpreter.push_block_frame(Rc::clone(&block), vec![Value::Block(block)]);
+        interpreter.push_block_frame(block, vec![Value::Block(block)]);
         
         // match interpreter.stack.pop() {
-        //     Some(Value::Block(block)) => interpreter.push_block_frame(Rc::clone(&block), vec![Value::Block(block)]),
+        //     Some(Value::Block(block)) => interpreter.push_block_frame(block, vec![Value::Block(block)]),
         //     _ => panic!("Expected a blockself when calling a block")
         // };
     }
@@ -58,7 +57,6 @@ pub mod block1 {
 
 /// Primitives for the **Block2** class.
 pub mod block2 {
-    use std::rc::Rc;
     use super::*;
 
     pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[("value:", self::value, true)];
@@ -72,14 +70,14 @@ pub mod block2 {
             argument => argument,
         ]);
 
-        interpreter.push_block_frame(Rc::clone(&block), vec![Value::Block(block), argument]);
+        interpreter.push_block_frame(block, vec![Value::Block(block), argument]);
         
         // NB: what follows is a potentially sliiiiightly faster way of handling things, but didn't lead to visible speedups, so eh.
         
         // let args = interpreter.stack.split_off(interpreter.stack.len() - 2);
         
         // match args.first() {
-        //     Some(Value::Block(block)) => interpreter.push_block_frame(Rc::clone(&block), args),
+        //     Some(Value::Block(block)) => interpreter.push_block_frame(block, args),
         //     _ => panic!("Expected a blockself when calling a block")
         // };
     }
@@ -103,7 +101,6 @@ pub mod block2 {
 
 /// Primitives for the **Block3** class.
 pub mod block3 {
-    use std::rc::Rc;
     use super::*;
 
     pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] =
@@ -119,12 +116,12 @@ pub mod block3 {
             argument2 => argument2,
         ]);
 
-        interpreter.push_block_frame(Rc::clone(&block), vec![Value::Block(block), argument1, argument2]);
+        interpreter.push_block_frame(block, vec![Value::Block(block), argument1, argument2]);
 
         // let args = interpreter.stack.split_off(interpreter.stack.len() - 3);
 
         // match args.first() {
-        //     Some(Value::Block(block)) => interpreter.push_block_frame(Rc::clone(&block), args),
+        //     Some(Value::Block(block)) => interpreter.push_block_frame(block, args),
         //     _ => panic!("Expected a blockself when calling a block")
         // };
     }

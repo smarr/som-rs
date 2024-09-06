@@ -3,7 +3,6 @@
 //!
 use std::cell::RefCell;
 use std::hash::{Hash, Hasher};
-use std::rc::Rc;
 
 use indexmap::{IndexMap, IndexSet};
 use mmtk::Mutator;
@@ -33,7 +32,7 @@ pub enum Literal {
     Integer(i64),
     BigInteger(BigInt),
     Array(Vec<u8>),
-    Block(Rc<Block>),
+    Block(GCRef<Block>),
 }
 
 impl PartialEq for Literal {
@@ -45,7 +44,7 @@ impl PartialEq for Literal {
             (Literal::Integer(val1), Literal::Integer(val2)) => val1.eq(val2),
             (Literal::BigInteger(val1), Literal::BigInteger(val2)) => val1.eq(val2),
             (Literal::Array(val1), Literal::Array(val2)) => val1.eq(val2),
-            (Literal::Block(val1), Literal::Block(val2)) => Rc::ptr_eq(val1, val2),
+            (Literal::Block(val1), Literal::Block(val2)) => val1 == val2,
             _ => false,
         }
     }
@@ -82,7 +81,7 @@ impl Hash for Literal {
             }
             Literal::Block(val) => {
                 state.write(b"blk");
-                val.hash(state);
+                val.to_obj().hash(state);
             }
         }
     }
@@ -592,8 +591,7 @@ impl MethodCodegen for ast::Expression {
             }
             ast::Expression::Block(val) => {
                 let block = compile_block(ctxt.as_gen_ctxt(), val, mutator)?;
-                let block = Rc::new(block);
-                let block = Literal::Block(block);
+                let block = Literal::Block(GCRef::<Block>::alloc(block, mutator));
                 let idx = ctxt.push_literal(block);
                 ctxt.push_instr(Bytecode::PushBlock(idx as u8));
                 Some(())
@@ -802,7 +800,7 @@ fn compile_block(outer: &mut dyn GenCtxt, defn: &ast::Block, mutator: &mut Mutat
 
     let block = Block {
         frame,
-        blk_info: Rc::new(BlockInfo {
+        blk_info: GCRef::<BlockInfo>::alloc(BlockInfo {
             // locals,
             nb_locals,
             literals,
@@ -811,7 +809,7 @@ fn compile_block(outer: &mut dyn GenCtxt, defn: &ast::Block, mutator: &mut Mutat
             inline_cache,
             #[cfg(feature = "frame-debug-info")]
             block_debug_info: ctxt.debug_info
-        }),
+        }, mutator),
     };
 
     // println!("(system) compiled block !");

@@ -53,7 +53,7 @@ impl Hash for Value {
             }
             Value::Block(value) => {
                 hasher.write(b"#blk#");
-                value.hash(hasher);
+                value.to_obj().hash(hasher);
             }
             Value::Class(value) => {
                 hasher.write(b"#cls#");
@@ -93,11 +93,12 @@ impl Hash for Instance {
 
 impl Hash for Block {
     fn hash<H: Hasher>(&self, hasher: &mut H) {
-        self.blk_info.literals.iter().for_each(|it| it.hash(hasher));
-        self.blk_info.nb_locals.hash(hasher);
+        let blk_info = self.blk_info.to_obj();
+        blk_info.literals.iter().for_each(|it| it.hash(hasher));
+        blk_info.nb_locals.hash(hasher);
         // self.blk_info.locals.iter().for_each(|it| it.hash(hasher));
-        self.blk_info.nb_params.hash(hasher);
-        self.blk_info.body.iter().for_each(|it| it.hash(hasher));
+        blk_info.nb_params.hash(hasher);
+        blk_info.body.iter().for_each(|it| it.hash(hasher));
     }
 }
 

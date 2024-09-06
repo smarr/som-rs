@@ -94,7 +94,7 @@ impl Interpreter {
         frame
     }
 
-    pub fn push_block_frame(&mut self, block: Rc<Block>, args: Vec<Value>) -> SOMRef<Frame> {
+    pub fn push_block_frame(&mut self, block: GCRef<Block>, args: Vec<Value>) -> SOMRef<Frame> {
         let frame = Rc::new(RefCell::new(Frame::from_block(block, args)));
         self.frames.push(frame.clone());
         self.bytecode_idx = 0;
@@ -196,12 +196,12 @@ impl Interpreter {
                 }
                 Bytecode::PushBlock(idx) => {
                     let literal = frame.borrow().lookup_constant(idx as usize);
-                    let mut block = match literal {
-                        Literal::Block(blk) => Block::clone(&blk),
+                    let block = match literal {
+                        Literal::Block(blk) => blk,
                         _ => panic!("PushBlock expected a block, but got another invalid literal"),
                     };
-                    block.frame.replace(Rc::clone(&frame));
-                    self.stack.push(Value::Block(Rc::new(block)));
+                    block.to_obj().frame.replace(Rc::clone(&frame));
+                    self.stack.push(Value::Block(block));
                 }
                 Bytecode::PushConstant(idx) => {
                     let literal = frame.borrow().lookup_constant(idx as usize);

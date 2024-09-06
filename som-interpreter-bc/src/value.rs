@@ -32,7 +32,7 @@ pub enum Value {
     /// An array of values.
     Array(SOMRef<Vec<Self>>),
     /// A block value, ready to be evaluated.
-    Block(Rc<Block>),
+    Block(GCRef<Block>),
     /// A generic (non-primitive) class instance.
     Instance(GCRef<Instance>),
     /// A bare class object.
@@ -55,7 +55,7 @@ impl Value {
             Self::Symbol(_) => universe.symbol_class(),
             Self::String(_) => universe.string_class(),
             Self::Array(_) => universe.array_class(),
-            Self::Block(block) => block.class(universe),
+            Self::Block(block) => block.to_obj().class(universe),
             Self::Instance(instance_ptr) => instance_ptr.to_obj().class(),
             Self::Class(class) => class.to_obj().class(),
             Self::Invokable(invokable) => invokable.to_obj().class(universe),
@@ -123,7 +123,7 @@ impl Value {
                     .collect();
                 format!("#({})", strings.join(" "))
             }
-            Self::Block(block) => format!("instance of Block{}", block.nb_parameters() + 1),
+            Self::Block(block) => format!("instance of Block{}", block.to_obj().nb_parameters() + 1),
             Self::Instance(instance_ptr) => format!(
                 "instance of {} class",
                 instance_ptr.to_obj().class().to_obj().name(),
@@ -155,7 +155,7 @@ impl PartialEq for Value {
             (Self::Array(a), Self::Array(b)) => Rc::ptr_eq(a, b),
             (Self::Instance(a), Self::Instance(b)) => a == b,
             (Self::Class(a), Self::Class(b)) => a == b,
-            (Self::Block(a), Self::Block(b)) => Rc::ptr_eq(a, b),
+            (Self::Block(a), Self::Block(b)) => a == b,
             (Self::Invokable(a), Self::Invokable(b)) => a == b,
             _ => false,
         }

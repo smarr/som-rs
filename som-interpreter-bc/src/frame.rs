@@ -18,7 +18,7 @@ pub enum FrameKind {
     /// A frame created from a block evaluation.
     Block {
         /// The block instance for the current frame.
-        block: Rc<Block>,
+        block: GCRef<Block>,
     },
     /// A frame created from a method invocation.
     Method {
@@ -51,16 +51,17 @@ pub struct Frame {
 }
 
 impl Frame {
-    pub fn from_block(block: Rc<Block>, args: Vec<Value>) -> Self {
+    pub fn from_block(block: GCRef<Block>, args: Vec<Value>) -> Self {
+        let block_obj = block.to_obj();
         Self {
-            locals: (0..block.blk_info.nb_locals).map(|_| Value::Nil).collect(),
+            locals: (0..block_obj.blk_info.to_obj().nb_locals).map(|_| Value::Nil).collect(),
             args,
-            literals: &block.blk_info.literals,
-            bytecodes: &block.blk_info.body,
+            literals: &block_obj.blk_info.to_obj().literals,
+            bytecodes: &block_obj.blk_info.to_obj().body,
             bytecode_idx: 0,
-            inline_cache: std::ptr::addr_of!(block.blk_info.inline_cache),
+            inline_cache: std::ptr::addr_of!(block_obj.blk_info.to_obj().inline_cache),
             #[cfg(feature = "frame-debug-info")]
-            kind: FrameKind::Block { block: block.clone() }
+            kind: FrameKind::Block { block }
         }
     }
 
@@ -145,7 +146,7 @@ impl Frame {
     pub fn get_self(&self) -> Value {
         match self.args.first().unwrap() {
             Value::Block(b) => {
-                let block_frame = b.frame.as_ref().unwrap().clone();
+                let block_frame = b.to_obj().frame.as_ref().unwrap().clone();
                 let x = block_frame.borrow().get_self();
                 x
             },
@@ -217,14 +218,14 @@ impl Frame {
 
         let mut target_frame: Rc<RefCell<Frame>> = match current_frame.borrow().args.first().unwrap() {
             Value::Block(block) => {
-                Rc::clone(block.frame.as_ref().unwrap())
+                Rc::clone(block.to_obj().frame.as_ref().unwrap())
             }
             v => panic!("attempting to access a non local var/arg from a method instead of a block: self wasn't blockself but {:?}.", v)
         };
         for _ in 1..n {
             target_frame = match Rc::clone(&target_frame).borrow().args.first().unwrap() {
                 Value::Block(block) => {
-                    Rc::clone(block.frame.as_ref().unwrap())
+                    Rc::clone(block.to_obj().frame.as_ref().unwrap())
                 }
                 v => panic!("attempting to access a non local var/arg from a method instead of a block (but the original frame we were in was a block): self wasn't blockself but {:?}.", v)
             };

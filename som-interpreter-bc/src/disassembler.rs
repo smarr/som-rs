@@ -84,7 +84,7 @@ fn disassemble_body(
                     println!("{padding}  | (invalid block)");
                     continue;
                 };
-                env.push(blk.as_ref());
+                env.push(blk.to_obj());
                 disassemble_body(universe, class, level + 1, env);
                 env.pop();
             }
@@ -217,12 +217,12 @@ impl FrameEnv for MethodEnv {
 
 impl FrameEnv for Block {
     fn get_body(&self) -> &[Bytecode] {
-        &self.blk_info.body
+        &self.blk_info.to_obj().body
     }
 
     #[cfg(feature = "frame-debug-info")]
     fn resolve_local(&self, idx: u8) -> String {
-        match self.blk_info.block_debug_info.locals.get(usize::from(idx)) {
+        match self.blk_info.to_obj().block_debug_info.locals.get(usize::from(idx)) {
             None => String::from("(local not found)"),
             Some(s) => s.clone()
         }
@@ -234,12 +234,12 @@ impl FrameEnv for Block {
     }
 
     fn resolve_literal(&self, idx: u8) -> Option<&Literal> {
-        self.blk_info.literals.get(usize::from(idx))
+        self.blk_info.to_obj().literals.get(usize::from(idx))
     }
 
     #[cfg(feature = "frame-debug-info")]
     fn resolve_argument(&self, idx: u8) -> String {
-        match self.blk_info.block_debug_info.parameters.get(usize::from(idx)) {
+        match self.blk_info.to_obj().block_debug_info.parameters.get(usize::from(idx)) {
             None => String::from("(argument not found)"),
             Some(s) => s.clone()
         }

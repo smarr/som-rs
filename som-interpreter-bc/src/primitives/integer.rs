@@ -1,5 +1,3 @@
-use std::rc::Rc;
-
 use num_bigint::{BigInt, Sign};
 use num_traits::ToPrimitive;
 use rand::distributions::Uniform;
@@ -565,7 +563,7 @@ fn shift_right(interpreter: &mut Interpreter, _: &mut UniverseBC) {
     interpreter.stack.push(value);
 }
 
-fn to_do(interpreter: &mut Interpreter, _: &mut UniverseBC) {
+fn to_do(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
     const SIGNATURE: &str = "Integer>>to:do:";
 
     expect_args!(SIGNATURE, interpreter, [
@@ -576,16 +574,16 @@ fn to_do(interpreter: &mut Interpreter, _: &mut UniverseBC) {
     
     // Nota Bene: blocks for to:do: and friends get instrumented as a special case in the parser, so that they don't leave their "self" on the stack.
 
-    let new_blk = blk.make_equivalent_with_no_return();
+    let new_blk = blk.to_obj().make_equivalent_with_no_return(universe.mutator.as_mut());
     // calling rev() because it's a stack of frames: LIFO means we want to add the last one first, then the penultimate one, etc., til the first
     for i in (start..=end).rev() {
-        interpreter.push_block_frame(Rc::clone(&new_blk), vec![Value::Block(Rc::clone(&new_blk)), Value::Integer(i)]);
+        interpreter.push_block_frame(new_blk, vec![Value::Block(new_blk), Value::Integer(i)]);
     }
 
     interpreter.stack.push(Value::Integer(start));
 }
 
-fn to_by_do(interpreter: &mut Interpreter, _: &mut UniverseBC) {
+fn to_by_do(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
     const SIGNATURE: &str = "Integer>>to:by:do:";
 
     expect_args!(SIGNATURE, interpreter, [
@@ -595,15 +593,15 @@ fn to_by_do(interpreter: &mut Interpreter, _: &mut UniverseBC) {
         Value::Block(blk) => blk,
     ]);
 
-    let new_blk = blk.make_equivalent_with_no_return();
+    let new_blk = blk.to_obj().make_equivalent_with_no_return(universe.mutator.as_mut());
     for i in (start..=end).rev().step_by(step as usize) {
-        interpreter.push_block_frame(Rc::clone(&new_blk), vec![Value::Block(Rc::clone(&new_blk)), Value::Integer(i)]);
+        interpreter.push_block_frame(new_blk, vec![Value::Block(new_blk), Value::Integer(i)]);
     }
 
     interpreter.stack.push(Value::Integer(start));
 }
 
-fn down_to_do(interpreter: &mut Interpreter, _: &mut UniverseBC) {
+fn down_to_do(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
     const SIGNATURE: &str = "Integer>>downTo:do:";
 
     expect_args!(SIGNATURE, interpreter, [
@@ -612,16 +610,16 @@ fn down_to_do(interpreter: &mut Interpreter, _: &mut UniverseBC) {
         Value::Block(blk) => blk,
     ]);
 
-    let new_blk = blk.make_equivalent_with_no_return();
+    let new_blk = blk.to_obj().make_equivalent_with_no_return(universe.mutator.as_mut());
     for i in end..=start {
-        interpreter.push_block_frame(Rc::clone(&new_blk), vec![Value::Block(Rc::clone(&new_blk)), Value::Integer(i)]);
+        interpreter.push_block_frame(new_blk, vec![Value::Block(new_blk), Value::Integer(i)]);
     }
 
     interpreter.stack.push(Value::Integer(start));
 }
 
 // NB: this guy isn't a speedup, it's never used in our benchmarks as far as I'm aware.
-fn down_to_by_do(interpreter: &mut Interpreter, _: &mut UniverseBC) {
+fn down_to_by_do(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
     const SIGNATURE: &str = "Integer>>downTo:by:do:";
 
     expect_args!(SIGNATURE, interpreter, [
@@ -631,16 +629,16 @@ fn down_to_by_do(interpreter: &mut Interpreter, _: &mut UniverseBC) {
         Value::Block(blk) => blk,
     ]);
     
-    let new_blk = blk.make_equivalent_with_no_return();
+    let new_blk = blk.to_obj().make_equivalent_with_no_return(universe.mutator.as_mut());
     for i in (start..=end).step_by(step as usize) {
-        interpreter.push_block_frame(Rc::clone(&new_blk), vec![Value::Block(Rc::clone(&new_blk)), Value::Integer(i)]);
+        interpreter.push_block_frame(new_blk, vec![Value::Block(new_blk), Value::Integer(i)]);
     }
 
     interpreter.stack.push(Value::Integer(start));
 }
 
 // NB: also not a speedup, also unused.
-fn times_repeat(interpreter: &mut Interpreter, _: &mut UniverseBC) {
+fn times_repeat(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
     const SIGNATURE: &str = "Integer>>timesRepeat:";
 
     expect_args!(SIGNATURE, interpreter, [
@@ -648,9 +646,9 @@ fn times_repeat(interpreter: &mut Interpreter, _: &mut UniverseBC) {
         Value::Block(blk) => blk,
     ]);
 
-    let new_blk = blk.make_equivalent_with_no_return();
+    let new_blk = blk.to_obj().make_equivalent_with_no_return(universe.mutator.as_mut());
     for _ in 1..=n {
-        interpreter.push_block_frame(Rc::clone(&new_blk), vec![Value::Block(Rc::clone(&new_blk))]); // NB: this doesn't take the index as an argument
+        interpreter.push_block_frame(new_blk, vec![Value::Block(new_blk)]); // NB: this doesn't take the index as an argument
     }
 
     interpreter.stack.push(Value::Integer(n));
