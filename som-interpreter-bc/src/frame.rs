@@ -6,6 +6,7 @@ use som_core::bytecode::Bytecode;
 use crate::block::Block;
 use crate::class::Class;
 use crate::compiler::Literal;
+use crate::gc::GCRef;
 use crate::method::{Method, MethodKind};
 use crate::value::Value;
 use crate::SOMRef;
@@ -24,7 +25,7 @@ pub enum FrameKind {
         /// The holder of the current method (used for lexical self/super).
         holder: GCRef<Class>,
         /// The current method.
-        method: Rc<Method>,
+        method: GCRef<Method>,
         /// The self value.
         self_value: Value,
     },
@@ -43,7 +44,7 @@ pub struct Frame {
     /// Bytecode index.
     pub bytecode_idx: usize,
     /// Inline cache associated with the frame.
-    pub inline_cache: *const RefCell<Vec<Option<(*const Class, Rc<Method>)>>>,
+    pub inline_cache: *const RefCell<Vec<Option<(*const Class, GCRef<Method>)>>>, // todo class can also be a GC ref, that's basically a pointer
     #[cfg(feature = "frame-debug-info")]
     /// This frame's kind.
     pub kind: FrameKind,
@@ -63,8 +64,8 @@ impl Frame {
         }
     }
 
-    pub fn from_method(method: Rc<Method>, args: Vec<Value>) -> Self {
-        match method.kind() {
+    pub fn from_method(method: GCRef<Method>, args: Vec<Value>) -> Self {
+        match method.to_obj().kind() {
             MethodKind::Defined(env) => {
                 Self {
                     #[cfg(feature = "frame-debug-info")]
@@ -154,9 +155,9 @@ impl Frame {
 
     #[cfg(feature = "frame-debug-info")]
     /// Get the current method itself.
-    pub fn get_method(&self) -> Rc<Method> {
+    pub fn get_method(&self) -> GCRef<Method> {
         match &self.kind {
-            FrameKind::Method { method, .. } => method.clone(),
+            FrameKind::Method { method, .. } => *method,
             FrameKind::Block { block, .. } => block.frame.as_ref().unwrap().borrow().get_method(),
         }
     }

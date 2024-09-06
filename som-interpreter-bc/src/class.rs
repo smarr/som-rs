@@ -1,5 +1,4 @@
 use std::fmt;
-use std::rc::Rc;
 
 use indexmap::IndexMap;
 use crate::interner::Interned;
@@ -29,7 +28,7 @@ pub struct Class {
     /// The class' locals.
     pub locals: IndexMap<Interned, Value>,
     /// The class' methods/invokables.
-    pub methods: IndexMap<Interned, Rc<Method>>,
+    pub methods: IndexMap<Interned, GCRef<Method>>,
     /// Is this class a static one ?
     pub is_static: bool,
 }
@@ -66,7 +65,7 @@ impl Class {
     }
 
     /// Search for a given method within this class.
-    pub fn lookup_method(&self, signature: Interned) -> Option<Rc<Method>> {
+    pub fn lookup_method(&self, signature: Interned) -> Option<GCRef<Method>> {
         self.methods.get(&signature).cloned().or_else(|| {
             self.super_class.as_ref()?
                 .to_obj()

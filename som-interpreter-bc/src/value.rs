@@ -38,7 +38,7 @@ pub enum Value {
     /// A bare class object.
     Class(GCRef<Class>),
     /// A bare invokable.
-    Invokable(Rc<Method>),
+    Invokable(GCRef<Method>),
 }
 
 impl Value {
@@ -58,12 +58,12 @@ impl Value {
             Self::Block(block) => block.class(universe),
             Self::Instance(instance_ptr) => instance_ptr.to_obj().class(),
             Self::Class(class) => class.to_obj().class(),
-            Self::Invokable(invokable) => invokable.class(universe),
+            Self::Invokable(invokable) => invokable.to_obj().class(universe),
         }
     }
 
     /// Search for a given method for this value.
-    pub fn lookup_method(&self, universe: &UniverseBC, signature: Interned) -> Option<Rc<Method>> {
+    pub fn lookup_method(&self, universe: &UniverseBC, signature: Interned) -> Option<GCRef<Method>> {
         self.class(universe).to_obj().lookup_method(signature)
     }
 
@@ -130,7 +130,7 @@ impl Value {
             ),
             Self::Class(class) => class.to_obj().name().to_string(),
             Self::Invokable(invokable) => {
-                format!("{}>>#{}", invokable.holder().to_obj().name(), invokable.signature())
+                format!("{}>>#{}", invokable.to_obj().holder().to_obj().name(), invokable.to_obj().signature())
             }
         }
     }
@@ -156,7 +156,7 @@ impl PartialEq for Value {
             (Self::Instance(a), Self::Instance(b)) => a == b,
             (Self::Class(a), Self::Class(b)) => a == b,
             (Self::Block(a), Self::Block(b)) => Rc::ptr_eq(a, b),
-            (Self::Invokable(a), Self::Invokable(b)) => Rc::ptr_eq(a, b),
+            (Self::Invokable(a), Self::Invokable(b)) => a == b,
             _ => false,
         }
     }
@@ -178,7 +178,7 @@ impl fmt::Debug for Value {
             Self::Instance(val) => f.debug_tuple("Instance").field(&val.to_obj()).finish(),
             Self::Class(val) => f.debug_tuple("Class").field(&val.to_obj()).finish(),
             Self::Invokable(val) => {
-                let signature = format!("{}>>#{}", val.holder.to_obj().name(), val.signature());
+                let signature = format!("{}>>#{}", val.to_obj().holder.to_obj().name(), val.to_obj().signature());
                 f.debug_tuple("Invokable").field(&signature).finish()
             }
         }

@@ -85,7 +85,7 @@ impl Interpreter {
         }
     }
 
-    pub fn push_method_frame(&mut self, method: Rc<Method>, args: Vec<Value>) -> SOMRef<Frame> {
+    pub fn push_method_frame(&mut self, method: GCRef<Method>, args: Vec<Value>) -> SOMRef<Frame> {
         let frame = Rc::new(RefCell::new(Frame::from_method(method, args)));
         self.frames.push(frame.clone());
         self.bytecode_idx = 0;
@@ -407,7 +407,7 @@ impl Interpreter {
         pub fn do_send(
             interpreter: &mut Interpreter,
             universe: &mut UniverseBC,
-            method: Option<Rc<Method>>,
+            method: Option<GCRef<Method>>,
             symbol: Interned,
             nb_params: usize,
         ) {
@@ -426,7 +426,7 @@ impl Interpreter {
             // we store the current bytecode idx to be able to correctly restore the bytecode state when we pop frames
             interpreter.current_frame.borrow_mut().bytecode_idx = interpreter.bytecode_idx;
 
-            match method.kind() {
+            match method.to_obj().kind() {
                 MethodKind::Defined(_) => {
                     // let name = &method.holder.upgrade().unwrap().borrow().name.clone();
                     // let filter_list = ["Integer", "Vector", "True", "Pair"];
@@ -449,7 +449,7 @@ impl Interpreter {
                     println!(
                         "{}>>#{}",
                         self_value.class(&universe).to_obj().name(),
-                        method.signature(),
+                        method.to_obj().signature(),
                     );
                     panic!("Primitive `#{}` not implemented", err)
                 }
@@ -461,7 +461,7 @@ impl Interpreter {
             class: &GCRef<Class>,
             signature: Interned,
             bytecode_idx: usize,
-        ) -> Option<Rc<Method>> {
+        ) -> Option<GCRef<Method>> {
             let mut inline_cache = unsafe {
                 (*frame.borrow_mut().inline_cache).borrow_mut()
             };
@@ -473,7 +473,7 @@ impl Interpreter {
 
             match maybe_found {
                 Some((receiver, method)) if *receiver == class.ptr.to_ptr() => {
-                    Some(Rc::clone(method))
+                    Some(*method)
                 }
                 place @ None => {
                     let found = class.to_obj().lookup_method(signature);

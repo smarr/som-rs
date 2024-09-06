@@ -605,7 +605,7 @@ impl MethodCodegen for ast::Expression {
 struct ClassGenCtxt<'a> {
     pub name: String,
     pub fields: IndexSet<Interned>,
-    pub methods: IndexMap<Interned, Rc<Method>>,
+    pub methods: IndexMap<Interned, GCRef<Method>>,
     pub interner: &'a mut Interner,
 }
 
@@ -870,7 +870,7 @@ pub fn compile_class(
         let signature = static_class_ctxt.interner.intern(method.signature.as_str());
         let mut method = compile_method(&mut static_class_ctxt, method, mutator)?;
         method.holder = static_class_gc_ptr;
-        static_class_ctxt.methods.insert(signature, Rc::new(method));
+        static_class_ctxt.methods.insert(signature, GCRef::<Method>::alloc(method, mutator));
     }
 
     if let Some(primitives) = primitives::get_class_primitives(&defn.name) {
@@ -889,7 +889,7 @@ pub fn compile_class(
                 holder: static_class_gc_ptr,
             };
             let signature = static_class_ctxt.interner.intern(signature);
-            static_class_ctxt.methods.insert(signature, Rc::new(method));
+            static_class_ctxt.methods.insert(signature, GCRef::<Method>::alloc(method, mutator));
         }
     }
 
@@ -955,7 +955,7 @@ pub fn compile_class(
         method.holder = instance_class_gc_ptr;
         instance_class_ctxt
             .methods
-            .insert(signature, Rc::new(method));
+            .insert(signature, GCRef::<Method>::alloc(method, mutator));
     }
 
     if let Some(primitives) = primitives::get_instance_primitives(&defn.name) {
@@ -976,7 +976,7 @@ pub fn compile_class(
             let signature = instance_class_ctxt.interner.intern(signature);
             instance_class_ctxt
                 .methods
-                .insert(signature, Rc::new(method));
+                .insert(signature, GCRef::<Method>::alloc(method, mutator));
         }
     }
 

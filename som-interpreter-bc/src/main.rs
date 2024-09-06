@@ -4,7 +4,6 @@
 #![warn(missing_docs)]
 
 use std::path::PathBuf;
-use std::rc::Rc;
 
 use anyhow::{bail, Context};
 #[cfg(feature = "jemalloc")]
@@ -147,8 +146,8 @@ fn disassemble_class(opts: Options) -> anyhow::Result<()> {
 }
 
 fn dump_class_methods(class: GCRef<Class>, opts: &Options, file_stem: &str, universe: &mut UniverseBC) {
-    let methods: Vec<Rc<Method>> = if opts.args.is_empty() {
-        class.to_obj().methods.values().cloned().collect::<Vec<Rc<Method>>>()
+    let methods: Vec<GCRef<Method>> = if opts.args.is_empty() {
+        class.to_obj().methods.values().cloned().collect::<Vec<GCRef<Method>>>()
     } else {
         opts.args
             .iter()
@@ -166,6 +165,7 @@ fn dump_class_methods(class: GCRef<Class>, opts: &Options, file_stem: &str, univ
     };
 
     for method in methods {
+        let method = method.to_obj();
         match &method.kind {
             MethodKind::Defined(env) => {
                 println!(

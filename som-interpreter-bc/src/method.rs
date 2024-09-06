@@ -1,6 +1,5 @@
 use std::cell::RefCell;
 use std::fmt;
-use std::rc::Rc;
 
 use som_core::bytecode::Bytecode;
 
@@ -19,7 +18,7 @@ use crate::gc::GCRef;
 pub struct MethodEnv {
     pub literals: Vec<Literal>,
     pub body: Vec<Bytecode>,
-    pub inline_cache: RefCell<Vec<Option<(*const Class, Rc<Method>)>>>,
+    pub inline_cache: RefCell<Vec<Option<(*const Class, GCRef<Method>)>>>,
     pub nbr_locals: usize,
     #[cfg(feature = "frame-debug-info")]
     pub block_debug_info: BlockDebugInfo,
@@ -76,19 +75,21 @@ impl Method {
     pub fn is_primitive(&self) -> bool {
         self.kind.is_primitive()
     }
+}
 
+impl GCRef<Method> {
     pub fn invoke(
-        self: Rc<Self>,
+        &self,
         interpreter: &mut Interpreter,
         universe: &mut UniverseBC,
         receiver: Value,
         mut args: Vec<Value>,
     ) {
-        match self.kind() {
+        match self.to_obj().kind() {
             MethodKind::Defined(_) => {
                 let mut frame_args = vec![receiver];
                 frame_args.append(&mut args);
-                interpreter.push_method_frame(self, frame_args);
+                interpreter.push_method_frame(*self, frame_args);
             }
             MethodKind::Primitive(func) => {
                 interpreter.stack.push(receiver);

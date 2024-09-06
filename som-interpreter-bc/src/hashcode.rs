@@ -65,7 +65,7 @@ impl Hash for Value {
             }
             Value::Invokable(value) => {
                 hasher.write(b"#mthd#");
-                value.hash(hasher);
+                value.to_obj().hash(hasher);
             }
         }
     }

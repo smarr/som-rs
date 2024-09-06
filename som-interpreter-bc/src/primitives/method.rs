@@ -18,7 +18,7 @@ fn holder(interpreter: &mut Interpreter, _: &mut UniverseBC) {
         Value::Invokable(invokable) => invokable,
     ]);
 
-    interpreter.stack.push(Value::Class(invokable.holder().clone()))
+    interpreter.stack.push(Value::Class(invokable.to_obj().holder().clone()))
 }
 
 fn signature(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
@@ -28,7 +28,7 @@ fn signature(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
         Value::Invokable(invokable) => invokable,
     ]);
 
-    let sym = universe.intern_symbol(invokable.signature());
+    let sym = universe.intern_symbol(invokable.to_obj().signature());
     interpreter.stack.push(Value::Symbol(sym))
 }
 
