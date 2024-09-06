@@ -10,6 +10,7 @@ use crate::primitives::PrimitiveFn;
 use crate::universe::UniverseBC;
 use crate::value::Value;
 use crate::{expect_args, reverse};
+use crate::gc::GCRef;
 
 pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[
     ("<", self::lt, true),
@@ -60,7 +61,7 @@ fn from_string(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
     ]);
 
     let value = match value {
-        Value::String(ref value) => value.as_str(),
+        Value::String(ref value) => value.to_obj().as_str(),
         Value::Symbol(sym) => universe.lookup_symbol(sym),
         _ => panic!("'{}': wrong types", SIGNATURE),
     };
@@ -77,7 +78,7 @@ fn from_string(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
     }
 }
 
-fn as_string(interpreter: &mut Interpreter, _: &mut UniverseBC) {
+fn as_string(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
     const SIGNATURE: &str = "Integer>>#asString";
 
     expect_args!(SIGNATURE, interpreter, [
@@ -91,7 +92,7 @@ fn as_string(interpreter: &mut Interpreter, _: &mut UniverseBC) {
     };
 
     {
-        interpreter.stack.push(Value::String(Rc::new(value)));
+        interpreter.stack.push(Value::String(GCRef::<String>::generic_alloc(value, universe.mutator.as_mut())));
         return;
     }
 }

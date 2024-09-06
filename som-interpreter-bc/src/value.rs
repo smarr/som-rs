@@ -1,8 +1,6 @@
 use std::fmt;
 use std::rc::Rc;
-
 use num_bigint::BigInt;
-
 use crate::block::Block;
 use crate::class::Class;
 use crate::gc::GCRef;
@@ -30,7 +28,7 @@ pub enum Value {
     /// An interned symbol value.
     Symbol(Interned),
     /// A string value.
-    String(Rc<String>),
+    String(GCRef<String>),
     /// An array of values.
     Array(SOMRef<Vec<Self>>),
     /// A block value, ready to be evaluated.
@@ -115,7 +113,7 @@ impl Value {
                     format!("#{}", symbol)
                 }
             }
-            Self::String(value) => value.to_string(),
+            Self::String(value) => value.as_str().to_string(),
             Self::Array(values) => {
                 // TODO (from nicolas): I think we can do better here (less allocations).
                 let strings: Vec<String> = values
@@ -153,7 +151,7 @@ impl PartialEq for Value {
                 a.eq(&BigInt::from(*b))
             }
             (Self::Symbol(a), Self::Symbol(b)) => a.eq(b),
-            (Self::String(a), Self::String(b)) => Rc::ptr_eq(a, b),
+            (Self::String(a), Self::String(b)) => a == b,
             (Self::Array(a), Self::Array(b)) => Rc::ptr_eq(a, b),
             (Self::Instance(a), Self::Instance(b)) => a == b,
             (Self::Class(a), Self::Class(b)) => a == b,

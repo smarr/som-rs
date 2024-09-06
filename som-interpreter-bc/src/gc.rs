@@ -1,7 +1,9 @@
 use std::marker::PhantomData;
-use mmtk::Mutator;
+use mmtk::{AllocationSemantics, Mutator};
 use mmtk::util::Address;
+use som_gc::api::{mmtk_alloc, mmtk_post_alloc};
 use som_gc::SOMVM;
+use core::mem::size_of;
 
 /// A pointer to the heap for GC.
 #[derive(Debug)]
@@ -45,10 +47,39 @@ impl<T> GCRef<T> {
         debug_assert!(!self.ptr.is_zero());
         unsafe { &mut *(self.ptr.as_mut_ref()) }
     }
+    
+    /// normal alloc for a normal struct. TODO make it the overridable default
+    pub fn generic_alloc(obj: T, mutator: &mut Mutator<SOMVM>) -> GCRef<T> {
+        let size = size_of::<T>();
+        let align= 8;
+        let offset= 0;
+        let semantics = AllocationSemantics::Default;
+
+        let addr = mmtk_alloc(mutator, size, align, offset, semantics);
+        debug_assert!(!addr.is_zero());
+
+        mmtk_post_alloc(mutator, SOMVM::object_start_to_ref(addr), size, semantics);
+
+        unsafe {
+            *addr.as_mut_ref() = obj;
+        }
+        
+        GCRef {
+            ptr: addr,
+            _phantom: PhantomData::default()
+        }
+    }
 }
 
 /// Trait used by all GCRef pointers to convert to/from objects. TODO should only be implementable by GCRef<T>, and MUST be implemented by all GCRef<T>
 pub trait Alloc<T> {
     // Allocates a type on the heap and returns a pointer to it
     fn alloc(obj: T, mutator: &mut Mutator<SOMVM>) -> GCRef<T>;
+}
+
+// for convenience, but removable
+impl GCRef<String> {
+    pub fn as_str(&self) -> &str {
+        self.to_obj().as_str()
+    }
 }

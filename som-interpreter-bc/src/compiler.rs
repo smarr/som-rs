@@ -28,7 +28,7 @@ use crate::value::Value;
 #[derive(Debug, Clone)]
 pub enum Literal {
     Symbol(Interned),
-    String(Rc<String>),
+    String(GCRef<String>),
     Double(f64),
     Integer(i64),
     BigInteger(BigInt),
@@ -62,7 +62,7 @@ impl Hash for Literal {
             }
             Literal::String(val) => {
                 state.write(b"string#");
-                val.hash(state);
+                val.to_obj().hash(state);
             }
             Literal::Double(val) => {
                 state.write(b"dbl#");
@@ -400,20 +400,20 @@ impl InnerGenCtxt for MethodGenCtxt<'_> {
 }
 
 pub trait MethodCodegen {
-    fn codegen(&self, ctxt: &mut dyn InnerGenCtxt) -> Option<()>;
+    fn codegen(&self, ctxt: &mut dyn InnerGenCtxt, mutator: &mut Mutator<SOMVM>) -> Option<()>;
 }
 
 impl MethodCodegen for ast::Body {
-    fn codegen(&self, ctxt: &mut dyn InnerGenCtxt) -> Option<()> {
+    fn codegen(&self, ctxt: &mut dyn InnerGenCtxt, mutator: &mut Mutator<SOMVM>) -> Option<()> {
         for expr in &self.exprs {
-            expr.codegen(ctxt)?;
+            expr.codegen(ctxt, mutator)?;
         }
         Some(())
     }
 }
 
 impl MethodCodegen for ast::Expression {
-    fn codegen(&self, ctxt: &mut dyn InnerGenCtxt) -> Option<()> {
+    fn codegen(&self, ctxt: &mut dyn InnerGenCtxt, mutator: &mut Mutator<SOMVM>) -> Option<()> {
         match self {
             ast::Expression::LocalVarRead(idx) => {
                 ctxt.push_instr(Bytecode::PushLocal(*idx as u8));
@@ -453,7 +453,7 @@ impl MethodCodegen for ast::Expression {
                 Some(())
             }
             ast::Expression::LocalVarWrite(_, expr) | ast::Expression::NonLocalVarWrite(_, _, expr) => {
-                expr.codegen(ctxt)?;
+                expr.codegen(ctxt, mutator)?;
                 ctxt.push_instr(Bytecode::Dup);
                 match self {
                     ast::Expression::LocalVarWrite(idx, _) => ctxt.push_instr(Bytecode::PopLocal(0, *idx as u8)),
@@ -463,13 +463,13 @@ impl MethodCodegen for ast::Expression {
                 Some(())
             }
             ast::Expression::FieldWrite(idx, expr) => {
-                expr.codegen(ctxt)?;
+                expr.codegen(ctxt, mutator)?;
                 ctxt.push_instr(Bytecode::Dup);
                 ctxt.push_instr(Bytecode::PopField(*idx as u8));
                 Some(())
             }
             ast::Expression::ArgWrite(up_idx, idx, expr) => {
-                expr.codegen(ctxt)?;
+                expr.codegen(ctxt, mutator)?;
                 ctxt.push_instr(Bytecode::Dup);
                 ctxt.push_instr(Bytecode::PopArg(*up_idx as u8, *idx as u8));
                 Some(())
@@ -480,10 +480,10 @@ impl MethodCodegen for ast::Expression {
                     _ => false
                 };
                 
-                message.receiver.codegen(ctxt)?;
+                message.receiver.codegen(ctxt, mutator)?;
 
                 #[cfg(not(feature = "inlining-disabled"))]
-                if message.inline_if_possible(ctxt).is_some() {
+                if message.inline_if_possible(ctxt, mutator).is_some() {
                     return Some(());
                 }
 
@@ -499,7 +499,7 @@ impl MethodCodegen for ast::Expression {
                 message
                     .values
                     .iter()
-                    .try_for_each(|value| value.codegen(ctxt))?;
+                    .try_for_each(|value| value.codegen(ctxt, mutator))?;
 
                 let nb_params = match message.signature.chars().nth(0) {
                     Some(ch) if !ch.is_alphabetic() => 1,
@@ -536,13 +536,13 @@ impl MethodCodegen for ast::Expression {
                         match expr.as_ref() {
                             Expression::ArgRead(0, 0) => ctxt.push_instr(Bytecode::ReturnSelf),
                             _ => {
-                                expr.codegen(ctxt)?;
+                                expr.codegen(ctxt, mutator)?;
                                 ctxt.push_instr(Bytecode::ReturnLocal)
                             }
                         }
                     }
                     _ => {
-                        expr.codegen(ctxt)?;
+                        expr.codegen(ctxt, mutator)?;
                         ctxt.push_instr(Bytecode::ReturnNonLocal(*scope as u8));
                     }
                 };
@@ -550,12 +550,12 @@ impl MethodCodegen for ast::Expression {
                 Some(())
             }
             ast::Expression::Literal(literal) => {
-                fn convert_literal(ctxt: &mut dyn InnerGenCtxt, literal: &ast::Literal) -> Literal {
+                fn convert_literal(ctxt: &mut dyn InnerGenCtxt, literal: &ast::Literal, mutator: &mut Mutator<SOMVM>) -> Literal {
                     match literal {
                         ast::Literal::Symbol(val) => {
                             Literal::Symbol(ctxt.intern_symbol(val.as_str()))
                         }
-                        ast::Literal::String(val) => Literal::String(Rc::new(val.clone())),
+                        ast::Literal::String(val) => Literal::String(GCRef::<String>::generic_alloc(val.clone(), mutator)),
                         ast::Literal::Double(val) => Literal::Double(*val),
                         ast::Literal::Integer(val) => Literal::Integer(*val),
                         ast::Literal::BigInteger(val) => Literal::BigInteger(val.parse().unwrap()),
@@ -563,7 +563,7 @@ impl MethodCodegen for ast::Expression {
                             let literals = val
                                 .iter()
                                 .map(|val| {
-                                    let literal = convert_literal(ctxt, val);
+                                    let literal = convert_literal(ctxt, val, mutator);
                                     ctxt.push_literal(literal) as u8
                                 })
                                 .collect();
@@ -572,7 +572,7 @@ impl MethodCodegen for ast::Expression {
                     }
                 }
 
-                let literal = convert_literal(ctxt, literal);
+                let literal = convert_literal(ctxt, literal, mutator);
 
                 match literal {
                     Literal::Integer(0) => ctxt.push_instr(Bytecode::Push0),
@@ -591,7 +591,7 @@ impl MethodCodegen for ast::Expression {
                 Some(())
             }
             ast::Expression::Block(val) => {
-                let block = compile_block(ctxt.as_gen_ctxt(), val)?;
+                let block = compile_block(ctxt.as_gen_ctxt(), val, mutator)?;
                 let block = Rc::new(block);
                 let block = Literal::Block(block);
                 let idx = ctxt.push_literal(block);
@@ -627,7 +627,7 @@ impl GenCtxt for ClassGenCtxt<'_> {
     }
 }
 
-fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::MethodDef) -> Option<Method> {
+fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::MethodDef, mutator: &mut Mutator<SOMVM>) -> Option<Method> {
     /// Only add a ReturnSelf at the end of a method if needed: i.e. there's no existing return, and if there is, that it can't be jumped over.
     fn should_add_return_self(ctxt: &mut MethodGenCtxt, body: &ast::Body) -> bool {
         if body.exprs.is_empty() {
@@ -710,7 +710,7 @@ fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::MethodDef) -> Option<Meth
         ast::MethodBody::Primitive => {}
         ast::MethodBody::Body { body, .. } => {
             for expr in &body.exprs {
-                expr.codegen(&mut ctxt)?;
+                expr.codegen(&mut ctxt, mutator)?;
                 ctxt.push_instr(Bytecode::Pop);
             }
 
@@ -755,7 +755,7 @@ fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::MethodDef) -> Option<Meth
     Some(method)
 }
 
-fn compile_block(outer: &mut dyn GenCtxt, defn: &ast::Block) -> Option<Block> {
+fn compile_block(outer: &mut dyn GenCtxt, defn: &ast::Block, mutator: &mut Mutator<SOMVM>) -> Option<Block> {
     // println!("(system) compiling block ...");
 
     let mut ctxt = BlockGenCtxt {
@@ -772,10 +772,10 @@ fn compile_block(outer: &mut dyn GenCtxt, defn: &ast::Block) -> Option<Block> {
     let splitted = defn.body.exprs.split_last();
     if let Some((last, rest)) = splitted {
         for expr in rest {
-            expr.codegen(&mut ctxt)?;
+            expr.codegen(&mut ctxt, mutator)?;
             ctxt.push_instr(Bytecode::Pop);
         }
-        last.codegen(&mut ctxt)?;
+        last.codegen(&mut ctxt, mutator)?;
         ctxt.push_instr(Bytecode::ReturnLocal);
     }
     ctxt.remove_dup_popx_pop_sequences();
@@ -868,7 +868,7 @@ pub fn compile_class(
 
     for method in &defn.static_methods {
         let signature = static_class_ctxt.interner.intern(method.signature.as_str());
-        let mut method = compile_method(&mut static_class_ctxt, method)?;
+        let mut method = compile_method(&mut static_class_ctxt, method, mutator)?;
         method.holder = static_class_gc_ptr;
         static_class_ctxt.methods.insert(signature, Rc::new(method));
     }
@@ -951,7 +951,7 @@ pub fn compile_class(
         let signature = instance_class_ctxt
             .interner
             .intern(method.signature.as_str());
-        let mut method = compile_method(&mut instance_class_ctxt, method)?;
+        let mut method = compile_method(&mut instance_class_ctxt, method, mutator)?;
         method.holder = instance_class_gc_ptr;
         instance_class_ctxt
             .methods

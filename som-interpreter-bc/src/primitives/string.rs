@@ -1,13 +1,13 @@
 use std::collections::hash_map::DefaultHasher;
 use std::convert::TryFrom;
 use std::hash::Hasher;
-use std::rc::Rc;
 
 use crate::interpreter::Interpreter;
 use crate::primitives::PrimitiveFn;
 use crate::universe::UniverseBC;
 use crate::value::Value;
 use crate::{expect_args, reverse};
+use crate::gc::GCRef;
 
 pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[
     ("length", self::length, true),
@@ -143,7 +143,7 @@ fn concatenate(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
 
     interpreter
         .stack
-        .push(Value::String(Rc::new(format!("{}{}", s1, s2))))
+        .push(Value::String(GCRef::<String>::generic_alloc(format!("{}{}", s1, s2), universe.mutator.as_mut())))
 }
 
 fn as_symbol(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
@@ -162,7 +162,7 @@ fn as_symbol(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
     }
 }
 
-fn char_at(interpreter: &mut Interpreter, _universe: &mut UniverseBC) {
+fn char_at(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
     const SIGNATURE: &str = "String>>#charAt:";
 
     expect_args!(SIGNATURE, interpreter, [
@@ -172,11 +172,12 @@ fn char_at(interpreter: &mut Interpreter, _universe: &mut UniverseBC) {
 
     let (value, idx) = match (&s1, s2) {
         (Value::String(ref value), Value::Integer(i)) => (value.as_str(), i as usize - 1),
-        (Value::Symbol(intern), Value::Integer(i)) => (_universe.lookup_symbol(*intern), i as usize - 1),
+        (Value::Symbol(intern), Value::Integer(i)) => (universe.lookup_symbol(*intern), i as usize - 1),
         _ => panic!()
     };
     
-    interpreter.stack.push(Value::String(Rc::new(String::from(value.chars().nth(idx).unwrap()))))
+    // TODO opt: just return a pointer to the char in question, right?
+    interpreter.stack.push(Value::String(GCRef::<String>::generic_alloc(String::from(value.chars().nth(idx).unwrap()), universe.mutator.as_mut())))
 }
 
 fn eq(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
@@ -223,9 +224,9 @@ fn prim_substring_from_to(interpreter: &mut Interpreter, universe: &mut Universe
         (_, _, _) => panic!("'{}': wrong types", SIGNATURE),
     };
 
-    let string = Rc::new(String::from(&value[from..to]));
+    let string = String::from(&value[from..to]);
 
-    interpreter.stack.push(Value::String(string))
+    interpreter.stack.push(Value::String(GCRef::<String>::generic_alloc(string, universe.mutator.as_mut())))
 }
 
 /// Search for an instance primitive matching the given signature.

@@ -1,6 +1,5 @@
 use std::convert::TryFrom;
 use std::fs;
-use std::rc::Rc;
 
 #[cfg(feature = "frame-debug-info")]
 use crate::frame::FrameKind;
@@ -10,6 +9,7 @@ use crate::primitives::PrimitiveFn;
 use crate::universe::UniverseBC;
 use crate::value::Value;
 use crate::{expect_args, reverse};
+use crate::gc::GCRef;
 
 pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[
     ("loadFile:", self::load_file, true),
@@ -38,13 +38,13 @@ fn load_file(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
     ]);
 
     let path = match value {
-        Value::String(ref string) => string,
+        Value::String(ref string) => string.to_obj(),
         Value::Symbol(sym) => universe.lookup_symbol(sym),
         _ => panic!("'{}': wrong type", SIGNATURE),
     };
 
     let value = match fs::read_to_string(path) {
-        Ok(value) => Value::String(Rc::new(value)),
+        Ok(value) => Value::String(GCRef::<String>::generic_alloc(value, universe.mutator.as_mut())),
         Err(_) => Value::Nil,
     };
 
@@ -60,7 +60,7 @@ fn print_string(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
     ]);
 
     let string = match value {
-        Value::String(ref string) => string,
+        Value::String(ref string) => string.to_obj(),
         Value::Symbol(sym) => universe.lookup_symbol(sym),
         _ => panic!("'{}': wrong type", SIGNATURE),
     };
@@ -89,7 +89,7 @@ fn error_print(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
     ]);
 
     let string = match value {
-        Value::String(ref string) => string,
+        Value::String(ref string) => string.to_obj(),
         Value::Symbol(sym) => universe.lookup_symbol(sym),
         _ => panic!("'{}': wrong type", SIGNATURE),
     };
@@ -107,7 +107,7 @@ fn error_println(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
     ]);
 
     let string = match value {
-        Value::String(ref string) => string,
+        Value::String(ref string) => string.to_obj(),
         Value::Symbol(sym) => universe.lookup_symbol(sym),
         _ => panic!("'{}': wrong type", SIGNATURE),
     };

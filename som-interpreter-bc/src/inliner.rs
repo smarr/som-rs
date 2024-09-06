@@ -6,6 +6,8 @@ use crate::inliner::OrAndChoice::{And, Or};
 use som_core::ast;
 use som_core::bytecode::Bytecode;
 use std::rc::Rc;
+use mmtk::Mutator;
+use som_gc::SOMVM;
 
 pub enum JumpType {
     JumpOnFalse,
@@ -20,13 +22,13 @@ pub enum OrAndChoice {
 // TODO some of those should return Result types and throw errors instead, most likely.
 pub trait PrimMessageInliner {
     /// Starts inlining a function if it's on the list of inlinable functions.
-    fn inline_if_possible(&self, ctxt: &mut dyn InnerGenCtxt) -> Option<()>;
+    fn inline_if_possible(&self, ctxt: &mut dyn InnerGenCtxt, mutator: &mut Mutator<SOMVM>) -> Option<()>;
     /// Inlines an expression. If this results in a PushBlock, calls `inline_last_push_block_bc(...)` to inline the block.
-    fn inline_expression(&self, ctxt: &mut dyn InnerGenCtxt, expression: &ast::Expression) -> Option<()>;
+    fn inline_expression(&self, ctxt: &mut dyn InnerGenCtxt, expression: &ast::Expression, mutator: &mut Mutator<SOMVM>) -> Option<()>;
     /// Gets the last bytecode, assumes it to be a PushBlock, removes it and inlines the block - a set of operations for which there is a redundant need.
-    fn inline_last_push_block_bc(&self, ctxt: &mut dyn InnerGenCtxt) -> Option<()>;
+    fn inline_last_push_block_bc(&self, ctxt: &mut dyn InnerGenCtxt, mutator: &mut Mutator<SOMVM>) -> Option<()>;
     /// Inlines a compiled block into the current scope.
-    fn inline_compiled_block(&self, ctxt: &mut dyn InnerGenCtxt, block: &BlockInfo) -> Option<()>;
+    fn inline_compiled_block(&self, ctxt: &mut dyn InnerGenCtxt, block: &BlockInfo, mutator: &mut Mutator<SOMVM>) -> Option<()>;
     /// When inlining a block, adapt its potential children blocks to account for the inlining changes.
     fn adapt_block_after_outer_inlined(
         &self,
@@ -39,57 +41,62 @@ pub trait PrimMessageInliner {
         &self,
         ctxt: &mut dyn InnerGenCtxt,
         jump_type: JumpType,
+        mutator: &mut Mutator<SOMVM>
     ) -> Option<()>;
     /// Inlines `ifTrue:ifFalse:`.
     fn inline_if_true_if_false(
         &self,
         ctxt: &mut dyn InnerGenCtxt,
         jump_type: JumpType,
+        mutator: &mut Mutator<SOMVM>
     ) -> Option<()>;
     /// Inlines `whileTrue:` and `whileFalse:`.
     fn inline_while(
         &self,
         ctxt: &mut dyn InnerGenCtxt,
         jump_type: JumpType,
+        mutator: &mut Mutator<SOMVM>
     ) -> Option<()>;
     /// Inlines `and:` and `or:`.
     fn inline_or_and(
         &self,
         ctxt: &mut dyn InnerGenCtxt,
         or_and_choice: OrAndChoice,
+        mutator: &mut Mutator<SOMVM>
     ) -> Option<()>;
     /// Inlines `to:do`.
     fn inline_to_do(
         &self,
         ctxt: &mut dyn InnerGenCtxt,
+        mutator: &mut Mutator<SOMVM>
     ) -> Option<()>;
 }
 
 impl PrimMessageInliner for ast::Message {
-    fn inline_if_possible(&self, ctxt: &mut dyn InnerGenCtxt) -> Option<()> {
+    fn inline_if_possible(&self, ctxt: &mut dyn InnerGenCtxt, mutator: &mut Mutator<SOMVM>) -> Option<()> {
         match self.signature.as_str() {
-            "ifTrue:" => self.inline_if_true_or_if_false(ctxt, JumpOnFalse),
-            "ifFalse:" => self.inline_if_true_or_if_false(ctxt, JumpOnTrue),
-            "ifTrue:ifFalse:" => self.inline_if_true_if_false(ctxt, JumpOnFalse),
-            "ifFalse:ifTrue:" => self.inline_if_true_if_false(ctxt, JumpOnTrue),
-            "whileTrue:" => self.inline_while(ctxt, JumpOnFalse),
-            "whileFalse:" => self.inline_while(ctxt, JumpOnTrue),
-            "or:" | "||" => self.inline_or_and(ctxt, Or),
-            "and:" | "&&" => self.inline_or_and(ctxt, And),
+            "ifTrue:" => self.inline_if_true_or_if_false(ctxt, JumpOnFalse, mutator),
+            "ifFalse:" => self.inline_if_true_or_if_false(ctxt, JumpOnTrue, mutator),
+            "ifTrue:ifFalse:" => self.inline_if_true_if_false(ctxt, JumpOnFalse, mutator),
+            "ifFalse:ifTrue:" => self.inline_if_true_if_false(ctxt, JumpOnTrue, mutator),
+            "whileTrue:" => self.inline_while(ctxt, JumpOnFalse, mutator),
+            "whileFalse:" => self.inline_while(ctxt, JumpOnTrue, mutator),
+            "or:" | "||" => self.inline_or_and(ctxt, Or, mutator),
+            "and:" | "&&" => self.inline_or_and(ctxt, And, mutator),
             // "to:do:" => self.inline_to_do(ctxt, message), // todo (haha lol haha)
             _ => None,
         }
     }
 
-    fn inline_expression(&self, ctxt: &mut dyn InnerGenCtxt, expression: &ast::Expression) -> Option<()> {
-        expression.codegen(ctxt)?;
+    fn inline_expression(&self, ctxt: &mut dyn InnerGenCtxt, expression: &ast::Expression, mutator: &mut Mutator<SOMVM>) -> Option<()> {
+        expression.codegen(ctxt, mutator)?;
         match ctxt.get_instructions().last()? {
-            Bytecode::PushBlock(_) => self.inline_last_push_block_bc(ctxt),
+            Bytecode::PushBlock(_) => self.inline_last_push_block_bc(ctxt, mutator),
             _ => Some(())
         }
     }
 
-    fn inline_last_push_block_bc(&self, ctxt: &mut dyn InnerGenCtxt) -> Option<()> {
+    fn inline_last_push_block_bc(&self, ctxt: &mut dyn InnerGenCtxt, mutator: &mut Mutator<SOMVM>) -> Option<()> {
         let block_idx = match ctxt.get_instructions().last()? {
             Bytecode::PushBlock(val) => *val,
             bc => panic!("inlining function expects last bytecode to be a PUSH_BLOCK, instead it was {}.", bc),
@@ -102,13 +109,13 @@ impl PrimMessageInliner for ast::Message {
         };
         ctxt.remove_literal(block_idx as usize);
 
-        match self.inline_compiled_block(ctxt, cond_block_ref.as_ref().blk_info.as_ref()) {
+        match self.inline_compiled_block(ctxt, cond_block_ref.as_ref().blk_info.as_ref(), mutator) {
             None => panic!("Inlining a compiled block failed!"),
             _ => Some(()),
         }
     }
 
-    fn inline_compiled_block(&self, ctxt: &mut dyn InnerGenCtxt, block: &BlockInfo) -> Option<()> {
+    fn inline_compiled_block(&self, ctxt: &mut dyn InnerGenCtxt, block: &BlockInfo, _mutator: &mut Mutator<SOMVM>) -> Option<()> {
         let nbr_locals_pre_inlining = ctxt.get_nbr_locals();
         let nbr_args_pre_inlining = ctxt.get_nbr_args();
 
@@ -387,6 +394,7 @@ impl PrimMessageInliner for ast::Message {
         &self,
         ctxt: &mut dyn InnerGenCtxt,
         jump_type: JumpType,
+        mutator: &mut Mutator<SOMVM>
     ) -> Option<()> {
         if self.values.len() != 1 { // || !matches!(message.values.get(0)?, ast::Expression::Block(_)) {
             return None;
@@ -398,7 +406,7 @@ impl PrimMessageInliner for ast::Message {
             JumpOnTrue => ctxt.push_instr(Bytecode::JumpOnTrueTopNil(0)),
         }
 
-        self.inline_expression(ctxt, self.values.get(0)?);
+        self.inline_expression(ctxt, self.values.get(0)?, mutator);
 
         ctxt.backpatch_jump_to_current(jump_idx);
 
@@ -409,6 +417,7 @@ impl PrimMessageInliner for ast::Message {
         &self,
         ctxt: &mut dyn InnerGenCtxt,
         jump_type: JumpType,
+        mutator: &mut Mutator<SOMVM>
     ) -> Option<()> {
         if self.values.len() != 2 {
              // || !matches!(message.values.get(0)?, ast::Expression::Block(_))
@@ -422,14 +431,14 @@ impl PrimMessageInliner for ast::Message {
             JumpOnTrue => ctxt.push_instr(Bytecode::JumpOnTruePop(0)),
         }
 
-        self.inline_expression(ctxt, self.values.get(0)?);
+        self.inline_expression(ctxt, self.values.get(0)?, mutator);
 
         let middle_jump_idx = ctxt.get_cur_instr_idx();
         ctxt.push_instr(Bytecode::Jump(0));
 
         ctxt.backpatch_jump_to_current(start_jump_idx);
 
-        self.inline_expression(ctxt, self.values.get(1)?);
+        self.inline_expression(ctxt, self.values.get(1)?, mutator);
 
         ctxt.backpatch_jump_to_current(middle_jump_idx);
 
@@ -440,6 +449,7 @@ impl PrimMessageInliner for ast::Message {
         &self,
         ctxt: &mut dyn InnerGenCtxt,
         jump_type: JumpType,
+        mutator: &mut Mutator<SOMVM>
     ) -> Option<()> {
         if self.values.len() != 1 || !matches!(self.values.get(0)?, ast::Expression::Block(_)) { // I guess it doesn't have to be a block, but really, it is in all our benchmarks
             return None;
@@ -448,7 +458,7 @@ impl PrimMessageInliner for ast::Message {
         let idx_pre_condition = ctxt.get_cur_instr_idx();
 
         // by the time we see it's a "whileTrue:" or a "whileFalse:", there's already been a PushBlock, since they're methods defined on Block
-        self.inline_last_push_block_bc(ctxt);
+        self.inline_last_push_block_bc(ctxt, mutator);
 
         let cond_jump_idx = ctxt.get_cur_instr_idx();
         match jump_type {
@@ -456,7 +466,7 @@ impl PrimMessageInliner for ast::Message {
             JumpOnTrue => ctxt.push_instr(Bytecode::JumpOnTruePop(0)),
         }
 
-        self.inline_expression(ctxt, self.values.get(0)?);
+        self.inline_expression(ctxt, self.values.get(0)?, mutator);
 
         ctxt.push_instr(Bytecode::Pop);
         
@@ -472,6 +482,7 @@ impl PrimMessageInliner for ast::Message {
         &self,
         ctxt: &mut dyn InnerGenCtxt,
         or_and_choice: OrAndChoice,
+        mutator: &mut Mutator<SOMVM>
     ) -> Option<()> {
         if self.values.len() != 1 || !matches!(self.values.get(0)?, ast::Expression::Block(_)) {
             return None;
@@ -484,7 +495,7 @@ impl PrimMessageInliner for ast::Message {
             And => ctxt.push_instr(Bytecode::JumpOnFalsePop(0)),
         }
 
-        self.inline_expression(ctxt, self.values.get(0)?);
+        self.inline_expression(ctxt, self.values.get(0)?, mutator);
 
         let skip_return_true_idx = ctxt.get_cur_instr_idx();
         ctxt.push_instr(Bytecode::Jump(0));
@@ -506,6 +517,7 @@ impl PrimMessageInliner for ast::Message {
     fn inline_to_do(
         &self,
         ctxt: &mut dyn InnerGenCtxt,
+        mutator: &mut Mutator<SOMVM>
     ) -> Option<()> {
         // to: limit do: block = (
         //         self to: limit by: 1 do: block
@@ -517,8 +529,8 @@ impl PrimMessageInliner for ast::Message {
 
         // stack state at this point: "1" is on it. or some pushinteger probably? idk
 
-        self.values.get(0)?.codegen(ctxt);
-        self.values.get(1)?.codegen(ctxt);
+        self.values.get(0)?.codegen(ctxt, mutator);
+        self.values.get(1)?.codegen(ctxt, mutator);
         dbg!(ctxt.get_instructions());
 
         let limit_expr = self.values.get(0)?; // in practice it's always a self read so an argread(0,0)
@@ -533,9 +545,9 @@ impl PrimMessageInliner for ast::Message {
         let cond_jump_idx = ctxt.get_cur_instr_idx();
         ctxt.push_instr(Bytecode::JumpOnFalsePop(0));
 
-        self.inline_expression(ctxt, block_expr);
+        self.inline_expression(ctxt, block_expr, mutator);
 
-        limit_expr.codegen(ctxt)?;
+        limit_expr.codegen(ctxt, mutator)?;
         ctxt.push_instr(Bytecode::Inc);
 
         ctxt.backpatch_jump_to_current(cond_jump_idx);

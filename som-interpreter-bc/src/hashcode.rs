@@ -43,7 +43,7 @@ impl Hash for Value {
             }
             Value::String(value) => {
                 hasher.write(b"#string#");
-                value.hash(hasher);
+                value.to_obj().hash(hasher);
             }
             Value::Array(value) => {
                 hasher.write(b"#arr#");

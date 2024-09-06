@@ -89,8 +89,7 @@ fn run() -> anyhow::Result<()> {
     
     let args = std::iter::once(String::from(file_stem))
         .chain(opts.args.iter().cloned())
-        .map(Rc::new)
-        .map(Value::String)
+        .map(|arg| Value::String(GCRef::<String>::generic_alloc(arg, universe.mutator.as_mut())))
         .collect();
 
     let mut interpreter = universe

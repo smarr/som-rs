@@ -1,5 +1,3 @@
-use std::rc::Rc;
-
 use num_traits::ToPrimitive;
 
 use crate::interpreter::Interpreter;
@@ -7,6 +5,7 @@ use crate::primitives::PrimitiveFn;
 use crate::universe::UniverseBC;
 use crate::value::Value;
 use crate::{expect_args, reverse};
+use crate::gc::GCRef;
 
 pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[
     ("+", self::plus, true),
@@ -58,13 +57,13 @@ fn from_string(interpreter: &mut Interpreter, _: &mut UniverseBC) {
         Value::String(string) => string,
     ]);
 
-    match string.parse() {
+    match string.to_obj().parse() {
         Ok(parsed) => interpreter.stack.push(Value::Double(parsed)),
         Err(err) => panic!("'{}': {}", SIGNATURE, err),
     }
 }
 
-fn as_string(interpreter: &mut Interpreter, _: &mut UniverseBC) {
+fn as_string(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
     const SIGNATURE: &str = "Double>>#asString";
 
     expect_args!(SIGNATURE, interpreter, [
@@ -75,7 +74,7 @@ fn as_string(interpreter: &mut Interpreter, _: &mut UniverseBC) {
 
     interpreter
         .stack
-        .push(Value::String(Rc::new(value.to_string())));
+        .push(Value::String(GCRef::<String>::generic_alloc(value.to_string(), universe.mutator.as_mut())));
 }
 
 fn as_integer(interpreter: &mut Interpreter, _: &mut UniverseBC) {
