@@ -1,6 +1,4 @@
-use std::cell::RefCell;
-use std::rc::Rc;
-
+use crate::gc::{Alloc, GCRef};
 use crate::instance::Instance;
 use crate::interpreter::Interpreter;
 use crate::primitives::PrimitiveFn;
@@ -52,7 +50,7 @@ fn name(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
     interpreter.stack.push(Value::Symbol(sym));
 }
 
-fn methods(interpreter: &mut Interpreter, _: &mut UniverseBC) {
+fn methods(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
     const SIGNATURE: &str = "Class>>#methods";
 
     expect_args!(SIGNATURE, interpreter, [
@@ -68,17 +66,17 @@ fn methods(interpreter: &mut Interpreter, _: &mut UniverseBC) {
 
     interpreter
         .stack
-        .push(Value::Array(Rc::new(RefCell::new(methods))));
+        .push(Value::Array(GCRef::<Vec<Value>>::alloc(methods, universe.mutator.as_mut())));
 }
 
-fn fields(interpreter: &mut Interpreter, _: &mut UniverseBC) {
+fn fields(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
     const SIGNATURE: &str = "Class>>#fields";
 
     expect_args!(SIGNATURE, interpreter, [
         Value::Class(class) => class,
     ]);
 
-    interpreter.stack.push(Value::Array(Rc::new(RefCell::new(
+    interpreter.stack.push(Value::Array(GCRef::<Vec<Value>>::alloc(
         class
             .to_obj()
             .locals
@@ -86,7 +84,8 @@ fn fields(interpreter: &mut Interpreter, _: &mut UniverseBC) {
             .copied()
             .map(Value::Symbol)
             .collect(),
-    ))));
+        universe.mutator.as_mut(),
+    )));
 }
 
 /// Search for an instance primitive matching the given signature.

@@ -1,5 +1,4 @@
 use std::fmt;
-use std::rc::Rc;
 use num_bigint::BigInt;
 use crate::block::Block;
 use crate::class::Class;
@@ -8,7 +7,6 @@ use crate::instance::Instance;
 use crate::interner::Interned;
 use crate::method::Method;
 use crate::universe::UniverseBC;
-use crate::SOMRef;
 
 /// Represents an SOM value.
 #[derive(Clone)]
@@ -30,7 +28,7 @@ pub enum Value {
     /// A string value.
     String(GCRef<String>),
     /// An array of values.
-    Array(SOMRef<Vec<Self>>),
+    Array(GCRef<Vec<Self>>),
     /// A block value, ready to be evaluated.
     Block(GCRef<Block>),
     /// A generic (non-primitive) class instance.
@@ -117,7 +115,7 @@ impl Value {
             Self::Array(values) => {
                 // TODO (from nicolas): I think we can do better here (less allocations).
                 let strings: Vec<String> = values
-                    .borrow()
+                    .to_obj()
                     .iter()
                     .map(|value| value.to_string(universe))
                     .collect();
@@ -152,7 +150,7 @@ impl PartialEq for Value {
             }
             (Self::Symbol(a), Self::Symbol(b)) => a.eq(b),
             (Self::String(a), Self::String(b)) => a == b,
-            (Self::Array(a), Self::Array(b)) => Rc::ptr_eq(a, b),
+            (Self::Array(a), Self::Array(b)) => a == b,
             (Self::Instance(a), Self::Instance(b)) => a == b,
             (Self::Class(a), Self::Class(b)) => a == b,
             (Self::Block(a), Self::Block(b)) => a == b,
@@ -173,7 +171,7 @@ impl fmt::Debug for Value {
             Self::Double(val) => f.debug_tuple("Double").field(val).finish(),
             Self::Symbol(val) => f.debug_tuple("Symbol").field(val).finish(),
             Self::String(val) => f.debug_tuple("String").field(val).finish(),
-            Self::Array(val) => f.debug_tuple("Array").field(&val.borrow()).finish(),
+            Self::Array(val) => f.debug_tuple("Array").field(&val.to_obj()).finish(),
             Self::Block(val) => f.debug_tuple("Block").field(val).finish(),
             Self::Instance(val) => f.debug_tuple("Instance").field(&val.to_obj()).finish(),
             Self::Class(val) => f.debug_tuple("Class").field(&val.to_obj()).finish(),

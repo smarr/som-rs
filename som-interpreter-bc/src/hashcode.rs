@@ -47,7 +47,7 @@ impl Hash for Value {
             }
             Value::Array(value) => {
                 hasher.write(b"#arr#");
-                for value in value.borrow().iter() {
+                for value in value.to_obj().iter() {
                     value.hash(hasher);
                 }
             }

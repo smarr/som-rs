@@ -116,13 +116,13 @@ fn perform_with_arguments(interpreter: &mut Interpreter, universe: &mut Universe
 
     match method {
         Some(invokable) => {
-            let args = arr.borrow().iter().cloned().collect();
+            let args = arr.to_obj().iter().cloned().collect();
             invokable.invoke(interpreter, universe, object, args)
         }
         None => {
             let signature = signature.to_string();
             let args = std::iter::once(object.clone())
-                .chain(arr.borrow().iter().cloned())
+                .chain(arr.to_obj().iter().cloned())
                 .collect();
             universe
                 .does_not_understand(interpreter, object.clone(), sym, args)
@@ -186,13 +186,20 @@ fn perform_with_arguments_in_super_class(interpreter: &mut Interpreter, universe
 
     match method {
         Some(invokable) => {
-            let args = arr.borrow().iter().cloned().collect();
+            let args = arr.to_obj().iter().cloned().collect();
             invokable.invoke(interpreter, universe, object, args)
         }
         None => {
-            let args = std::iter::once(object.clone())
-                .chain(arr.replace(Vec::default()).into_iter())
-                .collect();
+            // let args = std::iter::once(object.clone())
+            //     .chain(arr.replace(Vec::default()).into_iter())
+            //     .collect();
+
+            // TODO: i *think* this is the expected behavior. But I'm confused by the way it was originally written (see above). So I could be wrong?
+            let args: &mut Vec<Value> = arr.to_obj();
+            arr.to_obj().remove(0);
+            let args = args.clone();
+            
+            
             let signature = signature.to_string();
             universe
                 .does_not_understand(interpreter, Value::Class(class), sym, args)

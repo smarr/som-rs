@@ -1,12 +1,11 @@
-use std::cell::RefCell;
 use std::convert::TryFrom;
-use std::rc::Rc;
 
 use crate::interpreter::Interpreter;
 use crate::primitives::PrimitiveFn;
 use crate::universe::UniverseBC;
 use crate::value::Value;
 use crate::{expect_args, reverse};
+use crate::gc::{Alloc, GCRef};
 
 pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[
     ("at:", self::at, true),
@@ -28,7 +27,7 @@ fn at(interpreter: &mut Interpreter, _: &mut UniverseBC) {
         Ok(index) => index,
         Err(err) => panic!("'{}': {}", SIGNATURE, err),
     };
-    let value = values.borrow().get(index).cloned().unwrap_or(Value::Nil);
+    let value = values.to_obj().get(index).cloned().unwrap_or(Value::Nil);
     interpreter.stack.push(value)
 }
 
@@ -45,7 +44,7 @@ fn at_put(interpreter: &mut Interpreter, _: &mut UniverseBC) {
         Ok(index) => index,
         Err(err) => panic!("'{}': {}", SIGNATURE, err),
     };
-    if let Some(location) = values.borrow_mut().get_mut(index) {
+    if let Some(location) = values.to_obj().get_mut(index) {
         *location = value;
     }
     interpreter.stack.push(Value::Array(values))
@@ -58,14 +57,14 @@ fn length(interpreter: &mut Interpreter, _: &mut UniverseBC) {
         Value::Array(values) => values,
     ]);
 
-    let length = values.borrow().len();
+    let length = values.to_obj().len();
     match i64::try_from(length) {
         Ok(length) => interpreter.stack.push(Value::Integer(length)),
         Err(err) => panic!("'{}': {}", SIGNATURE, err),
     }
 }
 
-fn new(interpreter: &mut Interpreter, _: &mut UniverseBC) {
+fn new(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
     const SIGNATURE: &str = "Array>>#new:";
 
     expect_args!(SIGNATURE, interpreter, [
@@ -76,10 +75,11 @@ fn new(interpreter: &mut Interpreter, _: &mut UniverseBC) {
     match usize::try_from(count) {
         Ok(length) => interpreter
             .stack
-            .push(Value::Array(Rc::new(RefCell::new(vec![
+            .push(Value::Array(
+                GCRef::<Vec<Value>>::alloc(vec![
                 Value::Nil;
                 length
-            ])))),
+            ], universe.mutator.as_mut()))),
         Err(err) => panic!("'{}': {}", SIGNATURE, err),
     }
 }

@@ -41,7 +41,7 @@ fn invoke_on_with(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
         Value::Array(args) => args,
     ]);
 
-    let args = args.borrow().iter().cloned().collect();
+    let args = args.to_obj().iter().cloned().collect();
     invokable.invoke(interpreter, universe, receiver, args);
 }
 

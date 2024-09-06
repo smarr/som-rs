@@ -1,14 +1,14 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::time::Instant;
-
+use mmtk::Mutator;
 use som_core::bytecode::Bytecode;
-
+use som_gc::SOMVM;
 use crate::block::Block;
 use crate::class::Class;
 use crate::compiler::Literal;
 use crate::frame::Frame;
-use crate::gc::GCRef;
+use crate::gc::{Alloc, GCRef};
 use crate::interner::Interned;
 use crate::method::{Method, MethodKind};
 use crate::universe::UniverseBC;
@@ -205,22 +205,22 @@ impl Interpreter {
                 }
                 Bytecode::PushConstant(idx) => {
                     let literal = frame.borrow().lookup_constant(idx as usize);
-                    let value = convert_literal(&frame, literal);
+                    let value = convert_literal(&frame, literal, universe.mutator.as_mut());
                     self.stack.push(value);
                 }
                 Bytecode::PushConstant0 => {
                     let literal = frame.borrow().lookup_constant(0);
-                    let value = convert_literal(&frame, literal);
+                    let value = convert_literal(&frame, literal, universe.mutator.as_mut());
                     self.stack.push(value);
                 }
                 Bytecode::PushConstant1 => {
                     let literal = frame.borrow().lookup_constant(1);
-                    let value = convert_literal(&frame, literal);
+                    let value = convert_literal(&frame, literal, universe.mutator.as_mut());
                     self.stack.push(value);
                 }
                 Bytecode::PushConstant2 => {
                     let literal = frame.borrow().lookup_constant(2);
-                    let value = convert_literal(&frame, literal);
+                    let value = convert_literal(&frame, literal, universe.mutator.as_mut());
                     self.stack.push(value);
                 }
                 Bytecode::PushGlobal(idx) => {
@@ -486,7 +486,7 @@ impl Interpreter {
             }
         }
 
-        fn convert_literal(frame: &SOMRef<Frame>, literal: Literal) -> Value {
+        fn convert_literal(frame: &SOMRef<Frame>, literal: Literal, mutator: &mut Mutator<SOMVM>) -> Value {
             let value = match literal {
                 Literal::Symbol(sym) => Value::Symbol(sym),
                 Literal::String(val) => Value::String(val),
@@ -498,10 +498,10 @@ impl Interpreter {
                         .into_iter()
                         .map(|idx| {
                             let lit = frame.borrow().lookup_constant(idx as usize);
-                            convert_literal(frame, lit)
+                            convert_literal(frame, lit, mutator)
                         })
                         .collect::<Vec<_>>();
-                    Value::Array(Rc::new(RefCell::new(arr)))
+                    Value::Array(GCRef::<Vec<Value>>::alloc(arr, mutator))
                 }
                 Literal::Block(val) => Value::Block(val),
             };

@@ -58,7 +58,7 @@ pub trait Alloc<T> {
 }
 
 impl<T> Alloc<T> for GCRef<T> {
-    /// A normal, straightforward alloc. Structures can implement their own instead (e.g. Instance and its arbitrary field array size) 
+    /// A normal, straightforward alloc. Structures can implement their own instead (e.g. Instance and its arbitrary field array size)
      fn alloc(obj: T, mutator: &mut Mutator<SOMVM>) -> GCRef<T> {
         let size = size_of::<T>();
         let align= 8;

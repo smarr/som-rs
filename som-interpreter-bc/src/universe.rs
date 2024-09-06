@@ -14,7 +14,7 @@ use crate::block::Block;
 use crate::class::Class;
 use crate::compiler;
 use crate::frame::Frame;
-use crate::gc::GCRef;
+use crate::gc::{Alloc, GCRef};
 use crate::interner::{Interned, Interner};
 use crate::interpreter::Interpreter;
 use crate::value::Value;
@@ -483,6 +483,7 @@ impl UniverseBC {
         value: Value,
         symbol: Interned,
         args: Vec<Value>,
+        
     ) -> Option<()> {
         // dbg!(&interpreter.stack);
         // panic!("does not understand: {:?}, called on {:?}", self.interner.lookup(symbol), &value);
@@ -490,7 +491,7 @@ impl UniverseBC {
         let method_name = self.intern_symbol("doesNotUnderstand:arguments:");
         let method = value.lookup_method(self, method_name)?;
 
-        interpreter.push_method_frame(method, vec![value, Value::Symbol(symbol), Value::Array(Rc::new(RefCell::new(args)))]);
+        interpreter.push_method_frame(method, vec![value, Value::Symbol(symbol), Value::Array(GCRef::<Vec<Value>>::alloc(args, self.mutator.as_mut()))]);
 
         Some(())
     }
@@ -517,7 +518,7 @@ impl UniverseBC {
         let method = Value::System.lookup_method(self, method_name)?;
 
 
-        let frame = Rc::new(RefCell::new(Frame::from_method(method, vec![Value::System, Value::Array(Rc::new(RefCell::new(args)))])));
+        let frame = Rc::new(RefCell::new(Frame::from_method(method, vec![Value::System, Value::Array(GCRef::<Vec<Value>>::alloc(args, self.mutator.as_mut()))])));
         let interpreter = Interpreter::new(Rc::clone(&frame));
 
         Some(interpreter)
