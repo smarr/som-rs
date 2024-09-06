@@ -2,6 +2,7 @@ use std::hash::{Hash, Hasher};
 
 use crate::block::Block;
 use crate::class::Class;
+use crate::gc::GCPtr;
 use crate::instance::Instance;
 use crate::method::Method;
 use crate::value::Value;
@@ -61,7 +62,7 @@ impl Hash for Value {
             }
             Value::Instance(value) => {
                 hasher.write(b"#inst#");
-                Instance::from_gc_ptr(value).hash(hasher);
+                value.ptr_to_obj().hash(hasher);
             }
             Value::Invokable(value) => {
                 hasher.write(b"#mthd#");

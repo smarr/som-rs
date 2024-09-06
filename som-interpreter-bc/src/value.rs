@@ -5,7 +5,7 @@ use num_bigint::BigInt;
 
 use crate::block::Block;
 use crate::class::Class;
-use crate::gc::GCRef;
+use crate::gc::{GCPtr, GCRef};
 use crate::instance::Instance;
 use crate::interner::Interned;
 use crate::method::Method;
@@ -58,7 +58,7 @@ impl Value {
             Self::String(_) => universe.string_class(),
             Self::Array(_) => universe.array_class(),
             Self::Block(block) => block.class(universe),
-            Self::Instance(instance_ptr) => Instance::from_gc_ptr(instance_ptr).class(),
+            Self::Instance(instance_ptr) => instance_ptr.ptr_to_obj().class(),
             Self::Class(class) => class.borrow().class(),
             Self::Invokable(invokable) => invokable.class(universe),
         }
@@ -92,7 +92,7 @@ impl Value {
     /// But those prims are free to be used and abused by devs, so they CAN fail, and we need to check that they won't fail before we invoke them. Hence this `has_local`.
     pub fn has_local(&self, index: usize) -> bool {
         match self {
-            Self::Instance(instance_ptr) => Instance::from_gc_ptr(instance_ptr).has_local(index),
+            Self::Instance(instance_ptr) => instance_ptr.ptr_to_obj().has_local(index),
             Self::Class(class) => class.borrow().has_local(index),
             _ => false,
         }
@@ -128,7 +128,7 @@ impl Value {
             Self::Block(block) => format!("instance of Block{}", block.nb_parameters() + 1),
             Self::Instance(instance_ptr) => format!(
                 "instance of {} class",
-                Instance::from_gc_ptr(instance_ptr).class().borrow().name(),
+                instance_ptr.ptr_to_obj().class().borrow().name(),
             ),
             Self::Class(class) => class.borrow().name().to_string(),
             Self::Invokable(invokable) => invokable
@@ -179,7 +179,7 @@ impl fmt::Debug for Value {
             Self::String(val) => f.debug_tuple("String").field(val).finish(),
             Self::Array(val) => f.debug_tuple("Array").field(&val.borrow()).finish(),
             Self::Block(val) => f.debug_tuple("Block").field(val).finish(),
-            Self::Instance(val) => f.debug_tuple("Instance").field(&Instance::from_gc_ptr(val)).finish(),
+            Self::Instance(val) => f.debug_tuple("Instance").field(&val.ptr_to_obj()).finish(),
             Self::Class(val) => f.debug_tuple("Class").field(&val.borrow()).finish(),
             Self::Invokable(val) => {
                 let signature = val

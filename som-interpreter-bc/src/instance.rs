@@ -2,15 +2,15 @@ use std::cell::RefCell;
 use std::fmt;
 use std::marker::PhantomData;
 use std::rc::Rc;
-use mmtk::AllocationSemantics;
+use mmtk::{AllocationSemantics, Mutator};
 use som_gc::api::{mmtk_alloc, mmtk_post_alloc};
 use som_gc::SOMVM;
 use crate::class::Class;
 use crate::value::Value;
-use crate::SOMRef;
 use core::mem::size_of;
 use mmtk::util::Address;
-use crate::gc::GCRef;
+use crate::gc::{GCPtr, GCRef};
+use crate::SOMRef;
 
 /// Represents a generic (non-primitive) class instance.
 #[derive(Clone, PartialEq)]
@@ -19,15 +19,9 @@ pub struct Instance {
     pub class: *mut Class,
     /// will be used for packed repr of locals
     pub nbr_fields: usize,
-    // /// This instance's locals.
+    // /// This instance's locals. Contiguous "Value" instances in memory
     pub locals_marker: ()
 }
-
-// pub struct InstanceLayout {
-//     pub class: *mut Class,
-//     pub nbr_fields: usize,
-//     pub idk: usize // sizeof::Value * nbr_fields
-// }
 
 impl Instance {
     /// Construct an instance for a given class.
@@ -43,41 +37,7 @@ impl Instance {
         let nbr_fields = get_nbr_fields(&class);
 
         let instance = Self { class: class.as_ptr(), nbr_fields, locals_marker: () };
-        Self::alloc_instance(instance, nbr_fields, mutator)
-    }
-
-    fn alloc_instance(instance: Instance, nbr_fields: usize, mutator: &mut mmtk::Mutator<SOMVM>) -> GCRef<Instance> {
-        let size = size_of::<Instance>() + (instance.nbr_fields * size_of::<Value>());
-        // let size = std::mem::size_of::<Instance>();
-        let align= 8;
-        let offset= 0;
-        let semantics = AllocationSemantics::Default;
-
-        let instance_addr = mmtk_alloc(mutator, size, align, offset, semantics);
-        debug_assert!(!instance_addr.is_zero());
-
-        mmtk_post_alloc(mutator, SOMVM::object_start_to_ref(instance_addr), size, semantics);
-
-        unsafe {
-            *instance_addr.as_mut_ref() = instance;
-
-            let mut values_addr = instance_addr.add(size_of::<Instance>());
-            for _ in 0..nbr_fields {
-                *values_addr.as_mut_ref() = Value::Nil;
-                values_addr = values_addr.add(size_of::<Value>());
-            }
-        };
-
-        // println!("instance allocation OK");
-
-        GCRef {
-            ptr: instance_addr,
-            _phantom: PhantomData
-        }
-    }
-
-    pub fn from_gc_ptr(gc_ptr: &GCRef<Instance>) -> &mut Instance {
-        unsafe { &mut *(gc_ptr.ptr.as_mut_ref()) }
+        GCRef::alloc(instance, mutator)
     }
 
     /// Get the class of which this is an instance from.
@@ -103,6 +63,43 @@ impl Instance {
     /// Checks whether there exists a local binding of a given index.
     pub fn has_local(&self, idx: usize) -> bool {
         idx < self.nbr_fields
+    }
+}
+
+impl GCPtr<Instance> for GCRef<Instance> {
+    fn ptr_to_obj(&self) -> &mut Instance {
+        unsafe { &mut *(self.ptr.as_mut_ref()) }
+    }
+
+    fn alloc(instance: Instance, mutator: &mut Mutator<SOMVM>) -> Self {
+        let size = size_of::<Instance>() + (instance.nbr_fields * size_of::<Value>());
+        // let size = std::mem::size_of::<Instance>();
+        let align= 8;
+        let offset= 0;
+        let semantics = AllocationSemantics::Default;
+
+        let instance_addr = mmtk_alloc(mutator, size, align, offset, semantics);
+        debug_assert!(!instance_addr.is_zero());
+
+        mmtk_post_alloc(mutator, SOMVM::object_start_to_ref(instance_addr), size, semantics);
+
+        let nbr_fields = instance.nbr_fields;
+        unsafe {
+            *instance_addr.as_mut_ref() = instance;
+
+            let mut values_addr = instance_addr.add(size_of::<Instance>());
+            for _ in 0..nbr_fields {
+                *values_addr.as_mut_ref() = Value::Nil;
+                values_addr = values_addr.add(size_of::<Value>());
+            }
+        };
+
+        // println!("instance allocation OK");
+
+        GCRef {
+            ptr: instance_addr,
+            _phantom: PhantomData
+        }
     }
 }
 
