@@ -1,17 +1,12 @@
 use std::fmt;
-use std::marker::PhantomData;
 use std::rc::Rc;
 
 use indexmap::IndexMap;
-use mmtk::{AllocationSemantics, Mutator};
-use som_gc::api::{mmtk_alloc, mmtk_post_alloc};
-use som_gc::SOMVM;
 use crate::interner::Interned;
 use crate::method::Method;
 use crate::value::Value;
 use crate::{SOMRef, SOMWeakRef};
-use crate::gc::{Alloc, GCRef};
-use core::mem::size_of;
+use crate::gc::GCRef;
 
 /// A reference that may be either weak or owned/strong.
 #[derive(Debug, Clone)]
@@ -37,31 +32,6 @@ pub struct Class {
     pub methods: IndexMap<Interned, Rc<Method>>,
     /// Is this class a static one ?
     pub is_static: bool,
-}
-
-impl Alloc<Class> for Class {
-    fn alloc(class: Class, mutator: &mut Mutator<SOMVM>) -> GCRef<Self> {
-        let size = size_of::<Class>();
-        let align= 8;
-        let offset= 0;
-        let semantics = AllocationSemantics::Default;
-
-        let class_addr = mmtk_alloc(mutator, size, align, offset, semantics);
-        debug_assert!(!class_addr.is_zero());
-
-        mmtk_post_alloc(mutator, SOMVM::object_start_to_ref(class_addr), size, semantics);
-
-        unsafe {
-            *class_addr.as_mut_ref() = class;
-        }
-
-        // println!("class allocation OK");
-
-        GCRef {
-            ptr: class_addr,
-            _phantom: PhantomData
-        }
-    }
 }
 
 impl Class {

@@ -9,7 +9,7 @@ use crate::primitives::PrimitiveFn;
 use crate::universe::UniverseBC;
 use crate::value::Value;
 use crate::{expect_args, reverse};
-use crate::gc::GCRef;
+use crate::gc::{Alloc, GCRef};
 
 pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[
     ("loadFile:", self::load_file, true),
@@ -44,7 +44,7 @@ fn load_file(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
     };
 
     let value = match fs::read_to_string(path) {
-        Ok(value) => Value::String(GCRef::<String>::generic_alloc(value, universe.mutator.as_mut())),
+        Ok(value) => Value::String(GCRef::<String>::alloc(value, universe.mutator.as_mut())),
         Err(_) => Value::Nil,
     };
 

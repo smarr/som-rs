@@ -7,7 +7,7 @@ use crate::primitives::PrimitiveFn;
 use crate::universe::UniverseBC;
 use crate::value::Value;
 use crate::{expect_args, reverse};
-use crate::gc::GCRef;
+use crate::gc::{Alloc, GCRef};
 
 pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[
     ("length", self::length, true),
@@ -143,7 +143,7 @@ fn concatenate(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
 
     interpreter
         .stack
-        .push(Value::String(GCRef::<String>::generic_alloc(format!("{}{}", s1, s2), universe.mutator.as_mut())))
+        .push(Value::String(GCRef::<String>::alloc(format!("{}{}", s1, s2), universe.mutator.as_mut())))
 }
 
 fn as_symbol(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
@@ -175,9 +175,9 @@ fn char_at(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
         (Value::Symbol(intern), Value::Integer(i)) => (universe.lookup_symbol(*intern), i as usize - 1),
         _ => panic!()
     };
-    
+
     // TODO opt: just return a pointer to the char in question, right?
-    interpreter.stack.push(Value::String(GCRef::<String>::generic_alloc(String::from(value.chars().nth(idx).unwrap()), universe.mutator.as_mut())))
+    interpreter.stack.push(Value::String(GCRef::<String>::alloc(String::from(value.chars().nth(idx).unwrap()), universe.mutator.as_mut())))
 }
 
 fn eq(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
@@ -226,7 +226,7 @@ fn prim_substring_from_to(interpreter: &mut Interpreter, universe: &mut Universe
 
     let string = String::from(&value[from..to]);
 
-    interpreter.stack.push(Value::String(GCRef::<String>::generic_alloc(string, universe.mutator.as_mut())))
+    interpreter.stack.push(Value::String(GCRef::<String>::alloc(string, universe.mutator.as_mut())))
 }
 
 /// Search for an instance primitive matching the given signature.

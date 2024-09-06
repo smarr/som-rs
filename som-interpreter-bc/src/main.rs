@@ -16,7 +16,7 @@ use som_interpreter_bc::class::Class;
 mod shell;
 
 use som_interpreter_bc::disassembler::disassemble_method_body;
-use som_interpreter_bc::gc::GCRef;
+use som_interpreter_bc::gc::{Alloc, GCRef};
 use som_interpreter_bc::method::{Method, MethodKind};
 use som_interpreter_bc::universe::UniverseBC;
 use som_interpreter_bc::value::Value;
@@ -61,7 +61,7 @@ fn run() -> anyhow::Result<()> {
     let opts: Options = Options::from_args();
 
     // let mut interpreter = Interpreter::new();
-    
+
     if opts.disassemble {
         return disassemble_class(opts);
     }
@@ -84,12 +84,12 @@ fn run() -> anyhow::Result<()> {
     }
 
     let mutator = init_gc();
-    
+
     let mut universe = UniverseBC::with_classpath(classpath, mutator)?;
     
     let args = std::iter::once(String::from(file_stem))
         .chain(opts.args.iter().cloned())
-        .map(|arg| Value::String(GCRef::<String>::generic_alloc(arg, universe.mutator.as_mut())))
+        .map(|arg| Value::String(GCRef::<String>::alloc(arg, universe.mutator.as_mut())))
         .collect();
 
     let mut interpreter = universe

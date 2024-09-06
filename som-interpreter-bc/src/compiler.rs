@@ -555,7 +555,7 @@ impl MethodCodegen for ast::Expression {
                         ast::Literal::Symbol(val) => {
                             Literal::Symbol(ctxt.intern_symbol(val.as_str()))
                         }
-                        ast::Literal::String(val) => Literal::String(GCRef::<String>::generic_alloc(val.clone(), mutator)),
+                        ast::Literal::String(val) => Literal::String(GCRef::<String>::alloc(val.clone(), mutator)),
                         ast::Literal::Double(val) => Literal::Double(*val),
                         ast::Literal::Integer(val) => Literal::Integer(*val),
                         ast::Literal::BigInteger(val) => Literal::BigInteger(val.parse().unwrap()),
@@ -863,8 +863,8 @@ pub fn compile_class(
         methods: IndexMap::new(),
         is_static: true,
     };
-    
-    let static_class_gc_ptr = Class::alloc(static_class, mutator);
+
+    let static_class_gc_ptr = GCRef::<Class>::alloc(static_class, mutator);
 
     for method in &defn.static_methods {
         let signature = static_class_ctxt.interner.intern(method.signature.as_str());
@@ -945,7 +945,7 @@ pub fn compile_class(
         is_static: false,
     };
 
-    let instance_class_gc_ptr = Class::alloc(instance_class, mutator);
+    let instance_class_gc_ptr = GCRef::<Class>::alloc(instance_class, mutator);
 
     for method in &defn.instance_methods {
         let signature = instance_class_ctxt

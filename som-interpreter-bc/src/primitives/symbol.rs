@@ -3,7 +3,7 @@ use crate::primitives::PrimitiveFn;
 use crate::universe::UniverseBC;
 use crate::value::Value;
 use crate::{expect_args, reverse};
-use crate::gc::GCRef;
+use crate::gc::{Alloc, GCRef};
 
 pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[
     ("asString", self::as_string, true),
@@ -19,7 +19,7 @@ fn as_string(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
         Value::Symbol(sym) => sym,
     ]);
 
-    interpreter.stack.push(Value::String(GCRef::<String>::generic_alloc(universe.lookup_symbol(sym).to_string(), universe.mutator.as_mut())));
+    interpreter.stack.push(Value::String(GCRef::<String>::alloc(universe.lookup_symbol(sym).to_string(), universe.mutator.as_mut())));
 }
 
 // NOTA BENE: this isn't a prim in our other interpreters (TSOM, PySOM), I guess

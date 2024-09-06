@@ -23,7 +23,7 @@ impl<T> Clone for GCRef<T> {
 
 impl<T> Copy for GCRef<T> {}
 
-// Ugly, but sometimes we want a placeholder. Code may be refactorable to never need this though.
+// Ugly, but sometimes we want a placeholder. Code may be refactorable to never need this though, I think.
 impl<T> Default for GCRef<T> {
     fn default() -> Self {
         unsafe {
@@ -41,15 +41,25 @@ impl<T> PartialEq for GCRef<T> {
     }
 }
 
+// -------------------------------------
+
 impl<T> GCRef<T> {
-    // Turn a GC pointer back into the type itself (as a reference)
+    /// Turn a GC pointer back into the type itself (as a reference)
     pub fn to_obj(&self) -> &mut T {
         debug_assert!(!self.ptr.is_zero());
         unsafe { &mut *(self.ptr.as_mut_ref()) }
     }
-    
-    /// normal alloc for a normal struct. TODO make it the overridable default
-    pub fn generic_alloc(obj: T, mutator: &mut Mutator<SOMVM>) -> GCRef<T> {
+}
+
+/// Trait used by GCRef pointers to be created from objects.
+pub trait Alloc<T> {
+    // Allocates a type on the heap and returns a pointer to it
+    fn alloc(obj: T, mutator: &mut Mutator<SOMVM>) -> GCRef<T>;
+}
+
+impl<T> Alloc<T> for GCRef<T> {
+    /// A normal, straightforward alloc. Structures can implement their own instead (e.g. Instance and its arbitrary field array size) 
+     fn alloc(obj: T, mutator: &mut Mutator<SOMVM>) -> GCRef<T> {
         let size = size_of::<T>();
         let align= 8;
         let offset= 0;
@@ -63,18 +73,12 @@ impl<T> GCRef<T> {
         unsafe {
             *addr.as_mut_ref() = obj;
         }
-        
+
         GCRef {
             ptr: addr,
             _phantom: PhantomData::default()
         }
     }
-}
-
-/// Trait used by all GCRef pointers to convert to/from objects. TODO should only be implementable by GCRef<T>, and MUST be implemented by all GCRef<T>
-pub trait Alloc<T> {
-    // Allocates a type on the heap and returns a pointer to it
-    fn alloc(obj: T, mutator: &mut Mutator<SOMVM>) -> GCRef<T>;
 }
 
 // for convenience, but removable

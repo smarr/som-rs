@@ -10,7 +10,7 @@ use crate::primitives::PrimitiveFn;
 use crate::universe::UniverseBC;
 use crate::value::Value;
 use crate::{expect_args, reverse};
-use crate::gc::GCRef;
+use crate::gc::{Alloc, GCRef};
 
 pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[
     ("<", self::lt, true),
@@ -92,7 +92,7 @@ fn as_string(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
     };
 
     {
-        interpreter.stack.push(Value::String(GCRef::<String>::generic_alloc(value, universe.mutator.as_mut())));
+        interpreter.stack.push(Value::String(GCRef::<String>::alloc(value, universe.mutator.as_mut())));
         return;
     }
 }
