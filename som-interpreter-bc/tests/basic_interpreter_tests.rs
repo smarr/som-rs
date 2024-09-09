@@ -1,5 +1,5 @@
 use std::path::PathBuf;
-use som_gc::vm_util_idk::init_gc;
+use som_gc::entry_point::init_gc;
 use som_interpreter_bc::compiler;
 use som_interpreter_bc::frame::Frame;
 use som_interpreter_bc::gc::{Alloc, GCRef};

@@ -9,7 +9,7 @@ use anyhow::{bail, Context};
 #[cfg(feature = "jemalloc")]
 use jemallocator::Jemalloc;
 use structopt::StructOpt;
-use som_gc::vm_util_idk::init_gc;
+use som_gc::entry_point::init_gc;
 use som_interpreter_bc::class::Class;
 
 mod shell;

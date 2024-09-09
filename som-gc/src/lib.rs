@@ -14,7 +14,7 @@ pub mod reference_glue;
 pub mod scanning;
 
 /// I added that one. Trying to centralize some GC operations
-pub mod vm_util_idk;
+pub mod entry_point;
 
 pub type DummyVMSlot = mmtk::vm::slot::SimpleSlot;
 

@@ -2,7 +2,7 @@ use std::cell::RefCell;
 use som_core::bytecode::Bytecode;
 use som_core::bytecode::Bytecode::*;
 use std::path::PathBuf;
-use som_gc::vm_util_idk::init_gc;
+use som_gc::entry_point::init_gc;
 use som_interpreter_bc::block::{Block, BlockInfo};
 
 use som_interpreter_bc::compiler;

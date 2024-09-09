@@ -1,4 +1,4 @@
-use crate::SOMVM;
+use crate::{SINGLETON, SOMVM};
 use mmtk::util::opaque_pointer::*;
 use mmtk::vm::Collection;
 use mmtk::vm::GCThreadContext;
@@ -23,7 +23,23 @@ impl Collection<SOMVM> for VMCollection {
         unimplemented!()
     }
 
-    fn spawn_gc_thread(_tls: VMThread, _ctx: GCThreadContext<SOMVM>) {
-        unimplemented!()
+    fn spawn_gc_thread(_tls: VMThread, ctx: GCThreadContext<SOMVM>) {
+        // unimplemented!()
+        
+        // copied from julia mmtk code
+        // Just drop the join handle. The thread will run until the process quits.
+        let _ = std::thread::spawn(move || {
+            // let worker_tls = VMWorkerThread(VMThread(OpaquePointer::from_address(unsafe {
+            //     Address::from_usize(thread_id::get())
+            // })));
+
+            let worker_tls = VMWorkerThread(VMThread(OpaquePointer::UNINITIALIZED));
+            match ctx {
+                GCThreadContext::Worker(w) => {
+                    mmtk::memory_manager::start_worker(SINGLETON.get().unwrap(), worker_tls, w)
+                }
+            }
+        });
+
     }
 }
