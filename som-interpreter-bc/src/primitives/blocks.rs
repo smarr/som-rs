@@ -14,14 +14,14 @@ pub mod block1 {
     ];
     pub static CLASS_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[];
     
-    fn value(interpreter: &mut Interpreter, _: &mut UniverseBC) {
+    fn value(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
         const SIGNATURE: &str = "Block1>>#value";
 
         expect_args!(SIGNATURE, interpreter, [
             Value::Block(block) => block,
         ]);
 
-        interpreter.push_block_frame(block, vec![Value::Block(block)]);
+        interpreter.push_block_frame(block, vec![Value::Block(block)], universe.mutator.as_mut());
         
         // match interpreter.stack.pop() {
         //     Some(Value::Block(block)) => interpreter.push_block_frame(block, vec![Value::Block(block)]),
@@ -62,7 +62,7 @@ pub mod block2 {
     pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[("value:", self::value, true)];
     pub static CLASS_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[];
 
-    fn value(interpreter: &mut Interpreter, _: &mut UniverseBC) {
+    fn value(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
         const SIGNATURE: &str = "Block2>>#value:";
 
         expect_args!(SIGNATURE, interpreter, [
@@ -70,7 +70,7 @@ pub mod block2 {
             argument => argument,
         ]);
 
-        interpreter.push_block_frame(block, vec![Value::Block(block), argument]);
+        interpreter.push_block_frame(block, vec![Value::Block(block), argument], universe.mutator.as_mut());
         
         // NB: what follows is a potentially sliiiiightly faster way of handling things, but didn't lead to visible speedups, so eh.
         
@@ -107,7 +107,7 @@ pub mod block3 {
         &[("value:with:", self::value_with, true)];
     pub static CLASS_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[];
 
-    fn value_with(interpreter: &mut Interpreter, _: &mut UniverseBC) {
+    fn value_with(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
         const SIGNATURE: &str = "Block3>>#value:with:";
         
         expect_args!(SIGNATURE, interpreter, [
@@ -116,7 +116,7 @@ pub mod block3 {
             argument2 => argument2,
         ]);
 
-        interpreter.push_block_frame(block, vec![Value::Block(block), argument1, argument2]);
+        interpreter.push_block_frame(block, vec![Value::Block(block), argument1, argument2], universe.mutator.as_mut());
 
         // let args = interpreter.stack.split_off(interpreter.stack.len() - 3);
 

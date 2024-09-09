@@ -12,7 +12,6 @@ use crate::gc::{Alloc, GCRef};
 // use crate::interner::Interned;
 use crate::method::Method;
 use crate::universe::UniverseBC;
-use crate::SOMRef;
 
 #[derive(Clone)]
 pub struct BlockInfo {
@@ -30,7 +29,7 @@ pub struct BlockInfo {
 #[derive(Clone)]
 pub struct Block {
     /// Reference to the captured stack frame.
-    pub frame: Option<SOMRef<Frame>>,
+    pub frame: Option<GCRef<Frame>>,
     pub blk_info: GCRef<BlockInfo>,
 }
 

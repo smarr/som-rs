@@ -89,7 +89,7 @@ impl GCRef<Method> {
             MethodKind::Defined(_) => {
                 let mut frame_args = vec![receiver];
                 frame_args.append(&mut args);
-                interpreter.push_method_frame(*self, frame_args);
+                interpreter.push_method_frame(*self, frame_args, universe.mutator.as_mut());
             }
             MethodKind::Primitive(func) => {
                 interpreter.stack.push(receiver);

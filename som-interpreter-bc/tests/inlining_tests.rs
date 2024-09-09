@@ -2,11 +2,11 @@ use std::cell::RefCell;
 use som_core::bytecode::Bytecode;
 use som_core::bytecode::Bytecode::*;
 use std::path::PathBuf;
-use std::rc::Rc;
 use som_gc::vm_util_idk::init_gc;
 use som_interpreter_bc::block::{Block, BlockInfo};
 
 use som_interpreter_bc::compiler;
+use som_interpreter_bc::gc::{Alloc, GCRef};
 use som_interpreter_bc::method::MethodKind;
 use som_interpreter_bc::universe::UniverseBC;
 use som_lexer::{Lexer, Token};
@@ -38,16 +38,16 @@ fn get_bytecodes_from_method(class_txt: &str, method_name: &str) -> Vec<Bytecode
     let class_def = som_parser::apply(lang::class_def(), tokens.as_slice(), None).unwrap();
 
     let object_class = universe.object_class();
-    let class = compiler::compile_class(&mut universe.interner, &class_def, Some(&object_class));
+    let class = compiler::compile_class(&mut universe.interner, &class_def, Some(&object_class), universe.mutator.as_mut());
     assert!(class.is_some(), "could not compile test expression");
 
     let class = class.unwrap();
     let method = class
-        .borrow()
+        .to_obj()
         .lookup_method(method_name_interned)
         .expect("method not found ??");
 
-    match &method.as_ref().kind {
+    match &method.to_obj().kind {
         MethodKind::Defined(m) => m.body.clone(),
         _ => unreachable!(),
     }
@@ -293,9 +293,10 @@ fn inlining_pyramid() {
 /// This checks that this works OK when ReturnNonLocal is involved. Code taken from the Queens benchmark.
 #[test]
 fn block_with_non_local_returns_for_to_do_block() {
+    let mut universe = setup_universe();
     let block = Block {
         frame: None,
-        blk_info: Rc::new(BlockInfo {
+        blk_info: GCRef::<BlockInfo>::alloc(BlockInfo {
             literals: vec![],
             body: vec![
                 PushNonLocalArg(1,0),
@@ -339,12 +340,12 @@ fn block_with_non_local_returns_for_to_do_block() {
             nb_locals: 0,
             nb_params: 0,
             inline_cache: RefCell::new(vec![]),
-        }),
+        }, universe.mutator.as_mut())
     };
 
-    let new_blk_rc = block.make_equivalent_with_no_return();
+    let new_blk_rc = block.make_equivalent_with_no_return(universe.mutator.as_mut());
 
-    assert_eq!(new_blk_rc.blk_info.body, vec![
+    assert_eq!(new_blk_rc.to_obj().blk_info.to_obj().body, vec![
         PushNonLocalArg(1,0),
         PushArg(1),
         PushNonLocalArg(1,1),

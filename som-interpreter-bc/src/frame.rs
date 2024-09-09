@@ -1,5 +1,4 @@
 use std::cell::RefCell;
-use std::rc::Rc;
 
 use som_core::bytecode::Bytecode;
 
@@ -9,7 +8,6 @@ use crate::compiler::Literal;
 use crate::gc::GCRef;
 use crate::method::{Method, MethodKind};
 use crate::value::Value;
-use crate::SOMRef;
 
 #[cfg(feature = "frame-debug-info")]
 /// The kind of a given frame.
@@ -43,7 +41,7 @@ pub struct Frame {
     pub locals: Vec<Value>,
     /// Bytecode index.
     pub bytecode_idx: usize,
-    /// Inline cache associated with the frame.
+    /// Inline cache associated with the frame. TODO - refcell not worth it with the GC now, is it?
     pub inline_cache: *const RefCell<Vec<Option<(*const Class, GCRef<Method>)>>>, // todo class can also be a GC ref, that's basically a pointer
     #[cfg(feature = "frame-debug-info")]
     /// This frame's kind.
@@ -147,7 +145,7 @@ impl Frame {
         match self.args.first().unwrap() {
             Value::Block(b) => {
                 let block_frame = b.to_obj().frame.as_ref().unwrap().clone();
-                let x = block_frame.borrow().get_self();
+                let x = block_frame.to_obj().get_self();
                 x
             },
             s => s.clone()
@@ -159,7 +157,7 @@ impl Frame {
     pub fn get_method(&self) -> GCRef<Method> {
         match &self.kind {
             FrameKind::Method { method, .. } => *method,
-            FrameKind::Block { block, .. } => block.frame.as_ref().unwrap().borrow().get_method(),
+            FrameKind::Block { block, .. } => block.to_obj().frame.as_ref().unwrap().to_obj().get_method(),
         }
     }
 
@@ -211,21 +209,21 @@ impl Frame {
         }
     }
 
-    pub fn nth_frame_back(current_frame: SOMRef<Frame>, n: u8) -> SOMRef<Frame> {
+    pub fn nth_frame_back(current_frame: &GCRef<Frame>, n: u8) -> GCRef<Frame> {
         if n == 0 {
-            return current_frame;
+            return *current_frame;
         }
 
-        let mut target_frame: Rc<RefCell<Frame>> = match current_frame.borrow().args.first().unwrap() {
+        let mut target_frame: GCRef<Frame> = match current_frame.to_obj().args.first().unwrap() {
             Value::Block(block) => {
-                Rc::clone(block.to_obj().frame.as_ref().unwrap())
+                *block.to_obj().frame.as_ref().unwrap()
             }
             v => panic!("attempting to access a non local var/arg from a method instead of a block: self wasn't blockself but {:?}.", v)
         };
         for _ in 1..n {
-            target_frame = match Rc::clone(&target_frame).borrow().args.first().unwrap() {
+            target_frame = match &target_frame.to_obj().args.first().unwrap() {
                 Value::Block(block) => {
-                    Rc::clone(block.to_obj().frame.as_ref().unwrap())
+                    *block.to_obj().frame.as_ref().unwrap()
                 }
                 v => panic!("attempting to access a non local var/arg from a method instead of a block (but the original frame we were in was a block): self wasn't blockself but {:?}.", v)
             };

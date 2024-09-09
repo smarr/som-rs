@@ -1,9 +1,7 @@
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
-use std::rc::Rc;
 
 use anyhow::{anyhow, Error};
 use mmtk::Mutator;
@@ -471,7 +469,7 @@ impl UniverseBC {
     ) -> Option<()> {
         let method_name = self.intern_symbol("escapedBlock:");
         let method = value.lookup_method(self, method_name)?;
-        interpreter.push_method_frame(method, vec![value, Value::Block(block)]);
+        interpreter.push_method_frame(method, vec![value, Value::Block(block)], self.mutator.as_mut());
         Some(())
     }
 
@@ -491,7 +489,9 @@ impl UniverseBC {
         let method_name = self.intern_symbol("doesNotUnderstand:arguments:");
         let method = value.lookup_method(self, method_name)?;
 
-        interpreter.push_method_frame(method, vec![value, Value::Symbol(symbol), Value::Array(GCRef::<Vec<Value>>::alloc(args, self.mutator.as_mut()))]);
+        interpreter.push_method_frame(method, 
+                                      vec![value, Value::Symbol(symbol), Value::Array(GCRef::<Vec<Value>>::alloc(args, self.mutator.as_mut()))], 
+                                      self.mutator.as_mut());
 
         Some(())
     }
@@ -506,8 +506,8 @@ impl UniverseBC {
         let method_name = self.intern_symbol("unknownGlobal:");
         let method = value.lookup_method(self, method_name)?;
 
-        interpreter.current_frame.borrow_mut().bytecode_idx = interpreter.bytecode_idx;
-        interpreter.push_method_frame(method, vec![value, Value::Symbol(name)]);
+        interpreter.current_frame.to_obj().bytecode_idx = interpreter.bytecode_idx;
+        interpreter.push_method_frame(method, vec![value, Value::Symbol(name)], self.mutator.as_mut());
 
         Some(())
     }
@@ -516,10 +516,10 @@ impl UniverseBC {
     pub fn initialize(&mut self, args: Vec<Value>) -> Option<Interpreter> {
         let method_name = self.interner.intern("initialize:");
         let method = Value::System.lookup_method(self, method_name)?;
-
-
-        let frame = Rc::new(RefCell::new(Frame::from_method(method, vec![Value::System, Value::Array(GCRef::<Vec<Value>>::alloc(args, self.mutator.as_mut()))])));
-        let interpreter = Interpreter::new(Rc::clone(&frame));
+        
+        let frame = Frame::from_method(method, vec![Value::System, Value::Array(GCRef::<Vec<Value>>::alloc(args, self.mutator.as_mut()))]);
+        let frame_ptr = GCRef::<Frame>::alloc(frame, self.mutator.as_mut());
+        let interpreter = Interpreter::new(frame_ptr);
 
         Some(interpreter)
     }

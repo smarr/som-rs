@@ -4,17 +4,16 @@ use indexmap::IndexMap;
 use crate::interner::Interned;
 use crate::method::Method;
 use crate::value::Value;
-use crate::{SOMRef, SOMWeakRef};
 use crate::gc::GCRef;
 
-/// A reference that may be either weak or owned/strong.
-#[derive(Debug, Clone)]
-pub enum MaybeWeak<A> {
-    /// An owned reference.
-    Strong(SOMRef<A>),
-    /// A weak reference.
-    Weak(SOMWeakRef<A>),
-}
+// /// A reference that may be either weak or owned/strong.
+// #[derive(Debug, Clone)]
+// pub enum MaybeWeak<A> {
+//     /// An owned reference.
+//     Strong(SOMRef<A>),
+//     /// A weak reference.
+//     Weak(SOMWeakRef<A>),
+// }
 
 /// Represents a loaded class.
 #[derive(Clone)]

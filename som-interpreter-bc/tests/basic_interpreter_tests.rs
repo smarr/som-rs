@@ -1,9 +1,8 @@
-use std::cell::RefCell;
 use std::path::PathBuf;
-use std::rc::Rc;
 use som_gc::vm_util_idk::init_gc;
 use som_interpreter_bc::compiler;
 use som_interpreter_bc::frame::Frame;
+use som_interpreter_bc::gc::{Alloc, GCRef};
 use som_interpreter_bc::interpreter::Interpreter;
 use som_interpreter_bc::universe::UniverseBC;
 use som_interpreter_bc::value::Value;
@@ -23,9 +22,8 @@ fn setup_universe() -> UniverseBC {
 fn basic_interpreter_tests() {
     let mut universe = setup_universe();
 
-    let return_class = Value::Class(universe.load_class("Return").unwrap());
-    let compiler_simplification_class =
-        Value::Class(universe.load_class("CompilerSimplification").unwrap());
+    let return_class_ptr = universe.load_class("Return").unwrap();
+    let compiler_simplification_class_ptr = universe.load_class("CompilerSimplification").unwrap();
 
     let method_name = universe.intern_symbol("run");
 
@@ -45,9 +43,9 @@ fn basic_interpreter_tests() {
         ("Blocks testEmptyZeroArg", Value::Integer(1)),
         ("Blocks testEmptyOneArg", Value::Integer(1)),
         ("Blocks testEmptyTwoArg", Value::Integer(1)),
-        ("Return testReturnSelf", return_class),
-        ("Return testReturnSelfImplicitly", return_class),
-        ("Return testNoReturnReturnsSelf", return_class),
+        ("Return testReturnSelf", Value::Class(return_class_ptr)),
+        ("Return testReturnSelfImplicitly", Value::Class(return_class_ptr)),
+        ("Return testNoReturnReturnsSelf", Value::Class(return_class_ptr)),
         (
             "Return testBlockReturnsImplicitlyLastValue",
             Value::Integer(4),
@@ -81,11 +79,11 @@ fn basic_interpreter_tests() {
         ),
         (
             "CompilerSimplification testReturnSelf",
-            compiler_simplification_class,
+            Value::Class(compiler_simplification_class_ptr),
         ),
         (
             "CompilerSimplification testReturnSelfImplicitly",
-            compiler_simplification_class,
+            Value::Class(compiler_simplification_class_ptr),
         ),
         (
             "CompilerSimplification testReturnArgumentN",
@@ -179,28 +177,28 @@ fn basic_interpreter_tests() {
 
         let object_class = universe.object_class();
         let class =
-            compiler::compile_class(&mut universe.interner, &class_def, Some(&object_class));
+            compiler::compile_class(&mut universe.interner, &class_def, Some(&object_class), universe.mutator.as_mut());
         assert!(class.is_some(), "could not compile test expression");
         let class = class.unwrap();
 
         let metaclass_class = universe.metaclass_class();
-        class.borrow_mut().set_super_class(&object_class);
+        class.to_obj().set_super_class(&object_class);
         class
-            .borrow()
+            .to_obj()
             .class()
-            .borrow_mut()
-            .set_super_class(&object_class.borrow().class());
+            .to_obj()
+            .set_super_class(&object_class.to_obj().class());
         class
-            .borrow()
+            .to_obj()
             .class()
-            .borrow_mut()
+            .to_obj()
             .set_class(&metaclass_class);
 
         let method = class
-            .borrow()
+            .to_obj()
             .lookup_method(method_name)
             .expect("method not found ??");
-        let mut interpreter = Interpreter::new(Rc::new(RefCell::new(Frame::from_method(method, vec![Value::System]))));
+        let mut interpreter = Interpreter::new(GCRef::<Frame>::alloc(Frame::from_method(method, vec![Value::System]), universe.mutator.as_mut()));
         if let Some(output) = interpreter.run(&mut universe) {
             assert_eq!(&output, expected, "unexpected test output value");
         }

@@ -1,5 +1,3 @@
-use std::cell::RefCell;
-use std::rc::Rc;
 use std::time::Instant;
 use mmtk::Mutator;
 use som_core::bytecode::Bytecode;
@@ -13,14 +11,13 @@ use crate::interner::Interned;
 use crate::method::{Method, MethodKind};
 use crate::universe::UniverseBC;
 use crate::value::Value;
-use crate::SOMRef;
 
 const INT_0: Value = Value::Integer(0);
 const INT_1: Value = Value::Integer(1);
 
 macro_rules! send {
     ($interp:expr, $universe:expr, $frame:expr, $lit_idx:expr, $nb_params:expr) => {{
-        let Literal::Symbol(symbol) = $frame.borrow().lookup_constant($lit_idx as usize) else { unreachable!() };
+        let Literal::Symbol(symbol) = $frame.to_obj().lookup_constant($lit_idx as usize) else { unreachable!() };
         let nb_params = match $nb_params {
             Some(v) => v,
             None => {
@@ -40,7 +37,7 @@ macro_rules! send {
 
 macro_rules! super_send {
     ($interp:expr, $universe:expr, $frame:expr, $lit_idx:expr, $nb_params:expr) => {{
-        let Literal::Symbol(symbol) = $frame.borrow().lookup_constant($lit_idx as usize) else { unreachable!() };
+        let Literal::Symbol(symbol) = $frame.to_obj().lookup_constant($lit_idx as usize) else { unreachable!() };
         let nb_params = match $nb_params {
             Some(v) => v,
             None => {
@@ -49,7 +46,7 @@ macro_rules! super_send {
             }
         };
         let method = {
-            let receiver = $frame.borrow().get_self();
+            let receiver = $frame.to_obj().get_self();
             let holder = receiver.class($universe);
             let super_class = holder.to_obj().super_class().unwrap();
             resolve_method($frame, &super_class, symbol, $interp.bytecode_idx)
@@ -60,7 +57,7 @@ macro_rules! super_send {
 
 pub struct Interpreter {
     /// The interpreter's stack frames.
-    pub frames: Vec<SOMRef<Frame>>,
+    pub frames: Vec<GCRef<Frame>>, // TODO: this vec itself should be on the heap, probably?
     /// The evaluation stack.
     pub stack: Vec<Value>,
     /// The time record of the interpreter's creation.
@@ -68,39 +65,39 @@ pub struct Interpreter {
     /// The current bytecode index.
     pub bytecode_idx: usize,
     /// The current frame.
-    pub current_frame: SOMRef<Frame>,
+    pub current_frame: GCRef<Frame>,
     /// Pointer to the frame's bytecodes, to not have to read them from the frame directly
     pub current_bytecodes: *const Vec<Bytecode>,
 }
 
 impl Interpreter {
-    pub fn new(base_frame: SOMRef<Frame>) -> Self {
+    pub fn new(base_frame: GCRef<Frame>) -> Self {
         Self {
-            frames: vec![Rc::clone(&base_frame)],
+            frames: vec![base_frame],
             stack: vec![],
             start_time: Instant::now(),
             bytecode_idx: 0,
-            current_frame: Rc::clone(&base_frame),
-            current_bytecodes: base_frame.borrow_mut().bytecodes,
+            current_frame: base_frame,
+            current_bytecodes: base_frame.to_obj().bytecodes,
         }
     }
 
-    pub fn push_method_frame(&mut self, method: GCRef<Method>, args: Vec<Value>) -> SOMRef<Frame> {
-        let frame = Rc::new(RefCell::new(Frame::from_method(method, args)));
-        self.frames.push(frame.clone());
+    pub fn push_method_frame(&mut self, method: GCRef<Method>, args: Vec<Value>, mutator: &mut Mutator<SOMVM>) -> GCRef<Frame> {
+        let frame_ptr = GCRef::<Frame>::alloc(Frame::from_method(method, args), mutator);
+        self.frames.push(frame_ptr);
         self.bytecode_idx = 0;
-        self.current_bytecodes = frame.borrow_mut().bytecodes;
-        self.current_frame = Rc::clone(&frame);
-        frame
+        self.current_bytecodes = frame_ptr.to_obj().bytecodes;
+        self.current_frame = frame_ptr;
+        frame_ptr
     }
 
-    pub fn push_block_frame(&mut self, block: GCRef<Block>, args: Vec<Value>) -> SOMRef<Frame> {
-        let frame = Rc::new(RefCell::new(Frame::from_block(block, args)));
-        self.frames.push(frame.clone());
+    pub fn push_block_frame(&mut self, block: GCRef<Block>, args: Vec<Value>, mutator: &mut Mutator<SOMVM>) -> GCRef<Frame> {
+        let frame_ptr = GCRef::<Frame>::alloc(Frame::from_block(block, args), mutator);
+        self.frames.push(frame_ptr);
         self.bytecode_idx = 0;
-        self.current_bytecodes = frame.borrow_mut().bytecodes;
-        self.current_frame = Rc::clone(&frame);
-        frame
+        self.current_bytecodes = frame_ptr.to_obj().bytecodes;
+        self.current_frame = frame_ptr;
+        frame_ptr
     }
 
     pub fn pop_frame(&mut self) {
@@ -108,9 +105,9 @@ impl Interpreter {
         match self.frames.last() {
             None => {}
             Some(f) => {
-                self.bytecode_idx = f.borrow().bytecode_idx;
-                self.current_frame = Rc::clone(&f);
-                self.current_bytecodes = f.borrow_mut().bytecodes;
+                self.bytecode_idx = f.to_obj().bytecode_idx;
+                self.current_frame = *f;
+                self.current_bytecodes = f.to_obj().bytecodes;
             }
         }
     }
@@ -120,16 +117,16 @@ impl Interpreter {
         match self.frames.last() {
             None => {}
             Some(f) => {
-                self.bytecode_idx = f.borrow().bytecode_idx;
-                self.current_frame = Rc::clone(&f);
-                self.current_bytecodes = f.borrow_mut().bytecodes;
+                self.bytecode_idx = f.to_obj().bytecode_idx;
+                self.current_frame = *f;
+                self.current_bytecodes = f.to_obj().bytecodes;
             }
         }
     }
 
     pub fn run(&mut self, universe: &mut UniverseBC) -> Option<Value> {
         loop {
-            let frame = Rc::clone(&self.current_frame);
+            let frame = &self.current_frame;
 
             // Actually safe, there's always a reference to the current bytecodes. Need unsafe because we want to store a ref for quick access in perf-critical code
             let bytecode = *(unsafe { (*self.current_bytecodes).get_unchecked(self.bytecode_idx) });
@@ -142,14 +139,14 @@ impl Interpreter {
                 }
                 Bytecode::Dup => {
                     let value = match cfg!(debug_assertions) {
-                        true => self.stack.last().cloned().unwrap(),
+                        true => self.stack.last().cloned()?,
                         false => unsafe { self.stack.get_unchecked(self.stack.len() - 1).clone() }
                     };
 
                     self.stack.push(value);
                 }
                 Bytecode::Inc => {
-                    match self.stack.last_mut().unwrap() {
+                    match self.stack.last_mut()? {
                         Value::Integer(v) => { *v += 1 }
                         Value::BigInteger(v) => { *v += 1 }
                         Value::Double(v) => { *v += 1.0 }
@@ -157,7 +154,7 @@ impl Interpreter {
                     };
                 }
                 Bytecode::Dec => {
-                    match self.stack.last_mut().unwrap() {
+                    match self.stack.last_mut()? {
                         Value::Integer(v) => { *v -= 1 }
                         Value::BigInteger(v) => { *v -= 1 }
                         Value::Double(v) => { *v -= 1.0 }
@@ -165,29 +162,29 @@ impl Interpreter {
                     };
                 }
                 Bytecode::PushLocal(idx) => {
-                    let value = frame.borrow().lookup_local(idx as usize);
+                    let value = frame.to_obj().lookup_local(idx as usize);
                     self.stack.push(value);
                 }
                 Bytecode::PushNonLocal(up_idx, idx) => {
                     debug_assert_ne!(up_idx, 0);
                     let from = Frame::nth_frame_back(frame, up_idx);
-                    let value = from.borrow().lookup_local(idx as usize);
+                    let value = from.to_obj().lookup_local(idx as usize);
                     self.stack.push(value);
                 }
                 Bytecode::PushArg(idx) => {
                     debug_assert_ne!(idx, 0); // that's a ReturnSelf case.
-                    let value = frame.borrow().lookup_argument(idx as usize);
+                    let value = frame.to_obj().lookup_argument(idx as usize);
                     self.stack.push(value);
                 }
                 Bytecode::PushNonLocalArg(up_idx, idx) => {
                     debug_assert_ne!(up_idx, 0);
                     debug_assert_ne!((up_idx, idx), (0, 0)); // that's a ReturnSelf case.
                     let from = Frame::nth_frame_back(frame, up_idx);
-                    let value = from.borrow().lookup_argument(idx as usize);
+                    let value = from.to_obj().lookup_argument(idx as usize);
                     self.stack.push(value);
                 }
                 Bytecode::PushField(idx) => {
-                    let value = match frame.borrow().get_self() {
+                    let value = match frame.to_obj().get_self() {
                         Value::Instance(i) => { i.lookup_local(idx as usize) }
                         Value::Class(c) => { c.to_obj().class().to_obj().lookup_local(idx as usize) }
                         v => { panic!("trying to read a field from a {:?}", &v) }
@@ -195,36 +192,36 @@ impl Interpreter {
                     self.stack.push(value);
                 }
                 Bytecode::PushBlock(idx) => {
-                    let literal = frame.borrow().lookup_constant(idx as usize);
+                    let literal = frame.to_obj().lookup_constant(idx as usize);
                     let block = match literal {
                         Literal::Block(blk) => GCRef::<Block>::alloc(blk.to_obj().clone(), universe.mutator.as_mut()),
                         _ => panic!("PushBlock expected a block, but got another invalid literal"),
                     };
-                    block.to_obj().frame.replace(Rc::clone(&frame));
+                    block.to_obj().frame.replace(*frame);
                     self.stack.push(Value::Block(block));
                 }
                 Bytecode::PushConstant(idx) => {
-                    let literal = frame.borrow().lookup_constant(idx as usize);
+                    let literal = frame.to_obj().lookup_constant(idx as usize);
                     let value = convert_literal(&frame, literal, universe.mutator.as_mut());
                     self.stack.push(value);
                 }
                 Bytecode::PushConstant0 => {
-                    let literal = frame.borrow().lookup_constant(0);
+                    let literal = frame.to_obj().lookup_constant(0);
                     let value = convert_literal(&frame, literal, universe.mutator.as_mut());
                     self.stack.push(value);
                 }
                 Bytecode::PushConstant1 => {
-                    let literal = frame.borrow().lookup_constant(1);
+                    let literal = frame.to_obj().lookup_constant(1);
                     let value = convert_literal(&frame, literal, universe.mutator.as_mut());
                     self.stack.push(value);
                 }
                 Bytecode::PushConstant2 => {
-                    let literal = frame.borrow().lookup_constant(2);
+                    let literal = frame.to_obj().lookup_constant(2);
                     let value = convert_literal(&frame, literal, universe.mutator.as_mut());
                     self.stack.push(value);
                 }
                 Bytecode::PushGlobal(idx) => {
-                    let literal = frame.borrow().lookup_constant(idx as usize);
+                    let literal = frame.to_obj().lookup_constant(idx as usize);
                     let symbol = match literal {
                         Literal::Symbol(sym) => sym,
                         _ => panic!("Global is not a symbol."),
@@ -232,7 +229,7 @@ impl Interpreter {
                    if let Some(value) = universe.lookup_global(symbol) {
                         self.stack.push(value);
                     } else {
-                        let self_value = frame.borrow().get_self();
+                        let self_value = frame.to_obj().get_self();
                         universe.unknown_global(self, self_value, symbol)?;
                     }
                 }
@@ -246,7 +243,7 @@ impl Interpreter {
                     self.stack.push(Value::Nil);
                 }
                 Bytecode::PushSelf => {
-                    self.stack.push(frame.borrow().lookup_argument(0));
+                    self.stack.push(frame.to_obj().lookup_argument(0));
                 }
                 Bytecode::Pop => {
                     match cfg!(debug_assertions) {
@@ -258,18 +255,18 @@ impl Interpreter {
                     self.stack.remove(self.stack.len() - 2);
                 }
                 Bytecode::PopLocal(up_idx, idx) => {
-                    let value = self.stack.pop().unwrap();
+                    let value = self.stack.pop()?;
                     let from = Frame::nth_frame_back(frame, up_idx);
-                    from.borrow_mut().assign_local(idx as usize, value);
+                    from.to_obj().assign_local(idx as usize, value);
                 }
                 Bytecode::PopArg(up_idx, idx) => {
-                    let value = self.stack.pop().unwrap();
+                    let value = self.stack.pop()?;
                     let from = Frame::nth_frame_back(frame, up_idx);
-                    from.borrow_mut().assign_arg(idx as usize, value);
+                    from.to_obj().assign_arg(idx as usize, value);
                 }
                 Bytecode::PopField(idx) => {
-                    let value = self.stack.pop().unwrap();
-                    match frame.borrow_mut().get_self() {
+                    let value = self.stack.pop()?;
+                    match frame.to_obj().get_self() {
                         Value::Instance(mut i) => { i.assign_local(idx as usize, value) }
                         Value::Class(c) => { c.to_obj().class().to_obj().assign_local(idx as usize, value) }
                         v => { panic!("{:?}", &v) }
@@ -300,7 +297,7 @@ impl Interpreter {
                     super_send! {self, universe, &frame, idx, None}
                 }
                 Bytecode::ReturnSelf => {
-                    let self_val = frame.borrow().lookup_argument(0);
+                    let self_val = frame.to_obj().lookup_argument(0);
                     self.pop_frame();
                     // if self.frames.is_empty() {
                     //     return Some(self_val);
@@ -314,12 +311,12 @@ impl Interpreter {
                     }
                 }
                 Bytecode::ReturnNonLocal(up_idx) => {
-                    let method_frame = Frame::nth_frame_back(Rc::clone(&frame), up_idx);
+                    let method_frame = Frame::nth_frame_back(&frame, up_idx);
                     let escaped_frames = self
                         .frames
                         .iter()
                         .rev()
-                        .position(|live_frame| Rc::ptr_eq(&live_frame, &method_frame));
+                        .position(|live_frame| *live_frame == method_frame);
 
                     if let Some(count) = escaped_frames {
                         self.pop_n_frames(count + 1);
@@ -330,8 +327,8 @@ impl Interpreter {
                         // NB: I did some changes there with the blockself bits and i'm not positive it works the same as before, but it should.
 
                         // Block has escaped its method frame.
-                        let instance = frame.borrow().get_self();
-                        let block = match frame.borrow().lookup_argument(0) {
+                        let instance = frame.to_obj().get_self();
+                        let block = match frame.to_obj().lookup_argument(0) {
                             Value::Block(block) => block.clone(),
                             _ => {
                                 // Should never happen, because `universe.current_frame()` would
@@ -424,7 +421,7 @@ impl Interpreter {
             };
 
             // we store the current bytecode idx to be able to correctly restore the bytecode state when we pop frames
-            interpreter.current_frame.borrow_mut().bytecode_idx = interpreter.bytecode_idx;
+            interpreter.current_frame.to_obj().bytecode_idx = interpreter.bytecode_idx;
 
             match method.to_obj().kind() {
                 MethodKind::Defined(_) => {
@@ -438,7 +435,7 @@ impl Interpreter {
                     // }
 
                     let args = interpreter.stack.split_off(interpreter.stack.len() - nb_params - 1);
-                    interpreter.push_method_frame(method, args);
+                    interpreter.push_method_frame(method, args, universe.mutator.as_mut());
                 }
                 MethodKind::Primitive(func) => {
                     // eprintln!("Invoking prim {:?} (in {:?})", &method.signature, &method.holder.upgrade().unwrap().borrow().name);
@@ -457,13 +454,13 @@ impl Interpreter {
         }
 
         fn resolve_method(
-            frame: &SOMRef<Frame>,
+            frame: &GCRef<Frame>,
             class: &GCRef<Class>,
             signature: Interned,
             bytecode_idx: usize,
         ) -> Option<GCRef<Method>> {
             let mut inline_cache = unsafe {
-                (*frame.borrow_mut().inline_cache).borrow_mut()
+                (*frame.to_obj().inline_cache).borrow_mut()
             };
 
             // SAFETY: this access is actually safe because the bytecode compiler
@@ -486,7 +483,7 @@ impl Interpreter {
             }
         }
 
-        fn convert_literal(frame: &SOMRef<Frame>, literal: Literal, mutator: &mut Mutator<SOMVM>) -> Value {
+        fn convert_literal(frame: &GCRef<Frame>, literal: Literal, mutator: &mut Mutator<SOMVM>) -> Value {
             let value = match literal {
                 Literal::Symbol(sym) => Value::Symbol(sym),
                 Literal::String(val) => Value::String(val),
@@ -497,7 +494,7 @@ impl Interpreter {
                     let arr = val
                         .into_iter()
                         .map(|idx| {
-                            let lit = frame.borrow().lookup_constant(idx as usize);
+                            let lit = frame.to_obj().lookup_constant(idx as usize);
                             convert_literal(frame, lit, mutator)
                         })
                         .collect::<Vec<_>>();

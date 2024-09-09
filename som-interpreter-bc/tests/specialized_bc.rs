@@ -34,16 +34,16 @@ fn get_bytecodes_from_method(class_txt: &str, method_name: &str) -> Vec<Bytecode
     let class_def = som_parser::apply(lang::class_def(), tokens.as_slice(), Some(&mut universe)).unwrap();
 
     let object_class = universe.object_class();
-    let class = compiler::compile_class(&mut universe.interner, &class_def, Some(&object_class));
+    let class = compiler::compile_class(&mut universe.interner, &class_def, Some(&object_class), universe.mutator.as_mut());
     assert!(class.is_some(), "could not compile test expression");
 
     let class = class.unwrap();
     let method = class
-        .borrow()
+        .to_obj()
         .lookup_method(method_name_interned)
         .expect("method not found ??");
 
-    match &method.as_ref().kind {
+    match &method.to_obj().kind {
         MethodKind::Defined(m) => m.body.clone(),
         _ => unreachable!(),
     }
