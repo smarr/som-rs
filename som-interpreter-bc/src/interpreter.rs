@@ -197,7 +197,7 @@ impl Interpreter {
                 Bytecode::PushBlock(idx) => {
                     let literal = frame.borrow().lookup_constant(idx as usize);
                     let block = match literal {
-                        Literal::Block(blk) => blk,
+                        Literal::Block(blk) => GCRef::<Block>::alloc(blk.to_obj().clone(), universe.mutator.as_mut()),
                         _ => panic!("PushBlock expected a block, but got another invalid literal"),
                     };
                     block.to_obj().frame.replace(Rc::clone(&frame));
