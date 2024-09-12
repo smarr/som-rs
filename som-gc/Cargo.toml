@@ -15,6 +15,6 @@ atomic = "0.6"
 log = "0.4.21"
 
 [features]
-default = ["mmtk/extreme_assertions"]
+#default = ["mmtk/extreme_assertions"]
 is_mmtk_object = ["mmtk/is_mmtk_object"]
 malloc_counted_size = ["mmtk/malloc_counted_size"]
