@@ -1,6 +1,6 @@
 use std::convert::TryFrom;
 use std::fs;
-
+use som_gc::api::mmtk_handle_user_collection_request;
 #[cfg(feature = "frame-debug-info")]
 use crate::frame::FrameKind;
 
@@ -245,13 +245,15 @@ fn print_stack_trace(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
     interpreter.stack.push(Value::Boolean(true));
 }
 
-fn full_gc(interpreter: &mut Interpreter, _: &mut UniverseBC) {
+fn full_gc(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
     const SIGNATURE: &str = "System>>#fullGC";
 
     expect_args!(SIGNATURE, interpreter, [Value::System]);
 
-    // We don't do any garbage collection at all, so we return false.
-    interpreter.stack.push(Value::Boolean(false));
+    mmtk_handle_user_collection_request(universe.mutator_thread);
+    
+    // should return true or false depending on whether it failed, tbh.
+    interpreter.stack.push(Value::Boolean(true));
 }
 
 /// Search for an instance primitive matching the given signature.

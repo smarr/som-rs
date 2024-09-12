@@ -3,6 +3,8 @@ use mmtk::util::opaque_pointer::*;
 use mmtk::vm::Collection;
 use mmtk::vm::GCThreadContext;
 use mmtk::Mutator;
+use log::info;
+use mmtk::util::Address;
 
 pub struct VMCollection {}
 
@@ -20,20 +22,23 @@ impl Collection<SOMVM> for VMCollection {
     }
 
     fn block_for_gc(_tls: VMMutatorThread) {
-        unimplemented!()
+        info!("Calling block_for_gc");
+        // original code calls prepare_to_collect on the VM side. not sure what the implem is.
+        // unsafe { ((*UPCALLS).prepare_to_collect)() };
     }
 
     fn spawn_gc_thread(_tls: VMThread, ctx: GCThreadContext<SOMVM>) {
         // unimplemented!()
-        
+
         // copied from julia mmtk code
         // Just drop the join handle. The thread will run until the process quits.
         let _ = std::thread::spawn(move || {
-            // let worker_tls = VMWorkerThread(VMThread(OpaquePointer::from_address(unsafe {
-            //     Address::from_usize(thread_id::get())
-            // })));
+            let worker_tls = VMWorkerThread(VMThread(OpaquePointer::from_address(unsafe {
+                Address::from_usize(std::process::id() as usize)
+            })));
 
-            let worker_tls = VMWorkerThread(VMThread(OpaquePointer::UNINITIALIZED));
+            // let worker_tls = VMWorkerThread(VMThread(OpaquePointer::UNINITIALIZED));
+            
             match ctx {
                 GCThreadContext::Worker(w) => {
                     mmtk::memory_manager::start_worker(SINGLETON.get().unwrap(), worker_tls, w)

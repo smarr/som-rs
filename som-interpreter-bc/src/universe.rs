@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{anyhow, Error};
 use mmtk::Mutator;
+use mmtk::util::VMMutatorThread;
 use som_core::universe::UniverseForParser;
 use som_gc::api::mmtk_destroy_mutator;
 use som_gc::SOMVM;
@@ -79,8 +80,10 @@ pub struct UniverseBC {
     pub classpath: Vec<PathBuf>,
     /// The interpreter's core classes.
     pub core: CoreClasses,
-    /// mutator thread for GC.
-    pub mutator: Box<mmtk::Mutator<SOMVM>>
+    /// mutator itself for GC
+    pub mutator: Box<mmtk::Mutator<SOMVM>>,
+    /// mutator thread for GC
+    pub mutator_thread: VMMutatorThread
 }
 
 impl Drop for UniverseBC {
@@ -123,7 +126,7 @@ impl UniverseForParser for UniverseBC {
 
 impl UniverseBC {
     /// Initialize the universe from the given classpath.
-    pub fn with_classpath(classpath: Vec<PathBuf>, mut mutator: Box<mmtk::Mutator<SOMVM>>) -> Result<Self, Error> {
+    pub fn with_classpath(classpath: Vec<PathBuf>, mut mutator: Box<mmtk::Mutator<SOMVM>>, mutator_thread: VMMutatorThread) -> Result<Self, Error> {
         let mut interner = Interner::with_capacity(100);
         let mut globals = HashMap::new();
 
@@ -250,7 +253,8 @@ impl UniverseBC {
                 true_class,
                 false_class,
             },
-            mutator
+            mutator,
+            mutator_thread
         })
     }
 

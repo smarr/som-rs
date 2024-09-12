@@ -82,9 +82,9 @@ fn run() -> anyhow::Result<()> {
         classpath.push(directory.to_path_buf());
     }
 
-    let mutator = init_gc();
+    let (mutator_thread, mutator) = init_gc();
 
-    let mut universe = UniverseBC::with_classpath(classpath, mutator)?;
+    let mut universe = UniverseBC::with_classpath(classpath, mutator, mutator_thread)?;
     
     let args = std::iter::once(String::from(file_stem))
         .chain(opts.args.iter().cloned())
@@ -129,8 +129,8 @@ fn disassemble_class(opts: Options) -> anyhow::Result<()> {
         classpath.push(directory.to_path_buf());
     }
     
-    let mutator = init_gc();
-    let mut universe = UniverseBC::with_classpath(classpath.clone(), mutator)?;
+    let (mutator_thread, mutator) = init_gc();
+    let mut universe = UniverseBC::with_classpath(classpath.clone(), mutator, mutator_thread)?;
 
     // "Object" special casing needed since `load_class` assumes the class has a superclass and Object doesn't, and I didn't want to change the class loading logic just for the disassembler (tho it's probably fine)
     let class = match file_stem {
