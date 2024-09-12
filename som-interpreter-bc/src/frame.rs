@@ -31,6 +31,7 @@ pub enum FrameKind {
 
 /// Represents a stack frame.
 pub struct Frame {
+    pub prev_frame: GCRef<Frame>,
     /// The bytecodes associated with the frame.
     pub bytecodes: *const Vec<Bytecode>,
     /// Literals/constants associated with the frame.
@@ -49,9 +50,10 @@ pub struct Frame {
 }
 
 impl Frame {
-    pub fn from_block(block: GCRef<Block>, args: Vec<Value>) -> Self {
+    pub fn from_block(block: GCRef<Block>, args: Vec<Value>, prev_frame: GCRef<Frame>) -> Self {
         let block_obj = block.to_obj();
         Self {
+            prev_frame,
             locals: (0..block_obj.blk_info.to_obj().nb_locals).map(|_| Value::Nil).collect(),
             args,
             literals: &block_obj.blk_info.to_obj().literals,
@@ -63,7 +65,7 @@ impl Frame {
         }
     }
 
-    pub fn from_method(method: GCRef<Method>, args: Vec<Value>) -> Self {
+    pub fn from_method(method: GCRef<Method>, args: Vec<Value>, prev_frame: GCRef<Frame>) -> Self {
         match method.to_obj().kind() {
             MethodKind::Defined(env) => {
                 Self {
@@ -76,6 +78,7 @@ impl Frame {
                             holder,
                         }
                     },
+                    prev_frame,
                     locals: (0..env.nbr_locals).map(|_| Value::Nil).collect(),
                     args,
                     literals: &env.literals,
@@ -227,6 +230,19 @@ impl Frame {
                 }
                 v => panic!("attempting to access a non local var/arg from a method instead of a block (but the original frame we were in was a block): self wasn't blockself but {:?}.", v)
             };
+        }
+        target_frame
+    }
+
+    /// nth_frame_back but through prev_frame ptr. TODO: clarify why different implems are needed
+    pub fn nth_frame_back_through_frame_list(current_frame: &GCRef<Frame>, n: u8) -> GCRef<Frame> {
+        debug_assert_ne!(n, 0);
+        let mut target_frame = *current_frame;
+        for _ in 1..n {
+            target_frame = target_frame.to_obj().prev_frame;
+            if target_frame.is_empty() {
+                panic!("empty target frame");
+            }
         }
         target_frame
     }

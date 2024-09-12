@@ -521,7 +521,7 @@ impl UniverseBC {
         let method_name = self.interner.intern("initialize:");
         let method = Value::System.lookup_method(self, method_name)?;
         
-        let frame = Frame::from_method(method, vec![Value::System, Value::Array(GCRef::<Vec<Value>>::alloc(args, self.mutator.as_mut()))]);
+        let frame = Frame::from_method(method, vec![Value::System, Value::Array(GCRef::<Vec<Value>>::alloc(args, self.mutator.as_mut()))], GCRef::default());
         let frame_ptr = GCRef::<Frame>::alloc(frame, self.mutator.as_mut());
         let interpreter = Interpreter::new(frame_ptr);
 

@@ -49,6 +49,11 @@ impl<T> GCRef<T> {
         debug_assert!(!self.ptr.is_zero());
         unsafe { &mut *(self.ptr.as_mut_ref()) }
     }
+    
+    /// Does the address not point to any data?
+    /// We use this to avoid using an Option type in interpreter frames. Not sure it's worth it though.
+    #[inline(always)]
+    pub fn is_empty(&self) -> bool { self.ptr.is_zero() }
 }
 
 /// Trait used by GCRef pointers to be created from objects.

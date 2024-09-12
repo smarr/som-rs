@@ -56,8 +56,6 @@ macro_rules! super_send {
 }
 
 pub struct Interpreter {
-    /// The interpreter's stack frames.
-    pub frames: Vec<GCRef<Frame>>, // TODO: this vec itself should be on the heap, probably?
     /// The evaluation stack.
     pub stack: Vec<Value>,
     /// The time record of the interpreter's creation.
@@ -73,7 +71,6 @@ pub struct Interpreter {
 impl Interpreter {
     pub fn new(base_frame: GCRef<Frame>) -> Self {
         Self {
-            frames: vec![base_frame],
             stack: vec![],
             start_time: Instant::now(),
             bytecode_idx: 0,
@@ -83,8 +80,7 @@ impl Interpreter {
     }
 
     pub fn push_method_frame(&mut self, method: GCRef<Method>, args: Vec<Value>, mutator: &mut Mutator<SOMVM>) -> GCRef<Frame> {
-        let frame_ptr = GCRef::<Frame>::alloc(Frame::from_method(method, args), mutator);
-        self.frames.push(frame_ptr);
+        let frame_ptr = GCRef::<Frame>::alloc(Frame::from_method(method, args, self.current_frame), mutator);
         self.bytecode_idx = 0;
         self.current_bytecodes = frame_ptr.to_obj().bytecodes;
         self.current_frame = frame_ptr;
@@ -92,8 +88,7 @@ impl Interpreter {
     }
 
     pub fn push_block_frame(&mut self, block: GCRef<Block>, args: Vec<Value>, mutator: &mut Mutator<SOMVM>) -> GCRef<Frame> {
-        let frame_ptr = GCRef::<Frame>::alloc(Frame::from_block(block, args), mutator);
-        self.frames.push(frame_ptr);
+        let frame_ptr = GCRef::<Frame>::alloc(Frame::from_block(block, args, self.current_frame), mutator);
         self.bytecode_idx = 0;
         self.current_bytecodes = frame_ptr.to_obj().bytecodes;
         self.current_frame = frame_ptr;
@@ -101,25 +96,25 @@ impl Interpreter {
     }
 
     pub fn pop_frame(&mut self) {
-        self.frames.pop();
-        match self.frames.last() {
-            None => {}
-            Some(f) => {
-                self.bytecode_idx = f.to_obj().bytecode_idx;
-                self.current_frame = *f;
-                self.current_bytecodes = f.to_obj().bytecodes;
+        let new_current_frame = self.current_frame.to_obj().prev_frame;
+        self.current_frame = new_current_frame;
+        match new_current_frame.is_empty() {
+            true => {}
+            false => {
+                self.bytecode_idx = new_current_frame.to_obj().bytecode_idx;
+                self.current_bytecodes = new_current_frame.to_obj().bytecodes;
             }
         }
     }
 
-    pub fn pop_n_frames(&mut self, n: usize) {
-        (0..n).for_each(|_| { self.frames.pop(); });
-        match self.frames.last() {
-            None => {}
-            Some(f) => {
-                self.bytecode_idx = f.to_obj().bytecode_idx;
-                self.current_frame = *f;
-                self.current_bytecodes = f.to_obj().bytecodes;
+    pub fn pop_n_frames(&mut self, n: u8) {
+        let new_current_frame = Frame::nth_frame_back_through_frame_list(&self.current_frame, n + 1);
+        self.current_frame = new_current_frame;
+        match new_current_frame.is_empty() {
+            true => {}
+            false => {
+                self.bytecode_idx = new_current_frame.to_obj().bytecode_idx;
+                self.current_bytecodes = new_current_frame.to_obj().bytecodes;
             }
         }
     }
@@ -299,29 +294,45 @@ impl Interpreter {
                 Bytecode::ReturnSelf => {
                     let self_val = frame.to_obj().lookup_argument(0);
                     self.pop_frame();
-                    // if self.frames.is_empty() {
-                    //     return Some(self_val);
+                    // if self.current_frame.is_empty() {
+                    //     return Some(self.stack.pop().unwrap_or(Value::Nil));
                     // }
                     self.stack.push(self_val);
                 }
                 Bytecode::ReturnLocal => {
                     self.pop_frame();
-                    if self.frames.is_empty() {
+                    if self.current_frame.is_empty() {
                         return Some(self.stack.pop().unwrap_or(Value::Nil));
                     }
                 }
                 Bytecode::ReturnNonLocal(up_idx) => {
                     let method_frame = Frame::nth_frame_back(&frame, up_idx);
-                    let escaped_frames = self
-                        .frames
-                        .iter()
-                        .rev()
-                        .position(|live_frame| *live_frame == method_frame);
+                    // let escaped_frames = self
+                    //     .frames
+                    //     .iter()
+                    //     .rev()
+                    //     .position(|live_frame| *live_frame == method_frame);
+
+                    let escaped_frames = {
+                        let mut current_frame = self.current_frame;
+                        let mut count = 0;
+
+                        loop {
+                            if current_frame == method_frame {
+                                break Some(count)
+                            } else if current_frame.is_empty() {
+                                break None
+                            } else {
+                                current_frame = current_frame.to_obj().prev_frame;
+                                count += 1;
+                            }
+                        }
+                    };
 
                     if let Some(count) = escaped_frames {
                         self.pop_n_frames(count + 1);
-                        // if self.frames.is_empty() {
-                        //     return Some(self.stack.pop().unwrap_or(Value::Nil));
+                        // if self.current_frame.is_empty() {
+                        //      return Some(self.stack.pop().unwrap_or(Value::Nil));
                         // }
                     } else {
                         // NB: I did some changes there with the blockself bits and i'm not positive it works the same as before, but it should.
