@@ -1,13 +1,13 @@
 use std::fmt;
 use std::marker::PhantomData;
-use mmtk::{AllocationSemantics, Mutator};
+use mmtk::Mutator;
 use som_gc::api::{mmtk_alloc, mmtk_post_alloc};
 use som_gc::SOMVM;
 use crate::class::Class;
 use crate::value::Value;
 use core::mem::size_of;
 use mmtk::util::Address;
-use crate::gc::{Alloc, GCRef};
+use crate::gc::{Alloc, GCRef, GC_ALIGN, GC_OFFSET, GC_SEMANTICS};
 
 /// Represents a generic (non-primitive) class instance.
 #[derive(Clone, PartialEq)]
@@ -16,8 +16,8 @@ pub struct Instance {
     pub class: GCRef<Class>,
     /// will be used for packed repr of locals
     pub nbr_fields: usize,
-    // /// This instance's locals. Contiguous "Value" instances in memory
-    pub locals_marker: ()
+    /// This instance's locals. Contiguous "Value" instances in memory
+    pub locals_marker: PhantomData<Vec<Value>>
 }
 
 impl Instance {
@@ -33,7 +33,7 @@ impl Instance {
 
         let nbr_fields = get_nbr_fields(&class);
 
-        let instance = Self { class, nbr_fields, locals_marker: () };
+        let instance = Self { class, nbr_fields, locals_marker: PhantomData };
         Instance::alloc(instance, mutator)
     }
 
@@ -67,14 +67,11 @@ impl Alloc<Instance> for Instance {
     fn alloc(instance: Instance, mutator: &mut Mutator<SOMVM>) -> GCRef<Self> {
         let size = size_of::<Instance>() + (instance.nbr_fields * size_of::<Value>());
         // let size = std::mem::size_of::<Instance>();
-        let align= 8;
-        let offset= 0;
-        let semantics = AllocationSemantics::Default;
 
-        let instance_addr = mmtk_alloc(mutator, size, align, offset, semantics);
+        let instance_addr = mmtk_alloc(mutator, size, GC_ALIGN, GC_OFFSET, GC_SEMANTICS);
         debug_assert!(!instance_addr.is_zero());
 
-        mmtk_post_alloc(mutator, SOMVM::object_start_to_ref(instance_addr), size, semantics);
+        mmtk_post_alloc(mutator, SOMVM::object_start_to_ref(instance_addr), size, GC_SEMANTICS);
 
         let nbr_fields = instance.nbr_fields;
         unsafe {

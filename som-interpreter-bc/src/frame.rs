@@ -1,11 +1,14 @@
 use std::cell::RefCell;
-
+use std::marker::PhantomData;
+use core::mem::size_of;
+use mmtk::Mutator;
 use som_core::bytecode::Bytecode;
-
+use som_gc::api::{mmtk_alloc, mmtk_post_alloc};
+use som_gc::SOMVM;
 use crate::block::Block;
 use crate::class::Class;
 use crate::compiler::Literal;
-use crate::gc::GCRef;
+use crate::gc::{Alloc, GCRef, GC_ALIGN, GC_OFFSET, GC_SEMANTICS};
 use crate::method::{Method, MethodKind};
 use crate::value::Value;
 
@@ -31,41 +34,71 @@ pub enum FrameKind {
 
 /// Represents a stack frame.
 pub struct Frame {
+    #[cfg(feature = "frame-debug-info")]
+    /// This frame's kind.
+    pub kind: FrameKind,
     pub prev_frame: GCRef<Frame>,
     /// The bytecodes associated with the frame.
     pub bytecodes: *const Vec<Bytecode>,
     /// Literals/constants associated with the frame.
     pub literals: *const Vec<Literal>,
-    /// The arguments within this frame.
-    pub args: Vec<Value>,
-    /// The bindings within this frame.
-    pub locals: Vec<Value>,
-    /// Bytecode index.
-    pub bytecode_idx: usize,
     /// Inline cache associated with the frame. TODO - refcell not worth it with the GC now, is it?
     pub inline_cache: *const RefCell<Vec<Option<(*const Class, GCRef<Method>)>>>, // todo class can also be a GC ref, that's basically a pointer
-    #[cfg(feature = "frame-debug-info")]
-    /// This frame's kind.
-    pub kind: FrameKind,
+    /// Bytecode index.
+    pub bytecode_idx: usize,
+
+    pub nbr_args: usize, // todo u8 instead?
+    pub nbr_locals: usize,
+
+    /// markers. we don't use them... it's mostly a reminder that the struct looks different in memory... not the cleanest but not sure how else to go about it
+    pub args_marker: PhantomData<Vec<Value>>,
+    pub locals_marker: PhantomData<Vec<Value>>,
+    
+    // /// The arguments within this frame.
+    // pub args: Vec<Value>,
+    // /// The bindings within this frame.
+    // pub locals: Vec<Value>,
 }
 
 impl Frame {
-    pub fn from_block(block: GCRef<Block>, args: Vec<Value>, prev_frame: GCRef<Frame>) -> Self {
+    pub fn alloc_from_method(method: GCRef<Method>, mut args: Vec<Value>, prev_frame: GCRef<Frame>, mutator: &mut Mutator<SOMVM>) -> GCRef<Frame> {
+        let mut frame_ptr = Frame::alloc(Frame::from_method(method, args.len(), prev_frame), mutator);
+
+        for i in (0..args.len()).rev() {
+            frame_ptr.assign_arg(i, args.pop().unwrap())
+        }
+        
+        frame_ptr
+    }
+
+    pub fn alloc_from_block(block: GCRef<Block>, mut args: Vec<Value>, prev_frame: GCRef<Frame>, mutator: &mut Mutator<SOMVM>) -> GCRef<Frame> {
+        let mut frame_ptr = Frame::alloc(Frame::from_block(block, args.len(), prev_frame), mutator);
+
+        for i in (0..args.len()).rev() {
+            frame_ptr.assign_arg(i, args.pop().unwrap())
+        }
+
+        frame_ptr
+    }
+    
+    fn from_block(block: GCRef<Block>, nbr_args: usize, prev_frame: GCRef<Frame>) -> Self {
         let block_obj = block.to_obj();
         Self {
+            #[cfg(feature = "frame-debug-info")]
+            kind: FrameKind::Block { block },
             prev_frame,
-            locals: (0..block_obj.blk_info.to_obj().nb_locals).map(|_| Value::Nil).collect(),
-            args,
+            nbr_locals: block_obj.blk_info.to_obj().nb_locals,
+            nbr_args,
             literals: &block_obj.blk_info.to_obj().literals,
             bytecodes: &block_obj.blk_info.to_obj().body,
             bytecode_idx: 0,
             inline_cache: std::ptr::addr_of!(block_obj.blk_info.to_obj().inline_cache),
-            #[cfg(feature = "frame-debug-info")]
-            kind: FrameKind::Block { block }
+            args_marker: PhantomData,
+            locals_marker: PhantomData
         }
     }
 
-    pub fn from_method(method: GCRef<Method>, args: Vec<Value>, prev_frame: GCRef<Frame>) -> Self {
+    fn from_method(method: GCRef<Method>, nbr_args: usize, prev_frame: GCRef<Frame>) -> Self {
         match method.to_obj().kind() {
             MethodKind::Defined(env) => {
                 Self {
@@ -79,12 +112,14 @@ impl Frame {
                         }
                     },
                     prev_frame,
-                    locals: (0..env.nbr_locals).map(|_| Value::Nil).collect(),
-                    args,
+                    nbr_locals: env.nbr_locals,
+                    nbr_args,
                     literals: &env.literals,
                     bytecodes: &env.body,
                     bytecode_idx: 0,
-                    inline_cache: std::ptr::addr_of!(env.inline_cache)
+                    inline_cache: std::ptr::addr_of!(env.inline_cache),
+                    args_marker: PhantomData,
+                    locals_marker: PhantomData
                 }
             }
             _ => unreachable!()
@@ -143,18 +178,6 @@ impl Frame {
         &self.kind
     }
 
-    /// Get the self value for this frame.
-    pub fn get_self(&self) -> Value {
-        match self.args.first().unwrap() {
-            Value::Block(b) => {
-                let block_frame = b.to_obj().frame.as_ref().unwrap().clone();
-                let x = block_frame.to_obj().get_self();
-                x
-            },
-            s => s.clone()
-        }
-    }
-
     #[cfg(feature = "frame-debug-info")]
     /// Get the current method itself.
     pub fn get_method(&self) -> GCRef<Method> {
@@ -177,54 +200,19 @@ impl Frame {
         }
     }
 
-    #[inline(always)]
-    pub fn lookup_argument(&self, idx: usize) -> Value {
-        match cfg!(debug_assertions) {
-            true => self.args.get(idx).unwrap().clone(),
-            false => unsafe { self.args.get_unchecked(idx).clone() }
-        }
-    }
-
-    /// Search for a local binding.
-    #[inline(always)]
-    pub fn lookup_local(&self, idx: usize) -> Value {
-        match cfg!(debug_assertions) {
-            true => self.locals.get(idx).unwrap().clone(),
-            false => unsafe { self.locals.get_unchecked(idx).clone() }
-        }
-    }
-
-    /// Assign to a local binding.
-    #[inline(always)]
-    pub fn assign_local(&mut self, idx: usize, value: Value) {
-        match cfg!(debug_assertions) {
-            true => { *self.locals.get_mut(idx).unwrap() = value; },
-            false => unsafe { *self.locals.get_unchecked_mut(idx) = value; }
-        }
-    }
-
-    /// Assign to an argument.
-    #[inline(always)]
-    pub fn assign_arg(&mut self, idx: usize, value: Value) {
-        match cfg!(debug_assertions) {
-            true => { *self.args.get_mut(idx).unwrap() = value; },
-            false => unsafe { *self.args.get_unchecked_mut(idx) = value; }
-        }
-    }
-
     pub fn nth_frame_back(current_frame: &GCRef<Frame>, n: u8) -> GCRef<Frame> {
         if n == 0 {
             return *current_frame;
         }
 
-        let mut target_frame: GCRef<Frame> = match current_frame.to_obj().args.first().unwrap() {
+        let mut target_frame: GCRef<Frame> = match current_frame.lookup_argument(0) {
             Value::Block(block) => {
                 *block.to_obj().frame.as_ref().unwrap()
             }
             v => panic!("attempting to access a non local var/arg from a method instead of a block: self wasn't blockself but {:?}.", v)
         };
         for _ in 1..n {
-            target_frame = match &target_frame.to_obj().args.first().unwrap() {
+            target_frame = match &target_frame.lookup_argument(0) {
                 Value::Block(block) => {
                     *block.to_obj().frame.as_ref().unwrap()
                 }
@@ -245,5 +233,76 @@ impl Frame {
             }
         }
         target_frame
+    }
+}
+
+impl GCRef<Frame> {
+    const ARG_OFFSET: usize = size_of::<Frame>();
+
+    /// Get the self value for this frame.
+    pub fn get_self(&self) -> Value {
+        match self.lookup_argument(0) {
+            Value::Block(b) => {
+                let block_frame = b.to_obj().frame.unwrap();
+                block_frame.get_self()
+            },
+            s => s.clone()
+        }
+    }
+    
+    #[inline(always)]
+    pub fn lookup_argument(&self, idx: usize) -> &Value {
+        unsafe { self.ptr.add(Self::ARG_OFFSET).add(idx * size_of::<Value>()).as_ref() }
+    }
+
+    /// Assign to an argument.
+    #[inline(always)]
+    pub fn assign_arg(&mut self, idx: usize, value: Value) {
+        unsafe { *self.ptr.add(Self::ARG_OFFSET).add(idx * size_of::<Value>()).as_mut_ref() = value }
+    }
+    
+    /// Search for a local binding.
+    #[inline(always)]
+    pub fn lookup_local(&self, idx: usize) -> &Value {
+        let nbr_args = self.to_obj().nbr_args;
+        unsafe { self.ptr.add(Self::ARG_OFFSET).add((nbr_args + idx) * size_of::<Value>()).as_ref() }
+    }
+
+    /// Assign to a local binding.
+    #[inline(always)]
+    pub fn assign_local(&mut self, idx: usize, value: Value) {
+        let nbr_args = self.to_obj().nbr_args;
+        unsafe { *self.ptr.add(Self::ARG_OFFSET).add((nbr_args + idx) * size_of::<Value>()).as_mut_ref() = value }
+    }
+}
+
+impl Alloc<Frame> for Frame {
+    fn alloc(frame: Frame, mutator: &mut Mutator<SOMVM>) -> GCRef<Frame> {
+        let nbr_locals = frame.nbr_locals;
+        let nbr_args = frame.nbr_args;
+        let size = size_of::<Frame>() + ((nbr_args + nbr_locals) * size_of::<Value>());
+
+        let frame_addr = mmtk_alloc(mutator, size, GC_ALIGN, GC_OFFSET, GC_SEMANTICS);
+        debug_assert!(!frame_addr.is_zero());
+
+        mmtk_post_alloc(mutator, SOMVM::object_start_to_ref(frame_addr), size, GC_SEMANTICS);
+
+
+        unsafe {
+            *frame_addr.as_mut_ref() = frame;
+
+            let mut locals_addr = frame_addr.add(size_of::<Frame>()).add(nbr_args * size_of::<Value>());
+            for _ in 0..nbr_locals {
+                *locals_addr.as_mut_ref() = Value::Nil;
+                locals_addr = locals_addr.add(size_of::<Value>());
+            }
+        };
+
+        // println!("frame allocation OK");
+
+        GCRef {
+            ptr: frame_addr,
+            _phantom: PhantomData
+        }
     }
 }

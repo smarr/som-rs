@@ -5,6 +5,10 @@ use som_gc::api::{mmtk_alloc, mmtk_post_alloc};
 use som_gc::SOMVM;
 use core::mem::size_of;
 
+pub static GC_OFFSET: usize = 0;
+pub static GC_ALIGN: usize = 8;
+pub static GC_SEMANTICS: AllocationSemantics = AllocationSemantics::Default;
+
 /// A pointer to the heap for GC.
 #[derive(Debug)]
 pub struct GCRef<T> {
@@ -13,12 +17,7 @@ pub struct GCRef<T> {
 }
 
 impl<T> Clone for GCRef<T> {
-    fn clone(&self) -> Self {
-        GCRef {
-            ptr: self.ptr,
-            _phantom: self._phantom
-        }
-    }
+    fn clone(&self) -> Self { *self }
 }
 
 impl<T> Copy for GCRef<T> {}
@@ -29,7 +28,7 @@ impl<T> Default for GCRef<T> {
         unsafe {
             GCRef {
                 ptr: Address::from_usize(0),
-                _phantom: PhantomData::default()
+                _phantom: PhantomData
             }
         }
     }
@@ -66,14 +65,13 @@ impl<T> Alloc<T> for GCRef<T> {
     /// A normal, straightforward alloc. Structures can implement their own instead (e.g. Instance and its arbitrary field array size)
      fn alloc(obj: T, mutator: &mut Mutator<SOMVM>) -> GCRef<T> {
         let size = size_of::<T>();
-        let align= 8;
-        let offset= 0;
-        let semantics = AllocationSemantics::Default;
 
-        let addr = mmtk_alloc(mutator, size, align, offset, semantics);
+        let addr = mmtk_alloc(mutator, size, GC_ALIGN, GC_OFFSET, GC_SEMANTICS);
         debug_assert!(!addr.is_zero());
+        
+        // println!("{}", mmtk_free_bytes());
 
-        mmtk_post_alloc(mutator, SOMVM::object_start_to_ref(addr), size, semantics);
+        mmtk_post_alloc(mutator, SOMVM::object_start_to_ref(addr), size, GC_SEMANTICS);
 
         unsafe {
             *addr.as_mut_ref() = obj;
@@ -81,7 +79,7 @@ impl<T> Alloc<T> for GCRef<T> {
 
         GCRef {
             ptr: addr,
-            _phantom: PhantomData::default()
+            _phantom: PhantomData
         }
     }
 }

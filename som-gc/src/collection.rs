@@ -28,13 +28,12 @@ impl Collection<SOMVM> for VMCollection {
     }
 
     fn spawn_gc_thread(_tls: VMThread, ctx: GCThreadContext<SOMVM>) {
-        // unimplemented!()
-
         // copied from julia mmtk code
         // Just drop the join handle. The thread will run until the process quits.
         let _ = std::thread::spawn(move || {
             let worker_tls = VMWorkerThread(VMThread(OpaquePointer::from_address(unsafe {
                 Address::from_usize(std::process::id() as usize)
+                // Address::from_usize(unsafe { libc::gettid() as usize })
             })));
 
             // let worker_tls = VMWorkerThread(VMThread(OpaquePointer::UNINITIALIZED));
