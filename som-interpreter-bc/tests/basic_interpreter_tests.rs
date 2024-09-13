@@ -14,8 +14,8 @@ fn setup_universe() -> UniverseBC {
         PathBuf::from("../core-lib/Smalltalk"),
         PathBuf::from("../core-lib/TestSuite/BasicInterpreterTests"),
     ];
-    let mutator = init_gc();
-    UniverseBC::with_classpath(classpath, mutator).expect("could not setup test universe")
+    let (mutator_thread, mutator) = init_gc();
+    UniverseBC::with_classpath(classpath, mutator, mutator_thread).expect("could not setup test universe")
 }
 
 #[test]
@@ -198,7 +198,9 @@ fn basic_interpreter_tests() {
             .to_obj()
             .lookup_method(method_name)
             .expect("method not found ??");
-        let mut interpreter = Interpreter::new(GCRef::<Frame>::alloc(Frame::from_method(method, vec![Value::System]), universe.mutator.as_mut()));
+        
+        let frame = Frame::alloc_from_method(method, vec![Value::System], GCRef::default(), universe.mutator.as_mut());
+        let mut interpreter = Interpreter::new(frame);
         if let Some(output) = interpreter.run(&mut universe) {
             assert_eq!(&output, expected, "unexpected test output value");
         }

@@ -13,8 +13,8 @@ fn setup_universe() -> UniverseBC {
         PathBuf::from("../core-lib/Smalltalk"),
         PathBuf::from("../core-lib/TestSuite/BasicInterpreterTests"),
     ];
-    let mutator = init_gc();
-    UniverseBC::with_classpath(classpath, mutator).expect("could not setup test universe")
+    let (mutator_thread, mutator) = init_gc();
+    UniverseBC::with_classpath(classpath, mutator, mutator_thread).expect("could not setup test universe")
 }
 
 fn get_bytecodes_from_method(class_txt: &str, method_name: &str) -> Vec<Bytecode> {
@@ -102,11 +102,11 @@ fn push_constant_bytecodes() {
             PopLocal(0, 1),
             PushConstant2,
             PopLocal(0, 2),
-            PushConstant0,
+            PushConstant(3),
             PopLocal(0, 3),
-            PushConstant1,
+            PushConstant(4),
             PopLocal(0, 4),
-            PushConstant2,
+            PushConstant(5),
             PopLocal(0, 5),
         ],
     );
