@@ -63,8 +63,9 @@ impl Frame {
     pub fn alloc_from_method(method: GCRef<Method>, mut args: Vec<Value>, prev_frame: GCRef<Frame>, mutator: &mut Mutator<SOMVM>) -> GCRef<Frame> {
         let mut frame_ptr = Frame::alloc(Frame::from_method(method, args.len(), prev_frame), mutator);
 
+        // might be faster if we did that in the alloc method, but that means passing args as an argument to the trait method `alloc` somehow.
         for i in (0..args.len()).rev() {
-            frame_ptr.assign_arg(i, args.pop().unwrap())
+            frame_ptr.assign_arg(i, args.pop().unwrap()) 
         }
         
         frame_ptr

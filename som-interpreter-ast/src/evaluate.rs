@@ -4,6 +4,7 @@ use crate::ast::{AstBinaryDispatch, AstBlock, AstBody, AstDispatchNode, AstExpre
 use som_core::ast;
 use som_core::gc::GCRef;
 use crate::block::Block;
+use crate::frame::{Frame, FrameAccess};
 use crate::invokable::{Invoke, Return};
 use crate::method::Method;
 use crate::universe::UniverseAST;
@@ -42,28 +43,42 @@ impl Evaluate for AstExpression {
             Self::Block(blk) => blk.evaluate(universe),
             Self::LocalExit(expr) => {
                 let value = propagate!(expr.evaluate(universe));
-                Return::NonLocal(value, universe.current_frame().clone())  // not well named - Return::NonLocal means "exits the scope", so it can be a regular, local return. 
+                Return::NonLocal(value, universe.current_frame)  // not well named - Return::NonLocal means "exits the scope", so it can be a regular, local return. 
             }
             Self::NonLocalExit(expr, scope) => {
                 debug_assert_ne!(*scope, 0);
 
                 let value = propagate!(expr.evaluate(universe));
-                let method_frame = universe.current_frame().borrow().nth_frame_back(*scope);
-                let has_not_escaped = universe
-                    .frames
-                    .iter()
-                    .rev()
-                    .any(|live_frame| *live_frame == method_frame);
+                let method_frame = Frame::nth_frame_back(&universe.current_frame, *scope);
+                // let has_not_escaped = universe
+                //     .frames
+                //     .iter()
+                //     .rev()
+                //     .any(|live_frame| *live_frame == method_frame);
+
+                let has_not_escaped = {
+                    let mut current_frame = universe.current_frame;
+
+                    loop {
+                        if current_frame == method_frame {
+                            break true
+                        } else if current_frame.is_empty() {
+                            break false
+                        } else {
+                            current_frame = current_frame.to_obj().prev_frame;
+                        }
+                    }
+                };
 
                 if has_not_escaped {
                     // the BC interp has to pop all the escaped frames here, we don't (because we chain return nonlocals, exception-style?).
                     Return::NonLocal(value, method_frame)
                 } else {
                     // Block has escaped its method frame.
-                    let instance = method_frame.borrow().get_self();
-                    let frame = universe.current_frame();
-                    let block = match frame.borrow().params.first() {
-                        Some(Value::Block(b)) => b.clone(),
+                    let instance = method_frame.get_self();
+                    let frame = universe.current_frame;
+                    let block = match frame.lookup_argument(0) {
+                        Value::Block(b) => b,
                         _ => {
                             // Should never happen, because `universe.current_frame()` would
                             // have been equal to `universe.current_method_frame()`.
@@ -94,12 +109,12 @@ impl Evaluate for AstExpression {
             }
             Self::GlobalRead(name) =>
                 match name.as_str() {
-                    "super" => Return::Local(universe.current_frame().borrow().get_self()),
+                    "super" => Return::Local(universe.current_frame.get_self()),
                     _ => universe.lookup_global(name.as_str())
                         .map(Return::Local)
                         .or_else(|| {
-                            let frame = universe.current_frame();
-                            let self_value = frame.borrow().get_self();
+                            let frame = universe.current_frame;
+                            let self_value = frame.get_self();
                             universe.unknown_global(self_value, name.as_str())
                         })
                         .unwrap_or_else(|| Return::Exception(format!("global variable '{}' not found", name)))
@@ -155,7 +170,7 @@ impl Evaluate for GCRef<AstBlock> {
     fn evaluate(&mut self, universe: &mut UniverseAST) -> Return {
         let block = Block {
             block: *self,
-            frame: *universe.current_frame(),
+            frame: universe.current_frame,
         };
         let block_ptr = GCRef::<Block>::alloc(block, universe.mutator.as_mut());
         Return::Local(Value::Block(block_ptr))
@@ -274,7 +289,7 @@ impl Evaluate for AstNAryDispatch {
 impl Evaluate for AstSuperMessage {
     fn evaluate(&mut self, universe: &mut UniverseAST) -> Return {
         let invokable = self.super_class.to_obj().lookup_method(&self.signature);
-        let receiver = universe.current_frame().borrow().get_self();
+        let receiver = universe.current_frame.get_self();
         let args = {
             let mut output = Vec::with_capacity(self.values.len() + 1);
             output.push(receiver.clone());
@@ -320,7 +335,7 @@ impl Evaluate for AstBody {
 
 impl Evaluate for AstMethodDef {
     fn evaluate(&mut self, universe: &mut UniverseAST) -> Return {
-        let current_frame = universe.current_frame().clone();
+        let current_frame = universe.current_frame;
 
         loop {
             match self.body.evaluate(universe) {
@@ -331,7 +346,7 @@ impl Evaluate for AstMethodDef {
                         break Return::NonLocal(value, frame);
                     }
                 }
-                Return::Local(_) => break Return::Local(current_frame.borrow().get_self()),
+                Return::Local(_) => break Return::Local(current_frame.get_self()),
                 Return::Exception(msg) => break Return::Exception(msg),
                 Return::Restart => continue,
             }

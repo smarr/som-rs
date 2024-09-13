@@ -12,7 +12,7 @@ use som_core::universe::UniverseForParser;
 use som_gc::SOMVM;
 use crate::block::Block;
 use crate::class::Class;
-use crate::frame::Frame;
+use crate::frame::{Frame, FrameAccess};
 use crate::interner::{Interned, Interner};
 use crate::invokable::{Invoke, Return};
 use crate::value::Value;
@@ -77,12 +77,12 @@ pub struct UniverseAST {
     pub globals: HashMap<String, Value>,
     /// The path to search in for new classes.
     pub classpath: Vec<PathBuf>,
+    /// The current frame for the operation
+    pub current_frame: GCRef<Frame>,
     /// The interpreter's core classes.
     pub core: CoreClasses,
     /// The time record of the universe's creation.
     pub start_time: Instant,
-    /// The interpreter's stack frames.
-    pub frames: Vec<GCRef<Frame>>,
     /// mutator itself for GC
     pub mutator: Box<mmtk::Mutator<SOMVM>>,
     /// mutator thread for GC
@@ -208,7 +208,7 @@ impl UniverseAST {
             globals,
             interner,
             classpath,
-            frames: Vec::new(),
+            current_frame: GCRef::default(),
             start_time: Instant::now(),
             core: CoreClasses {
                 object_class,
@@ -461,16 +461,11 @@ impl UniverseAST {
     // }
 
     pub fn with_frame<T>(&mut self, nbr_locals: usize, args: Vec<Value>, func: impl FnOnce(&mut Self) -> T) -> T {
-        let frame = GCRef::<Frame>::alloc(Frame::new_frame(nbr_locals, args), self.mutator.as_mut());
-        self.frames.push(frame);
+        let frame = Frame::alloc_new_frame(nbr_locals, args, self.current_frame, self.mutator.as_mut());
+        self.current_frame = frame;
         let ret = func(self);
-        self.frames.pop();
+        self.current_frame = frame.to_obj().prev_frame;
         ret
-    }
-
-    /// Get the current frame.
-    pub fn current_frame(&self) -> &GCRef<Frame> {
-        self.frames.last().expect("no frames left")
     }
     
     /// Intern a symbol.
@@ -485,21 +480,21 @@ impl UniverseAST {
 
     /// Search for a local binding.
     pub fn lookup_local(&self, idx: usize) -> Value {
-        self.current_frame().borrow().lookup_local(idx)
+        self.current_frame.lookup_local(idx)
     }
 
     /// Look up a variable we know to have been defined in another scope.
     pub fn lookup_non_local(&self, idx: usize, target_scope: usize) -> Value {
-        self.current_frame().borrow().lookup_non_local(idx, target_scope)
+        Frame::nth_frame_back(&self.current_frame, target_scope).lookup_local(idx)
     }
 
     /// Look up a field.
     pub fn lookup_field(&self, idx: usize) -> Value {
-        self.current_frame().borrow().lookup_field(idx)
+        self.current_frame.lookup_field(idx)
     }
 
     pub fn lookup_arg(&self, idx: usize, scope: usize) -> Value {
-        self.current_frame().borrow().lookup_arg(idx, scope)
+        Frame::nth_frame_back(&self.current_frame, scope).lookup_argument(idx)
     }
 
     /// Returns whether a global binding of the specified name exists.
@@ -516,19 +511,19 @@ impl UniverseAST {
 
     /// Assign a value to a local binding.
     pub fn assign_local(&mut self, idx: usize, value: &Value) {
-        self.current_frame().borrow_mut().assign_local(idx, value)
+        self.current_frame.assign_local(idx, value.clone())
     }
 
     pub fn assign_non_local(&mut self, idx: usize, scope: usize, value: &Value) {
-        self.current_frame().borrow_mut().assign_non_local(idx, scope, value)
+        Frame::nth_frame_back(&self.current_frame, scope).assign_local(idx, value.clone())
     }
 
     pub fn assign_field(&mut self, idx: usize, value: &Value) {
-        self.current_frame().borrow_mut().assign_field(idx, value)
+        self.current_frame.assign_field(idx, value)
     }
 
     pub fn assign_arg(&mut self, idx: usize, scope: usize, value: &Value) {
-        self.current_frame().borrow_mut().assign_arg(idx, scope, value)
+        Frame::nth_frame_back(&self.current_frame, scope).assign_arg(idx, value.clone())
     }
 
     /// Assign a value to a global binding.
