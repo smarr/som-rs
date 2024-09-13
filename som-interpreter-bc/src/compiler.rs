@@ -558,6 +558,7 @@ impl MethodCodegen for ast::Expression {
                             // TODO: this whole bit is to avoid redundant literals. previous logic broke with strings being put on the GC heap. is it indicative of a deeper issue with redundant strings?
                             // it feels a bit bandaid-ey, since I'm not sure where the bug came from exactly.
                             // it feels like tests should still pass without all this logic, but they don't (see specialized BC PushConstant one), and I'm not *positive* that's normal?
+                            // also NB: this code was a mild speeddown! could be removed, and the PushConst test deactivated/fixed another way, probably. keeping it for now. 
                             let mut i = 0;
                             loop {
                                 let lit = ctxt.get_literal(i);
