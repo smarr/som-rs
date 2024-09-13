@@ -235,8 +235,9 @@ impl Frame {
     }
 }
 
-// struct BCGCRef<T> ( GCRef<T> );
-
+/// Operations to access inside a frame.
+/// Currently defined on `GCRef<Frame>`, but those methods all used to be defined directly on `Frame`.
+/// TODO: `Frame` should also implement it for debug purposes, since operating on raw memory through the GC pointer doesn't rely on the Rust type system and makes debugging harder
 pub trait FrameAccess {
     const ARG_OFFSET: usize = size_of::<Frame>();
     fn get_self(&self) -> Value;

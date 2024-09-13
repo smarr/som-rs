@@ -7,8 +7,11 @@ use std::rc::Rc;
 use std::time::Instant;
 
 use anyhow::{anyhow, Error};
+use mmtk::Mutator;
+use mmtk::util::VMMutatorThread;
+use som_core::gc::GCRef;
 use som_core::universe::UniverseForParser;
-
+use som_gc::SOMVM;
 use crate::block::Block;
 use crate::class::Class;
 use crate::frame::Frame;
@@ -24,46 +27,46 @@ use crate::SOMRef;
 #[derive(Debug)]
 pub struct CoreClasses {
     /// The **Object** class.
-    pub object_class: SOMRef<Class>,
+    pub object_class: GCRef<Class>,
     /// The **Class** class.
-    pub class_class: SOMRef<Class>,
+    pub class_class: GCRef<Class>,
     /// The **Class** class.
-    pub metaclass_class: SOMRef<Class>,
+    pub metaclass_class: GCRef<Class>,
 
     /// The **Nil** class.
-    pub nil_class: SOMRef<Class>,
+    pub nil_class: GCRef<Class>,
     /// The **Integer** class.
-    pub integer_class: SOMRef<Class>,
+    pub integer_class: GCRef<Class>,
     /// The **Double** class.
-    pub double_class: SOMRef<Class>,
+    pub double_class: GCRef<Class>,
     /// The **Array** class.
-    pub array_class: SOMRef<Class>,
+    pub array_class: GCRef<Class>,
     /// The **Method** class.
-    pub method_class: SOMRef<Class>,
+    pub method_class: GCRef<Class>,
     /// The **Primitive** class.
-    pub primitive_class: SOMRef<Class>,
+    pub primitive_class: GCRef<Class>,
     /// The **Symbol** class.
-    pub symbol_class: SOMRef<Class>,
+    pub symbol_class: GCRef<Class>,
     /// The **String** class.
-    pub string_class: SOMRef<Class>,
+    pub string_class: GCRef<Class>,
     /// The **System** class.
-    pub system_class: SOMRef<Class>,
+    pub system_class: GCRef<Class>,
 
     /// The **Block** class.
-    pub block_class: SOMRef<Class>,
+    pub block_class: GCRef<Class>,
     /// The **Block1** class.
-    pub block1_class: SOMRef<Class>,
+    pub block1_class: GCRef<Class>,
     /// The **Block2** class.
-    pub block2_class: SOMRef<Class>,
+    pub block2_class: GCRef<Class>,
     /// The **Block3** class.
-    pub block3_class: SOMRef<Class>,
+    pub block3_class: GCRef<Class>,
 
     /// The **Boolean** class.
-    pub boolean_class: SOMRef<Class>,
+    pub boolean_class: GCRef<Class>,
     /// The **True** class.
-    pub true_class: SOMRef<Class>,
+    pub true_class: GCRef<Class>,
     /// The **False** class.
-    pub false_class: SOMRef<Class>,
+    pub false_class: GCRef<Class>,
 }
 
 /// The central data structure for the interpreter.
@@ -83,6 +86,10 @@ pub struct UniverseAST {
     pub start_time: Instant,
     /// The interpreter's stack frames.
     pub frames: Vec<SOMRef<Frame>>,
+    /// mutator itself for GC
+    pub mutator: Box<mmtk::Mutator<SOMVM>>,
+    /// mutator thread for GC
+    pub mutator_thread: VMMutatorThread
 }
 
 impl UniverseForParser for UniverseAST {
@@ -103,32 +110,32 @@ impl UniverseForParser for UniverseAST {
 
 impl UniverseAST {
     /// Initialize the universe from the given classpath.
-    pub fn with_classpath(classpath: Vec<PathBuf>) -> Result<Self, Error> {
+    pub fn with_classpath(classpath: Vec<PathBuf>, mut mutator: Box<mmtk::Mutator<SOMVM>>, mutator_thread: VMMutatorThread) -> Result<Self, Error> {
         let interner = Interner::with_capacity(100);
         let mut globals = HashMap::new();
 
-        let object_class = Self::load_system_class(classpath.as_slice(), "Object", None)?;
-        let class_class = Self::load_system_class(classpath.as_slice(), "Class", Some(object_class.clone()))?;
-        let metaclass_class = Self::load_system_class(classpath.as_slice(), "Metaclass", Some(class_class.clone()))?;
+        let object_class = Self::load_system_class(classpath.as_slice(), "Object", None, mutator.as_mut())?;
+        let class_class = Self::load_system_class(classpath.as_slice(), "Class", Some(object_class.clone()), mutator.as_mut())?;
+        let metaclass_class = Self::load_system_class(classpath.as_slice(), "Metaclass", Some(class_class.clone()), mutator.as_mut())?;
 
-        let nil_class = Self::load_system_class(classpath.as_slice(), "Nil", Some(object_class.clone()))?;
-        let integer_class = Self::load_system_class(classpath.as_slice(), "Integer", Some(object_class.clone()))?;
-        let array_class = Self::load_system_class(classpath.as_slice(), "Array", Some(object_class.clone()))?;
-        let method_class = Self::load_system_class(classpath.as_slice(), "Method", Some(object_class.clone()))?; // was array_class in original code?
-        let string_class = Self::load_system_class(classpath.as_slice(), "String", Some(object_class.clone()))?;
-        let symbol_class = Self::load_system_class(classpath.as_slice(), "Symbol", Some(string_class.clone()))?;
-        let primitive_class = Self::load_system_class(classpath.as_slice(), "Primitive", Some(object_class.clone()))?;
-        let system_class = Self::load_system_class(classpath.as_slice(), "System", Some(object_class.clone()))?;
-        let double_class = Self::load_system_class(classpath.as_slice(), "Double", Some(object_class.clone()))?;
+        let nil_class = Self::load_system_class(classpath.as_slice(), "Nil", Some(object_class.clone()), mutator.as_mut())?;
+        let integer_class = Self::load_system_class(classpath.as_slice(), "Integer", Some(object_class.clone()), mutator.as_mut())?;
+        let array_class = Self::load_system_class(classpath.as_slice(), "Array", Some(object_class.clone()), mutator.as_mut())?;
+        let method_class = Self::load_system_class(classpath.as_slice(), "Method", Some(object_class.clone()), mutator.as_mut())?; // was array_class in original code?
+        let string_class = Self::load_system_class(classpath.as_slice(), "String", Some(object_class.clone()), mutator.as_mut())?;
+        let symbol_class = Self::load_system_class(classpath.as_slice(), "Symbol", Some(string_class.clone()), mutator.as_mut())?;
+        let primitive_class = Self::load_system_class(classpath.as_slice(), "Primitive", Some(object_class.clone()), mutator.as_mut())?;
+        let system_class = Self::load_system_class(classpath.as_slice(), "System", Some(object_class.clone()), mutator.as_mut())?;
+        let double_class = Self::load_system_class(classpath.as_slice(), "Double", Some(object_class.clone()), mutator.as_mut())?;
 
-        let block_class = Self::load_system_class(classpath.as_slice(), "Block", Some(object_class.clone()))?;
-        let block1_class = Self::load_system_class(classpath.as_slice(), "Block1", Some(block_class.clone()))?;
-        let block2_class = Self::load_system_class(classpath.as_slice(), "Block2", Some(block_class.clone()))?;
-        let block3_class = Self::load_system_class(classpath.as_slice(), "Block3", Some(block_class.clone()))?;
+        let block_class = Self::load_system_class(classpath.as_slice(), "Block", Some(object_class.clone()), mutator.as_mut())?;
+        let block1_class = Self::load_system_class(classpath.as_slice(), "Block1", Some(block_class.clone()), mutator.as_mut())?;
+        let block2_class = Self::load_system_class(classpath.as_slice(), "Block2", Some(block_class.clone()), mutator.as_mut())?;
+        let block3_class = Self::load_system_class(classpath.as_slice(), "Block3", Some(block_class.clone()), mutator.as_mut())?;
 
-        let boolean_class = Self::load_system_class(classpath.as_slice(), "Boolean", Some(object_class.clone()))?;
-        let true_class = Self::load_system_class(classpath.as_slice(), "True", Some(boolean_class.clone()))?;
-        let false_class = Self::load_system_class(classpath.as_slice(), "False", Some(boolean_class.clone()))?;
+        let boolean_class = Self::load_system_class(classpath.as_slice(), "Boolean", Some(object_class.clone()), mutator.as_mut())?;
+        let true_class = Self::load_system_class(classpath.as_slice(), "True", Some(boolean_class.clone()), mutator.as_mut())?;
+        let false_class = Self::load_system_class(classpath.as_slice(), "False", Some(boolean_class.clone()), mutator.as_mut())?;
 
         // initializeSystemClass(objectClass, null, "Object");
         // set_super_class(&object_class, &nil_class, &metaclass_class);
@@ -227,11 +234,13 @@ impl UniverseAST {
                 true_class,
                 false_class,
             },
+            mutator,
+            mutator_thread
         })
     }
 
     /// Load a class from its name into this universe.
-    pub fn load_class(&mut self, class_name: impl Into<String>) -> Result<SOMRef<Class>, Error> {
+    pub fn load_class(&mut self, class_name: impl Into<String>) -> Result<GCRef<Class>, Error> {
         let class_name = class_name.into();
         let paths: Vec<PathBuf> = self.classpath.to_vec(); // TODO: change back, same as BC
 
@@ -273,7 +282,7 @@ impl UniverseAST {
                 self.core.object_class.clone()
             };
 
-            let class = Class::from_class_def(defn, Some(Rc::clone(&super_class))).map_err(Error::msg)?;
+            let class = Class::from_class_def(defn, Some(super_class), self.mutator.as_mut()).map_err(Error::msg)?;
             set_super_class(&class, &super_class, &self.core.metaclass_class);
 
             /*fn has_duplicated_field(class: &SOMRef<Class>) -> Option<(String, (String, String))> {
@@ -327,8 +336,9 @@ impl UniverseAST {
     pub fn load_system_class(
         classpath: &[impl AsRef<Path>],
         class_name: impl Into<String>,
-        super_class: Option<SOMRef<Class>>,
-    ) -> Result<SOMRef<Class>, Error> {
+        super_class: Option<GCRef<Class>>,
+        mutator: &mut Mutator<SOMVM>
+    ) -> Result<GCRef<Class>, Error> {
         let class_name = class_name.into();
         for path in classpath {
             let mut path = path.as_ref().join(class_name.as_str());
@@ -360,85 +370,85 @@ impl UniverseAST {
                 ));
             }
 
-            return Class::from_class_def(defn, super_class).map_err(Error::msg);
+            return Class::from_class_def(defn, super_class, mutator).map_err(Error::msg);
         }
 
         Err(anyhow!("could not find the '{}' system class", class_name))
     }
 
     /// Get the **Object** class.
-    pub fn object_class(&self) -> SOMRef<Class> {
+    pub fn object_class(&self) -> GCRef<Class> {
         self.core.object_class.clone()
     }
 
     /// Get the **Nil** class.
-    pub fn nil_class(&self) -> SOMRef<Class> {
+    pub fn nil_class(&self) -> GCRef<Class> {
         self.core.nil_class.clone()
     }
     /// Get the **System** class.
-    pub fn system_class(&self) -> SOMRef<Class> {
+    pub fn system_class(&self) -> GCRef<Class> {
         self.core.system_class.clone()
     }
 
     /// Get the **Symbol** class.
-    pub fn symbol_class(&self) -> SOMRef<Class> {
+    pub fn symbol_class(&self) -> GCRef<Class> {
         self.core.symbol_class.clone()
     }
     /// Get the **String** class.
-    pub fn string_class(&self) -> SOMRef<Class> {
+    pub fn string_class(&self) -> GCRef<Class> {
         self.core.string_class.clone()
     }
     /// Get the **Array** class.
-    pub fn array_class(&self) -> SOMRef<Class> {
+    pub fn array_class(&self) -> GCRef<Class> {
         self.core.array_class.clone()
     }
 
     /// Get the **Integer** class.
-    pub fn integer_class(&self) -> SOMRef<Class> {
+    pub fn integer_class(&self) -> GCRef<Class> {
         self.core.integer_class.clone()
     }
     /// Get the **Double** class.
-    pub fn double_class(&self) -> SOMRef<Class> {
+    pub fn double_class(&self) -> GCRef<Class> {
         self.core.double_class.clone()
     }
 
     /// Get the **Block** class.
-    pub fn block_class(&self) -> SOMRef<Class> {
+    pub fn block_class(&self) -> GCRef<Class> {
         self.core.block_class.clone()
     }
     /// Get the **Block1** class.
-    pub fn block1_class(&self) -> SOMRef<Class> {
+    pub fn block1_class(&self) -> GCRef<Class> {
         self.core.block1_class.clone()
     }
     /// Get the **Block2** class.
-    pub fn block2_class(&self) -> SOMRef<Class> {
+    pub fn block2_class(&self) -> GCRef<Class> {
         self.core.block2_class.clone()
     }
     /// Get the **Block3** class.
-    pub fn block3_class(&self) -> SOMRef<Class> {
+    pub fn block3_class(&self) -> GCRef<Class> {
         self.core.block3_class.clone()
     }
 
     /// Get the **True** class.
-    pub fn true_class(&self) -> SOMRef<Class> {
+    pub fn true_class(&self) -> GCRef<Class> {
         self.core.true_class.clone()
     }
     /// Get the **False** class.
-    pub fn false_class(&self) -> SOMRef<Class> {
+    pub fn false_class(&self) -> GCRef<Class> {
         self.core.false_class.clone()
     }
 
     /// Get the **Metaclass** class.
-    pub fn metaclass_class(&self) -> SOMRef<Class> {
+    pub fn metaclass_class(&self) -> GCRef<Class> {
         self.core.metaclass_class.clone()
     }
 
     /// Get the **Method** class.
-    pub fn method_class(&self) -> SOMRef<Class> {
+    pub fn method_class(&self) -> GCRef<Class> {
         self.core.method_class.clone()
     }
     /// Get the **Primitive** class.
-    pub fn primitive_class(&self) -> SOMRef<Class> {
+    pub fn primitive_class(&self) -> GCRef<Class> {
         self.core.primitive_class.clone()
     }
 }
@@ -537,7 +547,7 @@ impl UniverseAST {
     pub fn escaped_block(&mut self, value: Value, block: SOMRef<Block>) -> Option<Return> {
         let initialize = value.lookup_method(self, "escapedBlock:")?;
 
-        let escaped_block_result = initialize.borrow_mut().invoke(self, vec![value, Value::Block(block)]);
+        let escaped_block_result = initialize.to_obj().invoke(self, vec![value, Value::Block(block)]);
         Some(escaped_block_result)
     }
 
@@ -555,7 +565,7 @@ impl UniverseAST {
 
        // eprintln!("Couldn't invoke {}; exiting.", symbol.as_ref()); std::process::exit(1);
         
-        let dnu_result = initialize.borrow_mut().invoke(self, vec![value, sym, args]);
+        let dnu_result = initialize.to_obj().invoke(self, vec![value, sym, args]);
         Some(dnu_result)
     }
 
@@ -564,7 +574,7 @@ impl UniverseAST {
         let sym = self.intern_symbol(name.as_ref());
         let method = value.lookup_method(self, "unknownGlobal:")?;
 
-        let unknown_global_result = method.borrow_mut().invoke(self, vec![value, Value::Symbol(sym)]);
+        let unknown_global_result = method.to_obj().invoke(self, vec![value, Value::Symbol(sym)]);
         match unknown_global_result {
             Return::Local(value) | Return::NonLocal(value, _) => Some(Return::Local(value)),
             Return::Exception(err) => Some(Return::Exception(format!(
@@ -582,15 +592,15 @@ impl UniverseAST {
         let initialize = Value::System.lookup_method(self, "initialize:")?;
         let args = Value::Array(Rc::new(RefCell::new(args)));
 
-        let program_result = initialize.borrow_mut().invoke(self, vec![Value::System, args]);
+        let program_result = initialize.to_obj().invoke(self, vec![Value::System, args]);
         Some(program_result)
     }
 }
 
 fn set_super_class(
-    class: &SOMRef<Class>,
-    super_class: &SOMRef<Class>,
-    metaclass_class: &SOMRef<Class>,
+    class: &GCRef<Class>,
+    super_class: &GCRef<Class>,
+    metaclass_class: &GCRef<Class>,
 ) {
     class.borrow_mut().set_super_class(super_class);
 

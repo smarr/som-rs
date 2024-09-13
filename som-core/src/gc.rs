@@ -48,6 +48,21 @@ impl<T> GCRef<T> {
         debug_assert!(!self.ptr.is_zero());
         unsafe { &mut *(self.ptr.as_mut_ref()) }
     }
+    
+    /// Hacks for convenience, since I'm refactoring from Refcounts. TODO remove
+    pub fn borrow(&self) -> &mut T {
+        Self::to_obj(self)
+    }
+
+    /// same deal
+    pub fn borrow_mut(&self) -> &mut T {
+        Self::to_obj(self)
+    }
+
+    /// same dealll
+    pub fn as_ptr(&self) -> &mut T {
+        Self::to_obj(self)
+    }
 
     /// Does the address not point to any data?
     /// We use this to avoid using an Option type in interpreter frames. Not sure if it's worth it though.

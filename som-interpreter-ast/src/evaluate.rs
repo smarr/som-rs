@@ -3,13 +3,12 @@ use std::rc::Rc;
 
 use crate::ast::{AstBinaryDispatch, AstBlock, AstBody, AstDispatchNode, AstExpression, AstMethodDef, AstNAryDispatch, AstSuperMessage, AstTerm, AstTernaryDispatch, AstUnaryDispatch, InlinedNode};
 use som_core::ast;
-
+use som_core::gc::GCRef;
 use crate::block::Block;
 use crate::invokable::{Invoke, Return};
 use crate::method::Method;
 use crate::universe::UniverseAST;
 use crate::value::Value;
-use crate::SOMRef;
 
 /// The trait for evaluating AST nodes.
 pub trait Evaluate {
@@ -164,14 +163,14 @@ impl Evaluate for Rc<RefCell<AstBlock>> {
 
 impl AstDispatchNode {
     #[inline(always)]
-    fn lookup_invokable(&mut self, receiver: &Value, universe: &mut UniverseAST) -> (Option<SOMRef<Method>>, bool) {
+    fn lookup_invokable(&mut self, receiver: &Value, universe: &mut UniverseAST) -> (Option<GCRef<Method>>, bool) {
         let mut is_cache_hit = false;
         let invokable = match &self.inline_cache {
             Some((cached_rcvr_ptr, method)) => {
                 if std::ptr::eq(*cached_rcvr_ptr, receiver.class(universe).as_ptr()) {
                     // dbg!("cache hit");
                     is_cache_hit = true;
-                    Some(Rc::clone(method))
+                    Some(*method)
                 } else {
                     // dbg!("cache miss");
                     receiver.lookup_method(universe, &self.signature)
@@ -184,17 +183,18 @@ impl AstDispatchNode {
     }
     
     #[inline(always)]
-    fn dispatch_or_dnu(&mut self, invokable: Option<SOMRef<Method>>, args: Vec<Value>, is_cache_hit: bool, universe: &mut UniverseAST) -> Return {
+    fn dispatch_or_dnu(&mut self, invokable: Option<GCRef<Method>>, args: Vec<Value>, is_cache_hit: bool, universe: &mut UniverseAST) -> Return {
         match invokable {
             Some(invokable) => {
                 
                 match is_cache_hit {
-                    true => Invoke::unsafe_invoke(invokable.as_ptr(), universe, args),
+                    true => Invoke::unsafe_invoke(invokable.to_obj(), universe, args),
                     false => {
                         let receiver = args.first().unwrap().clone();
-                        let invoke_ret = Invoke::unsafe_invoke(invokable.as_ptr(), universe, args);
+                        let invoke_ret = Invoke::unsafe_invoke(invokable.to_obj(), universe, args);
 
-                        let rcvr_ptr = receiver.class(universe).as_ptr(); // first arg is the receiver
+                        let class_ref = receiver.class(universe);
+                        let rcvr_ptr = class_ref.as_ptr(); // first arg is the receiver
                         self.inline_cache = Some((rcvr_ptr, invokable));
 
                         invoke_ret
@@ -272,8 +272,7 @@ impl Evaluate for AstNAryDispatch {
 
 impl Evaluate for AstSuperMessage {
     fn evaluate(&mut self, universe: &mut UniverseAST) -> Return {
-        let super_class = Rc::clone(&self.super_class);
-        let invokable = super_class.borrow().lookup_method(&self.signature);
+        let invokable = self.super_class.to_obj().lookup_method(&self.signature);
         let receiver = universe.current_frame().borrow().get_self();
         let args = {
             let mut output = Vec::with_capacity(self.values.len() + 1);
@@ -286,7 +285,7 @@ impl Evaluate for AstSuperMessage {
         };
 
         let value = match invokable {
-            Some(invokable) => Invoke::unsafe_invoke(invokable.as_ptr(), universe, args),
+            Some(invokable) => Invoke::unsafe_invoke(invokable.to_obj(), universe, args),
             None => {
                 let mut args = args;
                 args.remove(0);

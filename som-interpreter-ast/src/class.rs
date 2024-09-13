@@ -1,25 +1,23 @@
-use std::cell::RefCell;
 use std::fmt;
-use std::rc::{Rc, Weak};
 
 use indexmap::IndexMap;
-
+use mmtk::Mutator;
 use som_core::ast::ClassDef;
-
+use som_core::gc::GCRef;
+use som_gc::SOMVM;
 use crate::method::{Method, MethodKind};
 use crate::primitives;
 use crate::value::Value;
-use crate::{SOMRef, SOMWeakRef};
 use crate::compiler::AstMethodCompilerCtxt;
 
-/// A reference that may be either weak or owned/strong.
-#[derive(Debug, Clone)]
-pub enum MaybeWeak<A> {
-    /// An owned reference.
-    Strong(SOMRef<A>),
-    /// A weak reference.
-    Weak(SOMWeakRef<A>),
-}
+// /// A reference that may be either weak or owned/strong.
+// #[derive(Debug, Clone)]
+// pub enum MaybeWeak<A> {
+//     /// An owned reference.
+//     Strong(SOMRef<A>),
+//     /// A weak reference.
+//     Weak(SOMWeakRef<A>),
+// }
 
 /// Represents a loaded class.
 #[derive(Clone)]
@@ -27,15 +25,15 @@ pub struct Class {
     /// The class' name.
     pub name: String,
     /// The class of this class.
-    pub class: MaybeWeak<Class>,
+    pub class: GCRef<Class>,
     /// The superclass of this class.
-    pub super_class: Option<SOMRef<Class>>,
+    pub super_class: Option<GCRef<Class>>,
     /// The class' fields.
     pub fields: Vec<Value>,
     /// The class' fields names.
     pub field_names: Vec<String>,
     /// The class' methods/invokables.
-    pub methods: IndexMap<String, SOMRef<Method>>,
+    pub methods: IndexMap<String, GCRef<Method>>,
     /// Is this class a static one ?
     pub is_static: bool,
 }
@@ -51,7 +49,7 @@ impl Class {
     /// Load up a class from its class definition from the AST.
     /// NB: super_class is only ever None for one class: the core Object class, which all other classes inherit from.
     /// NB: while it takes the super_class as argument, it's not in charge of hooking it up to the class itself. That's `set_super_class`. Might need changing for clarity.
-    pub fn from_class_def(defn: ClassDef, super_class: Option<SOMRef<Class>>) -> Result<SOMRef<Class>, String> {
+    pub fn from_class_def(defn: ClassDef, super_class: Option<GCRef<Class>>, mutator: &mut Mutator<SOMVM>) -> Result<GCRef<Class>, String> {
         let static_locals = {
             let mut static_locals = IndexMap::new();
             for field in defn.static_locals.iter() {
@@ -78,29 +76,33 @@ impl Class {
             instance_locals
         };
 
-        let static_class = Rc::new(RefCell::new(Self {
+        let static_class = Self {
             name: format!("{} class", defn.name),
-            class: MaybeWeak::Weak(Weak::new()),
+            class: GCRef::default(),
             super_class: None,
             fields: vec![Value::Nil; static_locals.len()],
             field_names: defn.static_locals,
             methods: IndexMap::new(),
             is_static: true,
-        }));
+        };
 
-        let instance_class = Rc::new(RefCell::new(Self {
+        let static_class_gc_ptr = GCRef::<Class>::alloc(static_class, mutator);
+        
+        let instance_class = Self {
             name: defn.name.clone(),
-            class: MaybeWeak::Strong(static_class.clone()),
+            class: static_class_gc_ptr,
             super_class: None,
             fields: vec![Value::Nil; instance_locals.len()],
             field_names: defn.instance_locals,
             methods: IndexMap::new(),
             is_static: false,
-        }));
+        };
 
-        let maybe_static_superclass = super_class.as_ref().map(|super_class| super_class.borrow().class());
+        let instance_class_gc_ptr = GCRef::<Class>::alloc(instance_class, mutator);
         
-        let mut static_methods: IndexMap<String, SOMRef<Method>> = defn
+        let maybe_static_superclass = super_class.as_ref().map(|super_class| super_class.to_obj().class());
+        
+        let mut static_methods: IndexMap<String, GCRef<Method>> = defn
             .static_methods
             .iter()
             .map(|method| {
@@ -109,9 +111,9 @@ impl Class {
                 let method = Method {
                     kind,
                     signature: signature.clone(),
-                    holder: Rc::downgrade(&static_class),
+                    holder: static_class_gc_ptr,
                 };
-                (signature, Rc::new(RefCell::new(method)))
+                (signature, GCRef::<Method>::alloc(method, mutator))
             })
             .collect();
 
@@ -127,13 +129,13 @@ impl Class {
                 let method = Method {
                     kind: MethodKind::Primitive(*primitive),
                     signature: signature.to_string(),
-                    holder: Rc::downgrade(&static_class),
+                    holder: static_class_gc_ptr,
                 };
-                static_methods.insert(signature.to_string(), Rc::new(RefCell::new(method)));
+                static_methods.insert(signature.to_string(), GCRef::<Method>::alloc(method, mutator));
             }
         }
 
-        let mut instance_methods: IndexMap<String, SOMRef<Method>> = defn
+        let mut instance_methods: IndexMap<String, GCRef<Method>> = defn
             .instance_methods
             .iter()
             .map(|method| {
@@ -142,9 +144,9 @@ impl Class {
                 let method = Method {
                     kind,
                     signature: signature.clone(),
-                    holder: Rc::downgrade(&instance_class),
+                    holder: instance_class_gc_ptr,
                 };
-                (signature, Rc::new(RefCell::new(method)))
+                (signature, GCRef::<Method>::alloc(method, mutator))
             })
             .collect();
 
@@ -160,16 +162,16 @@ impl Class {
                 let method = Method {
                     kind: MethodKind::Primitive(*primitive),
                     signature: signature.to_string(),
-                    holder: Rc::downgrade(&instance_class),
+                    holder: instance_class_gc_ptr,
                 };
-                instance_methods.insert(signature.to_string(), Rc::new(RefCell::new(method)));
+                instance_methods.insert(signature.to_string(), GCRef::<Method>::alloc(method, mutator));
             }
         }
 
-        static_class.borrow_mut().methods = static_methods;
-        instance_class.borrow_mut().methods = instance_methods;
+        static_class_gc_ptr.to_obj().methods = static_methods;
+        instance_class_gc_ptr.to_obj().methods = instance_methods; // todo does this work? remove if runs ok
 
-        Ok(instance_class)
+        Ok(instance_class_gc_ptr)
     }
 
     /// Get the class' name.
@@ -178,32 +180,22 @@ impl Class {
     }
 
     /// Get the class of this class.
-    pub fn class(&self) -> SOMRef<Self> {
-        match self.class {
-            MaybeWeak::Weak(ref weak) => weak.upgrade().unwrap_or_else(|| {
-                panic!("superclass dropped, cannot upgrade ref ({})", self.name())
-            }),
-            MaybeWeak::Strong(ref owned) => owned.clone(),
-        }
+    pub fn class(&self) -> GCRef<Self> {
+        self.class
     }
 
     /// Set the class of this class (as a weak reference).
-    pub fn set_class(&mut self, class: &SOMRef<Self>) {
-        self.class = MaybeWeak::Weak(Rc::downgrade(class));
-    }
-
-    /// Set the class of this class (as a strong reference).
-    pub fn set_class_owned(&mut self, class: &SOMRef<Self>) {
-        self.class = MaybeWeak::Strong(class.clone());
+    pub fn set_class(&mut self, class: &GCRef<Self>) {
+        self.class = *class;
     }
 
     /// Get the superclass of this class.
-    pub fn super_class(&self) -> Option<SOMRef<Self>> {
-        self.super_class.clone()
+    pub fn super_class(&self) -> Option<GCRef<Self>> {
+        self.super_class
     }
 
     /// Set the superclass of this class (as a weak reference).
-    pub fn set_super_class(&mut self, class: &SOMRef<Self>) {
+    pub fn set_super_class(&mut self, class: &GCRef<Self>) {
         for local_name in class.borrow().field_names.iter().rev() {
             self.field_names.insert(0, local_name.clone());
         }
@@ -211,11 +203,11 @@ impl Class {
             self.fields.insert(0, local.clone());
         }
 
-        self.super_class = Some(class.clone());
+        self.super_class = Some(*class);
     }
 
     /// Search for a given method within this class.
-    pub fn lookup_method(&self, signature: impl AsRef<str>) -> Option<SOMRef<Method>> {
+    pub fn lookup_method(&self, signature: impl AsRef<str>) -> Option<GCRef<Method>> {
         let signature = signature.as_ref();
         self.methods.get(signature).cloned().or_else(|| {
             self.super_class.clone()?

@@ -1,5 +1,5 @@
 use std::fmt;
-
+use som_core::gc::GCRef;
 use crate::ast::AstBlock;
 
 use crate::class::Class;
@@ -18,7 +18,7 @@ pub struct Block {
 
 impl Block {
     /// Get the block's class.
-    pub fn class(&self, universe: &UniverseAST) -> SOMRef<Class> {
+    pub fn class(&self, universe: &UniverseAST) -> GCRef<Class> {
         match self.nb_parameters() {
             0 => universe.block1_class(),
             1 => universe.block2_class(),

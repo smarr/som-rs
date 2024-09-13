@@ -18,14 +18,16 @@ fn holder(_: &mut UniverseAST, args: Vec<Value>) -> Return {
         Value::Invokable(invokable) => invokable,
     ]);
 
-    let maybe_holder = invokable.borrow().holder().upgrade();
-    match maybe_holder {
-        Some(holder) => Return::Local(Value::Class(holder)),
-        None => Return::Exception(format!(
-            "'{}': method holder has been collected",
-            SIGNATURE
-        )),
-    }
+    let holder = invokable.to_obj().holder();
+    Return::Local(Value::Class(*holder))
+
+    // match maybe_holder {
+    //     Some(holder) => Return::Local(Value::Class(holder)),
+    //     None => Return::Exception(format!(
+    //         "'{}': method holder has been collected",
+    //         SIGNATURE
+    //     )),
+    // }
 }
 
 fn signature(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
@@ -35,7 +37,7 @@ fn signature(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
         Value::Invokable(invokable) => invokable,
     ]);
 
-    let sym = universe.intern_symbol(invokable.borrow().signature());
+    let sym = universe.intern_symbol(invokable.to_obj().signature());
     Return::Local(Value::Symbol(sym))
 }
 
@@ -52,7 +54,7 @@ fn invoke_on_with(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
         .chain(args.borrow().iter().cloned())
         .collect();
     
-    let invoke_result = invokable.borrow_mut().invoke(universe, args);
+    let invoke_result = invokable.to_obj().invoke(universe, args);
     invoke_result
 }
 

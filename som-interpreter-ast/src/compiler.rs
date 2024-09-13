@@ -3,12 +3,11 @@ use std::rc::Rc;
 
 use som_core::ast;
 use som_core::ast::{Expression, MethodBody};
-
+use som_core::gc::GCRef;
 use crate::ast::{AstBinaryDispatch, AstBlock, AstBody, AstExpression, AstNAryDispatch, AstMethodDef, AstSuperMessage, AstUnaryDispatch, AstTernaryDispatch, AstDispatchNode};
 use crate::class::Class;
 use crate::inliner::PrimMessageInliner;
 use crate::method::{MethodKind, MethodKindSpecialized};
-use crate::SOMRef;
 use crate::specialized::down_to_do_node::DownToDoNode;
 use crate::specialized::if_node::IfNode;
 use crate::specialized::if_true_if_false_node::IfTrueIfFalseNode;
@@ -19,7 +18,7 @@ use crate::specialized::while_node::WhileNode;
 
 pub struct AstMethodCompilerCtxt {
     pub scopes: Vec<AstScopeCtxt>,
-    pub super_class: Option<SOMRef<Class>>,
+    pub super_class: Option<GCRef<Class>>,
 }
 
 #[derive(Debug, Default)]
@@ -57,7 +56,7 @@ impl AstScopeCtxt {
 }
 
 impl AstMethodCompilerCtxt {
-    pub fn get_method_kind(method: &ast::MethodDef, super_class: Option<SOMRef<Class>>) -> MethodKind {
+    pub fn get_method_kind(method: &ast::MethodDef, super_class: Option<GCRef<Class>>) -> MethodKind {
         // NB: these If/IfTrueIfFalse/While are very rare cases, since we normally inline those functions.
         // But we don't do inlining when e.g. the condition for ifTrue: isn't a block.
         // so there is *some* occasional benefit in having those specialized method nodes around for those cases.
@@ -121,7 +120,7 @@ impl AstMethodCompilerCtxt {
 
     /// Transforms a generic MethodDef into an AST-specific one.
     /// Note: public since it's used in tests.
-    pub fn parse_method_def(method_def: &ast::MethodDef, super_class: Option<SOMRef<Class>>) -> AstMethodDef {
+    pub fn parse_method_def(method_def: &ast::MethodDef, super_class: Option<GCRef<Class>>) -> AstMethodDef {
         let (body, locals_nbr) = match &method_def.body {
             MethodBody::Primitive => { unreachable!("unimplemented primitive") }
             MethodBody::Body { locals_nbr, body, .. } => {

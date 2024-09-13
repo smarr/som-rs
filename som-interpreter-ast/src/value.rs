@@ -2,7 +2,7 @@ use std::fmt;
 use std::rc::Rc;
 
 use num_bigint::BigInt;
-
+use som_core::gc::GCRef;
 use crate::block::Block;
 use crate::class::Class;
 use crate::instance::Instance;
@@ -37,14 +37,14 @@ pub enum Value {
     /// A generic (non-primitive) class instance.
     Instance(SOMRef<Instance>),
     /// A bare class object.
-    Class(SOMRef<Class>),
+    Class(GCRef<Class>),
     /// A bare invokable.
-    Invokable(SOMRef<Method>),
+    Invokable(GCRef<Method>),
 }
 
 impl Value {
     /// Get the class of the current value.
-    pub fn class(&self, universe: &UniverseAST) -> SOMRef<Class> {
+    pub fn class(&self, universe: &UniverseAST) -> GCRef<Class> {
         match self {
             Self::Nil => universe.nil_class(),
             Self::System => universe.system_class(),
@@ -59,7 +59,7 @@ impl Value {
             Self::Block(block) => block.borrow().class(universe),
             Self::Instance(instance) => instance.borrow().class(),
             Self::Class(class) => class.borrow().class(),
-            Self::Invokable(invokable) => invokable.borrow().class(universe),
+            Self::Invokable(invokable) => invokable.to_obj().class(universe),
         }
     }
 
@@ -68,7 +68,7 @@ impl Value {
         &self,
         universe: &UniverseAST,
         signature: impl AsRef<str>,
-    ) -> Option<SOMRef<Method>> {
+    ) -> Option<GCRef<Method>> {
         self.class(universe).borrow().lookup_method(signature)
     }
 
@@ -105,11 +105,9 @@ impl Value {
                 instance.borrow().class().borrow().name(),
             ),
             Self::Class(class) => class.borrow().name().to_string(),
-            Self::Invokable(invokable) => invokable.borrow()
-                .holder()
-                .upgrade()
-                .map(|holder| format!("{}>>#{}", holder.borrow().name(), invokable.borrow().signature()))
-                .unwrap_or_else(|| format!("??>>#{}", invokable.borrow().signature())),
+            Self::Invokable(invokable) => {
+                format!("{}>>#{}", invokable.to_obj().holder().to_obj().name(), invokable.to_obj().signature())
+            },
         }
     }
 }
@@ -132,9 +130,9 @@ impl PartialEq for Value {
             (Self::String(a), Self::String(b)) => Rc::ptr_eq(a, b),
             (Self::Array(a), Self::Array(b)) => Rc::ptr_eq(a, b),
             (Self::Instance(a), Self::Instance(b)) => Rc::ptr_eq(a, b),
-            (Self::Class(a), Self::Class(b)) => Rc::ptr_eq(a, b),
+            (Self::Class(a), Self::Class(b)) => a == b,
             (Self::Block(a), Self::Block(b)) => Rc::ptr_eq(a, b),
-            (Self::Invokable(a), Self::Invokable(b)) => Rc::ptr_eq(a, b),
+            (Self::Invokable(a), Self::Invokable(b)) => a == b,
             _ => false,
         }
     }
@@ -156,11 +154,7 @@ impl fmt::Debug for Value {
             Self::Instance(val) => f.debug_tuple("Instance").field(&val.borrow()).finish(),
             Self::Class(val) => f.debug_tuple("Class").field(&val.borrow()).finish(),
             Self::Invokable(val) => {
-                let signature = val.borrow()
-                    .holder()
-                    .upgrade()
-                    .map(|holder| format!("{}>>#{}", holder.borrow().name(), val.borrow().signature()))
-                    .unwrap_or_else(|| format!("??>>#{}", val.borrow().signature()));
+                let signature = format!("{}>>#{}", val.to_obj().holder.to_obj().name(), val.to_obj().signature());
                 f.debug_tuple("Invokable").field(&signature).finish()
             },
         }

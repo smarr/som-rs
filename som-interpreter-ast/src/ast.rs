@@ -3,9 +3,9 @@ use std::fmt::{Debug, Display, Formatter};
 use std::rc::Rc;
 use indenter::indented;
 use std::fmt::Write;
+use som_core::gc::GCRef;
 use crate::class::Class;
 use crate::method::Method;
-use crate::SOMRef;
 use crate::specialized::inlined::and_inlined_node::AndInlinedNode;
 use crate::specialized::inlined::if_inlined_node::IfInlinedNode;
 use crate::specialized::inlined::if_true_if_false_inlined_node::IfTrueIfFalseInlinedNode;
@@ -63,7 +63,7 @@ pub struct AstBlock {
     pub body: AstBody
 }
 
-pub type CacheEntry = (*const Class, SOMRef<Method>);
+pub type CacheEntry = (*const Class, GCRef<Method>);
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct AstDispatchNode {
@@ -99,7 +99,7 @@ pub struct AstNAryDispatch {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct AstSuperMessage {
-    pub super_class: SOMRef<Class>,
+    pub super_class: GCRef<Class>,
     pub signature: String,
     pub values: Vec<AstExpression>,
     // NB: no inline cache. I don't think it's super worth it since super calls are uncommon. Easy to implement though
@@ -202,7 +202,7 @@ impl Display for AstExpression {
             }
             AstExpression::SuperMessage(msg) => {
                 writeln!(f, "SuperMessage \"{}\":", msg.signature)?;
-                writeln!(indented(f), "Receiver: {}", msg.super_class.borrow().name)?;
+                writeln!(indented(f), "Receiver: {}", msg.super_class.to_obj().name)?;
                 writeln!(indented(f), "Values: {}", if msg.values.is_empty() { "(none)" } else { "" })?;
                 for value in &msg.values {
                     write!(indented(&mut indented(f)), "{}", value)?;

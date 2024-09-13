@@ -1,7 +1,7 @@
+use som_core::gc::GCRef;
 use crate::class::Class;
 use crate::primitives::PrimitiveFn;
 use crate::universe::UniverseAST;
-use crate::{SOMRef, SOMWeakRef};
 use crate::ast::AstMethodDef;
 use crate::specialized::down_to_do_node::DownToDoNode;
 use crate::specialized::while_node::WhileNode;
@@ -61,18 +61,18 @@ impl MethodKind {
 #[derive(Debug, Clone)]
 pub struct Method {
     pub kind: MethodKind,
-    pub holder: SOMWeakRef<Class>,
+    pub holder: GCRef<Class>, // it's a weak ref in the original code.
     pub signature: String,
 }
 
 impl PartialEq for Method {
     fn eq(&self, other: &Self) -> bool {
-        self.kind == other.kind && self.signature == other.signature && std::ptr::eq(self.holder.as_ptr(), other.holder.as_ptr()) 
+        self.kind == other.kind && self.signature == other.signature && (self.holder.ptr == other.holder.ptr) 
     }
 }
 
 impl Method {
-    pub fn class(&self, universe: &UniverseAST) -> SOMRef<Class> {
+    pub fn class(&self, universe: &UniverseAST) -> GCRef<Class> {
         if self.is_primitive() {
             universe.primitive_class()
         } else {
@@ -84,7 +84,7 @@ impl Method {
         &self.kind
     }
 
-    pub fn holder(&self) -> &SOMWeakRef<Class> {
+    pub fn holder(&self) -> &GCRef<Class> {
         &self.holder
     }
 

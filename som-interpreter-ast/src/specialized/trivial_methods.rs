@@ -64,7 +64,7 @@ impl Invoke for TrivialSetterMethod {
         match args.first().unwrap() {
             Value::Class(cls) => {
                 cls.borrow().class().borrow_mut().assign_field(self.field_idx, val.clone());
-                Return::Local(Value::Class(Rc::clone(cls)))
+                Return::Local(Value::Class(*cls))
             }
             Value::Instance(instance) => {
                 instance.borrow_mut().assign_local(self.field_idx, val.clone());
