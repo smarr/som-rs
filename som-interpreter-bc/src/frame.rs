@@ -3,12 +3,11 @@ use std::marker::PhantomData;
 use core::mem::size_of;
 use mmtk::Mutator;
 use som_core::bytecode::Bytecode;
-use som_gc::api::{mmtk_alloc, mmtk_post_alloc};
 use som_gc::SOMVM;
 use crate::block::Block;
 use crate::class::Class;
 use crate::compiler::Literal;
-use crate::gc::{Alloc, GCRef, GC_ALIGN, GC_OFFSET, GC_SEMANTICS};
+use som_core::gc::{CustomAlloc, GCRef};
 use crate::method::{Method, MethodKind};
 use crate::value::Value;
 
@@ -236,11 +235,20 @@ impl Frame {
     }
 }
 
-impl GCRef<Frame> {
-    const ARG_OFFSET: usize = size_of::<Frame>();
+// struct BCGCRef<T> ( GCRef<T> );
 
+pub trait FrameAccess {
+    const ARG_OFFSET: usize = size_of::<Frame>();
+    fn get_self(&self) -> Value;
+    fn lookup_argument(&self, idx: usize) -> &Value;
+    fn assign_arg(&mut self, idx: usize, value: Value);
+    fn lookup_local(&self, idx: usize) -> &Value;
+    fn assign_local(&mut self, idx: usize, value: Value);
+}
+
+impl FrameAccess for GCRef<Frame> {
     /// Get the self value for this frame.
-    pub fn get_self(&self) -> Value {
+    fn get_self(&self) -> Value {
         match self.lookup_argument(0) {
             Value::Block(b) => {
                 let block_frame = b.to_obj().frame.unwrap();
@@ -251,58 +259,47 @@ impl GCRef<Frame> {
     }
     
     #[inline(always)]
-    pub fn lookup_argument(&self, idx: usize) -> &Value {
+    fn lookup_argument(&self, idx: usize) -> &Value {
         unsafe { self.ptr.add(Self::ARG_OFFSET).add(idx * size_of::<Value>()).as_ref() }
     }
 
     /// Assign to an argument.
     #[inline(always)]
-    pub fn assign_arg(&mut self, idx: usize, value: Value) {
+    fn assign_arg(&mut self, idx: usize, value: Value) {
         unsafe { *self.ptr.add(Self::ARG_OFFSET).add(idx * size_of::<Value>()).as_mut_ref() = value }
     }
     
     /// Search for a local binding.
     #[inline(always)]
-    pub fn lookup_local(&self, idx: usize) -> &Value {
+    fn lookup_local(&self, idx: usize) -> &Value {
         let nbr_args = self.to_obj().nbr_args;
         unsafe { self.ptr.add(Self::ARG_OFFSET).add((nbr_args + idx) * size_of::<Value>()).as_ref() }
     }
 
     /// Assign to a local binding.
     #[inline(always)]
-    pub fn assign_local(&mut self, idx: usize, value: Value) {
+    fn assign_local(&mut self, idx: usize, value: Value) {
         let nbr_args = self.to_obj().nbr_args;
         unsafe { *self.ptr.add(Self::ARG_OFFSET).add((nbr_args + idx) * size_of::<Value>()).as_mut_ref() = value }
     }
 }
 
-impl Alloc<Frame> for Frame {
+impl CustomAlloc<Frame> for Frame {
     fn alloc(frame: Frame, mutator: &mut Mutator<SOMVM>) -> GCRef<Frame> {
         let nbr_locals = frame.nbr_locals;
         let nbr_args = frame.nbr_args;
         let size = size_of::<Frame>() + ((nbr_args + nbr_locals) * size_of::<Value>());
 
-        let frame_addr = mmtk_alloc(mutator, size, GC_ALIGN, GC_OFFSET, GC_SEMANTICS);
-        debug_assert!(!frame_addr.is_zero());
-
-        mmtk_post_alloc(mutator, SOMVM::object_start_to_ref(frame_addr), size, GC_SEMANTICS);
-
-
+        let frame_ptr = GCRef::<Frame>::alloc_with_size(frame, mutator, size);
+        
         unsafe {
-            *frame_addr.as_mut_ref() = frame;
-
-            let mut locals_addr = frame_addr.add(size_of::<Frame>()).add(nbr_args * size_of::<Value>());
+            let mut locals_addr = frame_ptr.ptr.add(size_of::<Frame>()).add(nbr_args * size_of::<Value>());
             for _ in 0..nbr_locals {
                 *locals_addr.as_mut_ref() = Value::Nil;
                 locals_addr = locals_addr.add(size_of::<Value>());
             }
         };
-
-        // println!("frame allocation OK");
-
-        GCRef {
-            ptr: frame_addr,
-            _phantom: PhantomData
-        }
+        
+        frame_ptr
     }
 }

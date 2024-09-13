@@ -4,7 +4,7 @@ use indexmap::IndexMap;
 use crate::interner::Interned;
 use crate::method::Method;
 use crate::value::Value;
-use crate::gc::GCRef;
+use som_core::gc::GCRef;
 
 // /// A reference that may be either weak or owned/strong.
 // #[derive(Debug, Clone)]

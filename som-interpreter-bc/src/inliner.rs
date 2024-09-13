@@ -7,7 +7,7 @@ use som_core::ast;
 use som_core::bytecode::Bytecode;
 use mmtk::Mutator;
 use som_gc::SOMVM;
-use crate::gc::{Alloc, GCRef};
+use som_core::gc::GCRef;
 
 pub enum JumpType {
     JumpOnFalse,

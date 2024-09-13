@@ -16,7 +16,7 @@ use som_core::bytecode::Bytecode;
 use som_gc::SOMVM;
 use crate::block::{Block, BlockInfo};
 use crate::class::Class;
-use crate::gc::{Alloc, GCRef};
+use som_core::gc::GCRef;
 #[cfg(not(feature = "inlining-disabled"))]
 use crate::inliner::PrimMessageInliner;
 use crate::interner::{Interned, Interner};

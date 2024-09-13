@@ -13,7 +13,7 @@ use crate::block::Block;
 use crate::class::Class;
 use crate::compiler;
 use crate::frame::Frame;
-use crate::gc::{Alloc, GCRef};
+use som_core::gc::GCRef;
 use crate::interner::{Interned, Interner};
 use crate::interpreter::Interpreter;
 use crate::value::Value;

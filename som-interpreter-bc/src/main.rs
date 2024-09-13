@@ -15,7 +15,7 @@ use som_interpreter_bc::class::Class;
 mod shell;
 
 use som_interpreter_bc::disassembler::disassemble_method_body;
-use som_interpreter_bc::gc::{Alloc, GCRef};
+use som_core::gc::GCRef;
 use som_interpreter_bc::method::{Method, MethodKind};
 use som_interpreter_bc::universe::UniverseBC;
 use som_interpreter_bc::value::Value;

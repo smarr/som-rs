@@ -1,13 +1,12 @@
 use std::fmt;
 use std::marker::PhantomData;
 use mmtk::Mutator;
-use som_gc::api::{mmtk_alloc, mmtk_post_alloc};
 use som_gc::SOMVM;
 use crate::class::Class;
 use crate::value::Value;
 use core::mem::size_of;
 use mmtk::util::Address;
-use crate::gc::{Alloc, GCRef, GC_ALIGN, GC_OFFSET, GC_SEMANTICS};
+use som_core::gc::{CustomAlloc, GCRef};
 
 /// Represents a generic (non-primitive) class instance.
 #[derive(Clone, PartialEq)]
@@ -63,21 +62,16 @@ impl Instance {
     }
 }
 
-impl Alloc<Instance> for Instance {
+impl CustomAlloc<Instance> for Instance {
     fn alloc(instance: Instance, mutator: &mut Mutator<SOMVM>) -> GCRef<Self> {
         let size = size_of::<Instance>() + (instance.nbr_fields * size_of::<Value>());
-        // let size = std::mem::size_of::<Instance>();
-
-        let instance_addr = mmtk_alloc(mutator, size, GC_ALIGN, GC_OFFSET, GC_SEMANTICS);
-        debug_assert!(!instance_addr.is_zero());
-
-        mmtk_post_alloc(mutator, SOMVM::object_start_to_ref(instance_addr), size, GC_SEMANTICS);
-
+        
         let nbr_fields = instance.nbr_fields;
+        
+        let instance_ref = GCRef::<Instance>::alloc_with_size(instance, mutator, size);
+        
         unsafe {
-            *instance_addr.as_mut_ref() = instance;
-
-            let mut values_addr = instance_addr.add(size_of::<Instance>());
+            let mut values_addr = instance_ref.ptr.add(size_of::<Instance>());
             for _ in 0..nbr_fields {
                 *values_addr.as_mut_ref() = Value::Nil;
                 values_addr = values_addr.add(size_of::<Value>());
@@ -86,26 +80,29 @@ impl Alloc<Instance> for Instance {
 
         // println!("instance allocation OK");
 
-        GCRef {
-            ptr: instance_addr,
-            _phantom: PhantomData
-        }
+        instance_ref
     }
 }
 
-impl GCRef<Instance> {
+pub trait InstanceAccess {
+    fn get_field_addr(&self, idx: usize) -> Address;
+    fn lookup_local(&self, idx: usize) -> Value;
+    fn assign_local(&mut self, idx: usize, value: Value);
+}
+
+impl InstanceAccess for GCRef<Instance> {
     fn get_field_addr(&self, idx: usize) -> Address {
         self.ptr.add(size_of::<Instance>()).add(idx * size_of::<Value>())
     }
 
-    pub fn lookup_local(&self, idx: usize) -> Value {
+    fn lookup_local(&self, idx: usize) -> Value {
         unsafe { 
             let local_ref: &Value = self.get_field_addr(idx).as_ref();
             local_ref.clone() 
         }
     }
 
-    pub fn assign_local(&mut self, idx: usize, value: Value) {
+    fn assign_local(&mut self, idx: usize, value: Value) {
         unsafe {
             // dbg!(&value);
             let ptr_to_local = self.get_field_addr(idx).as_mut_ref();

@@ -1,19 +1,19 @@
-use std::marker::PhantomData;
-use mmtk::{AllocationSemantics, Mutator};
+use core::mem::size_of;
 use mmtk::util::Address;
+use mmtk::{AllocationSemantics, Mutator};
 use som_gc::api::{mmtk_alloc, mmtk_post_alloc};
 use som_gc::SOMVM;
-use core::mem::size_of;
+use std::marker::PhantomData;
 
-pub static GC_OFFSET: usize = 0;
-pub static GC_ALIGN: usize = 8;
-pub static GC_SEMANTICS: AllocationSemantics = AllocationSemantics::Default;
+static GC_OFFSET: usize = 0;
+static GC_ALIGN: usize = 8;
+static GC_SEMANTICS: AllocationSemantics = AllocationSemantics::Default;
 
 /// A pointer to the heap for GC.
 #[derive(Debug)]
 pub struct GCRef<T> {
     pub ptr: Address,
-    pub _phantom: PhantomData<T>
+    pub _phantom: PhantomData<T>,
 }
 
 impl<T> Clone for GCRef<T> {
@@ -28,7 +28,7 @@ impl<T> Default for GCRef<T> {
         unsafe {
             GCRef {
                 ptr: Address::from_usize(0),
-                _phantom: PhantomData
+                _phantom: PhantomData,
             }
         }
     }
@@ -48,27 +48,25 @@ impl<T> GCRef<T> {
         debug_assert!(!self.ptr.is_zero());
         unsafe { &mut *(self.ptr.as_mut_ref()) }
     }
-    
+
     /// Does the address not point to any data?
-    /// We use this to avoid using an Option type in interpreter frames. Not sure it's worth it though.
+    /// We use this to avoid using an Option type in interpreter frames. Not sure if it's worth it though.
     #[inline(always)]
     pub fn is_empty(&self) -> bool { self.ptr.is_zero() }
 }
 
-/// Trait used by GCRef pointers to be created from objects.
-pub trait Alloc<T> {
-    // Allocates a type on the heap and returns a pointer to it
-    fn alloc(obj: T, mutator: &mut Mutator<SOMVM>) -> GCRef<T>;
-}
+impl<T> GCRef<T> {
+    // Allocates a type on the heap and returns a pointer to it.
+    pub fn alloc(obj: T, mutator: &mut Mutator<SOMVM>) -> GCRef<T> {
+        Self::alloc_with_size(obj, mutator, size_of::<T>())
+    }
 
-impl<T> Alloc<T> for GCRef<T> {
-    /// A normal, straightforward alloc. Structures can implement their own instead (e.g. Instance and its arbitrary field array size)
-     fn alloc(obj: T, mutator: &mut Mutator<SOMVM>) -> GCRef<T> {
-        let size = size_of::<T>();
-
+    // Allocates a type, but with a given size. Useful when an object needs more than what we tell Rust through defining a struct. 
+    // (e.g. Value arrays stored directly in the heap - see BC Frame)
+    pub fn alloc_with_size(obj: T, mutator: &mut Mutator<SOMVM>, size: usize) -> GCRef<T> {
         let addr = mmtk_alloc(mutator, size, GC_ALIGN, GC_OFFSET, GC_SEMANTICS);
         debug_assert!(!addr.is_zero());
-        
+
         // println!("{}", mmtk_free_bytes());
 
         mmtk_post_alloc(mutator, SOMVM::object_start_to_ref(addr), size, GC_SEMANTICS);
@@ -79,12 +77,21 @@ impl<T> Alloc<T> for GCRef<T> {
 
         GCRef {
             ptr: addr,
-            _phantom: PhantomData
+            _phantom: PhantomData,
         }
     }
 }
 
-// for convenience, but removable
+/// Custom alloc function.
+/// 
+/// Exists for that traits to be able to choose how to allocate their data. 
+/// Must call GCRef::<T>::alloc(_with_size) internally to get a GCRef, but I can't strictly enforce that with Rust's type system.
+/// In practice, that's usually allowing for more memory than Rust might be able to infer from the struct size, and filling it with our own data. 
+pub trait CustomAlloc<T> {
+    fn alloc(obj: T, mutator: &mut Mutator<SOMVM>) -> GCRef<T>;
+}
+
+// for convenience, but easily removable
 impl GCRef<String> {
     pub fn as_str(&self) -> &str {
         self.to_obj().as_str()

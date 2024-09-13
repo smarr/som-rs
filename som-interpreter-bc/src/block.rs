@@ -8,7 +8,7 @@ use som_gc::SOMVM;
 use crate::class::Class;
 use crate::compiler::Literal;
 use crate::frame::Frame;
-use crate::gc::{Alloc, GCRef};
+use som_core::gc::GCRef;
 // use crate::interner::Interned;
 use crate::method::Method;
 use crate::universe::UniverseBC;

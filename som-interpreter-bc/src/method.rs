@@ -12,7 +12,7 @@ use crate::value::Value;
 
 #[cfg(feature = "frame-debug-info")]
 use som_core::ast::BlockDebugInfo;
-use crate::gc::GCRef;
+use som_core::gc::GCRef;
 
 #[derive(Clone)]
 pub struct MethodEnv {
@@ -77,8 +77,12 @@ impl Method {
     }
 }
 
-impl GCRef<Method> {
-    pub fn invoke(
+pub trait Invoke {
+    fn invoke(&self, interpreter: &mut Interpreter, universe: &mut UniverseBC, receiver: Value, args: Vec<Value>);
+}
+
+impl Invoke for GCRef<Method> {
+    fn invoke(
         &self,
         interpreter: &mut Interpreter,
         universe: &mut UniverseBC,

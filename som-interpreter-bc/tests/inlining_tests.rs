@@ -6,7 +6,7 @@ use som_gc::entry_point::init_gc;
 use som_interpreter_bc::block::{Block, BlockInfo};
 
 use som_interpreter_bc::compiler;
-use som_interpreter_bc::gc::{Alloc, GCRef};
+use som_core::gc::GCRef;
 use som_interpreter_bc::method::MethodKind;
 use som_interpreter_bc::universe::UniverseBC;
 use som_lexer::{Lexer, Token};

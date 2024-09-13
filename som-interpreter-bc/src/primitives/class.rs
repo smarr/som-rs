@@ -1,4 +1,4 @@
-use crate::gc::{Alloc, GCRef};
+use som_core::gc::GCRef;
 use crate::instance::Instance;
 use crate::interpreter::Interpreter;
 use crate::primitives::PrimitiveFn;
