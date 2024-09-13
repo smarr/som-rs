@@ -149,7 +149,7 @@ impl PartialEq for Value {
                 a.eq(&BigInt::from(*b))
             }
             (Self::Symbol(a), Self::Symbol(b)) => a.eq(b),
-            (Self::String(a), Self::String(b)) => a == b,
+            (Self::String(a), Self::String(b)) => a.to_obj() == b.to_obj(),
             (Self::Array(a), Self::Array(b)) => a == b,
             (Self::Instance(a), Self::Instance(b)) => a == b,
             (Self::Class(a), Self::Class(b)) => a == b,

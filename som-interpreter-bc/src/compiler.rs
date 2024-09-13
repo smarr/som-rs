@@ -554,7 +554,21 @@ impl MethodCodegen for ast::Expression {
                         ast::Literal::Symbol(val) => {
                             Literal::Symbol(ctxt.intern_symbol(val.as_str()))
                         }
-                        ast::Literal::String(val) => Literal::String(GCRef::<String>::alloc(val.clone(), mutator)),
+                        ast::Literal::String(val) => {
+                            // TODO: this whole bit is to avoid redundant literals. previous logic broke with strings being put on the GC heap. is it indicative of a deeper issue with redundant strings?
+                            // it feels a bit bandaid-ey, since I'm not sure where the bug came from exactly.
+                            // it feels like tests should still pass without all this logic, but they don't (see specialized BC PushConstant one), and I'm not *positive* that's normal?
+                            let mut i = 0;
+                            loop {
+                                let lit = ctxt.get_literal(i);
+                                match lit {
+                                    None => break Literal::String(GCRef::<String>::alloc(val.clone(), mutator)), // reached end of literals and no duplicate, we alloc
+                                    Some(str_lit @ Literal::String(str_ptr)) if str_ptr.to_obj() == val => break str_lit.clone(),
+                                    _ => {}
+                                }
+                                i += 1;
+                            }
+                        },
                         ast::Literal::Double(val) => Literal::Double(*val),
                         ast::Literal::Integer(val) => Literal::Integer(*val),
                         ast::Literal::BigInteger(val) => Literal::BigInteger(val.parse().unwrap()),
