@@ -1,9 +1,7 @@
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
-use std::rc::Rc;
 use std::time::Instant;
 
 use anyhow::{anyhow, Error};
@@ -560,7 +558,7 @@ impl UniverseAST {
         let initialize = value.lookup_method(self, "doesNotUnderstand:arguments:")?;
         let sym = self.intern_symbol(symbol.as_ref());
         let sym = Value::Symbol(sym);
-        let args = Value::Array(Rc::new(RefCell::new(args)));
+        let args = Value::Array(GCRef::<Vec<Value>>::alloc(args, self.mutator.as_mut()));
 
        // eprintln!("Couldn't invoke {}; exiting.", symbol.as_ref()); std::process::exit(1);
         
@@ -589,7 +587,7 @@ impl UniverseAST {
     /// Call `System>>#initialize:` with the given name, if it is defined.
     pub fn initialize(&mut self, args: Vec<Value>) -> Option<Return> {
         let initialize = Value::System.lookup_method(self, "initialize:")?;
-        let args = Value::Array(Rc::new(RefCell::new(args)));
+        let args = Value::Array(GCRef::<Vec<Value>>::alloc(args, self.mutator.as_mut()));
 
         let program_result = initialize.to_obj().invoke(self, vec![Value::System, args]);
         Some(program_result)

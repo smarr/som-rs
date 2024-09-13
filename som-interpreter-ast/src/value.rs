@@ -9,7 +9,6 @@ use crate::instance::Instance;
 use crate::interner::Interned;
 use crate::method::Method;
 use crate::universe::UniverseAST;
-use crate::SOMRef;
 
 /// Represents an SOM value.
 #[derive(Clone)]
@@ -31,7 +30,7 @@ pub enum Value {
     /// A string value.
     String(Rc<String>),
     /// An array of values.
-    Array(SOMRef<Vec<Self>>),
+    Array(GCRef<Vec<Self>>),
     /// A block value, ready to be evaluated.
     Block(GCRef<Block>),
     /// A generic (non-primitive) class instance.
@@ -128,7 +127,7 @@ impl PartialEq for Value {
             }
             (Self::Symbol(a), Self::Symbol(b)) => a.eq(b),
             (Self::String(a), Self::String(b)) => Rc::ptr_eq(a, b),
-            (Self::Array(a), Self::Array(b)) => Rc::ptr_eq(a, b),
+            (Self::Array(a), Self::Array(b)) => a == b,
             (Self::Instance(a), Self::Instance(b)) => a == b,
             (Self::Class(a), Self::Class(b)) => a == b,
             (Self::Block(a), Self::Block(b)) => a == b,

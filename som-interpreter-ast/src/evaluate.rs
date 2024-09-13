@@ -1,4 +1,3 @@
-use std::cell::RefCell;
 use std::rc::Rc;
 
 use crate::ast::{AstBinaryDispatch, AstBlock, AstBody, AstDispatchNode, AstExpression, AstMethodDef, AstNAryDispatch, AstSuperMessage, AstTerm, AstTernaryDispatch, AstUnaryDispatch, InlinedNode};
@@ -132,7 +131,7 @@ impl Evaluate for ast::Literal {
                     let value = propagate!(literal.evaluate(universe));
                     output.push(value);
                 }
-                Return::Local(Value::Array(Rc::new(RefCell::new(output))))
+                Return::Local(Value::Array(GCRef::<Vec<Value>>::alloc(output, universe.mutator.as_mut())))
             }
             Self::Integer(int) => Return::Local(Value::Integer(*int)),
             Self::BigInteger(int) => match int.parse() {

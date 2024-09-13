@@ -1,7 +1,5 @@
-use std::cell::RefCell;
 use std::convert::TryFrom;
-use std::rc::Rc;
-
+use som_core::gc::GCRef;
 use crate::expect_args;
 use crate::invokable::Return;
 use crate::primitives::PrimitiveFn;
@@ -65,19 +63,19 @@ fn length(_: &mut UniverseAST, args: Vec<Value>) -> Return {
     }
 }
 
-fn new(_: &mut UniverseAST, args: Vec<Value>) -> Return {
+fn new(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
     const SIGNATURE: &str = "Array>>#new:";
 
     expect_args!(SIGNATURE, args, [
         _,
         Value::Integer(count) => count,
     ]);
-
+    
     match usize::try_from(count) {
-        Ok(length) => Return::Local(Value::Array(Rc::new(RefCell::new(vec![
+        Ok(length) => Return::Local(Value::Array(GCRef::<Vec<Value>>::alloc(vec![
             Value::Nil;
             length
-        ])))),
+        ], universe.mutator.as_mut()))),
         Err(err) => Return::Exception(format!("'{}': {}", SIGNATURE, err)),
     }
 }

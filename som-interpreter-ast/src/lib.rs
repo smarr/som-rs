@@ -2,9 +2,6 @@
 //! This is the interpreter for the Simple Object Machine.
 //!
 
-use std::cell::RefCell;
-use std::rc::{Rc, Weak};
-
 macro_rules! propagate {
     ($expr:expr) => {
         match $expr {
@@ -49,7 +46,7 @@ pub mod value;
 /// Specialized AST nodes
 pub mod specialized;
 
-/// A strong and owning reference to an object.
-pub type SOMRef<T> = Rc<RefCell<T>>;
-/// A weak reference to an object.
-pub type SOMWeakRef<T> = Weak<RefCell<T>>;
+// /// A strong and owning reference to an object.
+// pub type SOMRef<T> = Rc<RefCell<T>>;
+// /// A weak reference to an object.
+// pub type SOMWeakRef<T> = Weak<RefCell<T>>;

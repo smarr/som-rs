@@ -1,4 +1,3 @@
-use std::cell::RefCell;
 use std::rc::Rc;
 use som_core::gc::GCRef;
 use crate::expect_args;
@@ -51,7 +50,7 @@ fn name(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
     Return::Local(Value::Symbol(sym))
 }
 
-fn methods(_: &mut UniverseAST, args: Vec<Value>) -> Return {
+fn methods(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
     const SIGNATURE: &str = "Class>>#methods";
 
     expect_args!(SIGNATURE, args, [
@@ -65,10 +64,10 @@ fn methods(_: &mut UniverseAST, args: Vec<Value>) -> Return {
         .map(|invokable| Value::Invokable(invokable.clone()))
         .collect();
 
-    Return::Local(Value::Array(Rc::new(RefCell::new(methods))))
+    Return::Local(Value::Array(GCRef::<Vec<Value>>::alloc(methods, universe.mutator.as_mut())))
 }
 
-fn fields(_: &mut UniverseAST, args: Vec<Value>) -> Return {
+fn fields(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
     const SIGNATURE: &str = "Class>>#fields";
 
     expect_args!(SIGNATURE, args, [
@@ -79,7 +78,7 @@ fn fields(_: &mut UniverseAST, args: Vec<Value>) -> Return {
         .map(|field_name| Value::String(Rc::new(field_name.clone())))
         .collect();
 
-    Return::Local(Value::Array(Rc::new(RefCell::new(fields))))
+    Return::Local(Value::Array(GCRef::<Vec<Value>>::alloc(fields, universe.mutator.as_mut())))
 }
 
 /// Search for an instance primitive matching the given signature.

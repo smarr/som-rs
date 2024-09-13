@@ -119,16 +119,19 @@ fn perform_with_arguments(universe: &mut UniverseAST, args: Vec<Value>) -> Retur
 
     match method {
         Some(invokable) => {
-            let args = std::iter::once(object)
-                .chain(arr.replace(Vec::default()))
-                .collect();
+            // let args = std::iter::once(object)
+            //     .chain(arr.replace(Vec::default()))
+            //     .collect();
+            let args = std::iter::once(object).chain(arr.to_obj().clone()).collect();
             invokable.to_obj().invoke(universe, args)
         }
         None => {
             let signature = signature.to_string();
-            let args = std::iter::once(object.clone())
-                .chain(arr.replace(Vec::default()))
-                .collect();
+            // let args = std::iter::once(object.clone())
+            //     .chain(arr.to_obj().replace(Vec::default()))
+            //     .collect();
+            let args = std::iter::once(object.clone()).chain(arr.to_obj().clone()).collect();
+            
             universe
                 .does_not_understand(object.clone(), signature.as_str(), args)
                 .unwrap_or_else(|| {
@@ -191,15 +194,19 @@ fn perform_with_arguments_in_super_class(universe: &mut UniverseAST, args: Vec<V
 
     match method {
         Some(invokable) => {
-            let args = std::iter::once(object)
-                .chain(arr.replace(Vec::default()))
-                .collect();
+            // let args = std::iter::once(object)
+            //     .chain(arr.to_obj().replace(Vec::default()))
+            //     .collect();
+            let args = std::iter::once(object).chain(arr.to_obj().clone()).collect();
+            
             invokable.to_obj().invoke(universe, args)
         }
         None => {
-            let args = std::iter::once(object.clone())
-                .chain(arr.replace(Vec::default()))
-                .collect();
+            // let args = std::iter::once(object.clone())
+            //     .chain(arr.to_obj().replace(Vec::default()))
+            //     .collect();
+            let args = std::iter::once(object.clone()).chain(arr.to_obj().clone()).collect();
+            
             let signature = signature.to_string();
             universe
                 .does_not_understand(Value::Class(class), signature.as_str(), args)
