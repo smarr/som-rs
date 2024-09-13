@@ -54,7 +54,7 @@ impl Evaluate for AstExpression {
                     .frames
                     .iter()
                     .rev()
-                    .any(|live_frame| Rc::ptr_eq(live_frame, &method_frame));
+                    .any(|live_frame| *live_frame == method_frame);
 
                 if has_not_escaped {
                     // the BC interp has to pop all the escaped frames here, we don't (because we chain return nonlocals, exception-style?).
@@ -152,12 +152,14 @@ impl Evaluate for AstTerm {
     }
 }
 
-impl Evaluate for Rc<RefCell<AstBlock>> {
+impl Evaluate for GCRef<AstBlock> {
     fn evaluate(&mut self, universe: &mut UniverseAST) -> Return {
-        Return::Local(Value::Block(Rc::new(RefCell::new(Block {
-            block: Rc::clone(self),
-            frame: Rc::clone(universe.current_frame()),
-        }))))
+        let block = Block {
+            block: *self,
+            frame: *universe.current_frame(),
+        };
+        let block_ptr = GCRef::<Block>::alloc(block, universe.mutator.as_mut());
+        Return::Local(Value::Block(block_ptr))
     }
 }
 
@@ -188,10 +190,10 @@ impl AstDispatchNode {
             Some(invokable) => {
                 
                 match is_cache_hit {
-                    true => Invoke::unsafe_invoke(invokable.to_obj(), universe, args),
+                    true => invokable.to_obj().invoke(universe, args),
                     false => {
                         let receiver = args.first().unwrap().clone();
-                        let invoke_ret = Invoke::unsafe_invoke(invokable.to_obj(), universe, args);
+                        let invoke_ret = invokable.to_obj().invoke(universe, args);
 
                         let class_ref = receiver.class(universe);
                         let rcvr_ptr = class_ref.as_ptr(); // first arg is the receiver
@@ -285,7 +287,7 @@ impl Evaluate for AstSuperMessage {
         };
 
         let value = match invokable {
-            Some(invokable) => Invoke::unsafe_invoke(invokable.to_obj(), universe, args),
+            Some(invokable) => invokable.to_obj().invoke(universe, args),
             None => {
                 let mut args = args;
                 args.remove(0);
@@ -324,7 +326,7 @@ impl Evaluate for AstMethodDef {
         loop {
             match self.body.evaluate(universe) {
                 Return::NonLocal(value, frame) => {
-                    if Rc::ptr_eq(&current_frame, &frame) {
+                    if current_frame == frame {
                         break Return::Local(value);
                     } else {
                         break Return::NonLocal(value, frame);
@@ -338,10 +340,8 @@ impl Evaluate for AstMethodDef {
     }
 }
 
-impl Evaluate for Rc<RefCell<Block>> {
+impl Evaluate for GCRef<Block> {
     fn evaluate(&mut self, universe: &mut UniverseAST) -> Return {
-        // self.borrow_mut().block.borrow_mut().body.evaluate(universe)
-        unsafe { (*(*self.as_ptr()).block.as_ptr()).body.evaluate(universe) }
-        // self.borrow_mut().block.borrow_mut().body.evaluate(universe)
+        self.to_obj().block.to_obj().body.evaluate(universe)
     }
 }

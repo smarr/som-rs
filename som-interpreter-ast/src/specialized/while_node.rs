@@ -1,4 +1,3 @@
-use std::rc::Rc;
 use crate::evaluate::Evaluate;
 use crate::invokable::{Invoke, Return};
 use crate::universe::UniverseAST;
@@ -11,10 +10,6 @@ pub struct WhileNode {
 }
 
 impl Invoke for WhileNode {
-    fn unsafe_invoke(self_: *mut Self, universe: &mut UniverseAST, args: Vec<Value>) -> Return {
-        unsafe { (*self_).invoke(universe, args) }
-    }
-    
     fn invoke(&mut self, universe: &mut UniverseAST, args: Vec<Value>) -> Return {
         let cond_block_val = unsafe { args.get_unchecked(0) };
         let body_block_arg = unsafe { args.get_unchecked(1) };
@@ -29,7 +24,7 @@ impl Invoke for WhileNode {
         loop {
             let cond_block_return = universe.with_frame(
                 nbr_locals,
-                vec![Value::Block(Rc::clone(&cond_block))],
+                vec![Value::Block(cond_block)],
                 |universe| cond_block.evaluate(universe),
             );
 
@@ -45,7 +40,7 @@ impl Invoke for WhileNode {
                 
                 propagate!(universe.with_frame(
                     nbr_locals,
-                    vec![Value::Block(Rc::clone(&body_block))],
+                    vec![Value::Block(body_block)],
                     |universe| body_block.evaluate(universe),
                 ));
             }

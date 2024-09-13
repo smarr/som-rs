@@ -1,9 +1,6 @@
-use std::cell::RefCell;
-use std::rc::Rc;
-
 use som_core::ast;
 use som_core::ast::{Block, Expression};
-
+use som_core::gc::GCRef;
 use crate::ast::{AstBlock, AstBody, AstExpression, InlinedNode};
 use crate::compiler::{AstMethodCompilerCtxt, AstScopeCtxt};
 use crate::specialized::inlined::and_inlined_node::AndInlinedNode;
@@ -25,7 +22,7 @@ pub trait PrimMessageInliner {
     fn inline_and(&mut self, msg: &ast::Message) -> Option<InlinedNode>;
 }
 
-impl PrimMessageInliner for AstMethodCompilerCtxt {
+impl PrimMessageInliner for AstMethodCompilerCtxt<'_> {
     fn inline_if_possible(&mut self, msg: &ast::Message) -> Option<InlinedNode> {
         match msg.signature.as_str() {
             "ifTrue:" => self.inline_if_true_or_if_false(msg, true),
@@ -45,7 +42,8 @@ impl PrimMessageInliner for AstMethodCompilerCtxt {
         let expr = match expression {
             Expression::Block(blk) => {
                 let new_blk = self.adapt_block_after_outer_inlined(blk);
-                AstExpression::Block(Rc::new(RefCell::new(new_blk)))
+                let new_blk_ptr = GCRef::<AstBlock>::alloc(new_blk, self.mutator); // could we just adapt the old block instead of allocating?
+                AstExpression::Block(new_blk_ptr)
             }
             Expression::LocalVarRead(idx) | Expression::LocalVarWrite(idx, _) |
             Expression::NonLocalVarRead(_, idx) | Expression::NonLocalVarWrite(_, idx, _) => {

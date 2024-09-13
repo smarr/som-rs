@@ -1,4 +1,3 @@
-use std::rc::Rc;
 use crate::evaluate::Evaluate;
 use crate::invokable::{Invoke, Return};
 use crate::universe::UniverseAST;
@@ -8,10 +7,6 @@ use crate::value::Value;
 pub struct IfTrueIfFalseNode {}
 
 impl Invoke for IfTrueIfFalseNode {
-    fn unsafe_invoke(self_: *mut Self, universe: &mut UniverseAST, args: Vec<Value>) -> Return {
-        unsafe { (*self_).invoke(universe, args) }
-    }
-    
     fn invoke(&mut self, universe: &mut UniverseAST, args: Vec<Value>) -> Return {
         let (cond_block_val, block_1_arg, block_2_arg) = unsafe {
             (args.get_unchecked(0), args.get_unchecked(1), args.get_unchecked(2))
@@ -32,11 +27,12 @@ impl Invoke for IfTrueIfFalseNode {
         match block_to_evaluate {
             Value::Block(b) => {
                 let nbr_locals = b.borrow().block.borrow().nbr_locals;
+                let mut b = *b;
                 
                 universe.with_frame(
                     nbr_locals,
-                    vec![Value::Block(Rc::clone(b))],
-                    |universe| Rc::clone(b).evaluate(universe),
+                    vec![Value::Block(b)],
+                    |universe| b.evaluate(universe),
                 )
             },
             a => Return::Local(a.clone()),

@@ -1,9 +1,9 @@
+use som_core::gc::GCRef;
 use crate::evaluate::Evaluate;
 use crate::frame::Frame;
 use crate::method::{Method, MethodKind, MethodKindSpecialized};
 use crate::universe::UniverseAST;
 use crate::value::Value;
-use crate::SOMRef;
 
 /// Represents the kinds of possible returns from an invocation.
 #[derive(Debug)]
@@ -11,7 +11,7 @@ pub enum Return {
     /// A local return, the value is for the immediate caller.
     Local(Value),
     /// A non-local return, the value is for the parent of the referenced stack frame.
-    NonLocal(Value, SOMRef<Frame>),
+    NonLocal(Value, GCRef<Frame>),
     /// An exception, expected to bubble all the way up.
     Exception(String),
     /// A request to restart execution from the top of the closest body.
@@ -20,20 +20,11 @@ pub enum Return {
 
 /// The trait for invoking methods and primitives.
 pub trait Invoke {
-    /// HACK. Accesses the pointer directly in the Invokable SOMRef as to NOT BORROW (which is very evil), to avoid "already mutably borrowed" errors when executing the AST.
-    /// Necessary to have a self-modifiable AST without changing the structure of the AST interpreter entirely. The actual solution would be a non recursive interp, with a main AST loop.
-    /// Though TODO: it might be worth it to only call this when absolutely necessary. It's not entirely clear to me when that is - right now I call it "wherever a run of the interpreter gave me a borrowmut error without it" 
-    /// also TODO: needs to be moved out the Invoke trait for cleanliness (well it's a hack anyway, but still...) since it's only needed for Method.
-    fn unsafe_invoke(self_: *mut Self, universe: &mut UniverseAST, args: Vec<Value>) -> Return;
     /// Invoke within the given universe and with the given arguments.
     fn invoke(&mut self, universe: &mut UniverseAST, args: Vec<Value>) -> Return;
 }
 
 impl Invoke for Method {
-    fn unsafe_invoke(self_: *mut Self, universe: &mut UniverseAST, args: Vec<Value>) -> Return {
-        unsafe { (*self_).invoke(universe, args) }
-    }
-    
     fn invoke(&mut self, universe: &mut UniverseAST, args: Vec<Value>) -> Return {
         // println!("--- Invoking \"{:1}\" ({:2})", &self.signature, &self.holder.upgrade().unwrap().borrow().name);
         // println!("--- ...with args: {:?}", &args);

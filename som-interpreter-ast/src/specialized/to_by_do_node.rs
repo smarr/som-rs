@@ -1,4 +1,3 @@
-use std::rc::Rc;
 use crate::evaluate::Evaluate;
 use crate::invokable::{Invoke, Return};
 use crate::universe::UniverseAST;
@@ -8,9 +7,6 @@ use crate::value::Value;
 pub struct ToByDoNode {}
 
 impl Invoke for ToByDoNode {
-    fn unsafe_invoke(self_: *mut Self, universe: &mut UniverseAST, args: Vec<Value>) -> Return {
-        unsafe { (*self_).invoke(universe, args) }
-    }
     
     fn invoke(&mut self, universe: &mut UniverseAST, args: Vec<Value>) -> Return {
         let start_int_val = args.first().unwrap();
@@ -29,7 +25,7 @@ impl Invoke for ToByDoNode {
         while i <= end_int {
             propagate!(universe.with_frame(
                 nbr_locals,
-                vec![Value::Block(Rc::clone(&body_block)), Value::Integer(i)],
+                vec![Value::Block(body_block), Value::Integer(i)],
                 |universe| body_block.evaluate(universe),
             ));
             i += step_int;

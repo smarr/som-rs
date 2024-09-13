@@ -33,9 +33,9 @@ pub enum Value {
     /// An array of values.
     Array(SOMRef<Vec<Self>>),
     /// A block value, ready to be evaluated.
-    Block(SOMRef<Block>),
+    Block(GCRef<Block>),
     /// A generic (non-primitive) class instance.
-    Instance(SOMRef<Instance>),
+    Instance(GCRef<Instance>),
     /// A bare class object.
     Class(GCRef<Class>),
     /// A bare invokable.
@@ -129,9 +129,9 @@ impl PartialEq for Value {
             (Self::Symbol(a), Self::Symbol(b)) => a.eq(b),
             (Self::String(a), Self::String(b)) => Rc::ptr_eq(a, b),
             (Self::Array(a), Self::Array(b)) => Rc::ptr_eq(a, b),
-            (Self::Instance(a), Self::Instance(b)) => Rc::ptr_eq(a, b),
+            (Self::Instance(a), Self::Instance(b)) => a == b,
             (Self::Class(a), Self::Class(b)) => a == b,
-            (Self::Block(a), Self::Block(b)) => Rc::ptr_eq(a, b),
+            (Self::Block(a), Self::Block(b)) => a == b,
             (Self::Invokable(a), Self::Invokable(b)) => a == b,
             _ => false,
         }

@@ -1,9 +1,6 @@
-use std::cell::{RefCell};
-use std::rc::Rc;
 use std::vec;
-
+use som_core::gc::GCRef;
 use crate::value::Value;
-use crate::SOMRef;
 
 /// The kind of a given frame.
 // #[cfg(feature = "frame-debug-info")]
@@ -152,17 +149,17 @@ impl Frame {
         }
     }
 
-    pub fn nth_frame_back(&self, n: usize) -> SOMRef<Frame> {
-        let mut target_frame: Rc<RefCell<Frame>> = match self.params.first().unwrap() { // TODO: optimize that also -- what did past me mean? unsafeing I assume.
+    pub fn nth_frame_back(&self, n: usize) -> GCRef<Frame> {
+        let mut target_frame: GCRef<Frame> = match self.params.first().unwrap() { // TODO: optimize that also -- what did past me mean? unsafeing I assume.
             Value::Block(block) => {
-                Rc::clone(&block.borrow().frame)
+                block.to_obj().frame
             }
             v => panic!("attempting to access a non local var/arg from a method instead of a block: self wasn't blockself but {:?}.", v)
         };
         for _ in 1..n {
-            target_frame = match Rc::clone(&target_frame).borrow().params.first().unwrap() {
+            target_frame = match target_frame.to_obj().params.first().unwrap() {
                 Value::Block(block) => {
-                    Rc::clone(&block.borrow().frame)
+                    block.to_obj().frame
                 }
                 v => panic!("attempting to access a non local var/arg from a method instead of a block (but the original frame we were in was a block): self wasn't blockself but {:?}.", v)
             };
@@ -171,11 +168,11 @@ impl Frame {
     }
 
         /// Get the method invocation frame for that frame.
-    pub fn method_frame(frame: &SOMRef<Frame>) -> SOMRef<Frame> {
+    pub fn method_frame(frame: &GCRef<Frame>) -> GCRef<Frame> {
         if let Value::Block(b) = frame.borrow().params.first().unwrap() {
-            Frame::method_frame(&b.borrow().frame)
+            Frame::method_frame(&b.to_obj().frame)
         } else {
-            Rc::clone(frame)
+            *frame
         }
     }
 }

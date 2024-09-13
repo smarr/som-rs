@@ -1,6 +1,4 @@
-use std::cell::RefCell;
 use std::fmt::{Debug, Display, Formatter};
-use std::rc::Rc;
 use indenter::indented;
 use std::fmt::Write;
 use som_core::gc::GCRef;
@@ -45,7 +43,7 @@ pub enum AstExpression {
     LocalExit(Box<AstExpression>),
     NonLocalExit(Box<AstExpression>, usize),
     Literal(som_core::ast::Literal),
-    Block(Rc<RefCell<AstBlock>>),
+    Block(GCRef<AstBlock>),
     /// Call to an inlined method node (no dispatching like a message would)
     InlinedCall(Box<InlinedNode>),
     // TODO: we might want a SEQUENCENODE of some kind. instead of relying on AstBody at all, actually.

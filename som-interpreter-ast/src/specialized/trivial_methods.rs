@@ -3,7 +3,6 @@ use crate::invokable::{Invoke, Return};
 use crate::universe::UniverseAST;
 use crate::value::Value;
 use som_core::ast::Literal;
-use std::rc::Rc;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct TrivialLiteralMethod {
@@ -36,9 +35,6 @@ pub struct TrivialGetterMethod {
 }
 
 impl Invoke for TrivialGetterMethod {
-    fn unsafe_invoke(self_: *mut Self, universe: &mut UniverseAST, args: Vec<Value>) -> Return {
-        unsafe { (*self_).invoke(universe, args) }
-    }
     
     fn invoke(&mut self, _: &mut UniverseAST, args: Vec<Value>) -> Return {
         match args.first().unwrap() {
@@ -55,9 +51,6 @@ pub struct TrivialSetterMethod {
 }
 
 impl Invoke for TrivialSetterMethod {
-    fn unsafe_invoke(self_: *mut Self, universe: &mut UniverseAST, args: Vec<Value>) -> Return {
-        unsafe { (*self_).invoke(universe, args) }
-    }
     
     fn invoke(&mut self, _: &mut UniverseAST, args: Vec<Value>) -> Return {
         let val = args.get(1).unwrap();
@@ -68,7 +61,7 @@ impl Invoke for TrivialSetterMethod {
             }
             Value::Instance(instance) => {
                 instance.borrow_mut().assign_local(self.field_idx, val.clone());
-                Return::Local(Value::Instance(Rc::clone(instance)))
+                Return::Local(Value::Instance(*instance))
             }
             _ => panic!("trivial getter not called on a class/instance?")
         }

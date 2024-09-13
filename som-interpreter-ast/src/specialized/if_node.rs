@@ -1,4 +1,3 @@
-use std::rc::Rc;
 use crate::evaluate::Evaluate;
 use crate::invokable::{Invoke, Return};
 use crate::universe::UniverseAST;
@@ -11,16 +10,12 @@ pub struct IfNode {
 }
 
 impl Invoke for IfNode {
-    fn unsafe_invoke(self_: *mut Self, universe: &mut UniverseAST, args: Vec<Value>) -> Return {
-        unsafe { (*self_).invoke(universe, args) }
-    }
-    
     fn invoke(&mut self, universe: &mut UniverseAST, args: Vec<Value>) -> Return {
         let cond_block_val = unsafe { args.get_unchecked(0) };
         let body_block_arg = unsafe { args.get_unchecked(1) };
 
         let (bool_val, mut body_block) = match (cond_block_val, body_block_arg) {
-            (Value::Boolean(b), Value::Block(c)) => (*b, Rc::clone(c)),
+            (Value::Boolean(b), Value::Block(c)) => (*b, *c),
             (a, b) => panic!("if[True|False] was not given a bool and a block as arguments, but {:?} and {:?}", a, b)
         };
 
@@ -31,7 +26,7 @@ impl Invoke for IfNode {
         } else {
             universe.with_frame(
                 nbr_locals,
-                vec![Value::Block(Rc::clone(&body_block))],
+                vec![Value::Block(body_block)],
                 |universe| body_block.evaluate(universe),
             )
         }

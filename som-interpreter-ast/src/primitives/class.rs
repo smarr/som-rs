@@ -1,6 +1,6 @@
 use std::cell::RefCell;
 use std::rc::Rc;
-
+use som_core::gc::GCRef;
 use crate::expect_args;
 use crate::instance::Instance;
 use crate::invokable::Return;
@@ -28,7 +28,7 @@ fn superclass(_: &mut UniverseAST, args: Vec<Value>) -> Return {
     Return::Local(super_class.map(Value::Class).unwrap_or(Value::Nil))
 }
 
-fn new(_: &mut UniverseAST, args: Vec<Value>) -> Return {
+fn new(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
     const SIGNATURE: &str = "Class>>#new";
 
     expect_args!(SIGNATURE, args, [
@@ -36,8 +36,8 @@ fn new(_: &mut UniverseAST, args: Vec<Value>) -> Return {
     ]);
 
     let instance = Instance::from_class(class);
-    let instance = Rc::new(RefCell::new(instance));
-    Return::Local(Value::Instance(instance))
+    let instance_ptr = GCRef::<Instance>::alloc(instance, universe.mutator.as_mut());
+    Return::Local(Value::Instance(instance_ptr))
 }
 
 fn name(universe: &mut UniverseAST, args: Vec<Value>) -> Return {

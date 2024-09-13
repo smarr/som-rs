@@ -107,7 +107,7 @@ impl Class {
             .iter()
             .map(|method| {
                 let signature = method.signature.clone();
-                let kind = AstMethodCompilerCtxt::get_method_kind(method, maybe_static_superclass.clone());
+                let kind = AstMethodCompilerCtxt::get_method_kind(method, maybe_static_superclass.clone(), mutator);
                 let method = Method {
                     kind,
                     signature: signature.clone(),
@@ -140,7 +140,7 @@ impl Class {
             .iter()
             .map(|method| {
                 let signature = method.signature.clone();
-                let kind = AstMethodCompilerCtxt::get_method_kind(method, super_class.clone());
+                let kind = AstMethodCompilerCtxt::get_method_kind(method, super_class.clone(), mutator);
                 let method = Method {
                     kind,
                     signature: signature.clone(),

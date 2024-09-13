@@ -18,7 +18,6 @@ use crate::frame::Frame;
 use crate::interner::{Interned, Interner};
 use crate::invokable::{Invoke, Return};
 use crate::value::Value;
-use crate::SOMRef;
 
 /// The core classes of the SOM interpreter.
 ///
@@ -85,7 +84,7 @@ pub struct UniverseAST {
     /// The time record of the universe's creation.
     pub start_time: Instant,
     /// The interpreter's stack frames.
-    pub frames: Vec<SOMRef<Frame>>,
+    pub frames: Vec<GCRef<Frame>>,
     /// mutator itself for GC
     pub mutator: Box<mmtk::Mutator<SOMVM>>,
     /// mutator thread for GC
@@ -464,7 +463,7 @@ impl UniverseAST {
     // }
 
     pub fn with_frame<T>(&mut self, nbr_locals: usize, args: Vec<Value>, func: impl FnOnce(&mut Self) -> T) -> T {
-        let frame = Rc::new(RefCell::new(Frame::new_frame(nbr_locals, args)));
+        let frame = GCRef::<Frame>::alloc(Frame::new_frame(nbr_locals, args), self.mutator.as_mut());
         self.frames.push(frame);
         let ret = func(self);
         self.frames.pop();
@@ -472,7 +471,7 @@ impl UniverseAST {
     }
 
     /// Get the current frame.
-    pub fn current_frame(&self) -> &SOMRef<Frame> {
+    pub fn current_frame(&self) -> &GCRef<Frame> {
         self.frames.last().expect("no frames left")
     }
     
@@ -544,7 +543,7 @@ impl UniverseAST {
 
 impl UniverseAST {
     /// Call `escapedBlock:` on the given value, if it is defined.
-    pub fn escaped_block(&mut self, value: Value, block: SOMRef<Block>) -> Option<Return> {
+    pub fn escaped_block(&mut self, value: Value, block: GCRef<Block>) -> Option<Return> {
         let initialize = value.lookup_method(self, "escapedBlock:")?;
 
         let escaped_block_result = initialize.to_obj().invoke(self, vec![value, Value::Block(block)]);

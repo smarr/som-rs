@@ -1,9 +1,8 @@
-use std::cell::RefCell;
-use std::rc::Rc;
-
+use mmtk::Mutator;
 use som_core::ast;
 use som_core::ast::{Expression, MethodBody};
 use som_core::gc::GCRef;
+use som_gc::SOMVM;
 use crate::ast::{AstBinaryDispatch, AstBlock, AstBody, AstExpression, AstNAryDispatch, AstMethodDef, AstSuperMessage, AstUnaryDispatch, AstTernaryDispatch, AstDispatchNode};
 use crate::class::Class;
 use crate::inliner::PrimMessageInliner;
@@ -16,9 +15,10 @@ use crate::specialized::to_do_node::ToDoNode;
 use crate::specialized::trivial_methods::{TrivialGetterMethod, TrivialGlobalMethod, TrivialLiteralMethod, TrivialSetterMethod};
 use crate::specialized::while_node::WhileNode;
 
-pub struct AstMethodCompilerCtxt {
+pub struct AstMethodCompilerCtxt<'a> {
     pub scopes: Vec<AstScopeCtxt>,
     pub super_class: Option<GCRef<Class>>,
+    pub mutator: &'a mut Mutator<SOMVM>
 }
 
 #[derive(Debug, Default)]
@@ -55,8 +55,8 @@ impl AstScopeCtxt {
     }
 }
 
-impl AstMethodCompilerCtxt {
-    pub fn get_method_kind(method: &ast::MethodDef, super_class: Option<GCRef<Class>>) -> MethodKind {
+impl<'a> AstMethodCompilerCtxt<'a> {
+    pub fn get_method_kind(method: &ast::MethodDef, super_class: Option<GCRef<Class>>, mutator: &mut Mutator<SOMVM>) -> MethodKind {
         // NB: these If/IfTrueIfFalse/While are very rare cases, since we normally inline those functions.
         // But we don't do inlining when e.g. the condition for ifTrue: isn't a block.
         // so there is *some* occasional benefit in having those specialized method nodes around for those cases.
@@ -73,7 +73,7 @@ impl AstMethodCompilerCtxt {
                 match method.body {
                     MethodBody::Primitive => MethodKind::NotImplemented(method.signature.clone()),
                     MethodBody::Body { .. } => {
-                        let ast_method_def = AstMethodCompilerCtxt::parse_method_def(method, super_class);
+                        let ast_method_def = AstMethodCompilerCtxt::parse_method_def(method, super_class, mutator);
 
                         if let Some(trivial_method_kind) = AstMethodCompilerCtxt::make_trivial_method_if_possible(&ast_method_def) {
                             trivial_method_kind
@@ -120,12 +120,12 @@ impl AstMethodCompilerCtxt {
 
     /// Transforms a generic MethodDef into an AST-specific one.
     /// Note: public since it's used in tests.
-    pub fn parse_method_def(method_def: &ast::MethodDef, super_class: Option<GCRef<Class>>) -> AstMethodDef {
+    pub fn parse_method_def(method_def: &ast::MethodDef, super_class: Option<GCRef<Class>>, mutator: &mut Mutator<SOMVM>) -> AstMethodDef {
         let (body, locals_nbr) = match &method_def.body {
             MethodBody::Primitive => { unreachable!("unimplemented primitive") }
             MethodBody::Body { locals_nbr, body, .. } => {
                 let args_nbr = method_def.signature.chars().filter(|e| *e == ':').count(); // not sure if needed
-                let mut ctxt = AstMethodCompilerCtxt { scopes: vec![AstScopeCtxt::init(args_nbr, *locals_nbr, false)], super_class };
+                let mut ctxt = AstMethodCompilerCtxt { scopes: vec![AstScopeCtxt::init(args_nbr, *locals_nbr, false)], super_class, mutator };
 
                 (ctxt.parse_body(body), ctxt.scopes.last().unwrap().get_nbr_locals())
             }
@@ -157,7 +157,7 @@ impl AstMethodCompilerCtxt {
                 }
             }
             Expression::Literal(a) => AstExpression::Literal(a),
-            Expression::Block(a) => AstExpression::Block(Rc::new(RefCell::new(self.parse_block(&a))))
+            Expression::Block(a) => AstExpression::Block(GCRef::<AstBlock>::alloc(self.parse_block(&a), self.mutator))
         }
     }
 
@@ -190,7 +190,7 @@ impl AstMethodCompilerCtxt {
         self.parse_message_with_func(msg, Self::parse_expression_with_inlining)
     }
     
-    pub fn parse_message_with_func(&mut self, msg: &ast::Message, expr_parsing_func: fn(&mut AstMethodCompilerCtxt, &Expression) -> AstExpression) -> AstExpression {
+    pub fn parse_message_with_func(&mut self, msg: &ast::Message, expr_parsing_func: fn(&mut AstMethodCompilerCtxt<'a>, &Expression) -> AstExpression) -> AstExpression {
         let maybe_inlined = self.inline_if_possible(msg);
         if let Some(inlined_node) = maybe_inlined {
             return AstExpression::InlinedCall(Box::new(inlined_node));

@@ -5,15 +5,14 @@ use crate::ast::AstBlock;
 use crate::class::Class;
 use crate::frame::Frame;
 use crate::universe::UniverseAST;
-use crate::SOMRef;
 
 /// Represents an executable block.
 #[derive(Clone)]
 pub struct Block {
     /// Reference to the captured stack frame.
-    pub frame: SOMRef<Frame>,
+    pub frame: GCRef<Frame>,
     /// Block definition from the AST.
-    pub block: SOMRef<AstBlock>
+    pub block: GCRef<AstBlock>
 }
 
 impl Block {
