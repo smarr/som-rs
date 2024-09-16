@@ -86,15 +86,7 @@ impl ObjectModel<SOMVM> for VMObjectModel {
         object.to_raw_address().sub(OBJECT_HEADER_OFFSET)
     }
 
-    fn ref_to_address(_object: ObjectReference) -> Address {
-        unimplemented!()
-    }
-
-    fn address_to_ref(_addr: Address) -> ObjectReference {
-        unimplemented!()
-    }
-
-    //const IN_OBJECT_ADDRESS_OFFSET: isize = IN_OBJECT_ADDRESS_OFFSET;
+    const IN_OBJECT_ADDRESS_OFFSET: isize = IN_OBJECT_ADDRESS_OFFSET;
 
     fn dump_object(_object: ObjectReference) {
         unimplemented!()

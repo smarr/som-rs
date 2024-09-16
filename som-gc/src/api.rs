@@ -61,7 +61,7 @@ pub fn mmtk_alloc(
     size: usize,
     align: usize,
     offset: usize,
-    mut semantics: AllocationSemantics,
+    semantics: AllocationSemantics,
 ) -> Address {
     // This just demonstrates that the binding should check against `max_non_los_default_alloc_bytes` to allocate large objects.
     // In pratice, a binding may want to lift this code to somewhere in the runtime where the allocated bytes is constant so
@@ -81,7 +81,7 @@ pub fn mmtk_post_alloc(
     mutator: &mut Mutator<SOMVM>,
     refer: ObjectReference,
     bytes: usize,
-    mut semantics: AllocationSemantics,
+    semantics: AllocationSemantics,
 ) {
     // This just demonstrates that the binding should check against `max_non_los_default_alloc_bytes` to allocate large objects.
     // In pratice, a binding may want to lift this code to somewhere in the runtime where the allocated bytes is constant so
