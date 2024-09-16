@@ -106,6 +106,7 @@ impl<T> GCRef<T> {
 
     // Allocates a type, but with a given size. Useful when an object needs more than what we tell Rust through defining a struct. 
     // (e.g. Value arrays stored directly in the heap - see BC Frame)
+    #[inline(always)]
     pub fn alloc_with_size(obj: T, mutator: &mut Mutator<SOMVM>, size: usize) -> GCRef<T> {
         let addr = mmtk_alloc(mutator, size, GC_ALIGN, GC_OFFSET, GC_SEMANTICS);
         debug_assert!(!addr.is_zero());
