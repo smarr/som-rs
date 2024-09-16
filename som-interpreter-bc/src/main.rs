@@ -88,7 +88,7 @@ fn run() -> anyhow::Result<()> {
     
     let args = std::iter::once(String::from(file_stem))
         .chain(opts.args.iter().cloned())
-        .map(|arg| Value::String(GCRef::<String>::alloc(arg, universe.allocator.as_mut())))
+        .map(|arg| Value::String(GCRef::<String>::alloc(arg, universe.mutator.as_mut())))
         .collect();
 
     let mut interpreter = universe
@@ -134,7 +134,7 @@ fn disassemble_class(opts: Options) -> anyhow::Result<()> {
 
     // "Object" special casing needed since `load_class` assumes the class has a superclass and Object doesn't, and I didn't want to change the class loading logic just for the disassembler (tho it's probably fine)
     let class = match file_stem {
-        "Object" => UniverseBC::load_system_class(&mut universe.interner, classpath.as_slice(), "Object", universe.allocator.as_mut())?,
+        "Object" => UniverseBC::load_system_class(&mut universe.interner, classpath.as_slice(), "Object", universe.mutator.as_mut())?,
         _ => universe.load_class(file_stem)?
     };
 

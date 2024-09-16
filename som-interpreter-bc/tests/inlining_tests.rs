@@ -38,7 +38,7 @@ fn get_bytecodes_from_method(class_txt: &str, method_name: &str) -> Vec<Bytecode
     let class_def = som_parser::apply(lang::class_def(), tokens.as_slice(), None).unwrap();
 
     let object_class = universe.object_class();
-    let class = compiler::compile_class(&mut universe.interner, &class_def, Some(&object_class), universe.allocator.as_mut());
+    let class = compiler::compile_class(&mut universe.interner, &class_def, Some(&object_class), universe.mutator.as_mut());
     assert!(class.is_some(), "could not compile test expression");
 
     let class = class.unwrap();
@@ -340,10 +340,10 @@ fn block_with_non_local_returns_for_to_do_block() {
             nb_locals: 0,
             nb_params: 0,
             inline_cache: RefCell::new(vec![]),
-        }, universe.allocator.as_mut())
+        }, universe.mutator.as_mut())
     };
 
-    let new_blk_rc = block.make_equivalent_with_no_return(universe.allocator.as_mut());
+    let new_blk_rc = block.make_equivalent_with_no_return(universe.mutator.as_mut());
 
     assert_eq!(new_blk_rc.to_obj().blk_info.to_obj().body, vec![
         PushNonLocalArg(1,0),

@@ -1,11 +1,11 @@
 use std::fmt;
 use std::marker::PhantomData;
+use mmtk::Mutator;
 use som_gc::SOMVM;
 use crate::class::Class;
 use crate::value::Value;
 use core::mem::size_of;
 use mmtk::util::Address;
-use mmtk::util::alloc::BumpAllocator;
 use som_core::gc::{CustomAlloc, GCRef};
 
 /// Represents a generic (non-primitive) class instance.
@@ -21,7 +21,7 @@ pub struct Instance {
 
 impl Instance {
     /// Construct an instance for a given class.
-    pub fn from_class(class: GCRef<Class>, mutator: &mut BumpAllocator<SOMVM>) -> GCRef<Instance> {
+    pub fn from_class(class: GCRef<Class>, mutator: &mut mmtk::Mutator<SOMVM>) -> GCRef<Instance> {
         fn get_nbr_fields(class: &GCRef<Class>) -> usize {
             let mut nbr_locals = class.to_obj().locals.len();
             if let Some(super_class) = class.to_obj().super_class() {
@@ -63,7 +63,7 @@ impl Instance {
 }
 
 impl CustomAlloc<Instance> for Instance {
-    fn alloc(instance: Instance, mutator: &mut BumpAllocator<SOMVM>) -> GCRef<Self> {
+    fn alloc(instance: Instance, mutator: &mut Mutator<SOMVM>) -> GCRef<Self> {
         let size = size_of::<Instance>() + (instance.nbr_fields * size_of::<Value>());
         
         let nbr_fields = instance.nbr_fields;

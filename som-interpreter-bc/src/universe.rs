@@ -4,9 +4,10 @@ use std::io;
 use std::path::{Path, PathBuf};
 
 use anyhow::{anyhow, Error};
-use mmtk::util::alloc::BumpAllocator;
+use mmtk::Mutator;
 use mmtk::util::VMMutatorThread;
 use som_core::universe::UniverseForParser;
+use som_gc::api::mmtk_destroy_mutator;
 use som_gc::SOMVM;
 use crate::block::Block;
 use crate::class::Class;
@@ -80,14 +81,14 @@ pub struct UniverseBC {
     /// The interpreter's core classes.
     pub core: CoreClasses,
     /// mutator itself for GC
-    pub allocator: Box<BumpAllocator<SOMVM>>,
+    pub mutator: Box<mmtk::Mutator<SOMVM>>,
     /// mutator thread for GC
     pub mutator_thread: VMMutatorThread
 }
 
 impl Drop for UniverseBC {
     fn drop(&mut self) {
-        // mmtk_destroy_mutator(self.mutator.as_mut())
+        mmtk_destroy_mutator(self.mutator.as_mut())
     }
 }
 
@@ -125,36 +126,36 @@ impl UniverseForParser for UniverseBC {
 
 impl UniverseBC {
     /// Initialize the universe from the given classpath.
-    pub fn with_classpath(classpath: Vec<PathBuf>, mut allocator: Box<BumpAllocator<SOMVM>>, mutator_thread: VMMutatorThread) -> Result<Self, Error> {
+    pub fn with_classpath(classpath: Vec<PathBuf>, mut mutator: Box<mmtk::Mutator<SOMVM>>, mutator_thread: VMMutatorThread) -> Result<Self, Error> {
         let mut interner = Interner::with_capacity(100);
         let mut globals = HashMap::new();
 
-        let object_class = Self::load_system_class(&mut interner, classpath.as_slice(), "Object", allocator.as_mut())?;
-        let class_class = Self::load_system_class(&mut interner, classpath.as_slice(), "Class", allocator.as_mut())?;
+        let object_class = Self::load_system_class(&mut interner, classpath.as_slice(), "Object", mutator.as_mut())?;
+        let class_class = Self::load_system_class(&mut interner, classpath.as_slice(), "Class", mutator.as_mut())?;
         let metaclass_class =
-            Self::load_system_class(&mut interner, classpath.as_slice(), "Metaclass", allocator.as_mut())?;
+            Self::load_system_class(&mut interner, classpath.as_slice(), "Metaclass", mutator.as_mut())?;
 
-        let nil_class = Self::load_system_class(&mut interner, classpath.as_slice(), "Nil", allocator.as_mut())?;
+        let nil_class = Self::load_system_class(&mut interner, classpath.as_slice(), "Nil", mutator.as_mut())?;
         let integer_class =
-            Self::load_system_class(&mut interner, classpath.as_slice(), "Integer", allocator.as_mut())?;
-        let array_class = Self::load_system_class(&mut interner, classpath.as_slice(), "Array", allocator.as_mut())?;
-        let method_class = Self::load_system_class(&mut interner, classpath.as_slice(), "Method", allocator.as_mut())?;
-        let symbol_class = Self::load_system_class(&mut interner, classpath.as_slice(), "Symbol", allocator.as_mut())?;
+            Self::load_system_class(&mut interner, classpath.as_slice(), "Integer", mutator.as_mut())?;
+        let array_class = Self::load_system_class(&mut interner, classpath.as_slice(), "Array", mutator.as_mut())?;
+        let method_class = Self::load_system_class(&mut interner, classpath.as_slice(), "Method", mutator.as_mut())?;
+        let symbol_class = Self::load_system_class(&mut interner, classpath.as_slice(), "Symbol", mutator.as_mut())?;
         let primitive_class =
-            Self::load_system_class(&mut interner, classpath.as_slice(), "Primitive", allocator.as_mut())?;
-        let string_class = Self::load_system_class(&mut interner, classpath.as_slice(), "String", allocator.as_mut())?;
-        let system_class = Self::load_system_class(&mut interner, classpath.as_slice(), "System", allocator.as_mut())?;
-        let double_class = Self::load_system_class(&mut interner, classpath.as_slice(), "Double", allocator.as_mut())?;
+            Self::load_system_class(&mut interner, classpath.as_slice(), "Primitive", mutator.as_mut())?;
+        let string_class = Self::load_system_class(&mut interner, classpath.as_slice(), "String", mutator.as_mut())?;
+        let system_class = Self::load_system_class(&mut interner, classpath.as_slice(), "System", mutator.as_mut())?;
+        let double_class = Self::load_system_class(&mut interner, classpath.as_slice(), "Double", mutator.as_mut())?;
 
-        let block_class = Self::load_system_class(&mut interner, classpath.as_slice(), "Block", allocator.as_mut())?;
-        let block1_class = Self::load_system_class(&mut interner, classpath.as_slice(), "Block1", allocator.as_mut())?;
-        let block2_class = Self::load_system_class(&mut interner, classpath.as_slice(), "Block2", allocator.as_mut())?;
-        let block3_class = Self::load_system_class(&mut interner, classpath.as_slice(), "Block3", allocator.as_mut())?;
+        let block_class = Self::load_system_class(&mut interner, classpath.as_slice(), "Block", mutator.as_mut())?;
+        let block1_class = Self::load_system_class(&mut interner, classpath.as_slice(), "Block1", mutator.as_mut())?;
+        let block2_class = Self::load_system_class(&mut interner, classpath.as_slice(), "Block2", mutator.as_mut())?;
+        let block3_class = Self::load_system_class(&mut interner, classpath.as_slice(), "Block3", mutator.as_mut())?;
 
         let boolean_class =
-            Self::load_system_class(&mut interner, classpath.as_slice(), "Boolean", allocator.as_mut())?;
-        let true_class = Self::load_system_class(&mut interner, classpath.as_slice(), "True", allocator.as_mut())?;
-        let false_class = Self::load_system_class(&mut interner, classpath.as_slice(), "False", allocator.as_mut())?;
+            Self::load_system_class(&mut interner, classpath.as_slice(), "Boolean", mutator.as_mut())?;
+        let true_class = Self::load_system_class(&mut interner, classpath.as_slice(), "True", mutator.as_mut())?;
+        let false_class = Self::load_system_class(&mut interner, classpath.as_slice(), "False", mutator.as_mut())?;
 
         // initializeSystemClass(objectClass, null, "Object");
         // set_super_class(&object_class, &nil_class, &metaclass_class);
@@ -252,7 +253,7 @@ impl UniverseBC {
                 true_class,
                 false_class,
             },
-            allocator,
+            mutator,
             mutator_thread
         })
     }
@@ -301,7 +302,7 @@ impl UniverseBC {
                 self.core.object_class
             };
 
-            let class = compiler::compile_class(&mut self.interner, &defn, Some(&super_class), self.allocator.as_mut())
+            let class = compiler::compile_class(&mut self.interner, &defn, Some(&super_class), self.mutator.as_mut())
                 .ok_or_else(|| Error::msg(format!("")))?;
             set_super_class(&class, &super_class, &self.core.metaclass_class);
 
@@ -319,7 +320,7 @@ impl UniverseBC {
         interner: &mut Interner,
         classpath: &[impl AsRef<Path>],
         class_name: impl Into<String>,
-        allocator: &mut BumpAllocator<SOMVM>
+        mutator: &mut Mutator<SOMVM>
     ) -> Result<GCRef<Class>, Error> {
         let class_name = class_name.into();
         for path in classpath {
@@ -351,7 +352,7 @@ impl UniverseBC {
                     path.display(),
                 ));
             }
-            let class = compiler::compile_class(interner, &defn, None, allocator)
+            let class = compiler::compile_class(interner, &defn, None, mutator)
                 .ok_or_else(|| Error::msg(format!("")))?;
 
             return Ok(class);
@@ -472,7 +473,7 @@ impl UniverseBC {
     ) -> Option<()> {
         let method_name = self.intern_symbol("escapedBlock:");
         let method = value.lookup_method(self, method_name)?;
-        interpreter.push_method_frame(method, vec![value, Value::Block(block)], self.allocator.as_mut());
+        interpreter.push_method_frame(method, vec![value, Value::Block(block)], self.mutator.as_mut());
         Some(())
     }
 
@@ -492,9 +493,9 @@ impl UniverseBC {
         let method_name = self.intern_symbol("doesNotUnderstand:arguments:");
         let method = value.lookup_method(self, method_name)?;
 
-        interpreter.push_method_frame(method,
-                                      vec![value, Value::Symbol(symbol), Value::Array(GCRef::<Vec<Value>>::alloc(args, self.allocator.as_mut()))],
-                                      self.allocator.as_mut());
+        interpreter.push_method_frame(method, 
+                                      vec![value, Value::Symbol(symbol), Value::Array(GCRef::<Vec<Value>>::alloc(args, self.mutator.as_mut()))], 
+                                      self.mutator.as_mut());
 
         Some(())
     }
@@ -510,7 +511,7 @@ impl UniverseBC {
         let method = value.lookup_method(self, method_name)?;
 
         interpreter.current_frame.to_obj().bytecode_idx = interpreter.bytecode_idx;
-        interpreter.push_method_frame(method, vec![value, Value::Symbol(name)], self.allocator.as_mut());
+        interpreter.push_method_frame(method, vec![value, Value::Symbol(name)], self.mutator.as_mut());
 
         Some(())
     }
@@ -520,10 +521,10 @@ impl UniverseBC {
         let method_name = self.interner.intern("initialize:");
         let method = Value::System.lookup_method(self, method_name)?;
         
-        let frame_ptr = Frame::alloc_from_method(method,
-                                                 vec![Value::System, Value::Array(GCRef::<Vec<Value>>::alloc(args, self.allocator.as_mut()))],
-                                                 GCRef::default(),
-                                                 self.allocator.as_mut());
+        let frame_ptr = Frame::alloc_from_method(method, 
+                                             vec![Value::System, Value::Array(GCRef::<Vec<Value>>::alloc(args, self.mutator.as_mut()))],
+                                             GCRef::default(),
+                                             self.mutator.as_mut());
         let interpreter = Interpreter::new(frame_ptr);
 
         Some(interpreter)

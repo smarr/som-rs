@@ -146,7 +146,7 @@ impl Evaluate for ast::Literal {
                     let value = propagate!(literal.evaluate(universe));
                     output.push(value);
                 }
-                Return::Local(Value::Array(GCRef::<Vec<Value>>::alloc(output, universe.allocator.as_mut())))
+                Return::Local(Value::Array(GCRef::<Vec<Value>>::alloc(output, universe.mutator.as_mut())))
             }
             Self::Integer(int) => Return::Local(Value::Integer(*int)),
             Self::BigInteger(int) => match int.parse() {
@@ -172,7 +172,7 @@ impl Evaluate for GCRef<AstBlock> {
             block: *self,
             frame: universe.current_frame,
         };
-        let block_ptr = GCRef::<Block>::alloc(block, universe.allocator.as_mut());
+        let block_ptr = GCRef::<Block>::alloc(block, universe.mutator.as_mut());
         Return::Local(Value::Block(block_ptr))
     }
 }

@@ -44,7 +44,7 @@ fn load_file(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
     };
 
     let value = match fs::read_to_string(path) {
-        Ok(value) => Value::String(GCRef::<String>::alloc(value, universe.allocator.as_mut())),
+        Ok(value) => Value::String(GCRef::<String>::alloc(value, universe.mutator.as_mut())),
         Err(_) => Value::Nil,
     };
 

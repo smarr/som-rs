@@ -1,5 +1,4 @@
 use mmtk::Mutator;
-use mmtk::util::alloc::BumpAllocator;
 use som_core::ast;
 use som_core::ast::{Expression, MethodBody};
 use som_core::gc::GCRef;
@@ -19,7 +18,7 @@ use crate::specialized::while_node::WhileNode;
 pub struct AstMethodCompilerCtxt<'a> {
     pub scopes: Vec<AstScopeCtxt>,
     pub super_class: Option<GCRef<Class>>,
-    pub mutator: &'a mut BumpAllocator<SOMVM>
+    pub mutator: &'a mut Mutator<SOMVM>
 }
 
 #[derive(Debug, Default)]
@@ -57,7 +56,7 @@ impl AstScopeCtxt {
 }
 
 impl<'a> AstMethodCompilerCtxt<'a> {
-    pub fn get_method_kind(method: &ast::MethodDef, super_class: Option<GCRef<Class>>, mutator: &mut BumpAllocator<SOMVM>) -> MethodKind {
+    pub fn get_method_kind(method: &ast::MethodDef, super_class: Option<GCRef<Class>>, mutator: &mut Mutator<SOMVM>) -> MethodKind {
         // NB: these If/IfTrueIfFalse/While are very rare cases, since we normally inline those functions.
         // But we don't do inlining when e.g. the condition for ifTrue: isn't a block.
         // so there is *some* occasional benefit in having those specialized method nodes around for those cases.
@@ -121,7 +120,7 @@ impl<'a> AstMethodCompilerCtxt<'a> {
 
     /// Transforms a generic MethodDef into an AST-specific one.
     /// Note: public since it's used in tests.
-    pub fn parse_method_def(method_def: &ast::MethodDef, super_class: Option<GCRef<Class>>, mutator: &mut BumpAllocator<SOMVM>) -> AstMethodDef {
+    pub fn parse_method_def(method_def: &ast::MethodDef, super_class: Option<GCRef<Class>>, mutator: &mut Mutator<SOMVM>) -> AstMethodDef {
         let (body, locals_nbr) = match &method_def.body {
             MethodBody::Primitive => { unreachable!("unimplemented primitive") }
             MethodBody::Body { locals_nbr, body, .. } => {

@@ -2,7 +2,6 @@ use std::fmt;
 
 use indexmap::IndexMap;
 use mmtk::Mutator;
-use mmtk::util::alloc::BumpAllocator;
 use som_core::ast::ClassDef;
 use som_core::gc::GCRef;
 use som_gc::SOMVM;
@@ -50,7 +49,7 @@ impl Class {
     /// Load up a class from its class definition from the AST.
     /// NB: super_class is only ever None for one class: the core Object class, which all other classes inherit from.
     /// NB: while it takes the super_class as argument, it's not in charge of hooking it up to the class itself. That's `set_super_class`. Might need changing for clarity.
-    pub fn from_class_def(defn: ClassDef, super_class: Option<GCRef<Class>>, mutator: &mut BumpAllocator<SOMVM>) -> Result<GCRef<Class>, String> {
+    pub fn from_class_def(defn: ClassDef, super_class: Option<GCRef<Class>>, mutator: &mut Mutator<SOMVM>) -> Result<GCRef<Class>, String> {
         let static_locals = {
             let mut static_locals = IndexMap::new();
             for field in defn.static_locals.iter() {

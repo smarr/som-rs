@@ -90,7 +90,7 @@ fn as_string(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
     };
 
     {
-        interpreter.stack.push(Value::String(GCRef::<String>::alloc(value, universe.allocator.as_mut())));
+        interpreter.stack.push(Value::String(GCRef::<String>::alloc(value, universe.mutator.as_mut())));
         return;
     }
 }
@@ -574,10 +574,10 @@ fn to_do(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
     
     // Nota Bene: blocks for to:do: and friends get instrumented as a special case in the parser, so that they don't leave their "self" on the stack.
 
-    let new_blk = blk.to_obj().make_equivalent_with_no_return(universe.allocator.as_mut());
+    let new_blk = blk.to_obj().make_equivalent_with_no_return(universe.mutator.as_mut());
     // calling rev() because it's a stack of frames: LIFO means we want to add the last one first, then the penultimate one, etc., til the first
     for i in (start..=end).rev() {
-        interpreter.push_block_frame(new_blk, vec![Value::Block(new_blk), Value::Integer(i)], universe.allocator.as_mut());
+        interpreter.push_block_frame(new_blk, vec![Value::Block(new_blk), Value::Integer(i)], universe.mutator.as_mut());
     }
 
     interpreter.stack.push(Value::Integer(start));
@@ -593,9 +593,9 @@ fn to_by_do(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
         Value::Block(blk) => blk,
     ]);
 
-    let new_blk = blk.to_obj().make_equivalent_with_no_return(universe.allocator.as_mut());
+    let new_blk = blk.to_obj().make_equivalent_with_no_return(universe.mutator.as_mut());
     for i in (start..=end).rev().step_by(step as usize) {
-        interpreter.push_block_frame(new_blk, vec![Value::Block(new_blk), Value::Integer(i)], universe.allocator.as_mut());
+        interpreter.push_block_frame(new_blk, vec![Value::Block(new_blk), Value::Integer(i)], universe.mutator.as_mut());
     }
 
     interpreter.stack.push(Value::Integer(start));
@@ -610,9 +610,9 @@ fn down_to_do(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
         Value::Block(blk) => blk,
     ]);
 
-    let new_blk = blk.to_obj().make_equivalent_with_no_return(universe.allocator.as_mut());
+    let new_blk = blk.to_obj().make_equivalent_with_no_return(universe.mutator.as_mut());
     for i in end..=start {
-        interpreter.push_block_frame(new_blk, vec![Value::Block(new_blk), Value::Integer(i)], universe.allocator.as_mut());
+        interpreter.push_block_frame(new_blk, vec![Value::Block(new_blk), Value::Integer(i)], universe.mutator.as_mut());
     }
 
     interpreter.stack.push(Value::Integer(start));
@@ -629,9 +629,9 @@ fn down_to_by_do(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
         Value::Block(blk) => blk,
     ]);
     
-    let new_blk = blk.to_obj().make_equivalent_with_no_return(universe.allocator.as_mut());
+    let new_blk = blk.to_obj().make_equivalent_with_no_return(universe.mutator.as_mut());
     for i in (start..=end).step_by(step as usize) {
-        interpreter.push_block_frame(new_blk, vec![Value::Block(new_blk), Value::Integer(i)], universe.allocator.as_mut());
+        interpreter.push_block_frame(new_blk, vec![Value::Block(new_blk), Value::Integer(i)], universe.mutator.as_mut());
     }
 
     interpreter.stack.push(Value::Integer(start));
@@ -646,9 +646,9 @@ fn times_repeat(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
         Value::Block(blk) => blk,
     ]);
 
-    let new_blk = blk.to_obj().make_equivalent_with_no_return(universe.allocator.as_mut());
+    let new_blk = blk.to_obj().make_equivalent_with_no_return(universe.mutator.as_mut());
     for _ in 1..=n {
-        interpreter.push_block_frame(new_blk, vec![Value::Block(new_blk)], universe.allocator.as_mut()); // NB: this doesn't take the index as an argument
+        interpreter.push_block_frame(new_blk, vec![Value::Block(new_blk)], universe.mutator.as_mut()); // NB: this doesn't take the index as an argument
     }
 
     interpreter.stack.push(Value::Integer(n));

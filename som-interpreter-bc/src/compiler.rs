@@ -5,7 +5,7 @@ use std::cell::RefCell;
 use std::hash::{Hash, Hasher};
 
 use indexmap::{IndexMap, IndexSet};
-use mmtk::util::alloc::BumpAllocator;
+use mmtk::Mutator;
 use num_bigint::BigInt;
 
 use som_core::ast;
@@ -399,11 +399,11 @@ impl InnerGenCtxt for MethodGenCtxt<'_> {
 }
 
 pub trait MethodCodegen {
-    fn codegen(&self, ctxt: &mut dyn InnerGenCtxt, mutator: &mut BumpAllocator<SOMVM>) -> Option<()>;
+    fn codegen(&self, ctxt: &mut dyn InnerGenCtxt, mutator: &mut Mutator<SOMVM>) -> Option<()>;
 }
 
 impl MethodCodegen for ast::Body {
-    fn codegen(&self, ctxt: &mut dyn InnerGenCtxt, mutator: &mut BumpAllocator<SOMVM>) -> Option<()> {
+    fn codegen(&self, ctxt: &mut dyn InnerGenCtxt, mutator: &mut Mutator<SOMVM>) -> Option<()> {
         for expr in &self.exprs {
             expr.codegen(ctxt, mutator)?;
         }
@@ -412,7 +412,7 @@ impl MethodCodegen for ast::Body {
 }
 
 impl MethodCodegen for ast::Expression {
-    fn codegen(&self, ctxt: &mut dyn InnerGenCtxt, mutator: &mut BumpAllocator<SOMVM>) -> Option<()> {
+    fn codegen(&self, ctxt: &mut dyn InnerGenCtxt, mutator: &mut Mutator<SOMVM>) -> Option<()> {
         match self {
             ast::Expression::LocalVarRead(idx) => {
                 ctxt.push_instr(Bytecode::PushLocal(*idx as u8));
@@ -549,7 +549,7 @@ impl MethodCodegen for ast::Expression {
                 Some(())
             }
             ast::Expression::Literal(literal) => {
-                fn convert_literal(ctxt: &mut dyn InnerGenCtxt, literal: &ast::Literal, mutator: &mut BumpAllocator<SOMVM>) -> Literal {
+                fn convert_literal(ctxt: &mut dyn InnerGenCtxt, literal: &ast::Literal, mutator: &mut Mutator<SOMVM>) -> Literal {
                     match literal {
                         ast::Literal::Symbol(val) => {
                             Literal::Symbol(ctxt.intern_symbol(val.as_str()))
@@ -640,7 +640,7 @@ impl GenCtxt for ClassGenCtxt<'_> {
     }
 }
 
-fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::MethodDef, mutator: &mut BumpAllocator<SOMVM>) -> Option<Method> {
+fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::MethodDef, mutator: &mut Mutator<SOMVM>) -> Option<Method> {
     /// Only add a ReturnSelf at the end of a method if needed: i.e. there's no existing return, and if there is, that it can't be jumped over.
     fn should_add_return_self(ctxt: &mut MethodGenCtxt, body: &ast::Body) -> bool {
         if body.exprs.is_empty() {
@@ -768,7 +768,7 @@ fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::MethodDef, mutator: &mut 
     Some(method)
 }
 
-fn compile_block(outer: &mut dyn GenCtxt, defn: &ast::Block, mutator: &mut BumpAllocator<SOMVM>) -> Option<Block> {
+fn compile_block(outer: &mut dyn GenCtxt, defn: &ast::Block, mutator: &mut Mutator<SOMVM>) -> Option<Block> {
     // println!("(system) compiling block ...");
 
     let mut ctxt = BlockGenCtxt {
@@ -836,7 +836,7 @@ pub fn compile_class(
     interner: &mut Interner,
     defn: &ast::ClassDef,
     super_class: Option<&GCRef<Class>>,
-    mutator: &mut BumpAllocator<SOMVM>,
+    mutator: &mut Mutator<SOMVM>,
 ) -> Option<GCRef<Class>> {
     let mut locals = IndexSet::new();
 
