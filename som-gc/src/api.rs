@@ -66,14 +66,14 @@ pub fn mmtk_alloc(
     // This just demonstrates that the binding should check against `max_non_los_default_alloc_bytes` to allocate large objects.
     // In pratice, a binding may want to lift this code to somewhere in the runtime where the allocated bytes is constant so
     // they can statically know if a normal allocation or a large object allocation is needed.
-    if size
-        >= mmtk()
-            .get_plan()
-            .constraints()
-            .max_non_los_default_alloc_bytes
-    {
-        semantics = AllocationSemantics::Los;
-    }
+    // if size
+    //     >= mmtk()
+    //         .get_plan()
+    //         .constraints()
+    //         .max_non_los_default_alloc_bytes
+    // {
+    //     semantics = AllocationSemantics::Los;
+    // }
     memory_manager::alloc::<SOMVM>(mutator, size, align, offset, semantics)
 }
 
@@ -86,14 +86,14 @@ pub fn mmtk_post_alloc(
     // This just demonstrates that the binding should check against `max_non_los_default_alloc_bytes` to allocate large objects.
     // In pratice, a binding may want to lift this code to somewhere in the runtime where the allocated bytes is constant so
     // they can statically know if a normal allocation or a large object allocation is needed.
-    if bytes
-        >= mmtk()
-            .get_plan()
-            .constraints()
-            .max_non_los_default_alloc_bytes
-    {
-        semantics = AllocationSemantics::Los;
-    }
+    // if bytes
+    //     >= mmtk()
+    //         .get_plan()
+    //         .constraints()
+    //         .max_non_los_default_alloc_bytes
+    // {
+    //     semantics = AllocationSemantics::Los;
+    // }
     memory_manager::post_alloc::<SOMVM>(mutator, refer, bytes, semantics)
 }
 
