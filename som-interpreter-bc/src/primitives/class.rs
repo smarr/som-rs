@@ -35,7 +35,7 @@ fn new(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
         Value::Class(class) => class,
     ]);
 
-    let instance_ref = Instance::from_class(class, &mut universe.mutator);
+    let instance_ref = Instance::from_class(class, &mut universe.gc_interface);
     interpreter.stack.push(Value::Instance(instance_ref));
 }
 
@@ -66,7 +66,7 @@ fn methods(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
 
     interpreter
         .stack
-        .push(Value::Array(GCRef::<Vec<Value>>::alloc(methods, universe.mutator.as_mut())));
+        .push(Value::Array(GCRef::<Vec<Value>>::alloc(methods, &mut universe.gc_interface)));
 }
 
 fn fields(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
@@ -84,7 +84,7 @@ fn fields(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
             .copied()
             .map(Value::Symbol)
             .collect(),
-        universe.mutator.as_mut(),
+        &mut universe.gc_interface,
     )));
 }
 

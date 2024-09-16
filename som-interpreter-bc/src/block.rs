@@ -2,13 +2,11 @@
 use som_core::ast::BlockDebugInfo;
 use std::cell::RefCell;
 use std::fmt;
-use mmtk::Mutator;
 use som_core::bytecode::Bytecode;
-use som_gc::SOMVM;
 use crate::class::Class;
 use crate::compiler::Literal;
 use crate::frame::Frame;
-use som_core::gc::GCRef;
+use som_core::gc::{GCInterface, GCRef};
 // use crate::interner::Interned;
 use crate::method::Method;
 use crate::universe::UniverseBC;
@@ -50,7 +48,7 @@ impl Block {
     }
 
     /// Creates a new block with POP bytecodes before each return (local and non local), so that the block returns with no effect on the stack
-    pub fn make_equivalent_with_no_return(&self, mutator: &mut Mutator<SOMVM>) -> GCRef<Block> {
+    pub fn make_equivalent_with_no_return(&self, mutator: &mut GCInterface) -> GCRef<Block> {
         fn patch_return_non_locals(new_body: &mut Vec<Bytecode>) {
             let non_local_rets_idx: Vec<usize> = new_body.iter().enumerate()
                 .filter_map(|(idx, &bc)| if let Bytecode::ReturnNonLocal(_) = bc { Some(idx) } else { None })

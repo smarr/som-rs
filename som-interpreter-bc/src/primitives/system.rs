@@ -44,7 +44,7 @@ fn load_file(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
     };
 
     let value = match fs::read_to_string(path) {
-        Ok(value) => Value::String(GCRef::<String>::alloc(value, universe.mutator.as_mut())),
+        Ok(value) => Value::String(GCRef::<String>::alloc(value, &mut universe.gc_interface)),
         Err(_) => Value::Nil,
     };
 
@@ -250,7 +250,7 @@ fn full_gc(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
 
     expect_args!(SIGNATURE, interpreter, [Value::System]);
 
-    mmtk_handle_user_collection_request(universe.mutator_thread);
+    mmtk_handle_user_collection_request(universe.gc_interface.mutator_thread);
     
     // should return true or false depending on whether it failed, tbh.
     interpreter.stack.push(Value::Boolean(true));

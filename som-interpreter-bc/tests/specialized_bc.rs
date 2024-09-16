@@ -1,7 +1,7 @@
 use som_core::bytecode::Bytecode;
 use som_core::bytecode::Bytecode::*;
 use std::path::PathBuf;
-use som_gc::entry_point::init_gc;
+use som_core::gc::GCInterface;
 use som_interpreter_bc::compiler;
 use som_interpreter_bc::method::MethodKind;
 use som_interpreter_bc::universe::UniverseBC;
@@ -13,8 +13,7 @@ fn setup_universe() -> UniverseBC {
         PathBuf::from("../core-lib/Smalltalk"),
         PathBuf::from("../core-lib/TestSuite/BasicInterpreterTests"),
     ];
-    let (mutator_thread, mutator) = init_gc();
-    UniverseBC::with_classpath(classpath, mutator, mutator_thread).expect("could not setup test universe")
+    UniverseBC::with_classpath(classpath, GCInterface::init()).expect("could not setup test universe")
 }
 
 fn get_bytecodes_from_method(class_txt: &str, method_name: &str) -> Vec<Bytecode> {
@@ -34,7 +33,7 @@ fn get_bytecodes_from_method(class_txt: &str, method_name: &str) -> Vec<Bytecode
     let class_def = som_parser::apply(lang::class_def(), tokens.as_slice(), Some(&mut universe)).unwrap();
 
     let object_class = universe.object_class();
-    let class = compiler::compile_class(&mut universe.interner, &class_def, Some(&object_class), universe.mutator.as_mut());
+    let class = compiler::compile_class(&mut universe.interner, &class_def, Some(&object_class), &mut universe.gc_interface);
     assert!(class.is_some(), "could not compile test expression");
 
     let class = class.unwrap();

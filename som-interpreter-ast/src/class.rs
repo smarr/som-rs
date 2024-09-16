@@ -1,10 +1,8 @@
 use std::fmt;
 
 use indexmap::IndexMap;
-use mmtk::Mutator;
 use som_core::ast::ClassDef;
-use som_core::gc::GCRef;
-use som_gc::SOMVM;
+use som_core::gc::{GCInterface, GCRef};
 use crate::method::{Method, MethodKind};
 use crate::primitives;
 use crate::value::Value;
@@ -49,7 +47,7 @@ impl Class {
     /// Load up a class from its class definition from the AST.
     /// NB: super_class is only ever None for one class: the core Object class, which all other classes inherit from.
     /// NB: while it takes the super_class as argument, it's not in charge of hooking it up to the class itself. That's `set_super_class`. Might need changing for clarity.
-    pub fn from_class_def(defn: ClassDef, super_class: Option<GCRef<Class>>, mutator: &mut Mutator<SOMVM>) -> Result<GCRef<Class>, String> {
+    pub fn from_class_def(defn: ClassDef, super_class: Option<GCRef<Class>>, gc_interface: &mut GCInterface) -> Result<GCRef<Class>, String> {
         let static_locals = {
             let mut static_locals = IndexMap::new();
             for field in defn.static_locals.iter() {
@@ -86,7 +84,7 @@ impl Class {
             is_static: true,
         };
 
-        let static_class_gc_ptr = GCRef::<Class>::alloc(static_class, mutator);
+        let static_class_gc_ptr = GCRef::<Class>::alloc(static_class, gc_interface);
         
         let instance_class = Self {
             name: defn.name.clone(),
@@ -98,7 +96,7 @@ impl Class {
             is_static: false,
         };
 
-        let instance_class_gc_ptr = GCRef::<Class>::alloc(instance_class, mutator);
+        let instance_class_gc_ptr = GCRef::<Class>::alloc(instance_class, gc_interface);
         
         let maybe_static_superclass = super_class.as_ref().map(|super_class| super_class.to_obj().class());
         
@@ -107,13 +105,13 @@ impl Class {
             .iter()
             .map(|method| {
                 let signature = method.signature.clone();
-                let kind = AstMethodCompilerCtxt::get_method_kind(method, maybe_static_superclass.clone(), mutator);
+                let kind = AstMethodCompilerCtxt::get_method_kind(method, maybe_static_superclass.clone(), gc_interface);
                 let method = Method {
                     kind,
                     signature: signature.clone(),
                     holder: static_class_gc_ptr,
                 };
-                (signature, GCRef::<Method>::alloc(method, mutator))
+                (signature, GCRef::<Method>::alloc(method, gc_interface))
             })
             .collect();
 
@@ -131,7 +129,7 @@ impl Class {
                     signature: signature.to_string(),
                     holder: static_class_gc_ptr,
                 };
-                static_methods.insert(signature.to_string(), GCRef::<Method>::alloc(method, mutator));
+                static_methods.insert(signature.to_string(), GCRef::<Method>::alloc(method, gc_interface));
             }
         }
 
@@ -140,13 +138,13 @@ impl Class {
             .iter()
             .map(|method| {
                 let signature = method.signature.clone();
-                let kind = AstMethodCompilerCtxt::get_method_kind(method, super_class.clone(), mutator);
+                let kind = AstMethodCompilerCtxt::get_method_kind(method, super_class.clone(), gc_interface);
                 let method = Method {
                     kind,
                     signature: signature.clone(),
                     holder: instance_class_gc_ptr,
                 };
-                (signature, GCRef::<Method>::alloc(method, mutator))
+                (signature, GCRef::<Method>::alloc(method, gc_interface))
             })
             .collect();
 
@@ -164,7 +162,7 @@ impl Class {
                     signature: signature.to_string(),
                     holder: instance_class_gc_ptr,
                 };
-                instance_methods.insert(signature.to_string(), GCRef::<Method>::alloc(method, mutator));
+                instance_methods.insert(signature.to_string(), GCRef::<Method>::alloc(method, gc_interface));
             }
         }
 

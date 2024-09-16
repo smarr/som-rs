@@ -21,7 +21,7 @@ pub mod block1 {
             Value::Block(block) => block,
         ]);
 
-        interpreter.push_block_frame(block, vec![Value::Block(block)], universe.mutator.as_mut());
+        interpreter.push_block_frame(block, vec![Value::Block(block)], &mut universe.gc_interface);
         
         // match interpreter.stack.pop() {
         //     Some(Value::Block(block)) => interpreter.push_block_frame(block, vec![Value::Block(block)]),
@@ -70,7 +70,7 @@ pub mod block2 {
             argument => argument,
         ]);
 
-        interpreter.push_block_frame(block, vec![Value::Block(block), argument], universe.mutator.as_mut());
+        interpreter.push_block_frame(block, vec![Value::Block(block), argument], &mut universe.gc_interface);
         
         // NB: what follows is a potentially sliiiiightly faster way of handling things, but didn't lead to visible speedups, so eh.
         
@@ -116,7 +116,7 @@ pub mod block3 {
             argument2 => argument2,
         ]);
 
-        interpreter.push_block_frame(block, vec![Value::Block(block), argument1, argument2], universe.mutator.as_mut());
+        interpreter.push_block_frame(block, vec![Value::Block(block), argument1, argument2], &mut universe.gc_interface);
 
         // let args = interpreter.stack.split_off(interpreter.stack.len() - 3);
 

@@ -1,5 +1,5 @@
 use std::path::PathBuf;
-use som_gc::entry_point::init_gc;
+use som_core::gc::GCInterface;
 use som_interpreter_ast::compiler::AstMethodCompilerCtxt;
 
 use som_interpreter_ast::evaluate::Evaluate;
@@ -15,8 +15,7 @@ fn setup_universe() -> UniverseAST {
         PathBuf::from("../core-lib/Smalltalk"),
         PathBuf::from("../core-lib/TestSuite/BasicInterpreterTests"),
     ];
-    let (mutator_thread, mutator) = init_gc();
-    UniverseAST::with_classpath(classpath, mutator, mutator_thread).expect("could not setup test universe")
+    UniverseAST::with_classpath(classpath, GCInterface::init()).expect("could not setup test universe")
 }
 
 #[test]
@@ -169,7 +168,7 @@ fn basic_interpreter_tests() {
         );
 
         let ast_parser = som_parser::apply(lang::expression(), tokens.as_slice(), None).unwrap();
-        let mut compiler = AstMethodCompilerCtxt { scopes: vec![], super_class: None, mutator: universe.mutator.as_mut() };
+        let mut compiler = AstMethodCompilerCtxt { scopes: vec![], super_class: None, gc_interface: &mut universe.gc_interface };
         let mut ast = compiler.parse_expression(&ast_parser);
         
         // let signature = universe.intern_symbol(expr.split(' ').skip(1).next().unwrap_or("unknown"));

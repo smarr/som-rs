@@ -9,13 +9,12 @@ use anyhow::{bail, Context};
 #[cfg(feature = "jemalloc")]
 use jemallocator::Jemalloc;
 use structopt::StructOpt;
-use som_gc::entry_point::init_gc;
 use som_interpreter_bc::class::Class;
 
 mod shell;
 
 use som_interpreter_bc::disassembler::disassemble_method_body;
-use som_core::gc::GCRef;
+use som_core::gc::{GCInterface, GCRef};
 use som_interpreter_bc::method::{Method, MethodKind};
 use som_interpreter_bc::universe::UniverseBC;
 use som_interpreter_bc::value::Value;
@@ -82,13 +81,13 @@ fn run() -> anyhow::Result<()> {
         classpath.push(directory.to_path_buf());
     }
 
-    let (mutator_thread, mutator) = init_gc();
+    let gc_interface = GCInterface::init();
 
-    let mut universe = UniverseBC::with_classpath(classpath, mutator, mutator_thread)?;
+    let mut universe = UniverseBC::with_classpath(classpath, gc_interface)?;
     
     let args = std::iter::once(String::from(file_stem))
         .chain(opts.args.iter().cloned())
-        .map(|arg| Value::String(GCRef::<String>::alloc(arg, universe.mutator.as_mut())))
+        .map(|arg| Value::String(GCRef::<String>::alloc(arg, &mut universe.gc_interface)))
         .collect();
 
     let mut interpreter = universe
@@ -129,12 +128,12 @@ fn disassemble_class(opts: Options) -> anyhow::Result<()> {
         classpath.push(directory.to_path_buf());
     }
     
-    let (mutator_thread, mutator) = init_gc();
-    let mut universe = UniverseBC::with_classpath(classpath.clone(), mutator, mutator_thread)?;
+    let gc_interface = GCInterface::init();
+    let mut universe = UniverseBC::with_classpath(classpath.clone(), gc_interface)?;
 
     // "Object" special casing needed since `load_class` assumes the class has a superclass and Object doesn't, and I didn't want to change the class loading logic just for the disassembler (tho it's probably fine)
     let class = match file_stem {
-        "Object" => UniverseBC::load_system_class(&mut universe.interner, classpath.as_slice(), "Object", universe.mutator.as_mut())?,
+        "Object" => UniverseBC::load_system_class(&mut universe.interner, classpath.as_slice(), "Object", &mut universe.gc_interface)?,
         _ => universe.load_class(file_stem)?
     };
 

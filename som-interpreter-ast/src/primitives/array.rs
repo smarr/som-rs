@@ -75,7 +75,7 @@ fn new(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
         Ok(length) => Return::Local(Value::Array(GCRef::<Vec<Value>>::alloc(vec![
             Value::Nil;
             length
-        ], universe.mutator.as_mut()))),
+        ], &mut universe.gc_interface))),
         Err(err) => Return::Exception(format!("'{}': {}", SIGNATURE, err)),
     }
 }

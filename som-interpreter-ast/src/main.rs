@@ -10,7 +10,7 @@ use anyhow::anyhow;
 #[cfg(feature = "jemalloc")]
 use jemallocator::Jemalloc;
 use structopt::StructOpt;
-use som_gc::entry_point::init_gc;
+use som_core::gc::GCInterface;
 
 mod shell;
 
@@ -44,11 +44,9 @@ struct Options {
 fn main() -> anyhow::Result<()> {
     let opts: Options = Options::from_args();
 
-    let (mutator_thread, mutator) = init_gc();
-    
     match opts.file {
         None => {
-            let mut universe = UniverseAST::with_classpath(opts.classpath, mutator, mutator_thread)?;
+            let mut universe = UniverseAST::with_classpath(opts.classpath, GCInterface::init())?;
             shell::interactive(&mut universe, opts.verbose)?
         }
         Some(file) => {
@@ -64,7 +62,7 @@ fn main() -> anyhow::Result<()> {
                 classpath.push(directory.to_path_buf());
             }
 
-            let mut universe = UniverseAST::with_classpath(classpath, mutator, mutator_thread)?;
+            let mut universe = UniverseAST::with_classpath(classpath, GCInterface::init())?;
 
             let args = std::iter::once(String::from(file_stem))
                 .chain(opts.args.iter().cloned())

@@ -5,11 +5,8 @@ use std::path::{Path, PathBuf};
 use std::time::Instant;
 
 use anyhow::{anyhow, Error};
-use mmtk::Mutator;
-use mmtk::util::VMMutatorThread;
-use som_core::gc::GCRef;
+use som_core::gc::{GCInterface, GCRef};
 use som_core::universe::UniverseForParser;
-use som_gc::SOMVM;
 use crate::block::Block;
 use crate::class::Class;
 use crate::frame::{Frame, FrameAccess};
@@ -83,10 +80,8 @@ pub struct UniverseAST {
     pub core: CoreClasses,
     /// The time record of the universe's creation.
     pub start_time: Instant,
-    /// mutator itself for GC
-    pub mutator: Box<mmtk::Mutator<SOMVM>>,
-    /// mutator thread for GC
-    pub mutator_thread: VMMutatorThread
+    /// GC interface
+    pub gc_interface: GCInterface
 }
 
 impl UniverseForParser for UniverseAST {
@@ -107,32 +102,32 @@ impl UniverseForParser for UniverseAST {
 
 impl UniverseAST {
     /// Initialize the universe from the given classpath.
-    pub fn with_classpath(classpath: Vec<PathBuf>, mut mutator: Box<mmtk::Mutator<SOMVM>>, mutator_thread: VMMutatorThread) -> Result<Self, Error> {
+    pub fn with_classpath(classpath: Vec<PathBuf>, mut gc_interface: GCInterface) -> Result<Self, Error> {
         let interner = Interner::with_capacity(100);
         let mut globals = HashMap::new();
 
-        let object_class = Self::load_system_class(classpath.as_slice(), "Object", None, mutator.as_mut())?;
-        let class_class = Self::load_system_class(classpath.as_slice(), "Class", Some(object_class.clone()), mutator.as_mut())?;
-        let metaclass_class = Self::load_system_class(classpath.as_slice(), "Metaclass", Some(class_class.clone()), mutator.as_mut())?;
+        let object_class = Self::load_system_class(classpath.as_slice(), "Object", None, &mut gc_interface)?;
+        let class_class = Self::load_system_class(classpath.as_slice(), "Class", Some(object_class.clone()), &mut gc_interface)?;
+        let metaclass_class = Self::load_system_class(classpath.as_slice(), "Metaclass", Some(class_class.clone()), &mut gc_interface)?;
 
-        let nil_class = Self::load_system_class(classpath.as_slice(), "Nil", Some(object_class.clone()), mutator.as_mut())?;
-        let integer_class = Self::load_system_class(classpath.as_slice(), "Integer", Some(object_class.clone()), mutator.as_mut())?;
-        let array_class = Self::load_system_class(classpath.as_slice(), "Array", Some(object_class.clone()), mutator.as_mut())?;
-        let method_class = Self::load_system_class(classpath.as_slice(), "Method", Some(object_class.clone()), mutator.as_mut())?; // was array_class in original code?
-        let string_class = Self::load_system_class(classpath.as_slice(), "String", Some(object_class.clone()), mutator.as_mut())?;
-        let symbol_class = Self::load_system_class(classpath.as_slice(), "Symbol", Some(string_class.clone()), mutator.as_mut())?;
-        let primitive_class = Self::load_system_class(classpath.as_slice(), "Primitive", Some(object_class.clone()), mutator.as_mut())?;
-        let system_class = Self::load_system_class(classpath.as_slice(), "System", Some(object_class.clone()), mutator.as_mut())?;
-        let double_class = Self::load_system_class(classpath.as_slice(), "Double", Some(object_class.clone()), mutator.as_mut())?;
+        let nil_class = Self::load_system_class(classpath.as_slice(), "Nil", Some(object_class.clone()), &mut gc_interface)?;
+        let integer_class = Self::load_system_class(classpath.as_slice(), "Integer", Some(object_class.clone()), &mut gc_interface)?;
+        let array_class = Self::load_system_class(classpath.as_slice(), "Array", Some(object_class.clone()), &mut gc_interface)?;
+        let method_class = Self::load_system_class(classpath.as_slice(), "Method", Some(object_class.clone()), &mut gc_interface)?; // was array_class in original code?
+        let string_class = Self::load_system_class(classpath.as_slice(), "String", Some(object_class.clone()), &mut gc_interface)?;
+        let symbol_class = Self::load_system_class(classpath.as_slice(), "Symbol", Some(string_class.clone()), &mut gc_interface)?;
+        let primitive_class = Self::load_system_class(classpath.as_slice(), "Primitive", Some(object_class.clone()), &mut gc_interface)?;
+        let system_class = Self::load_system_class(classpath.as_slice(), "System", Some(object_class.clone()), &mut gc_interface)?;
+        let double_class = Self::load_system_class(classpath.as_slice(), "Double", Some(object_class.clone()), &mut gc_interface)?;
 
-        let block_class = Self::load_system_class(classpath.as_slice(), "Block", Some(object_class.clone()), mutator.as_mut())?;
-        let block1_class = Self::load_system_class(classpath.as_slice(), "Block1", Some(block_class.clone()), mutator.as_mut())?;
-        let block2_class = Self::load_system_class(classpath.as_slice(), "Block2", Some(block_class.clone()), mutator.as_mut())?;
-        let block3_class = Self::load_system_class(classpath.as_slice(), "Block3", Some(block_class.clone()), mutator.as_mut())?;
+        let block_class = Self::load_system_class(classpath.as_slice(), "Block", Some(object_class.clone()), &mut gc_interface)?;
+        let block1_class = Self::load_system_class(classpath.as_slice(), "Block1", Some(block_class.clone()), &mut gc_interface)?;
+        let block2_class = Self::load_system_class(classpath.as_slice(), "Block2", Some(block_class.clone()), &mut gc_interface)?;
+        let block3_class = Self::load_system_class(classpath.as_slice(), "Block3", Some(block_class.clone()), &mut gc_interface)?;
 
-        let boolean_class = Self::load_system_class(classpath.as_slice(), "Boolean", Some(object_class.clone()), mutator.as_mut())?;
-        let true_class = Self::load_system_class(classpath.as_slice(), "True", Some(boolean_class.clone()), mutator.as_mut())?;
-        let false_class = Self::load_system_class(classpath.as_slice(), "False", Some(boolean_class.clone()), mutator.as_mut())?;
+        let boolean_class = Self::load_system_class(classpath.as_slice(), "Boolean", Some(object_class.clone()), &mut gc_interface)?;
+        let true_class = Self::load_system_class(classpath.as_slice(), "True", Some(boolean_class.clone()), &mut gc_interface)?;
+        let false_class = Self::load_system_class(classpath.as_slice(), "False", Some(boolean_class.clone()), &mut gc_interface)?;
 
         // initializeSystemClass(objectClass, null, "Object");
         // set_super_class(&object_class, &nil_class, &metaclass_class);
@@ -231,8 +226,7 @@ impl UniverseAST {
                 true_class,
                 false_class,
             },
-            mutator,
-            mutator_thread
+            gc_interface
         })
     }
 
@@ -279,7 +273,7 @@ impl UniverseAST {
                 self.core.object_class.clone()
             };
 
-            let class = Class::from_class_def(defn, Some(super_class), self.mutator.as_mut()).map_err(Error::msg)?;
+            let class = Class::from_class_def(defn, Some(super_class), &mut self.gc_interface).map_err(Error::msg)?;
             set_super_class(&class, &super_class, &self.core.metaclass_class);
 
             /*fn has_duplicated_field(class: &SOMRef<Class>) -> Option<(String, (String, String))> {
@@ -334,7 +328,7 @@ impl UniverseAST {
         classpath: &[impl AsRef<Path>],
         class_name: impl Into<String>,
         super_class: Option<GCRef<Class>>,
-        mutator: &mut Mutator<SOMVM>
+        gc_interface: &mut GCInterface
     ) -> Result<GCRef<Class>, Error> {
         let class_name = class_name.into();
         for path in classpath {
@@ -367,7 +361,7 @@ impl UniverseAST {
                 ));
             }
 
-            return Class::from_class_def(defn, super_class, mutator).map_err(Error::msg);
+            return Class::from_class_def(defn, super_class, gc_interface).map_err(Error::msg);
         }
 
         Err(anyhow!("could not find the '{}' system class", class_name))
@@ -461,7 +455,7 @@ impl UniverseAST {
     // }
 
     pub fn with_frame<T>(&mut self, nbr_locals: usize, args: Vec<Value>, func: impl FnOnce(&mut Self) -> T) -> T {
-        let frame = Frame::alloc_new_frame(nbr_locals, args, self.current_frame, self.mutator.as_mut());
+        let frame = Frame::alloc_new_frame(nbr_locals, args, self.current_frame, &mut self.gc_interface);
         self.current_frame = frame;
         let ret = func(self);
         self.current_frame = frame.to_obj().prev_frame;
@@ -553,7 +547,7 @@ impl UniverseAST {
         let initialize = value.lookup_method(self, "doesNotUnderstand:arguments:")?;
         let sym = self.intern_symbol(symbol.as_ref());
         let sym = Value::Symbol(sym);
-        let args = Value::Array(GCRef::<Vec<Value>>::alloc(args, self.mutator.as_mut()));
+        let args = Value::Array(GCRef::<Vec<Value>>::alloc(args, &mut self.gc_interface));
 
        // eprintln!("Couldn't invoke {}; exiting.", symbol.as_ref()); std::process::exit(1);
         
@@ -582,7 +576,7 @@ impl UniverseAST {
     /// Call `System>>#initialize:` with the given name, if it is defined.
     pub fn initialize(&mut self, args: Vec<Value>) -> Option<Return> {
         let initialize = Value::System.lookup_method(self, "initialize:")?;
-        let args = Value::Array(GCRef::<Vec<Value>>::alloc(args, self.mutator.as_mut()));
+        let args = Value::Array(GCRef::<Vec<Value>>::alloc(args, &mut self.gc_interface));
 
         let program_result = initialize.to_obj().invoke(self, vec![Value::System, args]);
         Some(program_result)

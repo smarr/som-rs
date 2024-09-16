@@ -1,7 +1,5 @@
 use crate::value::Value;
-use mmtk::Mutator;
-use som_core::gc::{CustomAlloc, GCRef};
-use som_gc::SOMVM;
+use som_core::gc::{CustomAlloc, GCInterface, GCRef};
 use std::marker::PhantomData;
 use core::mem::size_of;
 
@@ -52,7 +50,7 @@ impl Frame {
     //     frame
     // }
 
-    pub fn alloc_new_frame(nbr_locals: usize, mut params: Vec<Value>, prev_frame: GCRef<Frame>, mutator: &mut Mutator<SOMVM>) -> GCRef<Self> {
+    pub fn alloc_new_frame(nbr_locals: usize, mut params: Vec<Value>, prev_frame: GCRef<Frame>, gc_interface: &mut GCInterface) -> GCRef<Self> {
         let frame = Self {
             prev_frame,
             nbr_locals,
@@ -61,7 +59,7 @@ impl Frame {
             locals_marker: PhantomData,
         };
 
-        let mut frame_ptr = Frame::alloc(frame, mutator);
+        let mut frame_ptr = Frame::alloc(frame, gc_interface);
 
         for i in (0..params.len()).rev() {
             frame_ptr.assign_arg(i, params.pop().unwrap())
@@ -194,12 +192,12 @@ impl FrameAccess for GCRef<Frame> {
 
 // this is a duplicate of the BC logic. they need unifying somehow, though it's easier said than done
 impl CustomAlloc<Frame> for Frame {
-    fn alloc(frame: Frame, mutator: &mut Mutator<SOMVM>) -> GCRef<Frame> {
+    fn alloc(frame: Frame, gc_interface: &mut GCInterface) -> GCRef<Frame> {
         let nbr_locals = frame.nbr_locals;
         let nbr_args = frame.nbr_args;
         let size = size_of::<Frame>() + ((nbr_args + nbr_locals) * size_of::<Value>());
 
-        let frame_ptr = GCRef::<Frame>::alloc_with_size(frame, mutator, size);
+        let frame_ptr = GCRef::<Frame>::alloc_with_size(frame, gc_interface.mutator.as_mut(), size);
 
         unsafe {
             let mut locals_addr = frame_ptr.ptr.add(size_of::<Frame>()).add(nbr_args * size_of::<Value>());

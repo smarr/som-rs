@@ -37,8 +37,6 @@ once_cell = "1.18.0"
 measureme = { version = "11.0.1", optional = true }
 static_assertions = "1.1.0"
 
-mmtk = "0.27.0"# todo remove. needed for Address/Mutator. but we should instead have our own wrappers around them
-
 [features]
 jemalloc = ["jemallocator"]
 frame-debug-info = []

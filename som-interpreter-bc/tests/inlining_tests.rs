@@ -2,11 +2,10 @@ use std::cell::RefCell;
 use som_core::bytecode::Bytecode;
 use som_core::bytecode::Bytecode::*;
 use std::path::PathBuf;
-use som_gc::entry_point::init_gc;
 use som_interpreter_bc::block::{Block, BlockInfo};
 
 use som_interpreter_bc::compiler;
-use som_core::gc::GCRef;
+use som_core::gc::{GCInterface, GCRef};
 use som_interpreter_bc::method::MethodKind;
 use som_interpreter_bc::universe::UniverseBC;
 use som_lexer::{Lexer, Token};
@@ -17,8 +16,7 @@ fn setup_universe() -> UniverseBC {
         PathBuf::from("../core-lib/Smalltalk"),
         PathBuf::from("../core-lib/TestSuite/BasicInterpreterTests"),
     ];
-    let (mutator_thread, mutator) = init_gc();
-    UniverseBC::with_classpath(classpath, mutator, mutator_thread).expect("could not setup test universe")
+    UniverseBC::with_classpath(classpath, GCInterface::init()).expect("could not setup test universe")
 }
 
 fn get_bytecodes_from_method(class_txt: &str, method_name: &str) -> Vec<Bytecode> {
@@ -38,7 +36,7 @@ fn get_bytecodes_from_method(class_txt: &str, method_name: &str) -> Vec<Bytecode
     let class_def = som_parser::apply(lang::class_def(), tokens.as_slice(), None).unwrap();
 
     let object_class = universe.object_class();
-    let class = compiler::compile_class(&mut universe.interner, &class_def, Some(&object_class), universe.mutator.as_mut());
+    let class = compiler::compile_class(&mut universe.interner, &class_def, Some(&object_class), &mut universe.gc_interface);
     assert!(class.is_some(), "could not compile test expression");
 
     let class = class.unwrap();
@@ -340,10 +338,10 @@ fn block_with_non_local_returns_for_to_do_block() {
             nb_locals: 0,
             nb_params: 0,
             inline_cache: RefCell::new(vec![]),
-        }, universe.mutator.as_mut())
+        }, &mut universe.gc_interface)
     };
 
-    let new_blk_rc = block.make_equivalent_with_no_return(universe.mutator.as_mut());
+    let new_blk_rc = block.make_equivalent_with_no_return(&mut universe.gc_interface);
 
     assert_eq!(new_blk_rc.to_obj().blk_info.to_obj().body, vec![
         PushNonLocalArg(1,0),

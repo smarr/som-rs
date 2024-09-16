@@ -1,8 +1,7 @@
 use std::path::PathBuf;
-use som_gc::entry_point::init_gc;
 use som_interpreter_bc::compiler;
 use som_interpreter_bc::frame::Frame;
-use som_core::gc::GCRef;
+use som_core::gc::{GCInterface, GCRef};
 use som_interpreter_bc::interpreter::Interpreter;
 use som_interpreter_bc::universe::UniverseBC;
 use som_interpreter_bc::value::Value;
@@ -14,8 +13,7 @@ fn setup_universe() -> UniverseBC {
         PathBuf::from("../core-lib/Smalltalk"),
         PathBuf::from("../core-lib/TestSuite/BasicInterpreterTests"),
     ];
-    let (mutator_thread, mutator) = init_gc();
-    UniverseBC::with_classpath(classpath, mutator, mutator_thread).expect("could not setup test universe")
+    UniverseBC::with_classpath(classpath, GCInterface::init()).expect("could not setup test universe")
 }
 
 #[test]
@@ -177,7 +175,7 @@ fn basic_interpreter_tests() {
 
         let object_class = universe.object_class();
         let class =
-            compiler::compile_class(&mut universe.interner, &class_def, Some(&object_class), universe.mutator.as_mut());
+            compiler::compile_class(&mut universe.interner, &class_def, Some(&object_class), &mut universe.gc_interface);
         assert!(class.is_some(), "could not compile test expression");
         let class = class.unwrap();
 
@@ -199,7 +197,7 @@ fn basic_interpreter_tests() {
             .lookup_method(method_name)
             .expect("method not found ??");
         
-        let frame = Frame::alloc_from_method(method, vec![Value::System], GCRef::default(), universe.mutator.as_mut());
+        let frame = Frame::alloc_from_method(method, vec![Value::System], GCRef::default(), &mut universe.gc_interface);
         let mut interpreter = Interpreter::new(frame);
         if let Some(output) = interpreter.run(&mut universe) {
             assert_eq!(&output, expected, "unexpected test output value");
