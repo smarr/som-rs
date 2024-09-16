@@ -102,8 +102,7 @@ impl InstanceAccess for GCRef<Instance> {
 
     fn assign_local(&mut self, idx: usize, value: Value) {
         unsafe {
-            // dbg!(&value);
-            let ptr_to_local = &mut *(self.get_field_addr(idx) as *mut Value);
+            let ptr_to_local = self.get_field_addr(idx) as *mut Value;
             *ptr_to_local = value
         }
     }
