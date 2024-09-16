@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 use std::marker::PhantomData;
 use core::mem::size_of;
-use mmtk::Mutator;
+use mmtk::util::alloc::BumpAllocator;
 use som_core::bytecode::Bytecode;
 use som_gc::SOMVM;
 use crate::block::Block;
@@ -60,7 +60,7 @@ pub struct Frame {
 }
 
 impl Frame {
-    pub fn alloc_from_method(method: GCRef<Method>, mut args: Vec<Value>, prev_frame: GCRef<Frame>, mutator: &mut Mutator<SOMVM>) -> GCRef<Frame> {
+    pub fn alloc_from_method(method: GCRef<Method>, mut args: Vec<Value>, prev_frame: GCRef<Frame>, mutator: &mut BumpAllocator<SOMVM>) -> GCRef<Frame> {
         let mut frame_ptr = Frame::alloc(Frame::from_method(method, args.len(), prev_frame), mutator);
 
         // might be faster if we did that in the alloc method, but that means passing args as an argument to the trait method `alloc` somehow.
@@ -71,7 +71,7 @@ impl Frame {
         frame_ptr
     }
 
-    pub fn alloc_from_block(block: GCRef<Block>, mut args: Vec<Value>, prev_frame: GCRef<Frame>, mutator: &mut Mutator<SOMVM>) -> GCRef<Frame> {
+    pub fn alloc_from_block(block: GCRef<Block>, mut args: Vec<Value>, prev_frame: GCRef<Frame>, mutator: &mut BumpAllocator<SOMVM>) -> GCRef<Frame> {
         let mut frame_ptr = Frame::alloc(Frame::from_block(block, args.len(), prev_frame), mutator);
 
         for i in (0..args.len()).rev() {
@@ -287,7 +287,7 @@ impl FrameAccess for GCRef<Frame> {
 }
 
 impl CustomAlloc<Frame> for Frame {
-    fn alloc(frame: Frame, mutator: &mut Mutator<SOMVM>) -> GCRef<Frame> {
+    fn alloc(frame: Frame, mutator: &mut BumpAllocator<SOMVM>) -> GCRef<Frame> {
         let nbr_locals = frame.nbr_locals;
         let nbr_args = frame.nbr_args;
         let size = size_of::<Frame>() + ((nbr_args + nbr_locals) * size_of::<Value>());

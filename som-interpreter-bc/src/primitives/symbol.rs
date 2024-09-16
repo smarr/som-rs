@@ -19,7 +19,7 @@ fn as_string(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
         Value::Symbol(sym) => sym,
     ]);
 
-    interpreter.stack.push(Value::String(GCRef::<String>::alloc(universe.lookup_symbol(sym).to_string(), universe.mutator.as_mut())));
+    interpreter.stack.push(Value::String(GCRef::<String>::alloc(universe.lookup_symbol(sym).to_string(), universe.allocator.as_mut())));
 }
 
 // NOTA BENE: this isn't a prim in our other interpreters (TSOM, PySOM), I guess

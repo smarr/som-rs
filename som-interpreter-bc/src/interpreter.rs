@@ -1,5 +1,5 @@
 use std::time::Instant;
-use mmtk::Mutator;
+use mmtk::util::alloc::BumpAllocator;
 use som_core::bytecode::Bytecode;
 use som_gc::SOMVM;
 use crate::block::Block;
@@ -80,7 +80,7 @@ impl Interpreter {
         }
     }
 
-    pub fn push_method_frame(&mut self, method: GCRef<Method>, args: Vec<Value>, mutator: &mut Mutator<SOMVM>) -> GCRef<Frame> {
+    pub fn push_method_frame(&mut self, method: GCRef<Method>, args: Vec<Value>, mutator: &mut BumpAllocator<SOMVM>) -> GCRef<Frame> {
         let frame_ptr = Frame::alloc_from_method(method, args, self.current_frame, mutator);
         
         self.bytecode_idx = 0;
@@ -89,7 +89,7 @@ impl Interpreter {
         frame_ptr
     }
 
-    pub fn push_block_frame(&mut self, block: GCRef<Block>, args: Vec<Value>, mutator: &mut Mutator<SOMVM>) -> GCRef<Frame> {
+    pub fn push_block_frame(&mut self, block: GCRef<Block>, args: Vec<Value>, mutator: &mut BumpAllocator<SOMVM>) -> GCRef<Frame> {
         let frame_ptr = Frame::alloc_from_block(block, args, self.current_frame, mutator);
         self.bytecode_idx = 0;
         self.current_bytecodes = frame_ptr.to_obj().bytecodes;
@@ -191,7 +191,7 @@ impl Interpreter {
                 Bytecode::PushBlock(idx) => {
                     let literal = frame.to_obj().lookup_constant(idx as usize);
                     let block = match literal {
-                        Literal::Block(blk) => GCRef::<Block>::alloc(blk.to_obj().clone(), universe.mutator.as_mut()),
+                        Literal::Block(blk) => GCRef::<Block>::alloc(blk.to_obj().clone(), universe.allocator.as_mut()),
                         _ => panic!("PushBlock expected a block, but got another invalid literal"),
                     };
                     block.to_obj().frame.replace(*frame);
@@ -199,22 +199,22 @@ impl Interpreter {
                 }
                 Bytecode::PushConstant(idx) => {
                     let literal = frame.to_obj().lookup_constant(idx as usize);
-                    let value = convert_literal(&frame, literal, universe.mutator.as_mut());
+                    let value = convert_literal(&frame, literal, universe.allocator.as_mut());
                     self.stack.push(value);
                 }
                 Bytecode::PushConstant0 => {
                     let literal = frame.to_obj().lookup_constant(0);
-                    let value = convert_literal(&frame, literal, universe.mutator.as_mut());
+                    let value = convert_literal(&frame, literal, universe.allocator.as_mut());
                     self.stack.push(value);
                 }
                 Bytecode::PushConstant1 => {
                     let literal = frame.to_obj().lookup_constant(1);
-                    let value = convert_literal(&frame, literal, universe.mutator.as_mut());
+                    let value = convert_literal(&frame, literal, universe.allocator.as_mut());
                     self.stack.push(value);
                 }
                 Bytecode::PushConstant2 => {
                     let literal = frame.to_obj().lookup_constant(2);
-                    let value = convert_literal(&frame, literal, universe.mutator.as_mut());
+                    let value = convert_literal(&frame, literal, universe.allocator.as_mut());
                     self.stack.push(value);
                 }
                 Bytecode::PushGlobal(idx) => {
@@ -448,7 +448,7 @@ impl Interpreter {
                     // }
 
                     let args = interpreter.stack.split_off(interpreter.stack.len() - nb_params - 1);
-                    interpreter.push_method_frame(method, args, universe.mutator.as_mut());
+                    interpreter.push_method_frame(method, args, universe.allocator.as_mut());
                 }
                 MethodKind::Primitive(func) => {
                     // eprintln!("Invoking prim {:?} (in {:?})", &method.signature, &method.holder.upgrade().unwrap().borrow().name);
@@ -496,7 +496,7 @@ impl Interpreter {
             }
         }
 
-        fn convert_literal(frame: &GCRef<Frame>, literal: Literal, mutator: &mut Mutator<SOMVM>) -> Value {
+        fn convert_literal(frame: &GCRef<Frame>, literal: Literal, mutator: &mut BumpAllocator<SOMVM>) -> Value {
             let value = match literal {
                 Literal::Symbol(sym) => Value::Symbol(sym),
                 Literal::String(val) => Value::String(val),

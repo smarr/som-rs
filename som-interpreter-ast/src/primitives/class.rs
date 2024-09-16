@@ -35,7 +35,7 @@ fn new(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
     ]);
 
     let instance = Instance::from_class(class);
-    let instance_ptr = GCRef::<Instance>::alloc(instance, universe.mutator.as_mut());
+    let instance_ptr = GCRef::<Instance>::alloc(instance, universe.allocator.as_mut());
     Return::Local(Value::Instance(instance_ptr))
 }
 
@@ -64,7 +64,7 @@ fn methods(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
         .map(|invokable| Value::Invokable(invokable.clone()))
         .collect();
 
-    Return::Local(Value::Array(GCRef::<Vec<Value>>::alloc(methods, universe.mutator.as_mut())))
+    Return::Local(Value::Array(GCRef::<Vec<Value>>::alloc(methods, universe.allocator.as_mut())))
 }
 
 fn fields(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
@@ -78,7 +78,7 @@ fn fields(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
         .map(|field_name| Value::String(Rc::new(field_name.clone())))
         .collect();
 
-    Return::Local(Value::Array(GCRef::<Vec<Value>>::alloc(fields, universe.mutator.as_mut())))
+    Return::Local(Value::Array(GCRef::<Vec<Value>>::alloc(fields, universe.allocator.as_mut())))
 }
 
 /// Search for an instance primitive matching the given signature.

@@ -34,7 +34,7 @@ fn get_bytecodes_from_method(class_txt: &str, method_name: &str) -> Vec<Bytecode
     let class_def = som_parser::apply(lang::class_def(), tokens.as_slice(), Some(&mut universe)).unwrap();
 
     let object_class = universe.object_class();
-    let class = compiler::compile_class(&mut universe.interner, &class_def, Some(&object_class), universe.mutator.as_mut());
+    let class = compiler::compile_class(&mut universe.interner, &class_def, Some(&object_class), universe.allocator.as_mut());
     assert!(class.is_some(), "could not compile test expression");
 
     let class = class.unwrap();

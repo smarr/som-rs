@@ -177,7 +177,7 @@ fn basic_interpreter_tests() {
 
         let object_class = universe.object_class();
         let class =
-            compiler::compile_class(&mut universe.interner, &class_def, Some(&object_class), universe.mutator.as_mut());
+            compiler::compile_class(&mut universe.interner, &class_def, Some(&object_class), universe.allocator.as_mut());
         assert!(class.is_some(), "could not compile test expression");
         let class = class.unwrap();
 
@@ -199,7 +199,7 @@ fn basic_interpreter_tests() {
             .lookup_method(method_name)
             .expect("method not found ??");
         
-        let frame = Frame::alloc_from_method(method, vec![Value::System], GCRef::default(), universe.mutator.as_mut());
+        let frame = Frame::alloc_from_method(method, vec![Value::System], GCRef::default(), universe.allocator.as_mut());
         let mut interpreter = Interpreter::new(frame);
         if let Some(output) = interpreter.run(&mut universe) {
             assert_eq!(&output, expected, "unexpected test output value");

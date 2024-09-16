@@ -143,7 +143,7 @@ fn concatenate(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
 
     interpreter
         .stack
-        .push(Value::String(GCRef::<String>::alloc(format!("{}{}", s1, s2), universe.mutator.as_mut())))
+        .push(Value::String(GCRef::<String>::alloc(format!("{}{}", s1, s2), universe.allocator.as_mut())))
 }
 
 fn as_symbol(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
@@ -177,7 +177,7 @@ fn char_at(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
     };
 
     // TODO opt: just return a pointer to the char in question, right?
-    interpreter.stack.push(Value::String(GCRef::<String>::alloc(String::from(value.chars().nth(idx).unwrap()), universe.mutator.as_mut())))
+    interpreter.stack.push(Value::String(GCRef::<String>::alloc(String::from(value.chars().nth(idx).unwrap()), universe.allocator.as_mut())))
 }
 
 fn eq(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
@@ -226,7 +226,7 @@ fn prim_substring_from_to(interpreter: &mut Interpreter, universe: &mut Universe
 
     let string = String::from(&value[from..to]);
 
-    interpreter.stack.push(Value::String(GCRef::<String>::alloc(string, universe.mutator.as_mut())))
+    interpreter.stack.push(Value::String(GCRef::<String>::alloc(string, universe.allocator.as_mut())))
 }
 
 /// Search for an instance primitive matching the given signature.

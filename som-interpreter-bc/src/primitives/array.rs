@@ -79,7 +79,7 @@ fn new(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
                 GCRef::<Vec<Value>>::alloc(vec![
                 Value::Nil;
                 length
-            ], universe.mutator.as_mut()))),
+            ], universe.allocator.as_mut()))),
         Err(err) => panic!("'{}': {}", SIGNATURE, err),
     }
 }

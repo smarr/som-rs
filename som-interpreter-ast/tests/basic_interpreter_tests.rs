@@ -169,7 +169,7 @@ fn basic_interpreter_tests() {
         );
 
         let ast_parser = som_parser::apply(lang::expression(), tokens.as_slice(), None).unwrap();
-        let mut compiler = AstMethodCompilerCtxt { scopes: vec![], super_class: None, mutator: universe.mutator.as_mut() };
+        let mut compiler = AstMethodCompilerCtxt { scopes: vec![], super_class: None, mutator: universe.allocator.as_mut() };
         let mut ast = compiler.parse_expression(&ast_parser);
         
         // let signature = universe.intern_symbol(expr.split(' ').skip(1).next().unwrap_or("unknown"));

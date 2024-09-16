@@ -4,6 +4,7 @@ use som_core::gc::{CustomAlloc, GCRef};
 use som_gc::SOMVM;
 use std::marker::PhantomData;
 use core::mem::size_of;
+use mmtk::util::alloc::BumpAllocator;
 
 /// The kind of a given frame.
 // #[cfg(feature = "frame-debug-info")]
@@ -52,7 +53,7 @@ impl Frame {
     //     frame
     // }
 
-    pub fn alloc_new_frame(nbr_locals: usize, mut params: Vec<Value>, prev_frame: GCRef<Frame>, mutator: &mut Mutator<SOMVM>) -> GCRef<Self> {
+    pub fn alloc_new_frame(nbr_locals: usize, mut params: Vec<Value>, prev_frame: GCRef<Frame>, mutator: &mut BumpAllocator<SOMVM>) -> GCRef<Self> {
         let frame = Self {
             prev_frame,
             nbr_locals,
@@ -194,7 +195,7 @@ impl FrameAccess for GCRef<Frame> {
 
 // this is a duplicate of the BC logic. they need unifying somehow, though it's easier said than done
 impl CustomAlloc<Frame> for Frame {
-    fn alloc(frame: Frame, mutator: &mut Mutator<SOMVM>) -> GCRef<Frame> {
+    fn alloc(frame: Frame, mutator: &mut BumpAllocator<SOMVM>) -> GCRef<Frame> {
         let nbr_locals = frame.nbr_locals;
         let nbr_args = frame.nbr_args;
         let size = size_of::<Frame>() + ((nbr_args + nbr_locals) * size_of::<Value>());

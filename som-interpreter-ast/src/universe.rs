@@ -6,6 +6,7 @@ use std::time::Instant;
 
 use anyhow::{anyhow, Error};
 use mmtk::Mutator;
+use mmtk::util::alloc::BumpAllocator;
 use mmtk::util::VMMutatorThread;
 use som_core::gc::GCRef;
 use som_core::universe::UniverseForParser;
@@ -84,7 +85,7 @@ pub struct UniverseAST {
     /// The time record of the universe's creation.
     pub start_time: Instant,
     /// mutator itself for GC
-    pub mutator: Box<mmtk::Mutator<SOMVM>>,
+    pub allocator: Box<BumpAllocator<SOMVM>>,
     /// mutator thread for GC
     pub mutator_thread: VMMutatorThread
 }
@@ -107,7 +108,7 @@ impl UniverseForParser for UniverseAST {
 
 impl UniverseAST {
     /// Initialize the universe from the given classpath.
-    pub fn with_classpath(classpath: Vec<PathBuf>, mut mutator: Box<mmtk::Mutator<SOMVM>>, mutator_thread: VMMutatorThread) -> Result<Self, Error> {
+    pub fn with_classpath(classpath: Vec<PathBuf>, mut mutator: Box<BumpAllocator<SOMVM>>, mutator_thread: VMMutatorThread) -> Result<Self, Error> {
         let interner = Interner::with_capacity(100);
         let mut globals = HashMap::new();
 
@@ -231,7 +232,7 @@ impl UniverseAST {
                 true_class,
                 false_class,
             },
-            mutator,
+            allocator: mutator,
             mutator_thread
         })
     }
@@ -279,7 +280,7 @@ impl UniverseAST {
                 self.core.object_class.clone()
             };
 
-            let class = Class::from_class_def(defn, Some(super_class), self.mutator.as_mut()).map_err(Error::msg)?;
+            let class = Class::from_class_def(defn, Some(super_class), self.allocator.as_mut()).map_err(Error::msg)?;
             set_super_class(&class, &super_class, &self.core.metaclass_class);
 
             /*fn has_duplicated_field(class: &SOMRef<Class>) -> Option<(String, (String, String))> {
@@ -334,7 +335,7 @@ impl UniverseAST {
         classpath: &[impl AsRef<Path>],
         class_name: impl Into<String>,
         super_class: Option<GCRef<Class>>,
-        mutator: &mut Mutator<SOMVM>
+        mutator: &mut BumpAllocator<SOMVM>
     ) -> Result<GCRef<Class>, Error> {
         let class_name = class_name.into();
         for path in classpath {
@@ -461,7 +462,7 @@ impl UniverseAST {
     // }
 
     pub fn with_frame<T>(&mut self, nbr_locals: usize, args: Vec<Value>, func: impl FnOnce(&mut Self) -> T) -> T {
-        let frame = Frame::alloc_new_frame(nbr_locals, args, self.current_frame, self.mutator.as_mut());
+        let frame = Frame::alloc_new_frame(nbr_locals, args, self.current_frame, self.allocator.as_mut());
         self.current_frame = frame;
         let ret = func(self);
         self.current_frame = frame.to_obj().prev_frame;
@@ -553,7 +554,7 @@ impl UniverseAST {
         let initialize = value.lookup_method(self, "doesNotUnderstand:arguments:")?;
         let sym = self.intern_symbol(symbol.as_ref());
         let sym = Value::Symbol(sym);
-        let args = Value::Array(GCRef::<Vec<Value>>::alloc(args, self.mutator.as_mut()));
+        let args = Value::Array(GCRef::<Vec<Value>>::alloc(args, self.allocator.as_mut()));
 
        // eprintln!("Couldn't invoke {}; exiting.", symbol.as_ref()); std::process::exit(1);
         
@@ -582,7 +583,7 @@ impl UniverseAST {
     /// Call `System>>#initialize:` with the given name, if it is defined.
     pub fn initialize(&mut self, args: Vec<Value>) -> Option<Return> {
         let initialize = Value::System.lookup_method(self, "initialize:")?;
-        let args = Value::Array(GCRef::<Vec<Value>>::alloc(args, self.mutator.as_mut()));
+        let args = Value::Array(GCRef::<Vec<Value>>::alloc(args, self.allocator.as_mut()));
 
         let program_result = initialize.to_obj().invoke(self, vec![Value::System, args]);
         Some(program_result)
