@@ -26,7 +26,7 @@ impl Drop for GCInterface {
 }
 
 impl GCInterface {
-    /// Initialize the GCInterface. Internally inits MMTk and fetches everything needed to actually communicate with the GC. 
+    /// Initialize the GCInterface. Internally inits MMTk and fetches everything needed to actually communicate with the GC.
     pub fn init() -> Self {
         let (mutator_thread, mutator, default_allocator) = init_gc();
         Self {
@@ -35,7 +35,7 @@ impl GCInterface {
             default_allocator
         }
     }
-    
+
     /// Dispatches a manual collection request to MMTk.
     pub fn full_gc_request(&self) {
         mmtk_handle_user_collection_request(self.mutator_thread)
@@ -85,16 +85,19 @@ impl<T> GCRef<T> {
     }
     
     /// Hacks for convenience, since I'm refactoring from Refcounts. TODO remove
+    #[inline(always)]
     pub fn borrow(&self) -> &mut T {
         Self::to_obj(self)
     }
 
     /// same deal
+    #[inline(always)]
     pub fn borrow_mut(&self) -> &mut T {
         Self::to_obj(self)
     }
 
     /// same dealll
+    #[inline(always)]
     pub fn as_ptr(&self) -> &mut T {
         Self::to_obj(self)
     }
@@ -108,14 +111,20 @@ impl<T> GCRef<T> {
 impl<T> GCRef<T> {
     // Allocates a type on the heap and returns a pointer to it.
     pub fn alloc(obj: T, gc_interface: &mut GCInterface) -> GCRef<T> {
-        Self::alloc_with_size_cached_allocator(obj, gc_interface, size_of::<T>())
+        Self::alloc_with_size(obj, gc_interface, size_of::<T>())
         // Self::alloc_with_size(obj, gc_interface, size_of::<T>())
     }
 
     // Allocates a type, but with a given size. Useful when an object needs more than what we tell Rust through defining a struct. 
     // (e.g. Value arrays stored directly in the heap - see BC Frame)
-    #[inline(always)]
     pub fn alloc_with_size(obj: T, gc_interface: &mut GCInterface, size: usize) -> GCRef<T> {
+        Self::alloc_with_size_cached_allocator(obj, gc_interface, size)
+        // Self::alloc_with_size_allocator_uncached(obj, gc_interface, size)
+    }
+
+    #[inline(always)]
+    #[allow(dead_code)]
+    fn alloc_with_size_allocator_uncached(obj: T, gc_interface: &mut GCInterface, size: usize) -> GCRef<T> {
         let mutator = gc_interface.mutator.as_mut();
         let addr = mmtk_alloc(mutator, size, GC_ALIGN, GC_OFFSET, GC_SEMANTICS);
         debug_assert!(!addr.is_zero());
@@ -134,24 +143,24 @@ impl<T> GCRef<T> {
         }
     }
     
-    pub fn alloc_with_size_cached_allocator(obj: T, gc_interface: &mut GCInterface, size: usize) -> GCRef<T> {
+    fn alloc_with_size_cached_allocator(obj: T, gc_interface: &mut GCInterface, size: usize) -> GCRef<T> {
         debug_assert!(size >= MIN_OBJECT_SIZE);
         let allocator = unsafe {&mut (*gc_interface.default_allocator)};
         let addr = allocator.alloc(size, GC_ALIGN, GC_OFFSET);
         debug_assert!(!addr.is_zero());
-    
-    
+
+
         // let obj = SOMVM::object_start_to_ref(addr);
         // let space = allocator.get_space();
         // debug_assert!(!obj.to_raw_address().is_zero());
         // space.initialize_object_metadata(obj, true);
-    
+
         allocator.get_space().initialize_object_metadata(SOMVM::object_start_to_ref(addr), true);
-    
+
         unsafe {
             *addr.as_mut_ref() = obj;
         }
-    
+
         GCRef {
             ptr: addr,
             _phantom: PhantomData,
