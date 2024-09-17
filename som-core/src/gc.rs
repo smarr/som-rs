@@ -5,8 +5,7 @@ use std::marker::PhantomData;
 use mmtk::{AllocationSemantics, Mutator};
 use mmtk::util::alloc::{Allocator, BumpAllocator};
 use mmtk::util::constants::MIN_OBJECT_SIZE;
-// use mmtk::util::alloc::BumpAllocator;
-use som_gc::api::{mmtk_alloc, mmtk_destroy_mutator, mmtk_handle_user_collection_request, mmtk_post_alloc};
+use som_gc::api::{mmtk_alloc, mmtk_destroy_mutator, mmtk_handle_user_collection_request};
 use som_gc::entry_point::init_gc;
 
 static GC_OFFSET: usize = 0;
@@ -131,7 +130,8 @@ impl<T> GCRef<T> {
 
         // println!("{}", mmtk_free_bytes());
 
-        mmtk_post_alloc(mutator, SOMVM::object_start_to_ref(addr), size, GC_SEMANTICS);
+        // AFAIK, this is not needed.
+        // mmtk_post_alloc(mutator, SOMVM::object_start_to_ref(addr), size, GC_SEMANTICS);
 
         unsafe {
             *addr.as_mut_ref() = obj;
