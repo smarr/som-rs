@@ -60,12 +60,12 @@ impl Instance {
 }
 
 impl CustomAlloc<Instance> for Instance {
-    fn alloc(instance: Instance, mutator: &mut GCInterface) -> GCRef<Self> {
+    fn alloc(instance: Instance, gc_interface: &mut GCInterface) -> GCRef<Self> {
         let size = size_of::<Instance>() + (instance.nbr_fields * size_of::<Value>());
         
         let nbr_fields = instance.nbr_fields;
         
-        let instance_ref = GCRef::<Instance>::alloc_with_size(instance, mutator.mutator.as_mut(), size);
+        let instance_ref = GCRef::<Instance>::alloc_with_size(instance, gc_interface, size);
         
         unsafe {
             let mut values_addr = instance_ref.ptr.add(size_of::<Instance>());

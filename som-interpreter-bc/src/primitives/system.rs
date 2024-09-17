@@ -1,6 +1,5 @@
 use std::convert::TryFrom;
 use std::fs;
-use som_gc::api::mmtk_handle_user_collection_request;
 #[cfg(feature = "frame-debug-info")]
 use crate::frame::FrameKind;
 
@@ -250,7 +249,7 @@ fn full_gc(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
 
     expect_args!(SIGNATURE, interpreter, [Value::System]);
 
-    mmtk_handle_user_collection_request(universe.gc_interface.mutator_thread);
+    universe.gc_interface.full_gc_request();
     
     // should return true or false depending on whether it failed, tbh.
     interpreter.stack.push(Value::Boolean(true));

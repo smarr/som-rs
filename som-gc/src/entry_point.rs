@@ -18,12 +18,12 @@ pub fn init_gc() -> (VMMutatorThread, Box<Mutator<SOMVM>>) {
         // assert!(ok);
         // let ok = builder.set_option("analysis_factor", DEFAULT_STRESS_FACTOR.to_string().as_str());
         // assert!(ok);
-        
+
         mmtk_init(&mut builder);
         // let worked_thread = VMWorkerThread(VMThread(OpaquePointer::UNINITIALIZED));
         mmtk_initialize_collection(VMThread(OpaquePointer::UNINITIALIZED));
     }
-    
+
     let tls = VMMutatorThread(VMThread(OpaquePointer::UNINITIALIZED)); // TODO: do I need a thread pointer here?
     let mutator = mmtk_bind_mutator(tls);
 

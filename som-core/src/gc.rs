@@ -4,7 +4,7 @@ use som_gc::SOMVM;
 use std::marker::PhantomData;
 use mmtk::{AllocationSemantics, Mutator};
 // use mmtk::util::alloc::BumpAllocator;
-use som_gc::api::{mmtk_alloc, mmtk_destroy_mutator, mmtk_post_alloc};
+use som_gc::api::{mmtk_alloc, mmtk_destroy_mutator, mmtk_handle_user_collection_request, mmtk_post_alloc};
 use som_gc::entry_point::init_gc;
 
 static GC_OFFSET: usize = 0;
@@ -12,8 +12,8 @@ static GC_ALIGN: usize = 8;
 static GC_SEMANTICS: AllocationSemantics = AllocationSemantics::Default;
 
 pub struct GCInterface {
-    pub mutator_thread: VMMutatorThread, // todo should be pub(crate)
-    pub mutator: Box<Mutator<SOMVM>>,
+    mutator_thread: VMMutatorThread,
+    mutator: Box<Mutator<SOMVM>>,
     // pub default_allocator: Box<BumpAllocator<SOMVM>>
 }
 
@@ -24,6 +24,7 @@ impl Drop for GCInterface {
 }
 
 impl GCInterface {
+    /// Initialize the GCInterface. Internally inits MMTk and fetches everything needed to actually communicate with the GC. 
     pub fn init() -> Self {
         let (mutator_thread, mutator) = init_gc();
         Self {
@@ -31,6 +32,11 @@ impl GCInterface {
             mutator,
             // default_allocator
         }
+    }
+    
+    /// Dispatches a manual collection request to MMTk.
+    pub fn full_gc_request(&self) {
+        mmtk_handle_user_collection_request(self.mutator_thread)
     }
 }
 
@@ -101,13 +107,14 @@ impl<T> GCRef<T> {
     // Allocates a type on the heap and returns a pointer to it.
     pub fn alloc(obj: T, gc_interface: &mut GCInterface) -> GCRef<T> {
         // Self::alloc_with_size_cached_allocator(obj, gc_interface, size_of::<T>())
-        Self::alloc_with_size(obj, gc_interface.mutator.as_mut(), size_of::<T>())
+        Self::alloc_with_size(obj, gc_interface, size_of::<T>())
     }
 
     // Allocates a type, but with a given size. Useful when an object needs more than what we tell Rust through defining a struct. 
     // (e.g. Value arrays stored directly in the heap - see BC Frame)
     #[inline(always)]
-    pub fn alloc_with_size(obj: T, mutator: &mut Mutator<SOMVM>, size: usize) -> GCRef<T> {
+    pub fn alloc_with_size(obj: T, gc_interface: &mut GCInterface, size: usize) -> GCRef<T> {
+        let mutator = gc_interface.mutator.as_mut();
         let addr = mmtk_alloc(mutator, size, GC_ALIGN, GC_OFFSET, GC_SEMANTICS);
         debug_assert!(!addr.is_zero());
 
