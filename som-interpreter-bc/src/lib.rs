@@ -35,7 +35,7 @@ pub mod inliner;
 /// Facilities for profiling the SOM VM during execution.
 #[cfg(feature = "profiler")]
 pub mod profiler;
-
+mod convert;
 // /// A strong and owning reference to an object.
 // pub type SOMRef<T> = Rc<RefCell<T>>;
 // /// A weak reference to an object.

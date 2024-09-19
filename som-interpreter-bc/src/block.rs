@@ -1,15 +1,15 @@
-#[cfg(feature = "frame-debug-info")]
-use som_core::ast::BlockDebugInfo;
-use std::cell::RefCell;
-use std::fmt;
-use som_core::bytecode::Bytecode;
 use crate::class::Class;
 use crate::compiler::Literal;
 use crate::frame::Frame;
-use som_core::gc::{GCInterface, GCRef};
 // use crate::interner::Interned;
 use crate::method::Method;
 use crate::universe::UniverseBC;
+#[cfg(feature = "frame-debug-info")]
+use som_core::ast::BlockDebugInfo;
+use som_core::bytecode::Bytecode;
+use som_core::gc::{GCInterface, GCRef};
+use std::cell::RefCell;
+use std::fmt;
 
 #[derive(Clone)]
 pub struct BlockInfo {

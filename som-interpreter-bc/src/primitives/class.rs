@@ -1,95 +1,103 @@
-use som_core::gc::GCRef;
+use crate::class::Class;
+use crate::convert::Primitive;
 use crate::instance::Instance;
+use crate::interner::Interned;
 use crate::interpreter::Interpreter;
 use crate::primitives::PrimitiveFn;
 use crate::universe::UniverseBC;
 use crate::value::Value;
-use crate::{expect_args, reverse};
+use anyhow::Error;
+use once_cell::sync::Lazy;
+use som_core::gc::GCRef;
 
-pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[
-    ("new", self::new, true),
-    ("name", self::name, true),
-    ("fields", self::fields, true),
-    ("methods", self::methods, true),
-    ("superclass", self::superclass, true),
-];
-pub static CLASS_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[];
+pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| {
+    Box::new({
+        [
+            ("new", self::new.into_func(), true),
+            ("name", self::name.into_func(), true),
+            ("fields", self::fields.into_func(), true),
+            ("methods", self::methods.into_func(), true),
+            ("superclass", self::superclass.into_func(), true),
+        ]
+    })
+});
+pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> =
+    Lazy::new(|| Box::new([]));
 
-fn superclass(interpreter: &mut Interpreter, _: &mut UniverseBC) {
-    const SIGNATURE: &str = "Class>>#superclass";
+fn superclass(
+    interpreter: &mut Interpreter,
+    _: &mut UniverseBC,
+    receiver: GCRef<Class>,
+) -> Result<(), Error> {
+    const _: &str = "Class>>#superclass";
 
-    expect_args!(SIGNATURE, interpreter, [
-        Value::Class(class) => class,
-    ]);
+    let super_class = receiver.borrow().super_class();
+    let super_class = super_class.map_or(Value::Nil, |it| Value::Class(it));
+    interpreter.stack.push(super_class);
 
-    let super_class = class.to_obj().super_class();
-    interpreter
-        .stack
-        .push(super_class.map(Value::Class).unwrap_or(Value::Nil));
+    Ok(())
 }
 
-fn new(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
-    const SIGNATURE: &str = "Class>>#new";
+fn new(
+    _: &mut Interpreter,
+    universe: &mut UniverseBC,
+    receiver: GCRef<Class>,
+) -> Result<GCRef<Instance>, Error> {
+    const _: &str = "Class>>#new";
 
-    expect_args!(SIGNATURE, interpreter, [
-        Value::Class(class) => class,
-    ]);
+    let instance = Instance::from_class(receiver, &mut universe.gc_interface);
 
-    let instance_ref = Instance::from_class(class, &mut universe.gc_interface);
-    interpreter.stack.push(Value::Instance(instance_ref));
+    Ok(instance)
 }
 
-fn name(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
-    const SIGNATURE: &str = "Class>>#name";
+fn name(
+    _: &mut Interpreter,
+    universe: &mut UniverseBC,
+    receiver: GCRef<Class>,
+) -> Result<Interned, Error> {
+    const _: &str = "Class>>#name";
 
-    expect_args!(SIGNATURE, interpreter, [
-        Value::Class(class) => class,
-    ]);
-
-    let sym = universe.intern_symbol(class.to_obj().name());
-    interpreter.stack.push(Value::Symbol(sym));
+    Ok(universe.intern_symbol(receiver.borrow().name()))
 }
 
-fn methods(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
-    const SIGNATURE: &str = "Class>>#methods";
+fn methods(
+    _: &mut Interpreter,
+    universe: &mut UniverseBC,
+    receiver: GCRef<Class>,
+) -> Result<GCRef<Vec<Value>>, Error> {
+    const _: &str = "Class>>#methods";
 
-    expect_args!(SIGNATURE, interpreter, [
-        Value::Class(class) => class,
-    ]);
-
-    let methods = class
-        .to_obj()
+    let methods = receiver
+        .borrow()
         .methods
         .values()
-        .map(|invokable| Value::Invokable(invokable.clone()))
+        .copied()
+        .map(Value::Invokable)
         .collect();
 
-    interpreter
-        .stack
-        .push(Value::Array(GCRef::<Vec<Value>>::alloc(methods, &mut universe.gc_interface)));
+    Ok(universe.gc_interface.allocate(methods))
 }
 
-fn fields(interpreter: &mut Interpreter, universe: &mut UniverseBC) {
-    const SIGNATURE: &str = "Class>>#fields";
+fn fields(
+    _: &mut Interpreter,
+    universe: &mut UniverseBC,
+    receiver: GCRef<Class>,
+) -> Result<GCRef<Vec<Value>>, Error> {
+    const _: &str = "Class>>#fields";
 
-    expect_args!(SIGNATURE, interpreter, [
-        Value::Class(class) => class,
-    ]);
+    let fields = receiver
+        .borrow()
+        .locals
+        .keys()
+        .copied()
+        .map(Value::Symbol)
+        .collect();
 
-    interpreter.stack.push(Value::Array(GCRef::<Vec<Value>>::alloc(
-        class
-            .to_obj()
-            .locals
-            .keys()
-            .copied()
-            .map(Value::Symbol)
-            .collect(),
-        &mut universe.gc_interface,
-    )));
+    Ok(universe.gc_interface.allocate(fields))
 }
 
 /// Search for an instance primitive matching the given signature.
-pub fn get_instance_primitive(signature: &str) -> Option<PrimitiveFn> {
+pub fn get_instance_primitive(signature: &str) -> Option<&'static PrimitiveFn> {
     INSTANCE_PRIMITIVES
         .iter()
         .find(|it| it.0 == signature)
@@ -97,7 +105,7 @@ pub fn get_instance_primitive(signature: &str) -> Option<PrimitiveFn> {
 }
 
 /// Search for a class primitive matching the given signature.
-pub fn get_class_primitive(signature: &str) -> Option<PrimitiveFn> {
+pub fn get_class_primitive(signature: &str) -> Option<&'static PrimitiveFn> {
     CLASS_PRIMITIVES
         .iter()
         .find(|it| it.0 == signature)

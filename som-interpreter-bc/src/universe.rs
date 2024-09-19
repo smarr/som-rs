@@ -3,16 +3,16 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
-use anyhow::{anyhow, Error};
-use som_core::universe::UniverseForParser;
 use crate::block::Block;
 use crate::class::Class;
 use crate::compiler;
 use crate::frame::Frame;
-use som_core::gc::{GCInterface, GCRef};
 use crate::interner::{Interned, Interner};
 use crate::interpreter::Interpreter;
 use crate::value::Value;
+use anyhow::{anyhow, Error};
+use som_core::gc::{GCInterface, GCRef};
+use som_core::universe::UniverseForParser;
 
 /// The core classes of the SOM interpreter.
 ///

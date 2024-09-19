@@ -1,12 +1,12 @@
-use std::fmt;
-use num_bigint::BigInt;
 use crate::block::Block;
 use crate::class::Class;
-use som_core::gc::GCRef;
 use crate::instance::{Instance, InstanceAccess};
 use crate::interner::Interned;
 use crate::method::Method;
 use crate::universe::UniverseBC;
+use num_bigint::BigInt;
+use som_core::gc::GCRef;
+use std::fmt;
 
 /// Represents an SOM value.
 #[derive(Clone)]
@@ -20,7 +20,7 @@ pub enum Value {
     /// An integer value.
     Integer(i64),
     /// A big integer value (arbitrarily big).
-    BigInteger(BigInt),
+    BigInteger(GCRef<BigInt>),
     /// An floating-point value.
     Double(f64),
     /// An interned symbol value.
@@ -101,7 +101,7 @@ impl Value {
             Self::System => "system".to_string(),
             Self::Boolean(value) => value.to_string(),
             Self::Integer(value) => value.to_string(),
-            Self::BigInteger(value) => value.to_string(),
+            Self::BigInteger(value) => value.to_obj().to_string(),
             Self::Double(value) => value.to_string(),
             Self::Symbol(value) => {
                 let symbol = universe.lookup_symbol(*value);
@@ -146,7 +146,7 @@ impl PartialEq for Value {
             (Self::Double(a), Self::Double(b)) => a.eq(b),
             (Self::BigInteger(a), Self::BigInteger(b)) => a.eq(b),
             (Self::BigInteger(a), Self::Integer(b)) | (Self::Integer(b), Self::BigInteger(a)) => {
-                a.eq(&BigInt::from(*b))
+                a.as_ref().eq(&BigInt::from(*b))
             }
             (Self::Symbol(a), Self::Symbol(b)) => a.eq(b),
             (Self::String(a), Self::String(b)) => a.to_obj() == b.to_obj(),

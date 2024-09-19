@@ -1,20 +1,6 @@
 #![allow(dead_code)]
 #![allow(unused_imports)]
 
-use std::io;
-use std::io::{BufRead, Write};
-use std::time::Instant;
-
-use anyhow::Error;
-
-use som_lexer::{Lexer, Token};
-use som_parser::lang;
-
-use som_interpreter_bc::compiler;
-use som_interpreter_bc::interpreter::Interpreter;
-use som_interpreter_bc::universe::UniverseBC;
-use som_interpreter_bc::value::Value;
-
 // /// Launches an interactive Read-Eval-Print-Loop within the given universe.
 /*
 pub fn interactive(

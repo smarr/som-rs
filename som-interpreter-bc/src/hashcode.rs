@@ -25,7 +25,7 @@ impl Hash for Value {
             }
             Value::BigInteger(value) => {
                 hasher.write(b"#bigint#");
-                value.hash(hasher);
+                value.to_obj().hash(hasher);
             }
             Value::Double(value) => {
                 hasher.write(b"#double#");

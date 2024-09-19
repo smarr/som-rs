@@ -1,12 +1,12 @@
 use core::mem::size_of;
-use mmtk::util::{Address, VMMutatorThread};
-use som_gc::SOMVM;
-use std::marker::PhantomData;
-use mmtk::{AllocationSemantics, Mutator};
 use mmtk::util::alloc::{Allocator, BumpAllocator};
 use mmtk::util::constants::MIN_OBJECT_SIZE;
+use mmtk::util::{Address, VMMutatorThread};
+use mmtk::{AllocationSemantics, Mutator};
 use som_gc::api::{mmtk_alloc, mmtk_destroy_mutator, mmtk_handle_user_collection_request};
 use som_gc::entry_point::init_gc;
+use som_gc::SOMVM;
+use std::marker::PhantomData;
 
 static GC_OFFSET: usize = 0;
 static GC_ALIGN: usize = 8;
@@ -38,6 +38,10 @@ impl GCInterface {
     /// Dispatches a manual collection request to MMTk.
     pub fn full_gc_request(&self) {
         mmtk_handle_user_collection_request(self.mutator_thread)
+    }
+
+    pub fn allocate<T>(&mut self, obj: T) -> GCRef<T> {
+        GCRef::<T>::alloc(obj, self)
     }
 }
 
@@ -81,6 +85,12 @@ impl<T> GCRef<T> {
     pub fn to_obj(&self) -> &mut T {
         debug_assert!(!self.ptr.is_zero());
         unsafe { &mut *(self.ptr.as_mut_ref()) }
+    }
+
+    #[inline(always)]
+    pub fn as_ref(&self) -> &T {
+        debug_assert!(!self.ptr.is_zero());
+        unsafe { &*(self.ptr.as_ref()) }
     }
     
     /// Hacks for convenience, since I'm refactoring from Refcounts. TODO remove

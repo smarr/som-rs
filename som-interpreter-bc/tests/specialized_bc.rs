@@ -1,12 +1,12 @@
 use som_core::bytecode::Bytecode;
 use som_core::bytecode::Bytecode::*;
-use std::path::PathBuf;
 use som_core::gc::GCInterface;
 use som_interpreter_bc::compiler;
 use som_interpreter_bc::method::MethodKind;
 use som_interpreter_bc::universe::UniverseBC;
 use som_lexer::{Lexer, Token};
 use som_parser::lang;
+use std::path::PathBuf;
 
 fn setup_universe() -> UniverseBC {
     let classpath = vec![

@@ -8,13 +8,13 @@ use std::path::PathBuf;
 use anyhow::{bail, Context};
 #[cfg(feature = "jemalloc")]
 use jemallocator::Jemalloc;
-use structopt::StructOpt;
 use som_interpreter_bc::class::Class;
+use structopt::StructOpt;
 
 mod shell;
 
-use som_interpreter_bc::disassembler::disassemble_method_body;
 use som_core::gc::{GCInterface, GCRef};
+use som_interpreter_bc::disassembler::disassemble_method_body;
 use som_interpreter_bc::method::{Method, MethodKind};
 use som_interpreter_bc::universe::UniverseBC;
 use som_interpreter_bc::value::Value;

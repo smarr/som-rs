@@ -1,15 +1,17 @@
-use std::time::Instant;
-use som_core::bytecode::Bytecode;
 use crate::block::Block;
 use crate::class::Class;
 use crate::compiler::Literal;
 use crate::frame::{Frame, FrameAccess};
-use som_core::gc::{GCInterface, GCRef};
 use crate::instance::InstanceAccess;
 use crate::interner::Interned;
 use crate::method::{Method, MethodKind};
 use crate::universe::UniverseBC;
 use crate::value::Value;
+use num_bigint::BigInt;
+use som_core::bytecode::Bytecode;
+use som_core::gc::{GCInterface, GCRef};
+use std::time::Instant;
+use anyhow::Context;
 
 const INT_0: Value = Value::Integer(0);
 const INT_1: Value = Value::Integer(1);
@@ -143,7 +145,7 @@ impl Interpreter {
                 Bytecode::Inc => {
                     match self.stack.last_mut()? {
                         Value::Integer(v) => { *v += 1 }
-                        Value::BigInteger(v) => { *v += 1 }
+                        Value::BigInteger(v) => { *v.to_obj() += 1 }
                         Value::Double(v) => { *v += 1.0 }
                         _ => panic!("Invalid type")
                     };
@@ -151,7 +153,7 @@ impl Interpreter {
                 Bytecode::Dec => {
                     match self.stack.last_mut()? {
                         Value::Integer(v) => { *v -= 1 }
-                        Value::BigInteger(v) => { *v -= 1 }
+                        Value::BigInteger(v) => { *v.to_obj() -= 1 }
                         Value::Double(v) => { *v -= 1.0 }
                         _ => panic!("Invalid type")
                     };
@@ -366,10 +368,10 @@ impl Interpreter {
                         Value::Boolean(true) => {
                             self.bytecode_idx += offset - 1;
                             *self.stack.last_mut()? = Value::Nil;
-                        }
+                        },
                         Value::Boolean(false) => {
                             self.stack.pop();
-                        }
+                        },
                         _ => panic!("JumpOnTrueTopNil condition did not evaluate to boolean (was {:?})", condition_result),
                     }
                 }
@@ -377,13 +379,13 @@ impl Interpreter {
                     let condition_result = self.stack.last()?;
 
                     match condition_result {
+                        Value::Boolean(true) => {
+                            self.stack.pop();
+                        },
                         Value::Boolean(false) => {
                             self.bytecode_idx += offset - 1;
                             *self.stack.last_mut()? = Value::Nil;
-                        }
-                        Value::Boolean(true) => {
-                            self.stack.pop();
-                        }
+                        },
                         _ => panic!("JumpOnFalseTopNil condition did not evaluate to boolean (was {:?})", condition_result),
                     }
                 }
@@ -393,8 +395,8 @@ impl Interpreter {
                     match condition_result {
                         Value::Boolean(true) => {
                             self.bytecode_idx += offset - 1;
-                        }
-                        Value::Boolean(false) => {}
+                        },
+                        Value::Boolean(false) => {},
                         _ => panic!("JumpOnTruePop condition did not evaluate to boolean (was {:?})", condition_result),
                     }
                 }
@@ -404,9 +406,9 @@ impl Interpreter {
                     match condition_result {
                         Value::Boolean(false) => {
                             self.bytecode_idx += offset - 1;
-                        }
-                        Value::Boolean(true) => {}
-                        _ => panic!("JumpOnFalsePop condition did not evaluate to boolean (was {:?})", condition_result),
+                        },
+                        Value::Boolean(true) => {},
+                        _ => panic!("JumpOnTruePop condition did not evaluate to boolean (was {:?})", condition_result),
                     }
                 }
             }
@@ -450,7 +452,7 @@ impl Interpreter {
                 }
                 MethodKind::Primitive(func) => {
                     // eprintln!("Invoking prim {:?} (in {:?})", &method.signature, &method.holder.upgrade().unwrap().borrow().name);
-                    func(interpreter, universe);
+                    func(interpreter, universe).with_context(|| anyhow::anyhow!("error calling primitive `{}`", universe.lookup_symbol(symbol))).unwrap();
                 }
                 MethodKind::NotImplemented(err) => {
                     let self_value = interpreter.stack.iter().nth_back(nb_params).unwrap();
@@ -494,22 +496,25 @@ impl Interpreter {
             }
         }
 
-        fn convert_literal(frame: &GCRef<Frame>, literal: Literal, mutator: &mut GCInterface) -> Value {
+        fn convert_literal(frame: &GCRef<Frame>, literal: Literal, gc_interface: &mut GCInterface) -> Value {
             let value = match literal {
                 Literal::Symbol(sym) => Value::Symbol(sym),
                 Literal::String(val) => Value::String(val),
                 Literal::Double(val) => Value::Double(val),
                 Literal::Integer(val) => Value::Integer(val),
-                Literal::BigInteger(val) => Value::BigInteger(val),
+                Literal::BigInteger(val) => {
+                    let ptr_big_int = GCRef::<BigInt>::alloc(val, gc_interface);
+                    Value::BigInteger(ptr_big_int)
+                },
                 Literal::Array(val) => {
                     let arr = val
                         .into_iter()
                         .map(|idx| {
                             let lit = frame.to_obj().lookup_constant(idx as usize);
-                            convert_literal(frame, lit, mutator)
+                            convert_literal(frame, lit, gc_interface)
                         })
                         .collect::<Vec<_>>();
-                    Value::Array(GCRef::<Vec<Value>>::alloc(arr, mutator))
+                    Value::Array(GCRef::<Vec<Value>>::alloc(arr, gc_interface))
                 }
                 Literal::Block(val) => Value::Block(val),
             };
