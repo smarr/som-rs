@@ -16,7 +16,7 @@ pub fn interactive(
     let mut counter = 0;
     let method_name = universe.intern_symbol("run:");
     let mut line = String::new();
-    let mut last_value = Value::Nil;
+    let mut last_value = Value::NIL;
     loop {
         write!(&mut stdout, "({}) SOM Shell | ", counter)?;
         stdout.flush()?;

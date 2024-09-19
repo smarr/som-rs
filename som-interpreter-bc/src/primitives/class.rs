@@ -32,7 +32,7 @@ fn superclass(
     const _: &str = "Class>>#superclass";
 
     let super_class = receiver.borrow().super_class();
-    let super_class = super_class.map_or(Value::Nil, |it| Value::Class(it));
+    let super_class = super_class.map_or(Value::NIL, |it| Value::Class(it));
     interpreter.stack.push(super_class);
 
     Ok(())

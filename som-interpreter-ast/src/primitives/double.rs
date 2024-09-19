@@ -85,7 +85,7 @@ fn as_integer(_: &mut UniverseAST, args: Vec<Value>) -> Return {
         Value::Double(value) => value,
     ]);
 
-    Return::Local(Value::Integer(value.trunc() as i64))
+    Return::Local(Value::Integer(value.trunc() as i32))
 }
 
 fn sqrt(_: &mut UniverseAST, args: Vec<Value>) -> Return {

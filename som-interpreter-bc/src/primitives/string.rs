@@ -61,7 +61,7 @@ fn hashcode(
     _: &mut Interpreter,
     universe: &mut UniverseBC,
     receiver: StringLike,
-) -> Result<i64, Error> {
+) -> Result<i32, Error> {
     const _: &str = "String>>#hashcode";
 
     let string = match receiver {
@@ -71,7 +71,7 @@ fn hashcode(
 
     let mut hasher = DefaultHasher::new();
     hasher.write(string.as_bytes());
-    let hash = (hasher.finish() as i64).abs();
+    let hash = (hasher.finish() as i32).abs();
 
     Ok(hash)
 }
@@ -190,8 +190,8 @@ fn prim_substring_from_to(
     _: &mut Interpreter,
     universe: &mut UniverseBC,
     receiver: StringLike,
-    from: i64,
-    to: i64,
+    from: i32,
+    to: i32,
 ) -> Result<GCRef<String>, Error> {
     const _: &str = "String>>#primSubstringFrom:to:";
 
@@ -210,7 +210,7 @@ fn char_at(
     _: &mut Interpreter,
     universe: &mut UniverseBC,
     receiver: StringLike,
-    idx: i64,
+    idx: i32,
 ) -> Result<GCRef<String>, Error> {
     let string = match receiver {
         StringLike::String(ref value) => value.as_str(),

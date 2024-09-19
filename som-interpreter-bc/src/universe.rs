@@ -95,12 +95,15 @@ impl UniverseForParser for UniverseBC {
             }
             Some(interned) => {
                 match self.lookup_global(interned) {
-                    Some(Value::Class(cls)) => {
-                        let instance_field_names = cls.to_obj().locals.keys().map(|s| self.interner.lookup(*s).to_string()).collect();
-                        let static_field_names = cls.to_obj().class().to_obj().locals.keys().map(|s| self.interner.lookup(*s).to_string()).collect();
-                        (instance_field_names, static_field_names)
+                    Some(glbl_var) => {
+                        if let Some(cls) = glbl_var.as_class() {
+                            let instance_field_names = cls.to_obj().locals.keys().map(|s| self.interner.lookup(*s).to_string()).collect();
+                            let static_field_names = cls.to_obj().class().to_obj().locals.keys().map(|s| self.interner.lookup(*s).to_string()).collect();
+                            (instance_field_names, static_field_names)
+                        } else {
+                            unreachable!("superclass accessed from parser is not actually a class, but {:?}", glbl_var)
+                        }
                     },
-                    Some(val) => unreachable!("superclass accessed from parser is not actually a class, but {:?}", val),
                     None => {
                         // this case is weird: you have encountered the superclass name, but not parsed it as a global. 
                         // it can happen and i'm not convinced at all it's indicative of a design flaw. if it is, it's likely not a major one or one that could have an impact on performance
@@ -212,8 +215,8 @@ impl UniverseBC {
 
             globals.insert(interner.intern("true"), Value::Boolean(true));
             globals.insert(interner.intern("false"), Value::Boolean(false));
-            globals.insert(interner.intern("nil"), Value::Nil);
-            globals.insert(interner.intern("system"), Value::System);
+            globals.insert(interner.intern("nil"), Value::NIL);
+            globals.insert(interner.intern("system"), Value::SYSTEM);
         };
 
         Ok(Self {
@@ -281,8 +284,8 @@ impl UniverseBC {
 
             let super_class = if let Some(ref super_class) = defn.super_class {
                 let symbol = self.intern_symbol(super_class.as_str());
-                match self.lookup_global(symbol) {
-                    Some(Value::Class(super_class)) => super_class,
+                match self.lookup_global(symbol) { 
+                    v if v.is_some() && v.unwrap().is_class() => {v.unwrap().as_class().unwrap()},
                     _ => self.load_class(super_class)?,
                 }
             } else {
@@ -506,10 +509,11 @@ impl UniverseBC {
     /// Call `System>>#initialize:` with the given name, if it is defined.
     pub fn initialize(&mut self, args: Vec<Value>) -> Option<Interpreter> {
         let method_name = self.interner.intern("initialize:");
-        let method = Value::System.lookup_method(self, method_name)?;
+        let method = Value::SYSTEM.lookup_method(self, method_name)?;
         
+        let args_vec = GCRef::<Vec<Value>>::alloc(args, &mut self.gc_interface);
         let frame_ptr = Frame::alloc_from_method(method,
-                                                 vec![Value::System, Value::Array(GCRef::<Vec<Value>>::alloc(args, &mut self.gc_interface))],
+                                                 vec![Value::SYSTEM, Value::Array(args_vec)],
                                                  GCRef::default(),
                                                  &mut self.gc_interface);
         let interpreter = Interpreter::new(frame_ptr);

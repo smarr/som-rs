@@ -36,7 +36,7 @@ fn length(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
         _ => return Return::Exception(format!("'{}': invalid self type", SIGNATURE)),
     };
 
-    match i64::try_from(value.chars().count()) {
+    match i32::try_from(value.chars().count()) {
         Ok(idx) => Return::Local(Value::Integer(idx)),
         Err(err) => Return::Exception(format!("'{}': {}", SIGNATURE, err)),
     }
@@ -59,12 +59,12 @@ fn hashcode(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
 
     hasher.write(value.as_bytes());
 
-    // match i64::try_from(hasher.finish()) {
+    // match i32::try_from(hasher.finish()) {
     //     Ok(hash) => Return::Local(Value::Integer(hash)),
     //     Err(err) => Return::Exception(format!("'{}': {}", SIGNATURE, err)),
     // }
 
-    Return::Local(Value::Integer((hasher.finish() as i64).abs()))
+    Return::Local(Value::Integer((hasher.finish() as i32).abs()))
 }
 
 fn is_letters(universe: &mut UniverseAST, args: Vec<Value>) -> Return {

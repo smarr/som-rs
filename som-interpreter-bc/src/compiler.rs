@@ -27,7 +27,7 @@ pub enum Literal {
     Symbol(Interned),
     String(GCRef<String>),
     Double(f64),
-    Integer(i64),
+    Integer(i32),
     BigInteger(BigInt),
     Array(Vec<u8>),
     Block(GCRef<Block>),
@@ -908,7 +908,7 @@ pub fn compile_class(
     static_class_mut.locals = static_class_ctxt
         .fields
         .into_iter()
-        .map(|name| (name, Value::Nil))
+        .map(|name| (name, Value::NIL))
         .collect();
     static_class_mut.methods = static_class_ctxt.methods;
     // drop(static_class_mut);
@@ -995,7 +995,7 @@ pub fn compile_class(
     instance_class_mut.locals = instance_class_ctxt
         .fields
         .into_iter()
-        .map(|name| (name, Value::Nil))
+        .map(|name| (name, Value::NIL))
         .collect();
     instance_class_mut.methods = instance_class_ctxt.methods;
     // drop(instance_class_mut);

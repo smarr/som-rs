@@ -56,7 +56,7 @@ pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> =
 macro_rules! demote {
     ($heap:expr, $expr:expr) => {{
         let value = $expr;
-        match value.to_i64() {
+        match value.to_i32() {
             Some(value) => Value::Integer((value)),
             None => Value::BigInteger($heap.allocate(value)),
         }
@@ -78,7 +78,7 @@ fn from_string(
     };
 
     // bad implem, can be improved
-    match string.parse::<i64>() {
+    match string.parse::<i32>() {
         Ok(a) => Ok(Value::Integer(a)),
         Err(_) => {
             match string.parse::<BigInt>() {
@@ -125,7 +125,7 @@ fn at_random(
     _: &mut Interpreter,
     _: &mut UniverseBC,
     receiver: IntegerLike,
-) -> Result<i64, Error> {
+) -> Result<i32, Error> {
     const SIGNATURE: &str = "Integer>>#atRandom";
 
     let chosen = match receiver {
@@ -146,7 +146,7 @@ fn as_32bit_signed_value(
     _: &mut Interpreter,
     _: &mut UniverseBC,
     receiver: IntegerLike,
-) -> Result<i64, Error> {
+) -> Result<i32, Error> {
     const _: &str = "Integer>>#as32BitSignedValue";
 
     let value = match receiver {
@@ -155,7 +155,7 @@ fn as_32bit_signed_value(
             // We do this gymnastic to get the 4 lowest bytes from the two's-complement representation.
             let mut values = value.to_obj().to_signed_bytes_le();
             values.resize(4, 0);
-            i64::from_le_bytes(values.try_into().unwrap())
+            i32::from_le_bytes(values.try_into().unwrap())
         }
     };
 
@@ -182,7 +182,7 @@ fn as_32bit_unsigned_value(
     let value = match value.try_into() {
         Ok(value) => IntegerLike::Integer(value),
         Err(_) => {
-            let allocated = universe.gc_interface.allocate(BigInt::from(value as i64));
+            let allocated = universe.gc_interface.allocate(BigInt::from(value as i32));
             IntegerLike::BigInteger(allocated)
         }
     };
@@ -389,7 +389,7 @@ fn modulo(
     _: &mut Interpreter,
     universe: &mut UniverseBC,
     a: IntegerLike,
-    b: i64,
+    b: i32,
 ) -> Result<Value, Error> {
     const _: &str = "Integer>>#%";
 
@@ -418,9 +418,9 @@ fn modulo(
 fn remainder(
     _: &mut Interpreter,
     _: &mut UniverseBC,
-    a: i64,
-    b: i64,
-) -> Result<i64, Error> {
+    a: i32,
+    b: i32,
+) -> Result<i32, Error> {
     const _: &str = "Integer>>#rem:";
 
     let result = a % b;
@@ -444,7 +444,7 @@ fn sqrt(
             let sqrt = (a as f64).sqrt();
             let trucated = sqrt.trunc();
             if sqrt == trucated {
-                Value::Integer(trucated as i64)
+                Value::Integer(trucated as i32)
             } else {
                 Value::Double(sqrt)
             }
@@ -559,7 +559,7 @@ fn shift_left(
     _: &mut Interpreter,
     universe: &mut UniverseBC,
     a: IntegerLike,
-    b: i64,
+    b: i32,
 ) -> Result<Value, Error> {
     const _: &str = "Integer>>#<<";
 
@@ -579,7 +579,7 @@ fn shift_left(
             Some(value) => match value.try_into() {
                 Ok(value) => Value::Integer(value),
                 Err(_) => {
-                    let allocated = universe.gc_interface.allocate(BigInt::from(value as i64));
+                    let allocated = universe.gc_interface.allocate(BigInt::from(value as i32));
                     Value::BigInteger(allocated)
                 }
             },
@@ -595,7 +595,7 @@ fn shift_right(
     _: &mut Interpreter,
     universe: &mut UniverseBC,
     a: IntegerLike,
-    b: i64,
+    b: i32,
 ) -> Result<Value, Error> {
     const _: &str = "Integer>>#>>";
 
@@ -615,7 +615,7 @@ fn shift_right(
             Some(value) => match value.try_into() {
                 Ok(value) => Value::Integer(value),
                 Err(_) => {
-                    let allocated = universe.gc_interface.allocate(BigInt::from(value as i64));
+                    let allocated = universe.gc_interface.allocate(BigInt::from(value as i32));
                     Value::BigInteger(allocated)
                 }
             },
@@ -636,7 +636,7 @@ fn shift_right(
 }
 
 // Nota Bene: blocks for to:do: and friends get instrumented as a special case in the parser, so that they don't leave their "self" on the stack.
-fn to_do(interpreter: &mut Interpreter, universe: &mut UniverseBC, start: i64, end: i64, blk: GCRef<Block>) -> Result<i64, Error> {
+fn to_do(interpreter: &mut Interpreter, universe: &mut UniverseBC, start: i32, end: i32, blk: GCRef<Block>) -> Result<i32, Error> {
     let new_blk = blk.to_obj().make_equivalent_with_no_return(&mut universe.gc_interface);
     // calling rev() because it's a stack of frames: LIFO means we want to add the last one first, then the penultimate one, etc., til the first
     for i in (start..=end).rev() {
@@ -646,7 +646,7 @@ fn to_do(interpreter: &mut Interpreter, universe: &mut UniverseBC, start: i64, e
     Ok(start)
 }
 
-fn to_by_do(interpreter: &mut Interpreter, universe: &mut UniverseBC, start: i64, step: i64, end: i64, blk: GCRef<Block>) -> Result<i64, Error> {
+fn to_by_do(interpreter: &mut Interpreter, universe: &mut UniverseBC, start: i32, step: i32, end: i32, blk: GCRef<Block>) -> Result<i32, Error> {
     let new_blk = blk.to_obj().make_equivalent_with_no_return(&mut universe.gc_interface);
     for i in (start..=end).rev().step_by(step as usize) {
         interpreter.push_block_frame(new_blk, vec![Value::Block(new_blk), Value::Integer(i)], &mut universe.gc_interface);
@@ -655,7 +655,7 @@ fn to_by_do(interpreter: &mut Interpreter, universe: &mut UniverseBC, start: i64
     Ok(start)
 }
 
-fn down_to_do(interpreter: &mut Interpreter, universe: &mut UniverseBC, start: i64, end: i64, blk: GCRef<Block>) -> Result<i64, Error> {
+fn down_to_do(interpreter: &mut Interpreter, universe: &mut UniverseBC, start: i32, end: i32, blk: GCRef<Block>) -> Result<i32, Error> {
     let new_blk = blk.to_obj().make_equivalent_with_no_return(&mut universe.gc_interface);
     for i in end..=start {
         interpreter.push_block_frame(new_blk, vec![Value::Block(new_blk), Value::Integer(i)], &mut universe.gc_interface);
@@ -665,7 +665,7 @@ fn down_to_do(interpreter: &mut Interpreter, universe: &mut UniverseBC, start: i
 }
 
 // NB: this guy isn't a speedup, it's never used in our benchmarks as far as I'm aware.
-fn down_to_by_do(interpreter: &mut Interpreter, universe: &mut UniverseBC, start: i64, step: i64, end: i64, blk: GCRef<Block>) -> Result<i64, Error> {
+fn down_to_by_do(interpreter: &mut Interpreter, universe: &mut UniverseBC, start: i32, step: i32, end: i32, blk: GCRef<Block>) -> Result<i32, Error> {
     let new_blk = blk.to_obj().make_equivalent_with_no_return(&mut universe.gc_interface);
     for i in (start..=end).step_by(step as usize) {
         interpreter.push_block_frame(new_blk, vec![Value::Block(new_blk), Value::Integer(i)], &mut universe.gc_interface);
@@ -675,7 +675,7 @@ fn down_to_by_do(interpreter: &mut Interpreter, universe: &mut UniverseBC, start
 }
 
 // NB: also not a speedup, also unused.
-fn times_repeat(interpreter: &mut Interpreter, universe: &mut UniverseBC, n: i64, blk: GCRef<Block>) -> Result<i64, Error> {
+fn times_repeat(interpreter: &mut Interpreter, universe: &mut UniverseBC, n: i32, blk: GCRef<Block>) -> Result<i32, Error> {
     let new_blk = blk.to_obj().make_equivalent_with_no_return(&mut universe.gc_interface);
     for _ in 1..=n {
         interpreter.push_block_frame(new_blk, vec![Value::Block(new_blk)], &mut universe.gc_interface); // NB: this doesn't take the index as an argument

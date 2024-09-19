@@ -25,7 +25,7 @@ fn at(
     _: &mut Interpreter,
     _: &mut UniverseBC,
     receiver: GCRef<Vec<Value>>,
-    index: i64,
+    index: i32,
 ) -> Result<Value, Error> {
     const _: &str = "Array>>#at:";
 
@@ -42,7 +42,7 @@ fn at_put(
     _: &mut Interpreter,
     _: &mut UniverseBC,
     receiver: GCRef<Vec<Value>>,
-    index: i64,
+    index: i32,
     value: Value,
 ) -> Result<GCRef<Vec<Value>>, Error> {
     const _: &str = "Array>>#at:put:";
@@ -60,26 +60,26 @@ fn length(
     _: &mut Interpreter,
     _: &mut UniverseBC,
     receiver: GCRef<Vec<Value>>,
-) -> Result<i64, Error> {
+) -> Result<i32, Error> {
     const _: &str = "Array>>#length";
-
+    
     receiver
         .borrow()
         .len()
         .try_into()
-        .context("could not convert `usize` to `i64`")
+        .context("could not convert `usize` to `i32`")
 }
 
 fn new(
     _: &mut Interpreter,
     universe: &mut UniverseBC,
     _: Value,
-    count: i64,
+    count: i32,
 ) -> Result<GCRef<Vec<Value>>, Error> {
     const _: &str = "Array>>#new:";
 
     let count = usize::try_from(count)?;
-    let allocated = universe.gc_interface.allocate(vec![Value::Nil; count]);
+    let allocated = universe.gc_interface.allocate(vec![Value::NIL; count]);
 
     Ok(allocated)
 }

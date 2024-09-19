@@ -70,7 +70,7 @@ impl CustomAlloc<Instance> for Instance {
         unsafe {
             let mut values_addr = instance_ref.ptr.add(size_of::<Instance>());
             for _ in 0..nbr_fields {
-                *values_addr.as_mut_ref() = Value::Nil;
+                *values_addr.as_mut_ref() = Value::NIL;
                 values_addr = values_addr.add(size_of::<Value>());
             }
         };

@@ -47,7 +47,7 @@ fn class(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
 fn object_size(_: &mut UniverseAST, _: Vec<Value>) -> Return {
     const _: &'static str = "Object>>#objectSize";
 
-    Return::Local(Value::Integer(std::mem::size_of::<Value>() as i64))
+    Return::Local(Value::Integer(std::mem::size_of::<Value>() as i32))
 }
 
 fn hashcode(_: &mut UniverseAST, args: Vec<Value>) -> Return {
@@ -59,7 +59,7 @@ fn hashcode(_: &mut UniverseAST, args: Vec<Value>) -> Return {
 
     let mut hasher = DefaultHasher::new();
     value.hash(&mut hasher);
-    let hash = (hasher.finish() as i64).abs();
+    let hash = (hasher.finish() as i32).abs();
 
     Return::Local(Value::Integer(hash))
 }

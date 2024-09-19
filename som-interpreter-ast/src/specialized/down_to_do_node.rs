@@ -24,7 +24,7 @@ impl Invoke for DownToDoNode {
 }
 
 impl DownToDoNode {
-    fn do_int_loop(start_int: i64, end_int: i64, mut body_block: GCRef<Block>, universe: &mut UniverseAST) -> Return {
+    fn do_int_loop(start_int: i32, end_int: i32, mut body_block: GCRef<Block>, universe: &mut UniverseAST) -> Return {
         let nbr_locals = body_block.borrow().block.borrow().nbr_locals;
         let mut i = start_int;
         while i >= end_int {

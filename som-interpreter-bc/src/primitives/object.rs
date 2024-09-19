@@ -57,24 +57,24 @@ fn object_size(
     _: &mut Interpreter,
     _: &mut UniverseBC,
     receiver: Value,
-) -> Result<i64, Error> {
+) -> Result<i32, Error> {
     const SIGNATURE: &'static str = "Object>>#objectSize";
 
     std::mem::size_of_val(&receiver)
         .try_into()
-        .with_context(|| format!("`{SIGNATURE}`: could not convert `usize` to `i64`"))
+        .with_context(|| format!("`{SIGNATURE}`: could not convert `usize` to `i32`"))
 }
 
 fn hashcode(
     _: &mut Interpreter,
     _: &mut UniverseBC,
     receiver: Value,
-) -> Result<i64, Error> {
+) -> Result<i32, Error> {
     const _: &'static str = "Object>>#hashcode";
 
     let mut hasher = DefaultHasher::new();
     receiver.hash(&mut hasher);
-    let hash = (hasher.finish() as i64).abs();
+    let hash = (hasher.finish() as i32).abs();
 
     Ok(hash)
 }
@@ -200,7 +200,7 @@ fn inst_var_at(
     _: &mut Interpreter,
     _: &mut UniverseBC,
     receiver: Value,
-    index: i64,
+    index: i32,
 ) -> Result<Option<Value>, Error> {
 
     // expect_args!(SIGNATURE, interpreter, [
@@ -215,7 +215,7 @@ fn inst_var_at(
     //
     // let local = match object.has_local(index) {
     //     true => object.lookup_local(index),
-    //     false => Value::Nil
+    //     false => Value::NIL
     // };
     //
     // interpreter.stack.push(local);
@@ -232,7 +232,7 @@ fn inst_var_at_put(
     _: &mut Interpreter,
     _: &mut UniverseBC,
     mut receiver: Value,
-    index: i64,
+    index: i32,
     value: Value,
 ) -> Result<Option<Value>, Error> {
     const _: &'static str = "Object>>#instVarAt:put:";

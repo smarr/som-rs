@@ -13,9 +13,6 @@ use som_core::gc::{GCInterface, GCRef};
 use std::time::Instant;
 use anyhow::Context;
 
-const INT_0: Value = Value::Integer(0);
-const INT_1: Value = Value::Integer(1);
-
 macro_rules! send {
     ($interp:expr, $universe:expr, $frame:expr, $lit_idx:expr, $nb_params:expr) => {{
         let Literal::Symbol(symbol) = $frame.to_obj().lookup_constant($lit_idx as usize) else { unreachable!() };
@@ -132,7 +129,7 @@ impl Interpreter {
 
             match bytecode {
                 Bytecode::Halt => {
-                    return Some(Value::Nil);
+                    return Some(Value::NIL);
                 }
                 Bytecode::Dup => {
                     let value = match cfg!(debug_assertions) {
@@ -143,20 +140,28 @@ impl Interpreter {
                     self.stack.push(value);
                 }
                 Bytecode::Inc => {
-                    match self.stack.last_mut()? {
-                        Value::Integer(v) => { *v += 1 }
-                        Value::BigInteger(v) => { *v.to_obj() += 1 }
-                        Value::Double(v) => { *v += 1.0 }
-                        _ => panic!("Invalid type")
-                    };
+                    let last = self.stack.last_mut()?;
+                    if let Some(int) = last.as_integer() {
+                        *last = Value::new_integer(int + 1); // TODO: this implem's not as fast as it could be. need to add bindings to borrow ints/doubles mutably?
+                    } else if let Some(double) = last.as_double() {
+                        *last = Value::new_double(double + 1.0);
+                    } else if let Some(big_int) = last.as_big_integer() {
+                        *big_int.to_obj() += 1;
+                    } else {
+                        panic!("Invalid type in Inc")
+                    }
                 }
                 Bytecode::Dec => {
-                    match self.stack.last_mut()? {
-                        Value::Integer(v) => { *v -= 1 }
-                        Value::BigInteger(v) => { *v.to_obj() -= 1 }
-                        Value::Double(v) => { *v -= 1.0 }
-                        _ => panic!("Invalid type")
-                    };
+                    let last = self.stack.last_mut()?;
+                    if let Some(int) = last.as_integer() {
+                        *last = Value::new_integer(int - 1); // TODO: see Bytecode::Inc
+                    } else if let Some(double) = last.as_double() {
+                        *last = Value::new_double(double - 1.0);
+                    } else if let Some(big_int) = last.as_big_integer() {
+                        *big_int.to_obj() -= 1;
+                    } else {
+                        panic!("Invalid type in DEC")
+                    }
                 }
                 Bytecode::PushLocal(idx) => {
                     let value = frame.lookup_local(idx as usize).clone();
@@ -181,12 +186,17 @@ impl Interpreter {
                     self.stack.push(value.clone());
                 }
                 Bytecode::PushField(idx) => {
-                    let value = match frame.get_self() {
-                        Value::Instance(i) => { i.lookup_local(idx as usize) }
-                        Value::Class(c) => { c.to_obj().class().to_obj().lookup_local(idx as usize) }
-                        v => { panic!("trying to read a field from a {:?}", &v) }
+                    let self_val = frame.get_self();
+                    let val = {
+                        if let Some(instance) = self_val.as_instance() {
+                            instance.lookup_local(idx as usize)
+                        } else if let Some(cls) = self_val.as_class() {
+                            cls.to_obj().class().to_obj().lookup_local(idx as usize)
+                        } else {
+                            panic!("trying to read a field from a {:?}?", &self_val)
+                        }
                     };
-                    self.stack.push(value);
+                    self.stack.push(val);
                 }
                 Bytecode::PushBlock(idx) => {
                     let literal = frame.to_obj().lookup_constant(idx as usize);
@@ -231,13 +241,13 @@ impl Interpreter {
                     }
                 }
                 Bytecode::Push0 => {
-                    self.stack.push(INT_0);
+                    self.stack.push(Value::INTEGER_ZERO);
                 }
                 Bytecode::Push1 => {
-                    self.stack.push(INT_1);
+                    self.stack.push(Value::INTEGER_ONE);
                 }
                 Bytecode::PushNil => {
-                    self.stack.push(Value::Nil);
+                    self.stack.push(Value::NIL);
                 }
                 Bytecode::PushSelf => {
                     self.stack.push(frame.lookup_argument(0).clone());
@@ -263,11 +273,15 @@ impl Interpreter {
                 }
                 Bytecode::PopField(idx) => {
                     let value = self.stack.pop()?;
-                    match frame.get_self() {
-                        Value::Instance(mut i) => { i.assign_local(idx as usize, value) }
-                        Value::Class(c) => { c.to_obj().class().to_obj().assign_local(idx as usize, value) }
-                        v => { panic!("{:?}", &v) }
-                    };
+                    let self_val = frame.get_self();
+                    if let Some(mut instance) = self_val.as_instance() {
+                        instance.assign_local(idx as usize, value)
+                    } else if let Some(cls) = self_val.as_class() {
+                        cls.to_obj().class().to_obj().assign_local(idx as usize, value)
+                    } else {
+                        panic!("trying to assign a field to a {:?}?", &self_val)
+                    }
+
                 }
                 Bytecode::Send1(idx) => {
                     send! {self, universe, &frame, idx, Some(0)} // Send1 => receiver + 0 args, so we pass Some(0)
@@ -297,14 +311,14 @@ impl Interpreter {
                     let self_val = frame.lookup_argument(0).clone();
                     self.pop_frame();
                     // if self.current_frame.is_empty() {
-                    //     return Some(self.stack.pop().unwrap_or(Value::Nil));
+                    //     return Some(self.stack.pop().unwrap_or(Value::NIL));
                     // }
                     self.stack.push(self_val);
                 }
                 Bytecode::ReturnLocal => {
                     self.pop_frame();
                     if self.current_frame.is_empty() {
-                        return Some(self.stack.pop().unwrap_or(Value::Nil));
+                        return Some(self.stack.pop().unwrap_or(Value::NIL));
                     }
                 }
                 Bytecode::ReturnNonLocal(up_idx) => {
@@ -334,15 +348,15 @@ impl Interpreter {
                     if let Some(count) = escaped_frames {
                         self.pop_n_frames(count + 1);
                         // if self.current_frame.is_empty() {
-                        //      return Some(self.stack.pop().unwrap_or(Value::Nil));
+                        //      return Some(self.stack.pop().unwrap_or(Value::NIL));
                         // }
                     } else {
                         // NB: I did some changes there with the blockself bits and i'm not positive it works the same as before, but it should.
 
                         // Block has escaped its method frame.
                         let instance = frame.get_self();
-                        let block = match frame.lookup_argument(0) {
-                            Value::Block(block) => block.clone(),
+                        let block = match frame.lookup_argument(0).as_block() {
+                            Some(block) => block,
                             _ => {
                                 // Should never happen, because `universe.current_frame()` would
                                 // have been equal to `universe.current_method_frame()`.
@@ -364,51 +378,51 @@ impl Interpreter {
                 Bytecode::JumpOnTrueTopNil(offset) => {
                     let condition_result = self.stack.last()?;
 
-                    match condition_result {
-                        Value::Boolean(true) => {
+                    match condition_result.as_boolean() {
+                        Some(true) => {
                             self.bytecode_idx += offset - 1;
-                            *self.stack.last_mut()? = Value::Nil;
-                        },
-                        Value::Boolean(false) => {
+                            *self.stack.last_mut()? = Value::NIL;
+                        }
+                        Some(false) => {
                             self.stack.pop();
-                        },
+                        }
                         _ => panic!("JumpOnTrueTopNil condition did not evaluate to boolean (was {:?})", condition_result),
                     }
                 }
                 Bytecode::JumpOnFalseTopNil(offset) => {
                     let condition_result = self.stack.last()?;
 
-                    match condition_result {
-                        Value::Boolean(true) => {
-                            self.stack.pop();
-                        },
-                        Value::Boolean(false) => {
+                    match condition_result.as_boolean() {
+                        Some(false) => {
                             self.bytecode_idx += offset - 1;
-                            *self.stack.last_mut()? = Value::Nil;
-                        },
+                            *self.stack.last_mut()? = Value::NIL;
+                        }
+                        Some(true) => {
+                            self.stack.pop();
+                        }
                         _ => panic!("JumpOnFalseTopNil condition did not evaluate to boolean (was {:?})", condition_result),
                     }
                 }
                 Bytecode::JumpOnTruePop(offset) => {
                     let condition_result = self.stack.pop()?;
 
-                    match condition_result {
-                        Value::Boolean(true) => {
+                    match condition_result.as_boolean() {
+                        Some(true) => {
                             self.bytecode_idx += offset - 1;
-                        },
-                        Value::Boolean(false) => {},
+                        }
+                        Some(false) => {}
                         _ => panic!("JumpOnTruePop condition did not evaluate to boolean (was {:?})", condition_result),
                     }
                 }
                 Bytecode::JumpOnFalsePop(offset) => {
                     let condition_result = self.stack.pop()?;
 
-                    match condition_result {
-                        Value::Boolean(false) => {
+                    match condition_result.as_boolean() {
+                        Some(false) => {
                             self.bytecode_idx += offset - 1;
-                        },
-                        Value::Boolean(true) => {},
-                        _ => panic!("JumpOnTruePop condition did not evaluate to boolean (was {:?})", condition_result),
+                        }
+                        Some(true) => {}
+                        _ => panic!("JumpOnFalsePop condition did not evaluate to boolean (was {:?})", condition_result),
                     }
                 }
             }

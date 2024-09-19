@@ -4,7 +4,7 @@
 
 use std::convert::TryFrom;
 
-use anyhow::{anyhow, bail, Context, Error};
+use anyhow::{bail, Context, Error};
 
 use crate::block::Block;
 use crate::class::Class;
@@ -29,9 +29,10 @@ impl TryFrom<Value> for Nil {
     type Error = Error;
 
     fn try_from(value: Value) -> Result<Self, Self::Error> {
-        match value {
-            Value::Nil => Ok(Self),
-            _ => bail!("could not resolve `Value` as `Nil`")
+        if value.is_nil() {
+            Ok(Self)
+        } else {
+            bail!("could not resolve `Value` as `Nil`");
         }
     }
 }
@@ -57,9 +58,10 @@ impl TryFrom<Value> for System {
     type Error = Error;
 
     fn try_from(value: Value) -> Result<Self, Self::Error> {
-        match value {
-            Value::Nil => Ok(Self),
-            _ => bail!("could not resolve `Value` as `System`")
+        if value.is_nil() { // not is_system?
+            Ok(Self)
+        } else {
+            bail!("could not resolve `Value` as `System`");
         }
     }
 }
@@ -88,15 +90,11 @@ impl TryFrom<Value> for StringLike {
     type Error = Error;
 
     fn try_from(value: Value) -> Result<Self, Self::Error> {
-        match value {
-            Value::String(string) => {
-                Ok(StringLike::String(string))
-            },
-            Value::Symbol(i) => {
-                Ok(StringLike::Symbol(i))
-            }
-            _ => Err(anyhow!("could not resolve `Value` as `String`, or `Symbol`"))
-        }
+        value
+            .as_string()
+            .map(Self::String)
+            .or_else(|| value.as_symbol().map(Self::Symbol))
+            .context("could not resolve `Value` as `String`, or `Symbol`")
     }
 }
 
@@ -117,7 +115,7 @@ impl FromArgs for StringLike {
 #[derive(Debug, Clone)]
 pub enum DoubleLike {
     Double(f64),
-    Integer(i64),
+    Integer(i32),
     BigInteger(GCRef<BigInt>),
 }
 
@@ -125,18 +123,12 @@ impl TryFrom<Value> for DoubleLike {
     type Error = Error;
 
     fn try_from(value: Value) -> Result<Self, Self::Error> {
-        match value {
-            Value::Double(double) => {
-                Ok(DoubleLike::Double(double))
-            },
-            Value::Integer(i) => {
-                Ok(DoubleLike::Integer(i))
-            },
-            Value::BigInteger(i) => {
-                Ok(DoubleLike::BigInteger(i))
-            }
-            _ => Err(anyhow!("could not resolve `Value` as `Double`, `Integer`, or `BigInteger`"))
-        }
+        value
+            .as_double()
+            .map(Self::Double)
+            .or_else(|| value.as_integer().map(Self::Integer))
+            .or_else(|| value.as_big_integer().map(Self::BigInteger))
+            .context("could not resolve `Value` as `Double`, `Integer`, or `BigInteger`")
     }
 }
 
@@ -156,7 +148,7 @@ impl FromArgs for DoubleLike {
 
 #[derive(Debug, Clone)]
 pub enum IntegerLike {
-    Integer(i64),
+    Integer(i32),
     BigInteger(GCRef<BigInt>),
 }
 
@@ -164,15 +156,11 @@ impl TryFrom<Value> for IntegerLike {
     type Error = Error;
 
     fn try_from(value: Value) -> Result<Self, Self::Error> {
-        match value {
-            Value::Integer(i) => {
-                Ok(IntegerLike::Integer(i))
-            },
-            Value::BigInteger(i) => {
-                Ok(IntegerLike::BigInteger(i))
-            }
-            _ => Err(anyhow!("could not resolve `Value` as `Integer`, or `BigInteger`"))
-        }
+        value
+            .as_integer()
+            .map(Self::Integer)
+            .or_else(|| value.as_big_integer().map(Self::BigInteger))
+            .context("could not resolve `Value` as `Integer`, or `BigInteger`")
     }
 }
 
@@ -218,14 +206,12 @@ impl FromArgs for bool {
             .stack
             .pop()
             .context("message send with missing argument")?;
-        match arg {
-            Value::Boolean(b) => Ok(b),
-            _ => Err(anyhow::anyhow!("could not resolve `Value` as `Boolean`")),
-        }
+        arg.as_boolean()
+            .context("could not resolve `Value` as `Boolean`")
     }
 }
 
-impl FromArgs for i64 {
+impl FromArgs for i32 {
     fn from_args(
         interpreter: &mut Interpreter,
         _: &mut UniverseBC,
@@ -234,11 +220,8 @@ impl FromArgs for i64 {
             .stack
             .pop()
             .context("message send with missing argument")?;
-
-        match arg {
-            Value::Integer(i) => Ok(i),
-            _ => Err(anyhow::anyhow!("could not resolve `Value` as `Integer`")),
-        }
+        arg.as_integer()
+            .context("could not resolve `Value` as `Integer`")
     }
 }
 
@@ -251,11 +234,8 @@ impl FromArgs for f64 {
             .stack
             .pop()
             .context("message send with missing argument")?;
-
-        match arg {
-            Value::Double(i) => Ok(i),
-            _ => Err(anyhow::anyhow!("could not resolve `Value` as `Double`")),
-        }
+        arg.as_double()
+            .context("could not resolve `Value` as `Double`")
     }
 }
 
@@ -268,11 +248,8 @@ impl FromArgs for Interned {
             .stack
             .pop()
             .context("message send with missing argument")?;
-        
-        match arg {
-            Value::Symbol(val) => Ok(val),
-            _ => Err(anyhow::anyhow!("could not resolve `Value` as `Symbol`")),
-        }
+        arg.as_symbol()
+            .context("could not resolve `Value` as `Symbol`")
     }
 }
 
@@ -285,11 +262,8 @@ impl FromArgs for GCRef<String> {
             .stack
             .pop()
             .context("message send with missing argument")?;
-
-        match arg {
-            Value::String(val) => Ok(val),
-            _ => Err(anyhow::anyhow!("could not resolve `Value` as `String`")),
-        }
+        arg.as_string()
+            .context("could not resolve `Value` as `String`")
     }
 }
 
@@ -302,11 +276,8 @@ impl FromArgs for GCRef<Vec<Value>> {
             .stack
             .pop()
             .context("message send with missing argument")?;
-
-        match arg {
-            Value::Array(val) => Ok(val),
-            _ => Err(anyhow::anyhow!("could not resolve `Value` as `Array`")),
-        }
+        arg.as_array()
+            .context("could not resolve `Value` as `Array`")
     }
 }
 
@@ -319,11 +290,8 @@ impl FromArgs for GCRef<Class> {
             .stack
             .pop()
             .context("message send with missing argument")?;
-
-        match arg {
-            Value::Class(val) => Ok(val),
-            _ => Err(anyhow::anyhow!("could not resolve `Value` as `Class`")),
-        }
+        arg.as_class()
+            .context("could not resolve `Value` as `Class`")
     }
 }
 
@@ -336,11 +304,8 @@ impl FromArgs for GCRef<Instance> {
             .stack
             .pop()
             .context("message send with missing argument")?;
-
-        match arg {
-            Value::Instance(val) => Ok(val),
-            _ => Err(anyhow::anyhow!("could not resolve `Value` as `Instance`")),
-        }
+        arg.as_instance()
+            .context("could not resolve `Value` as `Instance`")
     }
 }
 
@@ -353,11 +318,8 @@ impl FromArgs for GCRef<Block> {
             .stack
             .pop()
             .context("message send with missing argument")?;
-
-        match arg {
-            Value::Block(val) => Ok(val),
-            _ => Err(anyhow::anyhow!("could not resolve `Value` as `Block`")),
-        }
+        arg.as_block()
+            .context("could not resolve `Value` as `Block`")
     }
 }
 
@@ -370,11 +332,8 @@ impl FromArgs for GCRef<Method> {
             .stack
             .pop()
             .context("message send with missing argument")?;
-
-        match arg {
-            Value::Invokable(val) => Ok(val),
-            _ => Err(anyhow::anyhow!("could not resolve `Value` as `Method`")),
-        }
+        arg.as_invokable()
+            .context("could not resolve `Value` as `Method`")
     }
 }
 
@@ -384,7 +343,7 @@ impl IntoValue for bool {
     }
 }
 
-impl IntoValue for i64 {
+impl IntoValue for i32 {
     fn into_value(&self, _: &mut GCInterface) -> Value {
         Value::Integer(*self)
     }
@@ -490,7 +449,7 @@ macro_rules! derive_stuff {
                 $(
                     values.push($crate::convert::IntoValue::into_value($ty, heap));
                 )*
-                // let allocated = heap.allocate(::std::cell::RefCell::new(values));
+                dbg!(&values);
                 let allocated = GCRef::<Vec<Value>>::alloc(values, heap);
                 $crate::value::Value::Array(allocated)
             }
@@ -536,19 +495,19 @@ impl IntoValue for Value {
 
 impl IntoValue for Nil {
     fn into_value(&self, _: &mut GCInterface) -> Value {
-        Value::Nil
+        Value::NIL
     }
 }
 
 impl IntoValue for System {
     fn into_value(&self, _: &mut GCInterface) -> Value {
-        Value::System
+        Value::SYSTEM
     }
 }
 
 impl<T: IntoValue> IntoValue for Option<T> {
     fn into_value(&self, heap: &mut GCInterface) -> Value {
-        self.as_ref().map_or(Value::Nil, |it| it.into_value(heap))
+        self.as_ref().map_or(Value::NIL, |it| it.into_value(heap))
     }
 }
 

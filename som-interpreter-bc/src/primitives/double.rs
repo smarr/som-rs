@@ -83,10 +83,10 @@ fn as_integer(
     _: &mut Interpreter,
     _: &mut UniverseBC,
     receiver: f64,
-) -> Result<i64, Error> {
+) -> Result<i32, Error> {
     const _: &str = "Double>>#asInteger";
 
-    Ok(receiver.trunc() as i64)
+    Ok(receiver.trunc() as i32)
 }
 
 fn sqrt(

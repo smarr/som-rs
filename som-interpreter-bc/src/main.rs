@@ -57,9 +57,7 @@ fn main() -> anyhow::Result<()> {
 
 fn run() -> anyhow::Result<()> {
     let opts: Options = Options::from_args();
-
-    // let mut interpreter = Interpreter::new();
-
+    
     if opts.disassemble {
         return disassemble_class(opts);
     }

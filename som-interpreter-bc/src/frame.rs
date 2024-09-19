@@ -60,7 +60,7 @@ pub struct Frame {
 impl Frame {
     pub fn alloc_from_method(method: GCRef<Method>, mut args: Vec<Value>, prev_frame: GCRef<Frame>, mutator: &mut GCInterface) -> GCRef<Frame> {
         let mut frame_ptr = Frame::alloc(Frame::from_method(method, args.len(), prev_frame), mutator);
-
+        
         // might be faster if we did that in the alloc method, but that means passing args as an argument to the trait method `alloc` somehow.
         for i in (0..args.len()).rev() {
             frame_ptr.assign_arg(i, args.pop().unwrap()) 
@@ -129,8 +129,8 @@ impl Frame {
     pub fn from_kind(kind: FrameKind) -> Self {
         match &kind {
             FrameKind::Block { block } => {
-                // let locals = block.blk_info.locals.iter().map(|_| Value::Nil).collect();
-                let locals =  (0..block.blk_info.nb_locals).map(|_| Value::Nil).collect();
+                // let locals = block.blk_info.locals.iter().map(|_| Value::NIL).collect();
+                let locals =  (0..block.blk_info.nb_locals).map(|_| Value::NIL).collect();
                 let frame = Self {
                     locals,
                     args: vec![Value::Block(Rc::clone(&block))],
@@ -144,8 +144,8 @@ impl Frame {
             }
             FrameKind::Method { method, .. } => {
                 if let MethodKind::Defined(env) = method.kind() {
-                    // let locals = env.locals.iter().map(|_| Value::Nil).collect();
-                    let locals =  (0..env.nbr_locals).map(|_| Value::Nil).collect();
+                    // let locals = env.locals.iter().map(|_| Value::NIL).collect();
+                    let locals =  (0..env.nbr_locals).map(|_| Value::NIL).collect();
                     Self {
                         locals,
                         args: vec![],
@@ -203,15 +203,15 @@ impl Frame {
             return *current_frame;
         }
 
-        let mut target_frame: GCRef<Frame> = match current_frame.lookup_argument(0) {
-            Value::Block(block) => {
+        let mut target_frame: GCRef<Frame> = match current_frame.lookup_argument(0).as_block() {
+            Some(block) => {
                 *block.to_obj().frame.as_ref().unwrap()
             }
             v => panic!("attempting to access a non local var/arg from a method instead of a block: self wasn't blockself but {:?}.", v)
         };
         for _ in 1..n {
-            target_frame = match &target_frame.lookup_argument(0) {
-                Value::Block(block) => {
+            target_frame = match &target_frame.lookup_argument(0).as_block() {
+                Some(block) => {
                     *block.to_obj().frame.as_ref().unwrap()
                 }
                 v => panic!("attempting to access a non local var/arg from a method instead of a block (but the original frame we were in was a block): self wasn't blockself but {:?}.", v)
@@ -249,12 +249,13 @@ pub trait FrameAccess {
 impl FrameAccess for GCRef<Frame> {
     /// Get the self value for this frame.
     fn get_self(&self) -> Value {
-        match self.lookup_argument(0) {
-            Value::Block(b) => {
+        let self_arg = self.lookup_argument(0);
+        match self_arg.as_block() {
+            Some(b) => {
                 let block_frame = b.to_obj().frame.unwrap();
                 block_frame.get_self()
             },
-            s => s.clone()
+            None => self_arg.clone()
         }
     }
     
@@ -295,7 +296,7 @@ impl CustomAlloc<Frame> for Frame {
         unsafe {
             let mut locals_addr = frame_ptr.ptr.add(size_of::<Frame>()).add(nbr_args * size_of::<Value>());
             for _ in 0..nbr_locals {
-                *locals_addr.as_mut_ref() = Value::Nil;
+                *locals_addr.as_mut_ref() = Value::NIL;
                 locals_addr = locals_addr.add(size_of::<Value>());
             }
         };

@@ -115,6 +115,17 @@ impl<T> GCRef<T> {
     /// We use this to avoid using an Option type in interpreter frames. Not sure if it's worth it though.
     #[inline(always)]
     pub fn is_empty(&self) -> bool { self.ptr.is_zero() }
+
+    /// Convert a u64 into an address. Useful since we use NaN boxing, which returns values as 64 bits.
+    #[inline(always)]
+    pub fn from_u64(ptr: u64) -> GCRef<T> {
+        unsafe {
+            GCRef {
+                ptr: Address::from_usize(ptr as usize),
+                _phantom: PhantomData
+            }
+        }
+    }
 }
 
 impl<T> GCRef<T> {

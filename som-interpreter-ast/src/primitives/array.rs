@@ -57,7 +57,7 @@ fn length(_: &mut UniverseAST, args: Vec<Value>) -> Return {
     ]);
 
     let length = values.borrow().len();
-    match i64::try_from(length) {
+    match i32::try_from(length) {
         Ok(length) => Return::Local(Value::Integer(length)),
         Err(err) => Return::Exception(format!("'{}': {}", SIGNATURE, err)),
     }

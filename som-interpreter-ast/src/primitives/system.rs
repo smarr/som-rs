@@ -186,7 +186,7 @@ fn ticks(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
 
     expect_args!(SIGNATURE, args, [Value::System]);
 
-    match i64::try_from(universe.start_time.elapsed().as_micros()) {
+    match i32::try_from(universe.start_time.elapsed().as_micros()) {
         Ok(micros) => Return::Local(Value::Integer(micros)),
         Err(err) => Return::Exception(format!("'{}': {}", SIGNATURE, err)),
     }
@@ -197,7 +197,7 @@ fn time(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
 
     expect_args!(SIGNATURE, args, [Value::System]);
 
-    match i64::try_from(universe.start_time.elapsed().as_millis()) {
+    match i32::try_from(universe.start_time.elapsed().as_millis()) {
         Ok(micros) => Return::Local(Value::Integer(micros)),
         Err(err) => Return::Exception(format!("'{}': {}", SIGNATURE, err)),
     }

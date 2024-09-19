@@ -170,17 +170,17 @@ fn global_put(
     Ok(universe.assign_global(name, value.clone()).map(|_| value))
 }
 
-fn exit(_: &mut Interpreter, _: &mut UniverseBC, status: i64) -> Result<(), Error> {
+fn exit(_: &mut Interpreter, _: &mut UniverseBC, status: i32) -> Result<(), Error> {
     const _: &str = "System>>#exit:";
 
-    std::process::exit(status as i32);
+    std::process::exit(status);
 }
 
 fn ticks(
     interpreter: &mut Interpreter,
     _: &mut UniverseBC,
     _: Value,
-) -> Result<i64, Error> {
+) -> Result<i32, Error> {
     const SIGNATURE: &str = "System>>#ticks";
 
     interpreter
@@ -188,14 +188,14 @@ fn ticks(
         .elapsed()
         .as_micros()
         .try_into()
-        .with_context(|| format!("`{SIGNATURE}`: could not convert `i128` to `i64`"))
+        .with_context(|| format!("`{SIGNATURE}`: could not convert `i128` to `i32`"))
 }
 
 fn time(
     interpreter: &mut Interpreter,
     _: &mut UniverseBC,
     _: Value,
-) -> Result<i64, Error> {
+) -> Result<i32, Error> {
     const SIGNATURE: &str = "System>>#time";
 
     interpreter
@@ -203,7 +203,7 @@ fn time(
         .elapsed()
         .as_millis()
         .try_into()
-        .with_context(|| format!("`{SIGNATURE}`: could not convert `i128` to `i64`"))
+        .with_context(|| format!("`{SIGNATURE}`: could not convert `i128` to `i32`"))
 }
 
 fn print_stack_trace(
