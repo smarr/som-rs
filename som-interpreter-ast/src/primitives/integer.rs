@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use num_bigint::{BigInt, Sign};
+use num_bigint::{BigInt, BigUint, Sign, ToBigInt};
 use num_traits::ToPrimitive;
 use rand::distributions::Uniform;
 use rand::Rng;
@@ -152,19 +152,28 @@ fn as_32bit_unsigned_value(_: &mut UniverseAST, args: Vec<Value>) -> Return {
     const SIGNATURE: &str = "Integer>>#as32BitUnsignedValue";
 
     expect_args!(SIGNATURE, args, [
-        value => value,
+        receiver => receiver,
     ]);
 
-    let value = match value {
-        Value::Integer(value) => value as u32 as i32,
+    let value = match receiver {
+        Value::Integer(value) => value as u32,
         Value::BigInteger(value) => {
-            let (_, values) = value.to_u32_digits();
-            values[0] as i32
-        }
-        _ => return Return::Exception(format!("'{}': wrong types", SIGNATURE)),
+            // We do this gymnastic to get the 4 lowest bytes from the two's-complement representation.
+            let mut values = value.to_signed_bytes_le();
+            values.resize(4, 0);
+            u32::from_le_bytes(values.try_into().unwrap())
+        },
+        _ => panic!("type not handled in as_32bit_unsigned_value")
     };
-
-    Return::Local(Value::Integer(value))
+    
+    let value = match value.try_into() {
+        Ok(value) => Value::Integer(value),
+        Err(_) => {
+            Value::BigInteger(BigInt::from(value))
+        }
+    };
+    
+    Return::Local(value)
 }
 
 fn plus(_: &mut UniverseAST, args: Vec<Value>) -> Return {
@@ -454,13 +463,29 @@ fn shift_left(_: &mut UniverseAST, args: Vec<Value>) -> Return {
         Value::Integer(b) => b,
     ]);
 
+    // old code pre integers being i32 because of nan boxing:
+    
+    // match a {
+    //     Value::Integer(a) => match a.checked_shl(b as u32) {
+    //         Some(value) => Return::Local(Value::Integer(value)),
+    //         None => demote!(BigInt::from(a) << (b as usize)),
+    //     },
+    //     Value::BigInteger(a) => demote!(a << (b as usize)),
+    //     _ => Return::Exception(format!("'{}': wrong types", SIGNATURE)),
+    // }
+    
     match a {
-        Value::Integer(a) => match a.checked_shl(b as u32) {
-            Some(value) => Return::Local(Value::Integer(value)),
-            None => demote!(BigInt::from(a) << (b as usize)),
+        Value::Integer(a) => match (a as u64).checked_shl(b as u32) {
+            Some(value) => match value.try_into() {
+                Ok(value) => Return::Local(Value::Integer(value)),
+                Err(_) => {
+                    Return::Local(Value::BigInteger(BigInt::from(value as i64)))
+                }
+            },
+            None => demote!(BigInt::from(a) << (b as u32)),
         },
-        Value::BigInteger(a) => demote!(a << (b as usize)),
-        _ => Return::Exception(format!("'{}': wrong types", SIGNATURE)),
+        Value::BigInteger(a) => demote!(a << (b as u32)),
+        _ => panic!("wrong type")
     }
 }
 
@@ -472,12 +497,36 @@ fn shift_right(_: &mut UniverseAST, args: Vec<Value>) -> Return {
         Value::Integer(b) => b,
     ]);
 
+    // match a {
+    //     Value::Integer(a) => match a.checked_shr(b as u32) {
+    //         Some(value) => Return::Local(Value::Integer(value)),
+    //         None => demote!(BigInt::from(a) >> (b as usize)),
+    //     },
+    //     Value::BigInteger(a) => demote!(a >> (b as usize)),
+    //     _ => Return::Exception(format!("'{}': wrong types", SIGNATURE)),
+    // }
+
     match a {
-        Value::Integer(a) => match a.checked_shr(b as u32) {
-            Some(value) => Return::Local(Value::Integer(value)),
-            None => demote!(BigInt::from(a) >> (b as usize)),
+        Value::Integer(a) => match (a as u64).checked_shr(b as u32) {
+            Some(value) => {
+                match value.try_into() {
+                    Ok(value) => Return::Local(Value::Integer(value)),
+                    Err(_) => {
+                        Return::Local(Value::BigInteger(BigInt::from(value)))
+                    }
+                }
+            }
+            None => {
+                let uint = BigUint::from_bytes_le(&a.to_bigint().unwrap().to_signed_bytes_le());
+                let result = uint >> (b as u32);
+                demote!(BigInt::from_signed_bytes_le(&result.to_bytes_le()))
+            }
         },
-        Value::BigInteger(a) => demote!(a >> (b as usize)),
+        Value::BigInteger(a) => {
+            let uint = BigUint::from_bytes_le(&a.to_signed_bytes_le());
+            let result = uint >> (b as u32);
+            demote!(BigInt::from_signed_bytes_le(&result.to_bytes_le()))
+        }
         _ => Return::Exception(format!("'{}': wrong types", SIGNATURE)),
     }
 }
