@@ -1,6 +1,3 @@
-use som_core::ast;
-use som_core::ast::{Block, Expression};
-use som_core::gc::GCRef;
 use crate::ast::{AstBlock, AstBody, AstExpression, InlinedNode};
 use crate::compiler::{AstMethodCompilerCtxt, AstScopeCtxt};
 use crate::specialized::inlined::and_inlined_node::AndInlinedNode;
@@ -8,6 +5,9 @@ use crate::specialized::inlined::if_inlined_node::IfInlinedNode;
 use crate::specialized::inlined::if_true_if_false_inlined_node::IfTrueIfFalseInlinedNode;
 use crate::specialized::inlined::or_inlined_node::OrInlinedNode;
 use crate::specialized::inlined::while_inlined_node::WhileInlinedNode;
+use som_core::ast;
+use som_core::ast::{Block, Expression};
+use som_core::gc::GCRef;
 
 pub trait PrimMessageInliner {
     fn inline_if_possible(&mut self, msg: &ast::Message) -> Option<InlinedNode>;
@@ -91,6 +91,7 @@ impl PrimMessageInliner for AstMethodCompilerCtxt<'_> {
                 }
             }
             Expression::GlobalRead(a) => AstExpression::GlobalRead(a.clone()),
+            Expression::GlobalWrite(_name, _expr) => todo!("handle global write in inliner"),
             Expression::FieldRead(idx) => AstExpression::FieldRead(*idx),
             Expression::FieldWrite(idx, expr) => AstExpression::FieldWrite(*idx, Box::new(self.parse_expression_with_inlining(expr))),
             Expression::Message(msg) => self.parse_message_with_inlining(msg),

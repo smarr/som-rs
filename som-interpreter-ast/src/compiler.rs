@@ -1,7 +1,4 @@
-use som_core::ast;
-use som_core::ast::{Expression, MethodBody};
-use som_core::gc::{GCInterface, GCRef};
-use crate::ast::{AstBinaryDispatch, AstBlock, AstBody, AstExpression, AstNAryDispatch, AstMethodDef, AstSuperMessage, AstUnaryDispatch, AstTernaryDispatch, AstDispatchNode};
+use crate::ast::{AstBinaryDispatch, AstBlock, AstBody, AstDispatchNode, AstExpression, AstMethodDef, AstNAryDispatch, AstSuperMessage, AstTernaryDispatch, AstUnaryDispatch};
 use crate::class::Class;
 use crate::inliner::PrimMessageInliner;
 use crate::method::{MethodKind, MethodKindSpecialized};
@@ -12,6 +9,9 @@ use crate::specialized::to_by_do_node::ToByDoNode;
 use crate::specialized::to_do_node::ToDoNode;
 use crate::specialized::trivial_methods::{TrivialGetterMethod, TrivialGlobalMethod, TrivialLiteralMethod, TrivialSetterMethod};
 use crate::specialized::while_node::WhileNode;
+use som_core::ast;
+use som_core::ast::{Expression, MethodBody};
+use som_core::gc::{GCInterface, GCRef};
 
 pub struct AstMethodCompilerCtxt<'a> {
     pub scopes: Vec<AstScopeCtxt>,
@@ -146,6 +146,7 @@ impl<'a> AstMethodCompilerCtxt<'a> {
             Expression::LocalVarWrite(a, b) => AstExpression::LocalVarWrite(a, Box::new(self.parse_expression(b.as_ref()))),
             Expression::NonLocalVarWrite(a, b, c) => AstExpression::NonLocalVarWrite(a, b, Box::new(self.parse_expression(c.as_ref()))),
             Expression::ArgWrite(a, b, c) => AstExpression::ArgWrite(a, b, Box::new(self.parse_expression(c.as_ref()))),
+            Expression::GlobalWrite(_global_name, _expr) => todo!("handle field writes"),
             Expression::FieldWrite(a, b) => AstExpression::FieldWrite(a, Box::new(self.parse_expression(b.as_ref()))),
             Expression::Message(msg) => self.parse_message(msg.as_ref()),
             Expression::Exit(a, b) => {

@@ -251,10 +251,9 @@ impl UniverseBC {
     /// Load a class from its name into this universe.
     pub fn load_class(&mut self, class_name: impl Into<String>) -> Result<GCRef<Class>, Error> {
         let class_name = class_name.into();
-        let paths: Vec<PathBuf> = self.classpath.iter().map(|path| path.clone()).collect(); // ugly. see original code for how it should be done instead. TODO change - maybe a .map() call fixes it?
 
-        for mut path in paths {
-            path.push(class_name.as_str());
+        for path in self.classpath.iter() {
+            let mut path = path.join(class_name.as_str());
             path.set_extension("som");
 
             // Read file contents.
@@ -270,7 +269,7 @@ impl UniverseBC {
                 .collect();
 
             // Parse class definition from the tokens.
-            let defn = match som_parser::parse_file(tokens.as_slice(), self) {
+            let defn = match som_parser::parse_file(tokens.as_slice()) {
                 Some(defn) => defn,
                 None => continue,
             };

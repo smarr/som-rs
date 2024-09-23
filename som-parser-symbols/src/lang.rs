@@ -1,9 +1,9 @@
-use std::rc::Rc;
+use crate::{AstGenCtxt, AstGenCtxtData, AstGenCtxtType, AstMethodGenCtxtType};
 use som_core::ast::*;
 use som_lexer::Token;
 use som_parser_core::combinators::*;
 use som_parser_core::Parser;
-use crate::{AstGenCtxt, AstGenCtxtData, AstGenCtxtType, AstMethodGenCtxtType};
+use std::rc::Rc;
 
 macro_rules! opaque {
     ($expr:expr) => {{
@@ -137,9 +137,6 @@ pub fn super_class<'a>() -> impl Parser<String, &'a [Token], AstGenCtxt<'a>> {
         match head {
             Token::Identifier(value) => {
                 genctxt.borrow_mut().super_class_name = Some(value.clone());
-                if !["nil", "Class", "String", "Block", "Boolean"].contains(&value.as_str()) { // system classes that can be superclasses of other system classes. (and the special keyword "nil")
-                    genctxt.borrow_mut().load_super_class_and_set_fields(value);
-                }
                 Some((value.clone(), tail, genctxt))
             }
             _ => None,

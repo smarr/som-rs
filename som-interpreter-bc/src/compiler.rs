@@ -7,20 +7,20 @@ use std::hash::{Hash, Hasher};
 use indexmap::{IndexMap, IndexSet};
 use num_bigint::BigInt;
 
-use som_core::ast;
-use som_core::ast::{Expression, MethodBody};
-#[cfg(feature = "frame-debug-info")]
-use som_core::ast::BlockDebugInfo;
-use som_core::bytecode::Bytecode;
 use crate::block::{Block, BlockInfo};
 use crate::class::Class;
-use som_core::gc::{GCInterface, GCRef};
 #[cfg(not(feature = "inlining-disabled"))]
 use crate::inliner::PrimMessageInliner;
 use crate::interner::{Interned, Interner};
 use crate::method::{Method, MethodEnv, MethodKind};
 use crate::primitives;
 use crate::value::Value;
+use som_core::ast;
+#[cfg(feature = "frame-debug-info")]
+use som_core::ast::BlockDebugInfo;
+use som_core::ast::{Expression, MethodBody};
+use som_core::bytecode::Bytecode;
+use som_core::gc::{GCInterface, GCRef};
 
 #[derive(Debug, Clone)]
 pub enum Literal {
@@ -458,6 +458,9 @@ impl MethodCodegen for ast::Expression {
                     _ => unreachable!()
                 }
                 Some(())
+            }
+            ast::Expression::GlobalWrite(_name, _expr) => {
+                todo!("handle global write: it's an unresolved field write")
             }
             ast::Expression::FieldWrite(idx, expr) => {
                 expr.codegen(ctxt, mutator)?;

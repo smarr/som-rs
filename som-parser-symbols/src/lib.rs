@@ -7,15 +7,13 @@
 /// SOM-specific parser combinators.
 pub mod lang;
 
-use std::cell::RefCell;
-use std::mem;
-use std::rc::Rc;
-use som_core::ast::{ClassDef, Expression};
 #[cfg(feature = "block-debug-info")]
 use som_core::ast::BlockDebugInfo;
-use som_core::universe::UniverseForParser;
+use som_core::ast::{ClassDef, Expression};
 use som_lexer::Token;
-use som_parser_core::{Parser};
+use som_parser_core::Parser;
+use std::cell::RefCell;
+use std::rc::Rc;
 
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum AstMethodGenCtxtType {
@@ -40,8 +38,7 @@ pub struct AstGenCtxtData<'a> {
     class_instance_fields: Vec<String>,
     class_static_fields: Vec<String>, // it's possible the distinction between static/instance fields is useless, but i don't think so.
     current_scope: usize,
-    outer_ctxt: Option<AstGenCtxt<'a>>,
-    universe: Option<&'a mut dyn UniverseForParser>,
+    outer_ctxt: Option<AstGenCtxt<'a>>
 }
 
 pub type AstGenCtxt<'a> = Rc<RefCell<AstGenCtxtData<'a>>>;
@@ -54,7 +51,7 @@ enum FoundVar {
 }
 
 impl<'a> AstGenCtxtData<'a> {
-    pub fn init(universe: Option<&'a mut dyn UniverseForParser>) -> Self {
+    pub fn init() -> Self {
         AstGenCtxtData {
             kind: AstGenCtxtType::Class,
             name: "NO NAME".to_string(),
@@ -65,30 +62,12 @@ impl<'a> AstGenCtxtData<'a> {
             class_instance_fields: vec![],
             current_scope: 0,
             outer_ctxt: None,
-            universe,
-        }
-    }
-
-    pub fn init_no_universe() -> Self {
-        AstGenCtxtData {
-            kind: AstGenCtxtType::Class,
-            name: "NO NAME".to_string(),
-            super_class_name: None,
-            local_names: vec![],
-            param_names: vec![],
-            class_static_fields: vec![],
-            class_instance_fields: vec![],
-            current_scope: 0,
-            outer_ctxt: None,
-            universe: None,
         }
     }
 }
 
 impl<'a> AstGenCtxtData<'a> {
     pub fn new_ctxt_from(outer: AstGenCtxt, kind: AstGenCtxtType) -> AstGenCtxt {
-        let universe = mem::take(&mut outer.borrow_mut().universe);
-
         Rc::new(RefCell::new(
             AstGenCtxtData {
                 kind,
@@ -100,7 +79,6 @@ impl<'a> AstGenCtxtData<'a> {
                 class_static_fields: vec![],
                 current_scope: outer.borrow().current_scope + 1,
                 outer_ctxt: Some(Rc::clone(&outer)),
-                universe,
             }))
     }
 
@@ -114,7 +92,6 @@ impl<'a> AstGenCtxtData<'a> {
 
     pub fn get_outer(&mut self) -> AstGenCtxt<'a> {
         let outer = self.outer_ctxt.as_ref().unwrap();
-        outer.borrow_mut().universe = mem::take(&mut self.universe);
         Rc::clone(outer)
     }
 
@@ -133,16 +110,6 @@ impl<'a> AstGenCtxtData<'a> {
             }
             _ => self.outer_ctxt.as_ref().unwrap().borrow_mut().get_super_class_name()
         }
-    }
-
-    pub fn load_super_class_and_set_fields(&mut self, name: &String) {
-        let fields = match self.universe.as_mut() {
-            Some(universe) => universe.load_class_and_get_all_fields(name),
-            None => panic!("No universe provided even though we need to parse the superclass {}", name)
-        };
-        self.add_instance_fields(fields.0);
-        self.add_static_fields(fields.1);
-        self.super_class_name = Some(name.clone());
     }
 
     pub fn add_instance_fields(&mut self, fields_names: Vec<String>) {
@@ -233,7 +200,7 @@ impl<'a> AstGenCtxtData<'a> {
     fn get_var_write(&self, name: &String, expr: Box<Expression>) -> Expression {
         match self.find_var(name) {
             None => {
-                panic!("variable couldn't be found to be written to ({} in {}).", name, self.name)
+                return Expression::GlobalWrite(name.clone(), expr)
             }
             Some(v) => {
                 match v {
@@ -277,21 +244,21 @@ impl<'a> AstGenCtxtData<'a> {
 
 
 /// Parses the input of an entire file into an AST.
-pub fn parse_file(input: &[Token], universe: &mut dyn UniverseForParser) -> Option<ClassDef> {
-    self::apply(lang::file(), input, Some(universe))
+pub fn parse_file(input: &[Token]) -> Option<ClassDef> {
+    self::apply(lang::file(), input)
 }
 
 /// Parses the input of an entire file into an AST, without access to the universe (system classes are initialized before the Universe itself, and don't need access to it)
 pub fn parse_file_no_universe(input: &[Token]) -> Option<ClassDef> {
-    self::apply(lang::file(), input, None)
+    self::apply(lang::file(), input)
 }
 
 /// Applies a parser and returns the output value if the entirety of the input has been parsed successfully.
-pub fn apply<'a, A, P>(mut parser: P, input: &'a [Token], universe: Option<&'a mut dyn UniverseForParser>) -> Option<A>
+pub fn apply<'a, A, P>(mut parser: P, input: &'a [Token]) -> Option<A>
     where
         P: Parser<A, &'a [Token], AstGenCtxt<'a>>,
 {
-    match parser.parse(input, Rc::new(RefCell::new(AstGenCtxtData::init(universe)))) {
+    match parser.parse(input, Rc::new(RefCell::new(AstGenCtxtData::init()))) {
         Some((output, tail, _)) if tail.is_empty() => Some(output),
         Some(_) | None => None,
     }

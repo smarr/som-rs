@@ -105,6 +105,8 @@ pub struct Body {
 pub enum Expression {
     /// A reference to a binding (eg. `counter`).
     GlobalRead(String),
+    /// This does NOT exist: this is a field write which will be resolved by the AST/BC compilers, or it's an error.
+    GlobalWrite(String, Box<Expression>),
     /// Read of a local var.
     LocalVarRead(usize),
     /// Read of a nonlocal var.

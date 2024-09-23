@@ -4,15 +4,15 @@ use std::io;
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
-use anyhow::{anyhow, Error};
-use som_core::gc::{GCInterface, GCRef};
-use som_core::universe::UniverseForParser;
 use crate::block::Block;
 use crate::class::Class;
 use crate::frame::{Frame, FrameAccess};
 use crate::interner::{Interned, Interner};
 use crate::invokable::{Invoke, Return};
 use crate::value::Value;
+use anyhow::{anyhow, Error};
+use som_core::gc::{GCInterface, GCRef};
+use som_core::universe::UniverseForParser;
 
 /// The core classes of the SOM interpreter.
 ///
@@ -233,9 +233,8 @@ impl UniverseAST {
     /// Load a class from its name into this universe.
     pub fn load_class(&mut self, class_name: impl Into<String>) -> Result<GCRef<Class>, Error> {
         let class_name = class_name.into();
-        let paths: Vec<PathBuf> = self.classpath.to_vec(); // TODO: change back, same as BC
 
-        for path in paths {
+        for path in &self.classpath {
             let mut path = path.join(class_name.as_str());
             path.set_extension("som");
 
@@ -252,7 +251,7 @@ impl UniverseAST {
                 .collect();
 
             // Parse class definition from the tokens.
-            let defn = match som_parser::parse_file(tokens.as_slice(), self) {
+            let defn = match som_parser::parse_file(tokens.as_slice()) {
                 Some(defn) => defn,
                 None => continue,
             };
@@ -267,7 +266,7 @@ impl UniverseAST {
             let super_class = if let Some(ref super_class) = defn.super_class {
                 match self.lookup_global(super_class) {
                     Some(Value::Class(super_class)) => super_class,
-                    _ => unreachable!("we should have already loaded and cached the superclass during parsing"),
+                    _ => self.load_class(super_class)?,
                 }
             } else {
                 self.core.object_class.clone()
