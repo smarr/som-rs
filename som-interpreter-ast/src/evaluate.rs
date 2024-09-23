@@ -1,5 +1,5 @@
 use std::rc::Rc;
-
+use num_bigint::BigInt;
 use crate::ast::{AstBinaryDispatch, AstBlock, AstBody, AstDispatchNode, AstExpression, AstMethodDef, AstNAryDispatch, AstSuperMessage, AstTerm, AstTernaryDispatch, AstUnaryDispatch, InlinedNode};
 use som_core::ast;
 use som_core::gc::GCRef;
@@ -150,7 +150,7 @@ impl Evaluate for ast::Literal {
             }
             Self::Integer(int) => Return::Local(Value::Integer(*int)),
             Self::BigInteger(int) => match int.parse() {
-                Ok(value) => Return::Local(Value::BigInteger(value)),
+                Ok(value) => Return::Local(Value::BigInteger(GCRef::<BigInt>::alloc(value, &mut universe.gc_interface))),
                 Err(err) => Return::Exception(err.to_string()),
             },
             Self::Double(double) => Return::Local(Value::Double(*double)),
