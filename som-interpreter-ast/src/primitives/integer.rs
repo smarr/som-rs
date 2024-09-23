@@ -1,5 +1,3 @@
-use std::rc::Rc;
-
 use num_bigint::{BigInt, BigUint, Sign, ToBigInt};
 use num_traits::ToPrimitive;
 use rand::distributions::Uniform;
@@ -71,7 +69,7 @@ fn from_string(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
     }
 }
 
-fn as_string(_: &mut UniverseAST, args: Vec<Value>) -> Return {
+fn as_string(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
     const SIGNATURE: &str = "Integer>>#asString";
 
     expect_args!(SIGNATURE, args, [
@@ -84,7 +82,7 @@ fn as_string(_: &mut UniverseAST, args: Vec<Value>) -> Return {
         _ => return Return::Exception(format!("'{}': wrong types", SIGNATURE)),
     };
 
-    Return::Local(Value::String(Rc::new(value)))
+    Return::Local(Value::String(GCRef::<String>::alloc(value, &mut universe.gc_interface)))
 }
 
 fn as_double(_: &mut UniverseAST, args: Vec<Value>) -> Return {

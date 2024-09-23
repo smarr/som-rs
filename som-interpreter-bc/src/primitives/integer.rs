@@ -1,5 +1,6 @@
 use std::convert::{TryFrom, TryInto};
 
+use crate::block::Block;
 use crate::convert::{DoubleLike, IntegerLike, Primitive, StringLike};
 use crate::interpreter::Interpreter;
 use crate::primitives::PrimitiveFn;
@@ -12,7 +13,6 @@ use once_cell::sync::Lazy;
 use rand::distributions::Uniform;
 use rand::Rng;
 use som_core::gc::GCRef;
-use crate::block::Block;
 
 pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| {
     Box::new([
@@ -545,7 +545,7 @@ fn eq(
 
     let value = match (a, b) {
         (DoubleLike::Integer(a), DoubleLike::Integer(b)) => a == b,
-        (DoubleLike::BigInteger(a), DoubleLike::BigInteger(b)) => a == b,
+        (DoubleLike::BigInteger(a), DoubleLike::BigInteger(b)) => a.as_ref() == b.as_ref(),
         (DoubleLike::Double(a), DoubleLike::Double(b)) => a == b,
         (DoubleLike::Integer(a), DoubleLike::Double(b)) => (a as f64) == b,
         (DoubleLike::Double(a), DoubleLike::Integer(b)) => a == (b as f64),

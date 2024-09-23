@@ -1,13 +1,12 @@
-use std::collections::hash_map::DefaultHasher;
-use std::convert::TryFrom;
-use std::hash::Hasher;
-use std::rc::Rc;
-
 use crate::expect_args;
 use crate::invokable::Return;
 use crate::primitives::PrimitiveFn;
 use crate::universe::UniverseAST;
 use crate::value::Value;
+use som_core::gc::GCRef;
+use std::collections::hash_map::DefaultHasher;
+use std::convert::TryFrom;
+use std::hash::Hasher;
 
 pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[
     ("length", self::length, true),
@@ -140,7 +139,7 @@ fn concatenate(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
         _ => return Return::Exception(format!("'{}': wrong types", SIGNATURE)),
     };
 
-    Return::Local(Value::String(Rc::new(format!("{}{}", s1, s2))))
+    Return::Local(Value::String(GCRef::<String>::alloc(format!("{}{}", s1, s2), &mut universe.gc_interface)))
 }
 
 fn as_symbol(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
@@ -159,7 +158,7 @@ fn as_symbol(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
     }
 }
 
-fn char_at(_universe: &mut UniverseAST, args: Vec<Value>) -> Return {
+fn char_at(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
     const SIGNATURE: &str = "String>>#charAt:";
 
     expect_args!(SIGNATURE, args, [
@@ -170,13 +169,13 @@ fn char_at(_universe: &mut UniverseAST, args: Vec<Value>) -> Return {
     let (value, idx) = match (&s1, s2) {
         (Value::String(ref value), Value::Integer(i)) => (value.as_str(), i as usize - 1),
         (Value::Symbol(intern), Value::Integer(i)) => {
-            let str = _universe.lookup_symbol(*intern);
+            let str = universe.lookup_symbol(*intern);
             (str, i as usize - 1)
         },
         a => panic!("charAt not given a [String|Symbol] + integer but {:?}", a)
     };
 
-    Return::Local(Value::String(Rc::new(String::from(value.chars().nth(idx).unwrap()))))
+    Return::Local(Value::String(GCRef::<String>::alloc(String::from(value.chars().nth(idx).unwrap()), &mut universe.gc_interface)))
 }
 
 fn eq(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
@@ -221,7 +220,7 @@ fn prim_substring_from_to(universe: &mut UniverseAST, args: Vec<Value>) -> Retur
         (_, _, _) => return Return::Exception(format!("'{}': wrong types", SIGNATURE)),
     };
 
-    let string = Rc::new(String::from(&value[from..to]));
+    let string = GCRef::<String>::alloc(String::from(&value[from..to]), &mut universe.gc_interface);
 
     Return::Local(Value::String(string))
 }

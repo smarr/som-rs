@@ -1,11 +1,10 @@
-use std::rc::Rc;
-use som_core::gc::GCRef;
 use crate::expect_args;
 use crate::instance::Instance;
 use crate::invokable::Return;
 use crate::primitives::PrimitiveFn;
 use crate::universe::UniverseAST;
 use crate::value::Value;
+use som_core::gc::GCRef;
 
 pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[
     ("new", self::new, true),
@@ -75,7 +74,7 @@ fn fields(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
     ]);
 
     let fields = class.borrow().field_names.iter()
-        .map(|field_name| Value::String(Rc::new(field_name.clone())))
+        .map(|field_name| Value::String(GCRef::<String>::alloc(field_name.clone(), &mut universe.gc_interface)))
         .collect();
 
     Return::Local(Value::Array(GCRef::<Vec<Value>>::alloc(fields, &mut universe.gc_interface)))

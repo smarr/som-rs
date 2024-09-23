@@ -1,12 +1,11 @@
-use std::convert::TryFrom;
-use std::fs;
-use std::rc::Rc;
-
 use crate::expect_args;
 use crate::invokable::Return;
 use crate::primitives::PrimitiveFn;
 use crate::universe::UniverseAST;
 use crate::value::Value;
+use som_core::gc::GCRef;
+use std::convert::TryFrom;
+use std::fs;
 
 pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[
     ("loadFile:", self::load_file, true),
@@ -35,13 +34,13 @@ fn load_file(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
     ]);
 
     let path = match value {
-        Value::String(ref string) => string,
+        Value::String(ref string) => string.to_obj(),
         Value::Symbol(sym) => universe.lookup_symbol(sym),
         _ => return Return::Exception(format!("'{}': wrong type", SIGNATURE)),
     };
 
     match fs::read_to_string(path) {
-        Ok(value) => Return::Local(Value::String(Rc::new(value))),
+        Ok(value) => Return::Local(Value::String(GCRef::<String>::alloc(value, &mut universe.gc_interface))),
         Err(_) => Return::Local(Value::Nil),
     }
 }
@@ -55,7 +54,7 @@ fn print_string(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
     ]);
 
     let string = match value {
-        Value::String(ref string) => string,
+        Value::String(ref string) => string.to_obj(),
         Value::Symbol(sym) => universe.lookup_symbol(sym),
         _ => return Return::Exception(format!("'{}': wrong type", SIGNATURE)),
     };
@@ -82,7 +81,7 @@ fn error_print(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
     ]);
 
     let string = match value {
-        Value::String(ref string) => string,
+        Value::String(ref string) => string.to_obj(),
         Value::Symbol(sym) => universe.lookup_symbol(sym),
         _ => return Return::Exception(format!("'{}': wrong type", SIGNATURE)),
     };
@@ -100,7 +99,7 @@ fn error_println(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
     ]);
 
     let string = match value {
-        Value::String(ref string) => string,
+        Value::String(ref string) => string.to_obj(),
         Value::Symbol(sym) => universe.lookup_symbol(sym),
         _ => return Return::Exception(format!("'{}': wrong type", SIGNATURE)),
     };

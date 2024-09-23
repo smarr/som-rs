@@ -1,10 +1,9 @@
-use std::rc::Rc;
-
 use crate::expect_args;
 use crate::invokable::Return;
 use crate::primitives::PrimitiveFn;
 use crate::universe::UniverseAST;
 use crate::value::Value;
+use som_core::gc::GCRef;
 
 pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[
     ("asString", self::as_string, true),
@@ -20,9 +19,7 @@ fn as_string(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
         Value::Symbol(sym) => sym,
     ]);
 
-    Return::Local(Value::String(Rc::new(
-        universe.lookup_symbol(sym).to_string(),
-    )))
+    Return::Local(Value::String(GCRef::<String>::alloc(universe.lookup_symbol(sym).to_string(), &mut universe.gc_interface)))
 }
 
 fn concatenate(universe: &mut UniverseAST, args: Vec<Value>) -> Return {

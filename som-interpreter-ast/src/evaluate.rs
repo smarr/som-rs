@@ -1,14 +1,13 @@
-use std::rc::Rc;
-use num_bigint::BigInt;
 use crate::ast::{AstBinaryDispatch, AstBlock, AstBody, AstDispatchNode, AstExpression, AstMethodDef, AstNAryDispatch, AstSuperMessage, AstTerm, AstTernaryDispatch, AstUnaryDispatch, InlinedNode};
-use som_core::ast;
-use som_core::gc::GCRef;
 use crate::block::Block;
 use crate::frame::{Frame, FrameAccess};
 use crate::invokable::{Invoke, Return};
 use crate::method::Method;
 use crate::universe::UniverseAST;
 use crate::value::Value;
+use num_bigint::BigInt;
+use som_core::ast;
+use som_core::gc::GCRef;
 
 /// The trait for evaluating AST nodes.
 pub trait Evaluate {
@@ -155,7 +154,7 @@ impl Evaluate for ast::Literal {
             },
             Self::Double(double) => Return::Local(Value::Double(*double)),
             Self::Symbol(sym) => Return::Local(Value::Symbol(universe.intern_symbol(sym))),
-            Self::String(string) => Return::Local(Value::String(Rc::new(string.clone()))),
+            Self::String(string) => Return::Local(Value::String(GCRef::<String>::alloc(string.clone(), &mut universe.gc_interface))),
         }
     }
 }

@@ -4,13 +4,12 @@
 #![warn(missing_docs)]
 
 use std::path::PathBuf;
-use std::rc::Rc;
 
 use anyhow::anyhow;
 #[cfg(feature = "jemalloc")]
 use jemallocator::Jemalloc;
+use som_core::gc::{GCInterface, GCRef};
 use structopt::StructOpt;
-use som_core::gc::GCInterface;
 
 mod shell;
 
@@ -66,8 +65,7 @@ fn main() -> anyhow::Result<()> {
 
             let args = std::iter::once(String::from(file_stem))
                 .chain(opts.args.iter().cloned())
-                .map(Rc::new)
-                .map(Value::String)
+                .map(|str| Value::String(GCRef::<String>::alloc(str, &mut universe.gc_interface)))
                 .collect();
 
             let output = universe.initialize(args).unwrap_or_else(|| {

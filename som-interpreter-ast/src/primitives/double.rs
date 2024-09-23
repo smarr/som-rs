@@ -1,12 +1,10 @@
-use std::rc::Rc;
-
-use num_traits::ToPrimitive;
-
 use crate::expect_args;
 use crate::invokable::Return;
 use crate::primitives::PrimitiveFn;
 use crate::universe::UniverseAST;
 use crate::value::Value;
+use num_traits::ToPrimitive;
+use som_core::gc::GCRef;
 
 pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[
     ("+", self::plus, true),
@@ -60,13 +58,13 @@ fn from_string(_: &mut UniverseAST, args: Vec<Value>) -> Return {
         Value::String(string) => string,
     ]);
 
-    match string.parse() {
+    match string.to_obj().parse() {
         Ok(parsed) => Return::Local(Value::Double(parsed)),
         Err(err) => Return::Exception(format!("'{}': {}", SIGNATURE, err)),
     }
 }
 
-fn as_string(_: &mut UniverseAST, args: Vec<Value>) -> Return {
+fn as_string(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
     const SIGNATURE: &str = "Double>>#asString";
 
     expect_args!(SIGNATURE, args, [
@@ -75,7 +73,7 @@ fn as_string(_: &mut UniverseAST, args: Vec<Value>) -> Return {
 
     let value = promote!(SIGNATURE, value);
 
-    Return::Local(Value::String(Rc::new(value.to_string())))
+    Return::Local(Value::String(GCRef::<String>::alloc(value.to_string(), &mut universe.gc_interface)))
 }
 
 fn as_integer(_: &mut UniverseAST, args: Vec<Value>) -> Return {
