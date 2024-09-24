@@ -420,10 +420,10 @@ impl MethodCodegen for ast::Expression {
                 ctxt.push_instr(Bytecode::PushNonLocal(*up_idx as u8, *idx as u8));
                 Some(())
             }
-            ast::Expression::FieldRead(idx) => {
-                ctxt.push_instr(Bytecode::PushField(*idx as u8));
-                Some(())
-            }
+            // ast::Expression::FieldRead(idx) => {
+            //     ctxt.push_instr(Bytecode::PushField(*idx as u8));
+            //     Some(())
+            // }
             ast::Expression::ArgRead(up_idx, idx) => {
                 match (up_idx, idx) {
                     (0, 0) => ctxt.push_instr(Bytecode::PushSelf),
@@ -433,6 +433,7 @@ impl MethodCodegen for ast::Expression {
                 Some(())
             }
             ast::Expression::GlobalRead(name) => {
+                todo!("handle the field read case");
                 match name.as_str() {
                     "nil" => ctxt.push_instr(Bytecode::PushNil),
                     "super" => {
@@ -462,12 +463,12 @@ impl MethodCodegen for ast::Expression {
             ast::Expression::GlobalWrite(_name, _expr) => {
                 todo!("handle global write: it's an unresolved field write")
             }
-            ast::Expression::FieldWrite(idx, expr) => {
-                expr.codegen(ctxt, mutator)?;
-                ctxt.push_instr(Bytecode::Dup);
-                ctxt.push_instr(Bytecode::PopField(*idx as u8));
-                Some(())
-            }
+            // ast::Expression::FieldWrite(idx, expr) => {
+            //     expr.codegen(ctxt, mutator)?;
+            //     ctxt.push_instr(Bytecode::Dup);
+            //     ctxt.push_instr(Bytecode::PopField(*idx as u8));
+            //     Some(())
+            // }
             ast::Expression::ArgWrite(up_idx, idx, expr) => {
                 expr.codegen(ctxt, mutator)?;
                 ctxt.push_instr(Bytecode::Dup);

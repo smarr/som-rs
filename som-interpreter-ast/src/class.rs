@@ -74,10 +74,15 @@ impl Class {
             instance_locals
         };
 
+        let maybe_static_superclass = match super_class {
+            Some(cls) => Some(cls.to_obj().class),
+            None => None
+        };
+        
         let static_class = Self {
             name: format!("{} class", defn.name),
             class: GCRef::default(),
-            super_class: None,
+            super_class: maybe_static_superclass,
             fields: vec![Value::Nil; static_locals.len()],
             field_names: defn.static_locals,
             methods: IndexMap::new(),
@@ -89,7 +94,7 @@ impl Class {
         let instance_class = Self {
             name: defn.name.clone(),
             class: static_class_gc_ptr,
-            super_class: None,
+            super_class,
             fields: vec![Value::Nil; instance_locals.len()],
             field_names: defn.instance_locals,
             methods: IndexMap::new(),
@@ -105,7 +110,7 @@ impl Class {
             .iter()
             .map(|method| {
                 let signature = method.signature.clone();
-                let kind = AstMethodCompilerCtxt::get_method_kind(method, maybe_static_superclass.clone(), gc_interface);
+                let kind = AstMethodCompilerCtxt::get_method_kind(method, Some(static_class_gc_ptr), maybe_static_superclass.clone(), gc_interface);
                 let method = Method {
                     kind,
                     signature: signature.clone(),
@@ -138,7 +143,7 @@ impl Class {
             .iter()
             .map(|method| {
                 let signature = method.signature.clone();
-                let kind = AstMethodCompilerCtxt::get_method_kind(method, super_class.clone(), gc_interface);
+                let kind = AstMethodCompilerCtxt::get_method_kind(method, Some(instance_class_gc_ptr), super_class.clone(), gc_interface);
                 let method = Method {
                     kind,
                     signature: signature.clone(),
@@ -194,9 +199,9 @@ impl Class {
 
     /// Set the superclass of this class (as a weak reference).
     pub fn set_super_class(&mut self, class: &GCRef<Self>) {
-        for local_name in class.borrow().field_names.iter().rev() {
-            self.field_names.insert(0, local_name.clone());
-        }
+        // for local_name in class.borrow().field_names.iter().rev() {
+        //     self.field_names.insert(0, local_name.clone());
+        // }
         for local in class.borrow().fields.iter().rev() {
             self.fields.insert(0, local.clone());
         }
@@ -231,6 +236,41 @@ impl Class {
         }
         let super_class = self.super_class().unwrap();
         super_class.borrow_mut().assign_field(idx, value);
+    }
+
+    /// Used during parsing, to generate a FieldRead or a FieldWrite.
+    /// Iterates through superclasses to find the index of the field in a given class when it's originally defined in a superclass.
+    pub fn get_field_offset_by_name(&self, name: &str) -> Option<usize> {
+        self.field_names.iter()
+            .position(|field_name| field_name == name)
+            .and_then(|pos| Some(pos + self.super_class.map(|scls| scls.to_obj().get_total_field_nbr()).unwrap_or(0)))
+            .or_else(||
+                match self.super_class() {
+                    Some(super_class) => {
+                        super_class.borrow().get_field_offset_by_name(name)
+                    },
+                    _ => None
+                }
+            )
+    }
+    
+    pub fn get_total_field_nbr(&self) -> usize {
+        let scls_nbr_fields = match self.super_class {
+            Some(scls) => scls.to_obj().get_total_field_nbr(),
+            None => 0
+        };
+        self.field_names.len() + scls_nbr_fields
+    }
+
+    /// Used by the `fields` primitive. Could be made faster (strings get cloned, then put on the GC heap in the primitive), but it's also basically never used.
+    pub fn get_all_field_names(&self) -> Vec<String> {
+        self.field_names.iter().cloned() 
+            .chain(self.super_class
+                       .as_ref()
+                       .map(|scls| scls.to_obj().get_all_field_names())
+                       .unwrap_or_else(|| Vec::new()) 
+            )
+            .collect() 
     }
 }
 

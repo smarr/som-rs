@@ -171,7 +171,7 @@ fn basic_interpreter_tests() {
             "could not fully tokenize test expression"
         );
 
-        let class_def = som_parser::apply(lang::class_def(), tokens.as_slice(), None).unwrap();
+        let class_def = som_parser::apply(lang::class_def(), tokens.as_slice()).unwrap();
 
         let object_class = universe.object_class();
         let class =

@@ -1,5 +1,7 @@
 use std::path::PathBuf;
-use som_core::gc::GCInterface;
+use indexmap::IndexMap;
+use som_core::gc::{GCInterface, GCRef};
+use som_interpreter_ast::class::Class;
 use som_interpreter_ast::compiler::AstMethodCompilerCtxt;
 
 use som_interpreter_ast::evaluate::Evaluate;
@@ -167,8 +169,8 @@ fn basic_interpreter_tests() {
             "could not fully tokenize test expression"
         );
 
-        let ast_parser = som_parser::apply(lang::expression(), tokens.as_slice(), None).unwrap();
-        let mut compiler = AstMethodCompilerCtxt { scopes: vec![], super_class: None, gc_interface: &mut universe.gc_interface };
+        let ast_parser = som_parser::apply(lang::expression(), tokens.as_slice()).unwrap();
+        let mut compiler = AstMethodCompilerCtxt { scopes: vec![], class: None, super_class: None, gc_interface: &mut universe.gc_interface };
         let mut ast = compiler.parse_expression(&ast_parser);
         
         // let signature = universe.intern_symbol(expr.split(' ').skip(1).next().unwrap_or("unknown"));

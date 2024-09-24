@@ -14,7 +14,7 @@ fn literal_tests() {
         .skip_whitespace(true)
         .collect();
 
-    let result = many(literal()).parse(tokens.as_slice(), Rc::new(RefCell::new(AstGenCtxtData::init_no_universe())));
+    let result = many(literal()).parse(tokens.as_slice(), Rc::new(RefCell::new(AstGenCtxtData::init())));
 
     assert!(result.is_some(), "input did not parse successfully");
     let (literals, rest, _) = result.unwrap();
@@ -34,7 +34,7 @@ fn expression_test_1() {
         .skip_whitespace(true)
         .collect();
 
-    let result = expression().parse(tokens.as_slice(), Rc::new(RefCell::new(AstGenCtxtData::init_no_universe())));
+    let result = expression().parse(tokens.as_slice(), Rc::new(RefCell::new(AstGenCtxtData::init())));
 
     assert!(result.is_some(), "input did not parse successfully");
     let (expression, rest, _) = result.unwrap();
@@ -61,7 +61,7 @@ fn block_test() {
             .skip_whitespace(true)
             .collect();
 
-    let result = block().parse(tokens.as_slice(), Rc::new(RefCell::new(AstGenCtxtData::init_no_universe())));
+    let result = block().parse(tokens.as_slice(), Rc::new(RefCell::new(AstGenCtxtData::init())));
 
     assert!(result.is_some(), "input did not parse successfully");
     let (block, rest, _) = result.unwrap();
@@ -105,7 +105,7 @@ fn expression_test_2() {
         .skip_whitespace(true)
         .collect();
 
-    let result = expression().parse(tokens.as_slice(), Rc::new(RefCell::new(AstGenCtxtData::init_no_universe())));
+    let result = expression().parse(tokens.as_slice(), Rc::new(RefCell::new(AstGenCtxtData::init())));
 
     assert!(result.is_some(), "input did not parse successfully");
     let (expression, rest, _) = result.unwrap();
@@ -168,7 +168,7 @@ fn primary_test() {
         .skip_whitespace(true)
         .collect();
 
-    let result = primary().parse(tokens.as_slice(), Rc::new(RefCell::new(AstGenCtxtData::init_no_universe())));
+    let result = primary().parse(tokens.as_slice(), Rc::new(RefCell::new(AstGenCtxtData::init())));
 
     assert!(result.is_some(), "input did not parse successfully");
     let (primary, rest, _) = result.unwrap();

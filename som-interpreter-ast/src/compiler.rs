@@ -14,8 +14,13 @@ use som_core::ast::{Expression, MethodBody};
 use som_core::gc::{GCInterface, GCRef};
 
 pub struct AstMethodCompilerCtxt<'a> {
-    pub scopes: Vec<AstScopeCtxt>,
+    /// The class in which context we're compiling. Needed for resolving field accesses. Should always be Some() outside of a testing context. 
+    pub class: Option<GCRef<Class>>,
+    /// The superclass. TODO it's accessible from class, so remove.
     pub super_class: Option<GCRef<Class>>,
+    /// The stack of scopes to better reason about inlining.
+    pub scopes: Vec<AstScopeCtxt>,
+    /// The interface to the GC to allocate anything we want during parsing.
     pub gc_interface: &'a mut GCInterface
 }
 
@@ -54,7 +59,7 @@ impl AstScopeCtxt {
 }
 
 impl<'a> AstMethodCompilerCtxt<'a> {
-    pub fn get_method_kind(method: &ast::MethodDef, super_class: Option<GCRef<Class>>, gc_interface: &mut GCInterface) -> MethodKind {
+    pub fn get_method_kind(method: &ast::MethodDef, class: Option<GCRef<Class>>, super_class: Option<GCRef<Class>>, gc_interface: &mut GCInterface) -> MethodKind {
         // NB: these If/IfTrueIfFalse/While are very rare cases, since we normally inline those functions.
         // But we don't do inlining when e.g. the condition for ifTrue: isn't a block.
         // so there is *some* occasional benefit in having those specialized method nodes around for those cases.
@@ -71,7 +76,7 @@ impl<'a> AstMethodCompilerCtxt<'a> {
                 match method.body {
                     MethodBody::Primitive => MethodKind::NotImplemented(method.signature.clone()),
                     MethodBody::Body { .. } => {
-                        let ast_method_def = AstMethodCompilerCtxt::parse_method_def(method, super_class, gc_interface);
+                        let ast_method_def = AstMethodCompilerCtxt::parse_method_def(method, class, super_class, gc_interface);
 
                         if let Some(trivial_method_kind) = AstMethodCompilerCtxt::make_trivial_method_if_possible(&ast_method_def) {
                             trivial_method_kind
@@ -118,12 +123,12 @@ impl<'a> AstMethodCompilerCtxt<'a> {
 
     /// Transforms a generic MethodDef into an AST-specific one.
     /// Note: public since it's used in tests.
-    pub fn parse_method_def(method_def: &ast::MethodDef, super_class: Option<GCRef<Class>>, gc_interface: &mut GCInterface) -> AstMethodDef {
+    pub fn parse_method_def(method_def: &ast::MethodDef, class: Option<GCRef<Class>>, super_class: Option<GCRef<Class>>, gc_interface: &mut GCInterface) -> AstMethodDef {
         let (body, locals_nbr) = match &method_def.body {
             MethodBody::Primitive => { unreachable!("unimplemented primitive") }
             MethodBody::Body { locals_nbr, body, .. } => {
                 let args_nbr = method_def.signature.chars().filter(|e| *e == ':').count(); // not sure if needed
-                let mut ctxt = AstMethodCompilerCtxt { scopes: vec![AstScopeCtxt::init(args_nbr, *locals_nbr, false)], super_class, gc_interface: gc_interface };
+                let mut ctxt = AstMethodCompilerCtxt { class, scopes: vec![AstScopeCtxt::init(args_nbr, *locals_nbr, false)], super_class, gc_interface: gc_interface };
 
                 (ctxt.parse_body(body), ctxt.scopes.last().unwrap().get_nbr_locals())
             }
@@ -138,16 +143,14 @@ impl<'a> AstMethodCompilerCtxt<'a> {
 
     pub fn parse_expression(&mut self, expr: &Expression) -> AstExpression {
         match expr.clone() {
-            Expression::GlobalRead(global_name) => AstExpression::GlobalRead(global_name.clone()),
+            Expression::GlobalRead(global_name) => self.global_or_field_read_from_superclass(global_name),
+            Expression::GlobalWrite(global_name, expr) => self.resolve_global_write_to_field_write(&global_name, expr.as_ref()),
             Expression::LocalVarRead(idx) => AstExpression::LocalVarRead(idx),
             Expression::NonLocalVarRead(scope, idx) => AstExpression::NonLocalVarRead(scope, idx),
             Expression::ArgRead(scope, idx) => AstExpression::ArgRead(scope, idx),
-            Expression::FieldRead(idx) => AstExpression::FieldRead(idx),
             Expression::LocalVarWrite(a, b) => AstExpression::LocalVarWrite(a, Box::new(self.parse_expression(b.as_ref()))),
             Expression::NonLocalVarWrite(a, b, c) => AstExpression::NonLocalVarWrite(a, b, Box::new(self.parse_expression(c.as_ref()))),
             Expression::ArgWrite(a, b, c) => AstExpression::ArgWrite(a, b, Box::new(self.parse_expression(c.as_ref()))),
-            Expression::GlobalWrite(_global_name, _expr) => todo!("handle field writes"),
-            Expression::FieldWrite(a, b) => AstExpression::FieldWrite(a, Box::new(self.parse_expression(b.as_ref()))),
             Expression::Message(msg) => self.parse_message(msg.as_ref()),
             Expression::Exit(a, b) => {
                 match b {
@@ -253,6 +256,33 @@ impl<'a> AstMethodCompilerCtxt<'a> {
                     }
                 }
             }
+        }
+    }
+
+    pub fn global_or_field_read_from_superclass(&self, name: String) -> AstExpression {
+        // if name == "super" {
+        //     return AstExpression::ArgRead(self.scopes.len() - 1, 0); // TODO is this correct?
+        // }
+
+        if self.class.is_none() {
+            return AstExpression::GlobalRead(name.clone());
+        }
+        
+        match self.class.unwrap().to_obj().get_field_offset_by_name(&name) {
+            Some(offset) => AstExpression::FieldRead(offset),
+            _ => AstExpression::GlobalRead(name.clone())
+        }
+    }
+
+    
+    pub fn resolve_global_write_to_field_write(&mut self, name: &String, expr: &Expression) -> AstExpression {
+        if self.class.is_none() {
+            panic!("can't turn the GlobalWrite `{}` into a FieldWrite, and GlobalWrite shouldn't exist at runtime", name);
+        }
+        
+        match self.class.unwrap().to_obj().get_field_offset_by_name(&name) {
+            Some(offset) => AstExpression::FieldWrite(offset, Box::new(self.parse_expression(expr))),
+            _ => panic!("can't turn the GlobalWrite `{}` into a FieldWrite, and GlobalWrite shouldn't exist at runtime", name)
         }
     }
 }

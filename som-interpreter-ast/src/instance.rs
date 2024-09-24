@@ -43,6 +43,7 @@ impl Instance {
 
     /// Assign a value to a local binding.
     pub fn assign_local(&mut self, idx: usize, value: Value) {
+        // dbg!(&idx);
         *self.locals.get_mut(idx).unwrap() = value;
     }
 }

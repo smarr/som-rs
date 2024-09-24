@@ -113,13 +113,10 @@ pub enum Expression {
     NonLocalVarRead(usize, usize),
     /// Read of an argument.
     ArgRead(usize, usize),
-    /// Read of a field.
-    FieldRead(usize),
     /// An assignment to a binding (eg. `counter := 10`).
     LocalVarWrite(usize, Box<Expression>),
     NonLocalVarWrite(usize, usize, Box<Expression>),
     ArgWrite(usize, usize, Box<Expression>),
-    FieldWrite(usize, Box<Expression>),
     /// A message send (eg. `counter incrementBy: 5`).
     Message(Box<Message>),
     /// An exit operation (eg. `^counter`). Second argument is the scope level to differentiate local and nonlocal returns

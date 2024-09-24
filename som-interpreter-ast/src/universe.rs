@@ -512,6 +512,7 @@ impl UniverseAST {
     }
 
     pub fn assign_field(&mut self, idx: usize, value: &Value) {
+        // dbg!(&idx);
         self.current_frame.assign_field(idx, value)
     }
 

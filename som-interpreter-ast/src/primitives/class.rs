@@ -73,7 +73,7 @@ fn fields(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
         Value::Class(class) => class,
     ]);
 
-    let fields = class.borrow().field_names.iter()
+    let fields = class.borrow().get_all_field_names().iter()
         .map(|field_name| Value::String(GCRef::<String>::alloc(field_name.clone(), &mut universe.gc_interface)))
         .collect();
 

@@ -90,10 +90,16 @@ impl PrimMessageInliner for AstMethodCompilerCtxt<'_> {
                     _ => AstExpression::NonLocalExit(Box::new(inline_expr), new_scope)
                 }
             }
-            Expression::GlobalRead(a) => AstExpression::GlobalRead(a.clone()),
-            Expression::GlobalWrite(_name, _expr) => todo!("handle global write in inliner"),
-            Expression::FieldRead(idx) => AstExpression::FieldRead(*idx),
-            Expression::FieldWrite(idx, expr) => AstExpression::FieldWrite(*idx, Box::new(self.parse_expression_with_inlining(expr))),
+            Expression::GlobalRead(a) => self.global_or_field_read_from_superclass(a.clone()),
+            Expression::GlobalWrite(name, expr) => {
+                if self.class.is_none() {
+                    panic!("can't turn the GlobalWrite `{}` into a FieldWrite, and GlobalWrite shouldn't exist at runtime", name)
+                }
+                match self.class.unwrap().to_obj().get_field_offset_by_name(&name) {
+                    Some(offset) => AstExpression::FieldWrite(offset, Box::new(self.parse_expression_with_inlining(expr))),
+                    _ => panic!("can't turn the GlobalWrite `{}` into a FieldWrite, and GlobalWrite shouldn't exist at runtime", name)
+                }
+            },
             Expression::Message(msg) => self.parse_message_with_inlining(msg),
             Expression::Literal(lit) => AstExpression::Literal(lit.clone()),
         };

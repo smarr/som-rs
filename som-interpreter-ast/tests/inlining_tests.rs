@@ -1,4 +1,4 @@
-use som_core::gc::GCInterface;
+use som_core::gc::{GCInterface, GCRef};
 use som_interpreter_ast::ast::AstExpression::*;
 use som_interpreter_ast::ast::InlinedNode::IfInlined;
 use som_interpreter_ast::ast::{AstBinaryDispatch, AstBody, AstDispatchNode, AstMethodDef};
@@ -14,9 +14,9 @@ fn get_ast(class_txt: &str) -> AstMethodDef {
     let tokens: Vec<Token> = lexer.by_ref().collect();
     assert!(lexer.text().is_empty(), "could not fully tokenize test expression");
 
-    let method_def = som_parser::apply(lang::instance_method_def(), tokens.as_slice(), None).unwrap();
+    let method_def = som_parser::apply(lang::instance_method_def(), tokens.as_slice()).unwrap();
     
-    AstMethodCompilerCtxt::parse_method_def(&method_def, None, &mut GCInterface::init())
+    AstMethodCompilerCtxt::parse_method_def(&method_def, None, None, &mut GCInterface::init())
 }
 
 #[test]

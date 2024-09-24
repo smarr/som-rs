@@ -262,7 +262,6 @@ pub fn locals<'a>() -> impl Parser<Vec<String>, &'a [Token], AstGenCtxt<'a>> {
 pub fn class_instance_locals<'a>() -> impl Parser<Vec<String>, &'a [Token], AstGenCtxt<'a>> {
     move |input: &'a [Token], genctxt| {
         let (new_locals_names, input, genctxt) = between(exact(Token::Or), many(identifier()), exact(Token::Or)).parse(input, genctxt)?;
-        genctxt.borrow_mut().add_instance_fields(new_locals_names.clone());
         Some((new_locals_names, input, genctxt))
     }
 }
@@ -270,7 +269,6 @@ pub fn class_instance_locals<'a>() -> impl Parser<Vec<String>, &'a [Token], AstG
 pub fn class_static_locals<'a>() -> impl Parser<Vec<String>, &'a [Token], AstGenCtxt<'a>> {
     move |input: &'a [Token], genctxt| {
         let (new_locals_names, input, genctxt) = between(exact(Token::Or), many(identifier()), exact(Token::Or)).parse(input, genctxt)?;
-        genctxt.borrow_mut().add_static_fields(new_locals_names.clone());
         Some((new_locals_names, input, genctxt))
     }
 }

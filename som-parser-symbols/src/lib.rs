@@ -35,8 +35,6 @@ pub struct AstGenCtxtData<'a> {
     super_class_name: Option<String>,
     local_names: Vec<String>,
     param_names: Vec<String>,
-    class_instance_fields: Vec<String>,
-    class_static_fields: Vec<String>, // it's possible the distinction between static/instance fields is useless, but i don't think so.
     current_scope: usize,
     outer_ctxt: Option<AstGenCtxt<'a>>
 }
@@ -47,7 +45,7 @@ pub type AstGenCtxt<'a> = Rc<RefCell<AstGenCtxtData<'a>>>;
 enum FoundVar {
     Local(usize, usize),
     Argument(usize, usize),
-    Field(usize),
+    // Field(usize),
 }
 
 impl<'a> AstGenCtxtData<'a> {
@@ -58,8 +56,6 @@ impl<'a> AstGenCtxtData<'a> {
             super_class_name: None,
             local_names: vec![],
             param_names: vec![],
-            class_static_fields: vec![],
-            class_instance_fields: vec![],
             current_scope: 0,
             outer_ctxt: None,
         }
@@ -75,8 +71,6 @@ impl<'a> AstGenCtxtData<'a> {
                 super_class_name: outer.borrow().super_class_name.clone(),
                 local_names: vec![],
                 param_names: vec![],
-                class_instance_fields: vec![],
-                class_static_fields: vec![],
                 current_scope: outer.borrow().current_scope + 1,
                 outer_ctxt: Some(Rc::clone(&outer)),
             }))
@@ -112,14 +106,6 @@ impl<'a> AstGenCtxtData<'a> {
         }
     }
 
-    pub fn add_instance_fields(&mut self, fields_names: Vec<String>) {
-        self.class_instance_fields.extend(fields_names);
-    }
-
-    pub fn add_static_fields(&mut self, fields_names: Vec<String>) {
-        self.class_static_fields.extend(fields_names);
-    }
-
     pub fn add_locals(&mut self, new_locals_names: &Vec<String>) {
         debug_assert_ne!(self.kind, AstGenCtxtType::Class);
         self.local_names.extend(new_locals_names.iter().cloned());
@@ -138,14 +124,6 @@ impl<'a> AstGenCtxtData<'a> {
         self.param_names.iter().position(|local| *local == *name)
     }
 
-    pub fn get_instance_field(&self, name: &String) -> Option<usize> {
-        self.class_instance_fields.iter().position(|c| c == name)
-    }
-
-    pub fn get_static_field(&self, name: &String) -> Option<usize> {
-        self.class_static_fields.iter().position(|c| c == name)
-    }
-
     fn find_var(&self, name: &String) -> Option<FoundVar> {
         self.get_local(name)
             .map(|idx| FoundVar::Local(0, idx))
@@ -157,23 +135,23 @@ impl<'a> AstGenCtxtData<'a> {
                         match found {
                             FoundVar::Local(up_idx, idx) => FoundVar::Local(up_idx + 1, idx),
                             FoundVar::Argument(up_idx, idx) => FoundVar::Argument(up_idx + 1, idx),
-                            FoundVar::Field(idx) => FoundVar::Field(idx),
+                            // FoundVar::Field(idx) => FoundVar::Field(idx),
                         }
                     )
                 }
             })
-            .or_else(|| // ...and if we recursively searched and it wasn't in a block, it must be a field (or search fails and it's a global).
-                match self.kind {
-                    AstGenCtxtType::Method(method_type) => {
-                        let class_ctxt = self.outer_ctxt.as_ref().unwrap().borrow();
-                        match method_type {
-                            AstMethodGenCtxtType::INSTANCE => class_ctxt.get_instance_field(name).map(FoundVar::Field),
-                            AstMethodGenCtxtType::CLASS => class_ctxt.get_static_field(name).map(FoundVar::Field),
-                        }
-                    }
-                    _ => None,
-                }
-            )
+            // .or_else(|| // ...and if we recursively searched and it wasn't in a block, it must be a field (or search fails and it's a global).
+            //     match self.kind {
+            //         AstGenCtxtType::Method(method_type) => {
+            //             let class_ctxt = self.outer_ctxt.as_ref().unwrap().borrow();
+            //             match method_type {
+            //                 AstMethodGenCtxtType::INSTANCE => class_ctxt.get_instance_field(name).map(FoundVar::Field),
+            //                 AstMethodGenCtxtType::CLASS => class_ctxt.get_static_field(name).map(FoundVar::Field),
+            //             }
+            //         }
+            //         _ => None,
+            //     }
+            // )
     }
     fn get_var_read(&self, name: &String) -> Expression {
         if name == "self" {
@@ -191,7 +169,7 @@ impl<'a> AstGenCtxtData<'a> {
                         }
                     }
                     FoundVar::Argument(up_idx, idx) => Expression::ArgRead(up_idx, idx + 1),
-                    FoundVar::Field(idx) => Expression::FieldRead(idx)
+                    // FoundVar::Field(idx) => Expression::FieldRead(idx)
                 }
             }
         }
@@ -211,7 +189,7 @@ impl<'a> AstGenCtxtData<'a> {
                         }
                     }
                     FoundVar::Argument(up_idx, idx) => Expression::ArgWrite(up_idx, idx + 1, expr), // + 1 to adjust for self
-                    FoundVar::Field(idx) => Expression::FieldWrite(idx, expr)
+                    // FoundVar::Field(idx) => Expression::FieldWrite(idx, expr)
                 }
             }
         }
