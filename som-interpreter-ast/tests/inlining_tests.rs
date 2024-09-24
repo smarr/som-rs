@@ -1,4 +1,4 @@
-use som_core::gc::{GCInterface, GCRef};
+use som_core::gc::GCInterface;
 use som_interpreter_ast::ast::AstExpression::*;
 use som_interpreter_ast::ast::InlinedNode::IfInlined;
 use som_interpreter_ast::ast::{AstBinaryDispatch, AstBody, AstDispatchNode, AstMethodDef};

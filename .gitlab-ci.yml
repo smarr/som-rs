@@ -20,7 +20,7 @@ build-and-test-interpreters:
     - cargo +$CARGO_VERSION build --release
 
     # only one thread because otherwise it breaks by trying to initialize MMTk several times. though i should set a proper mutex or whatnot instead
-    #- RUST_TEST_THREADS=1 cargo test
+    - RUST_TEST_THREADS=1 cargo test
 
     - cargo +$CARGO_VERSION run --bin som-interpreter-ast -- -c core-lib/Smalltalk core-lib/TestSuite -- TestHarness
 

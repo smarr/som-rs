@@ -1,8 +1,6 @@
-use std::path::PathBuf;
-use indexmap::IndexMap;
-use som_core::gc::{GCInterface, GCRef};
-use som_interpreter_ast::class::Class;
+use som_core::gc::GCInterface;
 use som_interpreter_ast::compiler::AstMethodCompilerCtxt;
+use std::path::PathBuf;
 
 use som_interpreter_ast::evaluate::Evaluate;
 use som_interpreter_ast::invokable::Return;

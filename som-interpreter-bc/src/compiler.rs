@@ -88,7 +88,8 @@ impl Hash for Literal {
 pub trait GenCtxt {
     fn intern_symbol(&mut self, name: &str) -> Interned;
     fn lookup_symbol(&self, id: Interned) -> &str;
-    fn get_scope(&self) -> usize; // todo: i think this might be better in innergenctxt
+    fn get_scope(&self) -> usize;
+    fn find_field(&mut self, name: &str) -> Option<usize>;
     fn class_name(&self) -> &str;
 }
 
@@ -135,6 +136,10 @@ impl GenCtxt for BlockGenCtxt<'_> {
     
     fn class_name(&self) -> &str {
         self.outer.class_name()
+    }
+
+    fn find_field(&mut self, name: &str) -> Option<usize> {
+        self.outer.find_field(name)
     }
 }
 
@@ -332,6 +337,10 @@ impl GenCtxt for MethodGenCtxt<'_> {
     fn class_name(&self) -> &str {
         self.inner.class_name()
     }
+
+    fn find_field(&mut self, name: &str) -> Option<usize> {
+        self.inner.find_field(name)
+    }
 }
 
 impl InnerGenCtxt for MethodGenCtxt<'_> {
@@ -420,10 +429,6 @@ impl MethodCodegen for ast::Expression {
                 ctxt.push_instr(Bytecode::PushNonLocal(*up_idx as u8, *idx as u8));
                 Some(())
             }
-            // ast::Expression::FieldRead(idx) => {
-            //     ctxt.push_instr(Bytecode::PushField(*idx as u8));
-            //     Some(())
-            // }
             ast::Expression::ArgRead(up_idx, idx) => {
                 match (up_idx, idx) {
                     (0, 0) => ctxt.push_instr(Bytecode::PushSelf),
@@ -433,21 +438,26 @@ impl MethodCodegen for ast::Expression {
                 Some(())
             }
             ast::Expression::GlobalRead(name) => {
-                todo!("handle the field read case");
-                match name.as_str() {
-                    "nil" => ctxt.push_instr(Bytecode::PushNil),
-                    "super" => {
-                        match ctxt.get_scope() {
-                            0 => ctxt.push_instr(Bytecode::PushSelf),
-                            scope => ctxt.push_instr(Bytecode::PushNonLocalArg(scope as u8, 0))
+                match ctxt.find_field(name) {
+                    Some(idx) => ctxt.push_instr(Bytecode::PushField(idx as u8)),
+                    None => {
+                        match name.as_str() {
+                            "nil" => ctxt.push_instr(Bytecode::PushNil),
+                            "super" => {
+                                match ctxt.get_scope() {
+                                    0 => ctxt.push_instr(Bytecode::PushSelf),
+                                    scope => ctxt.push_instr(Bytecode::PushNonLocalArg(scope as u8, 0))
+                                }
+                            },
+                            _ => {
+                                let name = ctxt.intern_symbol(name);
+                                let idx = ctxt.push_literal(Literal::Symbol(name));
+                                ctxt.push_instr(Bytecode::PushGlobal(idx as u8));
+                            }
                         }
-                    },
-                    _ => {
-                        let name = ctxt.intern_symbol(name);
-                        let idx = ctxt.push_literal(Literal::Symbol(name));
-                        ctxt.push_instr(Bytecode::PushGlobal(idx as u8));
                     }
                 }
+
                 Some(())
             }
             ast::Expression::LocalVarWrite(_, expr) | ast::Expression::NonLocalVarWrite(_, _, expr) => {
@@ -460,15 +470,17 @@ impl MethodCodegen for ast::Expression {
                 }
                 Some(())
             }
-            ast::Expression::GlobalWrite(_name, _expr) => {
-                todo!("handle global write: it's an unresolved field write")
+            ast::Expression::GlobalWrite(name, expr) => {
+                match ctxt.find_field(name) {
+                    Some(idx) => {
+                        expr.codegen(ctxt, mutator)?;
+                        ctxt.push_instr(Bytecode::Dup);
+                        ctxt.push_instr(Bytecode::PopField(idx as u8));
+                        Some(())
+                    },
+                    None => panic!("couldn't resolve a globalwrite (`{}`) to a field write", name)
+                }
             }
-            // ast::Expression::FieldWrite(idx, expr) => {
-            //     expr.codegen(ctxt, mutator)?;
-            //     ctxt.push_instr(Bytecode::Dup);
-            //     ctxt.push_instr(Bytecode::PopField(*idx as u8));
-            //     Some(())
-            // }
             ast::Expression::ArgWrite(up_idx, idx, expr) => {
                 expr.codegen(ctxt, mutator)?;
                 ctxt.push_instr(Bytecode::Dup);
@@ -639,6 +651,10 @@ impl GenCtxt for ClassGenCtxt<'_> {
     
     fn class_name(&self) -> &str {
         self.name.as_str()
+    }
+
+    fn find_field(&mut self, name: &str) -> Option<usize> {
+        self.fields.iter().position(|f_int| self.interner.lookup(*f_int) == name)
     }
 }
 

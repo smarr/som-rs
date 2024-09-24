@@ -259,14 +259,7 @@ pub fn locals<'a>() -> impl Parser<Vec<String>, &'a [Token], AstGenCtxt<'a>> {
     }
 }
 
-pub fn class_instance_locals<'a>() -> impl Parser<Vec<String>, &'a [Token], AstGenCtxt<'a>> {
-    move |input: &'a [Token], genctxt| {
-        let (new_locals_names, input, genctxt) = between(exact(Token::Or), many(identifier()), exact(Token::Or)).parse(input, genctxt)?;
-        Some((new_locals_names, input, genctxt))
-    }
-}
-
-pub fn class_static_locals<'a>() -> impl Parser<Vec<String>, &'a [Token], AstGenCtxt<'a>> {
+pub fn class_locals<'a>() -> impl Parser<Vec<String>, &'a [Token], AstGenCtxt<'a>> {
     move |input: &'a [Token], genctxt| {
         let (new_locals_names, input, genctxt) = between(exact(Token::Or), many(identifier()), exact(Token::Or)).parse(input, genctxt)?;
         Some((new_locals_names, input, genctxt))
@@ -486,8 +479,8 @@ pub fn class_def<'a>() -> impl Parser<ClassDef, &'a [Token], AstGenCtxt<'a>> {
         optional(super_class())
             .and(between(
                 exact(Token::NewTerm),
-                default(class_instance_locals()).and(many(instance_method_def())).and(default(
-                    exact(Token::Separator).and_right(default(class_static_locals()).and(many(class_method_def()))),
+                default(class_locals()).and(many(instance_method_def())).and(default(
+                    exact(Token::Separator).and_right(default(class_locals()).and(many(class_method_def()))),
                 )),
                 exact(Token::EndTerm),
             ))
