@@ -108,7 +108,6 @@ impl Evaluate for AstExpression {
             }
             Self::GlobalRead(name) =>
                 match name.as_str() {
-                    "super" => Return::Local(universe.current_frame.get_self()),
                     _ => universe.lookup_global(name.as_str())
                         .map(Return::Local)
                         .or_else(|| {

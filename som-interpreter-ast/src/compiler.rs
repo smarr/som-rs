@@ -16,8 +16,6 @@ use som_core::gc::{GCInterface, GCRef};
 pub struct AstMethodCompilerCtxt<'a> {
     /// The class in which context we're compiling. Needed for resolving field accesses. Should always be Some() outside of a testing context. 
     pub class: Option<GCRef<Class>>,
-    /// The superclass. TODO it's accessible from class, so remove.
-    pub super_class: Option<GCRef<Class>>,
     /// The stack of scopes to better reason about inlining.
     pub scopes: Vec<AstScopeCtxt>,
     /// The interface to the GC to allocate anything we want during parsing.
@@ -59,7 +57,7 @@ impl AstScopeCtxt {
 }
 
 impl<'a> AstMethodCompilerCtxt<'a> {
-    pub fn get_method_kind(method: &ast::MethodDef, class: Option<GCRef<Class>>, super_class: Option<GCRef<Class>>, gc_interface: &mut GCInterface) -> MethodKind {
+    pub fn get_method_kind(method: &ast::MethodDef, class: Option<GCRef<Class>>, gc_interface: &mut GCInterface) -> MethodKind {
         // NB: these If/IfTrueIfFalse/While are very rare cases, since we normally inline those functions.
         // But we don't do inlining when e.g. the condition for ifTrue: isn't a block.
         // so there is *some* occasional benefit in having those specialized method nodes around for those cases.
@@ -76,7 +74,7 @@ impl<'a> AstMethodCompilerCtxt<'a> {
                 match method.body {
                     MethodBody::Primitive => MethodKind::NotImplemented(method.signature.clone()),
                     MethodBody::Body { .. } => {
-                        let ast_method_def = AstMethodCompilerCtxt::parse_method_def(method, class, super_class, gc_interface);
+                        let ast_method_def = AstMethodCompilerCtxt::parse_method_def(method, class, gc_interface);
 
                         if let Some(trivial_method_kind) = AstMethodCompilerCtxt::make_trivial_method_if_possible(&ast_method_def) {
                             trivial_method_kind
@@ -123,12 +121,12 @@ impl<'a> AstMethodCompilerCtxt<'a> {
 
     /// Transforms a generic MethodDef into an AST-specific one.
     /// Note: public since it's used in tests.
-    pub fn parse_method_def(method_def: &ast::MethodDef, class: Option<GCRef<Class>>, super_class: Option<GCRef<Class>>, gc_interface: &mut GCInterface) -> AstMethodDef {
+    pub fn parse_method_def(method_def: &ast::MethodDef, class: Option<GCRef<Class>>, gc_interface: &mut GCInterface) -> AstMethodDef {
         let (body, locals_nbr) = match &method_def.body {
             MethodBody::Primitive => { unreachable!("unimplemented primitive") }
             MethodBody::Body { locals_nbr, body, .. } => {
                 let args_nbr = method_def.signature.chars().filter(|e| *e == ':').count(); // not sure if needed
-                let mut ctxt = AstMethodCompilerCtxt { class, scopes: vec![AstScopeCtxt::init(args_nbr, *locals_nbr, false)], super_class, gc_interface: gc_interface };
+                let mut ctxt = AstMethodCompilerCtxt { class, scopes: vec![AstScopeCtxt::init(args_nbr, *locals_nbr, false)], gc_interface: gc_interface };
 
                 (ctxt.parse_body(body), ctxt.scopes.last().unwrap().get_nbr_locals())
             }
@@ -197,17 +195,18 @@ impl<'a> AstMethodCompilerCtxt<'a> {
         if let Some(inlined_node) = maybe_inlined {
             return AstExpression::InlinedCall(Box::new(inlined_node));
         }
+        
+        if msg.receiver == Expression::GlobalRead(String::from("super")) {
+            return AstExpression::SuperMessage(Box::new(
+                AstSuperMessage {
+                    super_class: self.class.unwrap().to_obj().super_class.clone().unwrap_or_else(|| panic!("no super class set, even though the method has a super call?")),
+                    signature: msg.signature.clone(),
+                    values: msg.values.iter().map(|e| expr_parsing_func(self, e)).collect(),
+                }));
+        }
 
         let receiver = expr_parsing_func(self, &msg.receiver);
         match receiver {
-            _super if _super == AstExpression::GlobalRead(String::from("super")) => {
-                AstExpression::SuperMessage(Box::new(
-                AstSuperMessage {
-                    super_class: self.super_class.clone().unwrap_or_else(|| panic!("no super class set, even though the method has a super call?")),
-                    signature: msg.signature.clone(),
-                    values: msg.values.iter().map(|e| expr_parsing_func(self, e)).collect(),
-                }))
-            },
             _ => {
                 match msg.values.len() {
                     0 => {
@@ -260,9 +259,9 @@ impl<'a> AstMethodCompilerCtxt<'a> {
     }
 
     pub fn global_or_field_read_from_superclass(&self, name: String) -> AstExpression {
-        // if name == "super" {
-        //     return AstExpression::ArgRead(self.scopes.len() - 1, 0); // TODO is this correct?
-        // }
+        if name.as_str() == "super" {
+            return AstExpression::ArgRead(self.scopes.len() - 1, 0);
+        }
 
         if self.class.is_none() {
             return AstExpression::GlobalRead(name.clone());

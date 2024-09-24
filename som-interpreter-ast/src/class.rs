@@ -1,12 +1,12 @@
 use std::fmt;
 
-use indexmap::IndexMap;
-use som_core::ast::ClassDef;
-use som_core::gc::{GCInterface, GCRef};
+use crate::compiler::AstMethodCompilerCtxt;
 use crate::method::{Method, MethodKind};
 use crate::primitives;
 use crate::value::Value;
-use crate::compiler::AstMethodCompilerCtxt;
+use indexmap::IndexMap;
+use som_core::ast::ClassDef;
+use som_core::gc::{GCInterface, GCRef};
 
 // /// A reference that may be either weak or owned/strong.
 // #[derive(Debug, Clone)]
@@ -102,15 +102,13 @@ impl Class {
         };
 
         let instance_class_gc_ptr = GCRef::<Class>::alloc(instance_class, gc_interface);
-        
-        let maybe_static_superclass = super_class.as_ref().map(|super_class| super_class.to_obj().class());
-        
+
         let mut static_methods: IndexMap<String, GCRef<Method>> = defn
             .static_methods
             .iter()
             .map(|method| {
                 let signature = method.signature.clone();
-                let kind = AstMethodCompilerCtxt::get_method_kind(method, Some(static_class_gc_ptr), maybe_static_superclass.clone(), gc_interface);
+                let kind = AstMethodCompilerCtxt::get_method_kind(method, Some(static_class_gc_ptr), gc_interface);
                 let method = Method {
                     kind,
                     signature: signature.clone(),
@@ -143,7 +141,7 @@ impl Class {
             .iter()
             .map(|method| {
                 let signature = method.signature.clone();
-                let kind = AstMethodCompilerCtxt::get_method_kind(method, Some(instance_class_gc_ptr), super_class.clone(), gc_interface);
+                let kind = AstMethodCompilerCtxt::get_method_kind(method, Some(instance_class_gc_ptr), gc_interface);
                 let method = Method {
                     kind,
                     signature: signature.clone(),
