@@ -4,8 +4,7 @@ stages:
   - benchmark-completion
 
 variables:
-  CARGO_VERSION: 1.77.0
-
+  CARGO_VERSION: stable
 
 before_script:
   - (cd core-lib && git remote add smarr https://github.com/smarr/SOM.git && git fetch --all) || true
