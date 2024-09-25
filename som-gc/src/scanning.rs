@@ -1,8 +1,8 @@
 use crate::SOMVM;
-use crate::DummyVMSlot;
+use crate::SOMSlot;
 use mmtk::util::opaque_pointer::*;
 use mmtk::util::ObjectReference;
-use mmtk::vm::RootsWorkFactory;
+use mmtk::vm::{ObjectTracer, RootsWorkFactory};
 use mmtk::vm::Scanning;
 use mmtk::vm::SlotVisitor;
 use mmtk::Mutator;
@@ -14,19 +14,22 @@ impl Scanning<SOMVM> for VMScanning {
     fn scan_roots_in_mutator_thread(
         _tls: VMWorkerThread,
         _mutator: &'static mut Mutator<SOMVM>,
-        _factory: impl RootsWorkFactory<DummyVMSlot>,
+        _factory: impl RootsWorkFactory<SOMSlot>,
     ) {
         unimplemented!()
     }
-    fn scan_vm_specific_roots(_tls: VMWorkerThread, _factory: impl RootsWorkFactory<DummyVMSlot>) {
+    fn scan_vm_specific_roots(_tls: VMWorkerThread, _factory: impl RootsWorkFactory<SOMSlot>) {
         unimplemented!()
     }
-    fn scan_object<SV: SlotVisitor<DummyVMSlot>>(
+    fn scan_object<SV: SlotVisitor<SOMSlot>>(
         _tls: VMWorkerThread,
         _object: ObjectReference,
         _slot_visitor: &mut SV,
     ) {
-        unimplemented!()
+        todo!()
+    }
+    fn scan_object_and_trace_edges<OT: ObjectTracer>(_tls: VMWorkerThread, _object: ObjectReference, _object_tracer: &mut OT) {
+        todo!()
     }
     fn notify_initial_thread_scan_complete(_partial_scan: bool, _tls: VMWorkerThread) {
         unimplemented!()

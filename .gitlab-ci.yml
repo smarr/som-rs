@@ -15,6 +15,9 @@ build-and-test-interpreters:
   tags: [yuria2]
   script:
     # Setup
+    - git clone https://github.com/mmtk/mmtk-core
+    - cd mmtk-core && git checkout v0.27.0 && cd ..
+
     - cargo +$CARGO_VERSION clean
     - cargo +$CARGO_VERSION build --release
 

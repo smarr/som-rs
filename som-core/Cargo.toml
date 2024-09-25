@@ -10,7 +10,7 @@ license = "MIT OR Apache-2.0"
 [dependencies]
 rand = "0.8.4"
 anyhow = "1.0.51"
-mmtk = "0.27.0"
+mmtk = { path = "../mmtk-core", version = "0.27.0"}
 som-gc = { path = "../som-gc" }
 
 [features]

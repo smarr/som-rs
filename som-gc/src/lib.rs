@@ -16,7 +16,7 @@ pub mod scanning;
 /// I added that one. Trying to centralize some GC operations
 pub mod entry_point;
 
-pub type DummyVMSlot = mmtk::vm::slot::SimpleSlot;
+pub type SOMSlot = mmtk::vm::slot::SimpleSlot;
 
 #[derive(Default)]
 pub struct SOMVM;
@@ -28,7 +28,7 @@ impl VMBinding for SOMVM {
     type VMCollection = collection::VMCollection;
     type VMActivePlan = active_plan::VMActivePlan;
     type VMReferenceGlue = reference_glue::VMReferenceGlue;
-    type VMSlot = DummyVMSlot;
+    type VMSlot = SOMSlot;
     type VMMemorySlice = mmtk::vm::slot::UnimplementedMemorySlice;
 
     /// Allowed maximum alignment in bytes.

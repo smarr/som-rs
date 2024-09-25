@@ -23,3 +23,6 @@ rebench.data
 *.data
 som-interp-ast
 som-interp-bc
+
+
+mmtk-core

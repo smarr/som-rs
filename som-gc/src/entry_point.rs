@@ -10,8 +10,8 @@ pub fn init_gc() -> (VMMutatorThread, Box<Mutator<SOMVM>>, *mut BumpAllocator<SO
     if SINGLETON.get().is_none() {
         let mut builder = mmtk_create_builder();
 
-        // let heap_success = mmtk_set_fixed_heap_size(&mut builder, 1048576);
-        // assert!(heap_success, "Couldn't set MMTk fixed heap size");
+        let heap_success = mmtk_set_fixed_heap_size(&mut builder, 1048576);
+        assert!(heap_success, "Couldn't set MMTk fixed heap size");
 
         // let gc_success = builder.set_option("plan", "SemiSpace");
         let gc_success = builder.set_option("plan", "NoGC");
