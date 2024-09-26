@@ -12,7 +12,6 @@ use crate::invokable::{Invoke, Return};
 use crate::value::Value;
 use anyhow::{anyhow, Error};
 use som_core::gc::{GCInterface, GCRef};
-use som_core::universe::UniverseForParser;
 
 /// The core classes of the SOM interpreter.
 ///
@@ -83,22 +82,6 @@ pub struct UniverseAST {
     /// GC interface
     pub gc_interface: GCInterface
 }
-
-impl UniverseForParser for UniverseAST {
-    fn load_class_and_get_all_fields(&mut self, class_name: &str) -> (Vec<String>, Vec<String>) {
-        match self.lookup_global(class_name) {
-            Some(Value::Class(c)) => { (c.borrow().field_names.clone(), c.borrow().class().borrow().field_names.clone()) }
-            None => {
-                let cls = self.load_class(class_name).unwrap_or_else(|_| panic!("Failed to parse class: {}", class_name));
-                let instance_field_names = cls.borrow().field_names.clone();
-                let class_field_names = cls.borrow().class().borrow().field_names.clone();
-                (instance_field_names, class_field_names)
-            }
-            Some(val) => unreachable!("superclass accessed from parser is not actually a class, but {:?}", val)
-        }
-    }
-}
-
 
 impl UniverseAST {
     /// Initialize the universe from the given classpath.

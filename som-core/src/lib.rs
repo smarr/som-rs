@@ -6,7 +6,5 @@
 pub mod ast;
 /// The SOM bytecode definitions.
 pub mod bytecode;
-/// The Universe trait, shared by both AST and BC interpreters.
-pub mod universe;
 /// GC-related, mostly GC heap references/allocation handling.
 pub mod gc;

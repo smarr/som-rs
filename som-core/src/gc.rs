@@ -90,7 +90,7 @@ impl<T> GCRef<T> {
     #[inline(always)]
     pub fn as_ref(&self) -> &T {
         debug_assert!(!self.ptr.is_zero());
-        unsafe { &*(self.ptr.as_ref()) }
+        unsafe { self.ptr.as_ref() }
     }
     
     /// Hacks for convenience, since I'm refactoring from Refcounts. TODO remove

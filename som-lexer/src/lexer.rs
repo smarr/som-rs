@@ -286,14 +286,14 @@ impl Iterator for Lexer {
                     } else {
                         Some(Token::Identifier(ident))
                     }
-                } else if peeked.is_digit(10) {
+                } else if peeked.is_ascii_digit() {
                     let iter = self.chars.iter().rev().copied();
-                    let int_part_len = iter.clone().take_while(|c| c.is_digit(10)).count();
+                    let int_part_len = iter.clone().take_while(|c| c.is_ascii_digit()).count();
                     let mut dec_iter = iter.clone().skip(int_part_len).peekable();
                     match (dec_iter.next(), dec_iter.peek()) {
-                        (Some('.'), Some(ch)) if ch.is_digit(10) => {
+                        (Some('.'), Some(ch)) if ch.is_ascii_digit() => {
                             let dec_part_len =
-                                dec_iter.clone().take_while(|c| c.is_digit(10)).count();
+                                dec_iter.clone().take_while(|c| c.is_ascii_digit()).count();
                             let total_len = int_part_len + dec_part_len + 1;
                             let repr: String = iter.take(total_len).collect();
                             let number: f64 = repr.parse().ok()?;

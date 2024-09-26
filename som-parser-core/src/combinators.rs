@@ -75,7 +75,7 @@ pub fn default<A: Default, I: Clone, GCTXT: Clone>(parser: impl Parser<A, I, GCT
 }
 
 /// Tries every parser in a slice, from left to right, and returns the output of the first succeeding one.
-pub fn any<'a, A, I: Clone, GCTXT: Clone>(parsers: &'a mut [impl Parser<A, I, GCTXT>]) -> impl Parser<A, I, GCTXT> + 'a {
+pub fn any<A, I: Clone, GCTXT: Clone>(parsers: &mut [impl Parser<A, I, GCTXT>]) -> impl Parser<A, I, GCTXT> + '_ {
     move |input: I, genctxt: GCTXT| {
         parsers
             .iter_mut()
@@ -85,7 +85,7 @@ pub fn any<'a, A, I: Clone, GCTXT: Clone>(parsers: &'a mut [impl Parser<A, I, GC
 
 /// Applies every parser in a slice, from left to right, and returns the output from all of them.
 /// If one parser fails, the whole sequence is considered failed.
-pub fn all<'a, A, I, GCTXT>(parsers: &'a mut [impl Parser<A, I, GCTXT>]) -> impl Parser<Vec<A>, I, GCTXT> + 'a {
+pub fn all<A, I, GCTXT>(parsers: &mut [impl Parser<A, I, GCTXT>]) -> impl Parser<Vec<A>, I, GCTXT> + '_ {
     move |input: I, genctxt: GCTXT| {
         let output = Vec::<A>::with_capacity(parsers.len());
         parsers

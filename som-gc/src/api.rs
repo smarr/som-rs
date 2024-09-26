@@ -37,7 +37,7 @@ pub fn mmtk_init(builder: &mut MMTKBuilder) {
     // let builder = unsafe { Box::from_raw(builder) };
 
     // Create MMTK instance.
-    let mmtk = memory_manager::mmtk_init::<SOMVM>(&builder);
+    let mmtk = memory_manager::mmtk_init::<SOMVM>(builder);
 
     // Set SINGLETON to the instance.
     SINGLETON.set(mmtk).unwrap_or_else(|_| {

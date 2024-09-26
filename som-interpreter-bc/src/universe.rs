@@ -12,7 +12,6 @@ use crate::interpreter::Interpreter;
 use crate::value::Value;
 use anyhow::{anyhow, Error};
 use som_core::gc::{GCInterface, GCRef};
-use som_core::universe::UniverseForParser;
 
 /// The core classes of the SOM interpreter.
 ///
@@ -78,41 +77,6 @@ pub struct UniverseBC {
     pub core: CoreClasses,
     /// GC interface for GC operations
     pub gc_interface: GCInterface
-}
-
-impl UniverseForParser for UniverseBC {
-    fn load_class_and_get_all_fields(&mut self, class_name: &str) -> (Vec<String>, Vec<String>) {
-        fn parse_and_get_field_names(universe: &mut UniverseBC, class_name: &str) -> (Vec<String>, Vec<String>) {
-            let cls = universe.load_class(class_name).expect(&format!("Failed to parse class: {}", class_name));
-            let instance_field_names = cls.to_obj().locals.keys().map(|s| universe.interner.lookup(*s).to_string()).collect();
-            let static_field_names = cls.to_obj().class().to_obj().locals.keys().map(|s| universe.interner.lookup(*s).to_string()).collect();
-            (instance_field_names, static_field_names)
-        }
-        
-        match self.interner.reverse_lookup(class_name) {
-            None => {
-                parse_and_get_field_names(self, class_name)
-            }
-            Some(interned) => {
-                match self.lookup_global(interned) {
-                    Some(glbl_var) => {
-                        if let Some(cls) = glbl_var.as_class() {
-                            let instance_field_names = cls.to_obj().locals.keys().map(|s| self.interner.lookup(*s).to_string()).collect();
-                            let static_field_names = cls.to_obj().class().to_obj().locals.keys().map(|s| self.interner.lookup(*s).to_string()).collect();
-                            (instance_field_names, static_field_names)
-                        } else {
-                            unreachable!("superclass accessed from parser is not actually a class, but {:?}", glbl_var)
-                        }
-                    },
-                    None => {
-                        // this case is weird: you have encountered the superclass name, but not parsed it as a global. 
-                        // it can happen and i'm not convinced at all it's indicative of a design flaw. if it is, it's likely not a major one or one that could have an impact on performance
-                        parse_and_get_field_names(self, class_name)
-                    }
-                }
-            }
-        }
-    }
 }
 
 impl UniverseBC {
