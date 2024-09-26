@@ -1,9 +1,9 @@
-use som_core::gc::GCRef;
 use crate::block::Block;
 use crate::evaluate::Evaluate;
 use crate::invokable::{Invoke, Return};
 use crate::universe::Universe;
 use crate::value::Value;
+use som_core::gc_interface::GCRef;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct DownToDoNode {}

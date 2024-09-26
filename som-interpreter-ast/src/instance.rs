@@ -1,7 +1,7 @@
-use std::fmt;
-use som_core::gc::GCRef;
 use crate::class::Class;
 use crate::value::Value;
+use som_core::gc_interface::GCRef;
+use std::fmt;
 
 /// Represents a generic (non-primitive) class instance.
 #[derive(Clone)]

@@ -7,9 +7,9 @@ use crate::universe::Universe;
 #[cfg(feature = "frame-debug-info")]
 use som_core::ast::BlockDebugInfo;
 use som_core::bytecode::Bytecode;
-use som_core::gc::GCRef;
 use std::cell::RefCell;
 use std::fmt;
+use crate::gc::gc_interface::GCRef;
 
 #[derive(Clone)]
 pub struct BlockInfo {

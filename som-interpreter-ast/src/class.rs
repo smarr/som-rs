@@ -6,7 +6,7 @@ use crate::primitives;
 use crate::value::Value;
 use indexmap::IndexMap;
 use som_core::ast::ClassDef;
-use som_core::gc::{GCInterface, GCRef};
+use som_core::gc_interface::{GCInterface, GCRef};
 
 // /// A reference that may be either weak or owned/strong.
 // #[derive(Debug, Clone)]

@@ -8,7 +8,7 @@ use crate::universe::Universe;
 use crate::value::Value;
 use anyhow::Context;
 use som_core::bytecode::Bytecode;
-use som_core::gc::{GCInterface, GCRef};
+use crate::gc::gc_interface::{GCInterface, GCRef};
 use som_core::interner::Interned;
 use std::time::Instant;
 
@@ -75,11 +75,11 @@ impl Interpreter {
         }
     }
 
-    /// Creates and allocates a new frame corresponding to a method. 
+    /// Creates and allocates a new frame corresponding to a method.
     /// nbr_args is the number of arguments, including the self value, which it takes from the previous frame.
     pub fn push_method_frame(&mut self, method: GCRef<Method>, nbr_args: usize, mutator: &mut GCInterface) -> GCRef<Frame> {
         let args = self.current_frame.to_obj().stack_n_last_elements(nbr_args);
-        
+
         let frame_ptr = Frame::alloc_from_method(method, args, self.current_frame, mutator);
 
         self.bytecode_idx = 0;
@@ -89,18 +89,18 @@ impl Interpreter {
     }
 
     /// Creates and allocates a new frame corresponding to a method, with arguments provided.
-    /// Used in primitives and 
+    /// Used in primitives and
     pub fn push_method_frame_with_args(&mut self, method: GCRef<Method>, args: &[Value], mutator: &mut GCInterface) -> GCRef<Frame> {
         let frame_ptr = Frame::alloc_from_method(method, args, self.current_frame, mutator);
 
         self.bytecode_idx = 0;
         self.current_bytecodes = frame_ptr.to_obj().bytecodes;
         self.current_frame = frame_ptr;
-        
+
         frame_ptr
     }
 
-    /// Creates and allocates a new frame corresponding to a method. 
+    /// Creates and allocates a new frame corresponding to a method.
     /// Always passes arguments directly since we don't take them as a slice off the previous frame, like we do for methods.
     /// ...which would likely be faster, actually. TODO.
     pub fn push_block_frame_with_args(&mut self, block: GCRef<Block>, args: &[Value], mutator: &mut GCInterface) -> GCRef<Frame> {
@@ -143,9 +143,9 @@ impl Interpreter {
 
             // dbg!(&self.current_frame.to_obj().stack);
             // dbg!(&bytecode);
-            
+
             self.bytecode_idx += 1;
-            
+
             match bytecode {
                 Bytecode::Dup2 => {
                     let second_to_last = self.current_frame.to_obj().stack_nth_back(1).clone();
@@ -164,7 +164,7 @@ impl Interpreter {
                             panic!("we don't handle this case.")
                         }
                     };
-                    
+
                     if is_greater {
                         self.current_frame.to_obj().stack_pop();
                         self.current_frame.to_obj().stack_pop();
@@ -381,13 +381,13 @@ impl Interpreter {
 
                     if let Some(count) = escaped_frames {
                         let val = self.current_frame.to_obj().stack_pop();
-                        
+
                         self.pop_n_frames(count + 1);
                         // if self.current_frame.is_empty() {
                         //      return Some(self.stack.pop().unwrap_or(Value::NIL));
                         // }
                         self.current_frame.to_obj().stack_push(val);
-                        
+
                     } else {
                         // NB: I did some changes there with the blockself bits and i'm not positive it works the same as before, but it should.
 
@@ -404,7 +404,7 @@ impl Interpreter {
 
                         // we store the current bytecode idx to be able to correctly restore the bytecode state when we pop frames
                         self.current_frame.to_obj().bytecode_idx = self.bytecode_idx;
-                        
+
                         universe.escaped_block(self, instance, block).expect(
                             "A block has escaped and `escapedBlock:` is not defined on receiver",
                         );
@@ -476,7 +476,7 @@ impl Interpreter {
         ) {
             // we store the current bytecode idx to be able to correctly restore the bytecode state when we pop frames
             interpreter.current_frame.to_obj().bytecode_idx = interpreter.bytecode_idx;
-            
+
             let Some(method) = method else {
                 let args = interpreter.current_frame.to_obj().stack_n_last_elements(nb_params);
                 let self_value = interpreter.current_frame.clone().to_obj().stack_pop();
@@ -484,7 +484,7 @@ impl Interpreter {
                 // could be avoided by passing args slice directly...
                 // ...but A) DNU is a very rare path and B) i guess we allocate a new args arr in the DNU call anyway
                 let args = args.iter().map(|v| v.clone()).collect();
-                
+
                 universe.does_not_understand(interpreter, self_value, symbol, args)
                     .expect(
                         "A message cannot be handled and `doesNotUnderstand:arguments:` is not defined on receiver"

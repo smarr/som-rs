@@ -1,8 +1,8 @@
 use std::convert::{TryFrom, TryInto};
 
+use crate::gc::gc_interface::GCRef;
 use anyhow::{Context, Error};
 use once_cell::sync::Lazy;
-use som_core::gc::GCRef;
 
 use crate::convert::Primitive;
 use crate::interpreter::Interpreter;

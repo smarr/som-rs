@@ -5,7 +5,7 @@ use crate::inliner::JumpType::{JumpOnFalse, JumpOnTrue};
 use crate::inliner::OrAndChoice::{And, Or};
 use som_core::ast;
 use som_core::bytecode::Bytecode;
-use som_core::gc::{GCInterface, GCRef};
+use crate::gc::gc_interface::{GCInterface, GCRef};
 
 pub enum JumpType {
     JumpOnFalse,

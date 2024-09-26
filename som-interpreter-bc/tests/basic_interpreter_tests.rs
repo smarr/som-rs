@@ -1,4 +1,4 @@
-use som_core::gc::{GCInterface, GCRef};
+use som_interpreter_bc::gc::gc_interface::{GCInterface, GCRef};
 use som_interpreter_bc::compiler;
 use som_interpreter_bc::frame::Frame;
 use som_interpreter_bc::interpreter::Interpreter;

@@ -293,7 +293,7 @@ impl NaNBoxedVal {
     pub fn as_boolean_unchecked(self) -> bool {
         self.payload() != 0
     }
-    
+
     /// Returns this value as a symbol, if such is its type.
     #[inline(always)]
     pub fn as_symbol(self) -> Option<Interned> {

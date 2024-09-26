@@ -1,6 +1,6 @@
+use crate::gc::gc_interface::GCRef;
 use anyhow::Error;
 use once_cell::sync::Lazy;
-use som_core::gc::GCRef;
 
 use crate::convert::Primitive;
 use crate::interpreter::Interpreter;

@@ -9,7 +9,7 @@ use crate::convert::{DoubleLike, IntegerLike, Primitive, StringLike};
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
 use crate::value::Value;
-use som_core::gc::GCRef;
+use som_core::gc_interface::GCRef;
 
 pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| {
     Box::new([

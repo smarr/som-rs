@@ -165,7 +165,7 @@ impl<'a> AstMethodCompilerCtxt<'a> {
                             Ok(x) => AstExpression::Literal(AstLiteral::Integer(x)),
                             _ => AstExpression::Literal(self.parse_literal(&a))
                         }
-                        
+
                     },
                     _ => AstExpression::Literal(self.parse_literal(&a))
                 }

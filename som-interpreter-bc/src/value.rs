@@ -8,7 +8,7 @@ use crate::instance::{Instance, InstanceAccess};
 use crate::method::Method;
 use crate::universe::Universe;
 use num_bigint::BigInt;
-use som_core::gc::GCRef;
+use crate::gc::gc_interface::GCRef;
 use som_core::interner::Interned;
 
 static_assertions::const_assert_eq!(size_of::<f64>(), 8);

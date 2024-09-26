@@ -157,9 +157,9 @@ fn prim_substring_from_to(universe: &mut Universe, receiver: StringLike, from: i
         StringLike::String(ref value) => value.as_str(),
         StringLike::Symbol(sym) => universe.lookup_symbol(sym),
     };
-    
+
     let s = universe.gc_interface.allocate(string.chars().skip(from).take(to - from).collect());
-    
+
     Ok(Value::String(s))
 }
 

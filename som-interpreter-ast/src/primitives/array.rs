@@ -1,11 +1,10 @@
-use std::convert::TryFrom;
-use anyhow::{bail, Error};
-use once_cell::sync::Lazy;
-use som_core::gc::GCRef;
-use crate::convert::Primitive;
+use crate::expect_args;
+use crate::invokable::Return;
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
 use crate::value::Value;
+use som_core::gc_interface::GCRef;
+use std::convert::TryFrom;
 
 pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| {
     Box::new([

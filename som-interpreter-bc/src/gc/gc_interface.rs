@@ -1,11 +1,12 @@
+use crate::gc::api::{mmtk_alloc, mmtk_bind_mutator, mmtk_create_builder, mmtk_destroy_mutator, mmtk_handle_user_collection_request, mmtk_init, mmtk_initialize_collection};
+use crate::gc::{MMTK_SINGLETON, SOMVM};
 use core::mem::size_of;
+use log::info;
 use mmtk::util::alloc::{Allocator, BumpAllocator};
 use mmtk::util::constants::MIN_OBJECT_SIZE;
-use mmtk::util::{Address, VMMutatorThread};
-use mmtk::{AllocationSemantics, Mutator};
-use som_gc::api::{mmtk_alloc, mmtk_destroy_mutator, mmtk_handle_user_collection_request};
-use som_gc::entry_point::init_gc;
-use som_gc::SOMVM;
+use mmtk::util::{Address, OpaquePointer, VMMutatorThread, VMThread};
+use mmtk::{memory_manager, AllocationSemantics, Mutator};
+use std::collections::VecDeque;
 use std::marker::PhantomData;
 
 static GC_OFFSET: usize = 0;
@@ -16,6 +17,7 @@ pub struct GCInterface {
     mutator: Box<Mutator<SOMVM>>,
     mutator_thread: VMMutatorThread,
     default_allocator: *mut BumpAllocator<SOMVM>,
+    start_the_world_count: usize
 }
 
 impl Drop for GCInterface {
@@ -27,12 +29,58 @@ impl Drop for GCInterface {
 impl GCInterface {
     /// Initialize the GCInterface. Internally inits MMTk and fetches everything needed to actually communicate with the GC.
     pub fn init() -> Self {
-        let (mutator_thread, mutator, default_allocator) = init_gc();
+        let (mutator_thread, mutator, default_allocator) = Self::init_mmtk();
         Self {
             mutator_thread,
             mutator,
-            default_allocator
+            default_allocator,
+            start_the_world_count: 0
         }
+    }
+
+    fn init_mmtk() -> (VMMutatorThread, Box<Mutator<SOMVM>>, *mut BumpAllocator<SOMVM>) {
+        // pub fn init_gc() -> (VMMutatorThread, Box<Mutator<SOMVM>>) {
+        if MMTK_SINGLETON.get().is_none() {
+            let mut builder = mmtk_create_builder();
+
+            // let heap_success = mmtk_set_fixed_heap_size(&mut builder, 1048576);
+            // assert!(heap_success, "Couldn't set MMTk fixed heap size");
+
+            let gc_success = builder.set_option("plan", "NoGC");
+            // let gc_success = builder.set_option("plan", "SemiSpace");
+            assert!(gc_success, "Couldn't set GC plan");
+
+            // let ok = builder.set_option("stress_factor", DEFAULT_STRESS_FACTOR.to_string().as_str());
+            // assert!(ok);
+            // let ok = builder.set_option("analysis_factor", DEFAULT_STRESS_FACTOR.to_string().as_str());
+            // assert!(ok);
+
+            mmtk_init(&mut builder);
+            // let worked_thread = VMWorkerThread(VMThread(OpaquePointer::UNINITIALIZED));
+            mmtk_initialize_collection(VMThread(OpaquePointer::UNINITIALIZED));
+        }
+
+        let tls = VMMutatorThread(VMThread(OpaquePointer::UNINITIALIZED)); // TODO: do I need a thread pointer here?
+        let mutator = mmtk_bind_mutator(tls);
+
+        let selector = memory_manager::get_allocator_mapping(
+            MMTK_SINGLETON.get().unwrap(),
+            AllocationSemantics::Default,
+        );
+        let default_allocator_offset = Mutator::<SOMVM>::get_allocator_base_offset(selector);
+
+        // At run time: allocate with the default semantics without resolving allocator
+        let default_allocator: *mut BumpAllocator<SOMVM> = {
+            let mutator_addr = Address::from_ref(&*mutator);
+            unsafe {
+                let ptr = mutator_addr + default_allocator_offset;
+                ptr.as_mut_ref()
+                // (mutator_addr + default_allocator_offset).as_mut_ref::<BumpAllocator<SOMVM>>()
+            }
+        };
+
+        // (tls, mutator)
+        (tls, mutator, default_allocator)
     }
 
     /// Dispatches a manual collection request to MMTk.
@@ -42,6 +90,67 @@ impl GCInterface {
 
     pub fn allocate<T>(&mut self, obj: T) -> GCRef<T> {
         GCRef::<T>::alloc(obj, self)
+    }
+}
+
+// copied off the openjdk implem? not sure what the point of this is really
+struct SOMMutatorIterator<'a> {
+    mutators: VecDeque<&'a mut Mutator<SOMVM>>,
+    phantom_data: PhantomData<&'a ()>,
+}
+
+impl<'a> Iterator for SOMMutatorIterator<'a> {
+    type Item = &'a mut Mutator<SOMVM>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.mutators.pop_front()
+    }
+}
+
+impl GCInterface {
+    pub fn block_for_gc(&mut self) {
+        info!("block for gc called");
+
+        let before_blocking_count = self.start_the_world_count;
+        while self.start_the_world_count <= before_blocking_count {
+            // ... wait
+        }
+    }
+
+    pub fn resume_mutators(&mut self) {
+        info!("resume_mutators called");
+        self.start_the_world_count += 1;
+    }
+
+    pub fn stop_all_mutators<F>(&mut self, _mutator_visitor: F)
+    where
+        F: FnMut(&'static mut Mutator<SOMVM>),
+    {
+        info!("stop_all_mutators called");
+        // mutator_visitor(self.mutator.as_mut());
+        // todo need to actually stop our mutator thread
+    }
+
+    pub(crate) fn get_mutator(&mut self, _tls: VMMutatorThread) -> &mut Mutator<SOMVM> {
+        debug_assert!(self.mutator_thread == _tls); // not even sure that's correct
+        self.mutator.as_mut()
+    }
+    pub(crate) fn get_all_mutators(&mut self) -> Box<dyn Iterator<Item = &mut Mutator<SOMVM>> + '_> {
+        info!("calling get_all_mutators");
+        // frankly not sure how to implement that one
+        // Box::new(vec![self.mutator.as_mut()].iter())
+
+        let mut mutators = VecDeque::new();
+        mutators.push_back(self.mutator.as_mut()); 
+        
+        let iterator = SOMMutatorIterator {
+            mutators,
+            phantom_data: PhantomData,
+        };
+        
+        Box::new(iterator)
+        
+        // unsafe { Box::from_raw(std::ptr::null_mut())}
     }
 }
 

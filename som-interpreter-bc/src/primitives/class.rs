@@ -7,8 +7,8 @@ use crate::universe::Universe;
 use crate::value::Value;
 use anyhow::Error;
 use once_cell::sync::Lazy;
-use som_core::gc::GCRef;
 use som_core::interner::Interned;
+use crate::gc::gc_interface::GCRef;
 
 pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| {
     Box::new({

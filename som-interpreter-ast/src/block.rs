@@ -1,6 +1,6 @@
-use std::fmt;
-use som_core::gc::GCRef;
 use crate::ast::AstBlock;
+use som_core::gc_interface::GCRef;
+use std::fmt;
 
 use crate::class::Class;
 use crate::frame::Frame;

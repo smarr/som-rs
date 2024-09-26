@@ -11,8 +11,8 @@ use num_traits::{Signed, ToPrimitive};
 use once_cell::sync::Lazy;
 use rand::distributions::Uniform;
 use rand::Rng;
-use som_core::gc::GCRef;
 use crate::block::Block;
+use crate::gc::gc_interface::GCRef;
 
 pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| {
     Box::new([

@@ -7,7 +7,7 @@ use crate::specialized::inlined::or_inlined_node::OrInlinedNode;
 use crate::specialized::inlined::while_inlined_node::WhileInlinedNode;
 use som_core::ast;
 use som_core::ast::{Block, Expression};
-use som_core::gc::GCRef;
+use som_core::gc_interface::GCRef;
 
 pub trait PrimMessageInliner {
     fn inline_if_possible(&mut self, msg: &ast::Message) -> Option<InlinedNode>;

@@ -10,7 +10,7 @@ use crate::frame::Frame;
 use crate::interpreter::Interpreter;
 use crate::value::Value;
 use anyhow::{anyhow, Error};
-use som_core::gc::{GCInterface, GCRef};
+use crate::gc::gc_interface::{GCInterface, GCRef};
 use som_core::interner::{Interned, Interner};
 
 /// The core classes of the SOM interpreter.

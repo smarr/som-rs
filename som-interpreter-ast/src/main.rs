@@ -8,7 +8,7 @@ use std::path::PathBuf;
 use anyhow::anyhow;
 #[cfg(feature = "jemalloc")]
 use jemallocator::Jemalloc;
-use som_core::gc::{GCInterface, GCRef};
+use som_core::gc_interface::{GCInterface, GCRef};
 use structopt::StructOpt;
 
 mod shell;

@@ -19,8 +19,8 @@ use som_core::ast;
 use som_core::ast::BlockDebugInfo;
 use som_core::ast::{Expression, MethodBody};
 use som_core::bytecode::Bytecode;
-use som_core::gc::{GCInterface, GCRef};
 use som_core::interner::{Interned, Interner};
+use crate::gc::gc_interface::{GCInterface, GCRef};
 
 #[derive(Debug, Clone)]
 pub enum Literal {

@@ -602,12 +602,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "indenter"
-version = "0.3.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ce23b50ad8242c51a442f3ff322d56b02f08852c77e4c0b4d3fd684abc89c683"
-
-[[package]]
 name = "indexmap"
 version = "1.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -825,7 +819,7 @@ checksum = "68354c5c6bd36d73ff3feceb05efa59b6acb7626617f4962be322a825e61f79a"
 
 [[package]]
 name = "mmtk"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "atomic",
  "atomic-traits",
@@ -867,7 +861,7 @@ dependencies = [
 
 [[package]]
 name = "mmtk-macros"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "proc-macro-error",
  "proc-macro2",
@@ -1328,38 +1322,7 @@ name = "som-core"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "mmtk",
  "rand",
- "som-gc",
-]
-
-[[package]]
-name = "som-gc"
-version = "0.1.0"
-dependencies = [
- "atomic",
- "libc",
- "log",
- "mmtk",
-]
-
-[[package]]
-name = "som-interpreter-ast"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "indenter",
- "indexmap",
- "jemallocator",
- "num-bigint",
- "num-traits",
- "once_cell",
- "rand",
- "som-core",
- "som-lexer",
- "som-parser-symbols",
- "static_assertions",
- "structopt",
 ]
 
 [[package]]
@@ -1367,9 +1330,13 @@ name = "som-interpreter-bc"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "atomic",
  "indexmap",
  "jemallocator",
+ "libc",
+ "log",
  "measureme",
+ "mmtk",
  "num-bigint",
  "num-traits",
  "once_cell",

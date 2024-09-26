@@ -15,7 +15,7 @@ use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
 use crate::value::Value;
 use num_bigint::BigInt;
-use som_core::gc::{GCInterface, GCRef};
+use crate::gc::gc_interface::{GCInterface, GCRef};
 use som_core::interner::Interned;
 
 pub trait IntoValue {

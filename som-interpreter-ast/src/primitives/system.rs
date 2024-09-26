@@ -126,7 +126,7 @@ fn ticks(universe: &mut Universe, _: Value)-> Result<Value, Error> {
         .as_micros()
         .try_into()
         .with_context(|| format!("`{SIGNATURE}`: could not convert `i128` to `i32`")).unwrap();
-    
+
     Ok(Value::Integer(x))
 }
 

@@ -1,4 +1,4 @@
-use som_core::gc::GCInterface;
+use som_core::gc_interface::GCInterface;
 use som_interpreter_ast::compiler::AstMethodCompilerCtxt;
 use std::path::PathBuf;
 

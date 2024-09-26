@@ -1,11 +1,11 @@
 use crate::block::Block;
 use crate::class::Class;
 use crate::compiler::Literal;
+use crate::gc::gc_interface::{GCInterface, GCRef};
 use crate::method::{Method, MethodKind};
 use crate::value::Value;
 use core::mem::size_of;
 use som_core::bytecode::Bytecode;
-use som_core::gc::{GCInterface, GCRef};
 use std::cell::RefCell;
 use std::marker::PhantomData;
 
@@ -83,7 +83,7 @@ impl Frame {
         unsafe {
             let frame = frame_ptr.to_obj();
 
-            // setting up the self-referential pointers for args/locals accesses 
+            // setting up the self-referential pointers for args/locals accesses
             frame.stack_ptr = frame_ptr.ptr.add(OFFSET_TO_STACK).as_mut_ref();
             frame.args_ptr = frame.stack_ptr.add(stack_size);
             frame.locals_ptr = frame.args_ptr.add(frame.nbr_args);

@@ -1,11 +1,10 @@
 use std::fmt;
 
+use crate::gc::gc_interface::GCRef;
 use crate::method::Method;
 use crate::value::Value;
 use indexmap::IndexMap;
-use som_core::gc::GCRef;
 use som_core::interner::Interned;
-
 // /// A reference that may be either weak or owned/strong.
 // #[derive(Debug, Clone)]
 // pub enum MaybeWeak<A> {

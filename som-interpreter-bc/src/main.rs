@@ -13,9 +13,10 @@ use structopt::StructOpt;
 
 mod shell;
 
-use som_core::gc::{GCInterface, GCRef};
+use som_interpreter_bc::gc::gc_interface::{GCInterface, GCRef};
 use som_interpreter_bc::disassembler::disassemble_method_body;
 use som_interpreter_bc::method::{Method, MethodKind};
+use som_interpreter_bc::MMTK_TO_VM_INTERFACE;
 use som_interpreter_bc::universe::Universe;
 use som_interpreter_bc::value::Value;
 
@@ -59,7 +60,7 @@ fn run() -> anyhow::Result<()> {
     let opts: Options = Options::from_args();
     
     // dbg!(size_of::<Bytecode>()); std::process::exit(0);
-    
+
     if opts.disassemble {
         return disassemble_class(opts);
     }
@@ -81,7 +82,9 @@ fn run() -> anyhow::Result<()> {
         classpath.push(directory.to_path_buf());
     }
 
-    let gc_interface = GCInterface::init();
+    let mut gc_interface = GCInterface::init();
+
+    unsafe { MMTK_TO_VM_INTERFACE = &mut gc_interface; }
 
     let mut universe = Universe::with_classpath(classpath, gc_interface)?;
     
