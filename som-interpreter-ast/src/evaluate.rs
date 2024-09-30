@@ -76,8 +76,8 @@ impl Evaluate for AstExpression {
                     // Block has escaped its method frame.
                     let instance = method_frame.get_self();
                     let frame = universe.current_frame;
-                    let block = match frame.lookup_argument(0) {
-                        Value::Block(b) => b,
+                    let block = match frame.lookup_argument(0).as_block() {
+                        Some(blk) => blk,
                         _ => {
                             // Should never happen, because `universe.current_frame()` would
                             // have been equal to `universe.current_method_frame()`.
@@ -323,7 +323,7 @@ impl Evaluate for AstSuperMessage {
 
 impl Evaluate for AstBody {
     fn evaluate(&mut self, universe: &mut UniverseAST) -> Return {
-        let mut last_value = Value::Nil;
+        let mut last_value = Value::NIL;
         for expr in &mut self.exprs {
             last_value = propagate!(expr.evaluate(universe));
         }

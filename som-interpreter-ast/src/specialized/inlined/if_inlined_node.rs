@@ -6,7 +6,6 @@ use crate::evaluate::Evaluate;
 use crate::invokable::Return;
 use crate::universe::UniverseAST;
 use crate::value::Value;
-use crate::value::Value::Nil;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct IfInlinedNode {
@@ -31,7 +30,7 @@ impl Evaluate for IfInlinedNode {
         if cond_result == Value::Boolean(self.expected_bool) {
             self.body_instrs.evaluate(universe)
         } else {
-            Return::Local(Nil)
+            Return::Local(Value::NIL)
         } 
     }
 }

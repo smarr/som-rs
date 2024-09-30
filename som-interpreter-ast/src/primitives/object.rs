@@ -3,7 +3,6 @@ use crate::invokable::{Invoke, Return};
 use crate::primitives::PrimitiveFn;
 use crate::universe::UniverseAST;
 use crate::value::Value;
-use crate::value::Value::Nil;
 use once_cell::sync::Lazy;
 use std::collections::hash_map::DefaultHasher;
 use std::convert::TryFrom;
@@ -45,7 +44,7 @@ pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> =
 
 fn halt(_: &mut UniverseAST, _: Value) -> Return {
     println!("HALT"); // so a breakpoint can be put
-    Return::Local(Nil)
+    Return::Local(Value::NIL)
 }
 
 fn class(universe: &mut UniverseAST, object: Value) -> Return {
@@ -202,14 +201,14 @@ fn inst_var_at(_: &mut UniverseAST, object: Value, index: i32) -> Return {
         Err(err) => return Return::Exception(format!("'{}': {}", SIGNATURE, err)),
     };
 
-    let local = match object {
-        Value::Instance(c) => {
-            c.borrow().locals.get(index).cloned().unwrap_or(Value::Nil)
+    let local = {
+        if let Some(instance) = object.as_instance() {
+            instance.borrow().locals.get(index).cloned().unwrap_or(Value::NIL)
+        } else if let Some(cls) = object.as_class() {
+            cls.clone().borrow().fields.get(index).cloned().unwrap_or(Value::NIL)
+        } else {
+            unreachable!("instVarAt called not on an instance or a class")
         }
-        Value::Class(c) => {
-            c.clone().borrow().fields.get(index).cloned().unwrap_or(Value::Nil)
-        }
-        _ => unreachable!("instVarAt called not on an instance or a class")
     };
 
     Return::Local(local)
@@ -222,19 +221,17 @@ fn inst_var_at_put(_: &mut UniverseAST, object: Value, index: i32, value: Value)
         Ok(index) => index,
         Err(err) => return Return::Exception(format!("'{}': {}", SIGNATURE, err)),
     };
-
-    let does_have_local = match &object {
-        Value::Instance(c) => { c.borrow().locals.len() > index }
-        Value::Class(c) => { c.clone().borrow().fields.len() > index }
-        _ => unreachable!("instVarAtPut called not on an instance or a class")
-    };
-
-    if does_have_local {
-        match object {
-            Value::Instance(instance) => instance.borrow_mut().assign_local(index, value.clone()),
-            Value::Class(class) => class.borrow_mut().assign_field(index, value.clone()),
-            v => unreachable!("Assigning a local binding in a {:?} value type?", v),
+    
+    if let Some(instance) = object.as_instance() {
+        if instance.borrow().locals.len() > index {
+            instance.borrow_mut().assign_local(index, value.clone())
         }
+    } else if let Some(cls) = object.as_class() {
+        if cls.borrow().fields.len() > index {
+            cls.borrow_mut().assign_field(index, value.clone())
+        }
+    } else {
+        unreachable!("instVarAtPut called not on an instance or a class")
     }
 
     Return::Local(value)

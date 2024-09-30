@@ -180,7 +180,7 @@ fn basic_interpreter_tests() {
         // };
         let output = universe.with_frame(
             0,
-            vec![Value::System],
+            vec![Value::SYSTEM],
             |universe| ast.evaluate(universe),
         );
 

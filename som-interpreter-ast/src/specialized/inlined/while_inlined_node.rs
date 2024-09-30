@@ -8,7 +8,6 @@ use crate::evaluate::Evaluate;
 use crate::invokable::Return;
 use crate::universe::UniverseAST;
 use crate::value::Value;
-use crate::value::Value::Nil;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct WhileInlinedNode {
@@ -31,8 +30,8 @@ impl Evaluate for WhileInlinedNode {
     fn evaluate(&mut self, universe: &mut UniverseAST) -> Return {
         loop {
             let cond_result = propagate!(self.cond_instrs.evaluate(universe));
-            match cond_result {
-                Value::Boolean(b) => {
+            match cond_result.as_boolean() {
+                Some(b) => {
                     if b != self.expected_bool {
                         break;
                     } else {
@@ -42,6 +41,6 @@ impl Evaluate for WhileInlinedNode {
                 val => panic!("whileinlined condition did not evaluate to boolean but {:?}", val)
             };
         }
-        Return::Local(Nil)
+        Return::Local(Value::NIL)
     }
 }

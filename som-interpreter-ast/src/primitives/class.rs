@@ -24,7 +24,7 @@ pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> =
 
 fn superclass(_: &mut UniverseAST, receiver: GCRef<Class>) -> Return {
     let super_class = receiver.borrow().super_class();
-    Return::Local(super_class.map(Value::Class).unwrap_or(Value::Nil))
+    Return::Local(super_class.map(Value::Class).unwrap_or(Value::NIL))
 }
 
 fn new(universe: &mut UniverseAST, receiver: GCRef<Class>) -> Return {

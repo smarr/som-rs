@@ -15,7 +15,7 @@ pub struct Instance {
 impl Instance {
     /// Construct an instance for a given class.
     pub fn from_class(class: GCRef<Class>) -> Self {
-        let locals = class.borrow().fields.iter().map(|_| Value::Nil).collect();
+        let locals = class.borrow().fields.iter().map(|_| Value::NIL).collect();
 
         Self {
             class,

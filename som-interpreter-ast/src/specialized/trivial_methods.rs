@@ -36,12 +36,15 @@ pub struct TrivialGetterMethod {
 }
 
 impl Invoke for TrivialGetterMethod {
-    
     fn invoke(&mut self, _: &mut UniverseAST, args: Vec<Value>) -> Return {
-        match args.first().unwrap() {
-            Value::Class(cls) => Return::Local(cls.borrow().class().borrow().lookup_field(self.field_idx)),
-            Value::Instance(instance) => Return::Local(instance.borrow().lookup_local(self.field_idx)),
-            _ => panic!("trivial getter not called on a class/instance?")
+        let arg = args.first().unwrap();
+        
+        if let Some(cls) = arg.as_class() {
+            Return::Local(cls.borrow().class().borrow().lookup_field(self.field_idx))
+        } else if let Some(instance) = arg.as_instance() {
+            Return::Local(instance.borrow().lookup_local(self.field_idx))
+        } else {
+            panic!("trivial getter not called on a class/instance?")
         }
     }
 }
@@ -55,16 +58,16 @@ impl Invoke for TrivialSetterMethod {
     
     fn invoke(&mut self, _: &mut UniverseAST, args: Vec<Value>) -> Return {
         let val = args.get(1).unwrap();
-        match args.first().unwrap() {
-            Value::Class(cls) => {
-                cls.borrow().class().borrow_mut().assign_field(self.field_idx, val.clone());
-                Return::Local(Value::Class(*cls))
-            }
-            Value::Instance(instance) => {
-                instance.borrow_mut().assign_local(self.field_idx, val.clone());
-                Return::Local(Value::Instance(*instance))
-            }
-            _ => panic!("trivial getter not called on a class/instance?")
+        let rcvr = args.first().unwrap();
+        
+        if let Some(cls) = rcvr.as_class() {
+            cls.borrow().class().borrow_mut().assign_field(self.field_idx, val.clone());
+            Return::Local(Value::Class(cls))
+        } else if let Some(instance) = rcvr.as_instance() {
+            instance.borrow_mut().assign_local(self.field_idx, val.clone());
+            Return::Local(Value::Instance(instance))   
+        } else {
+            panic!("trivial getter not called on a class/instance?")
         }
     }
 }

@@ -968,6 +968,7 @@ dependencies = [
  "som-core",
  "som-lexer",
  "som-parser-symbols",
+ "static_assertions",
  "structopt",
 ]
 

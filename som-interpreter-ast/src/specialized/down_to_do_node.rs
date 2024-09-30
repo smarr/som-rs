@@ -14,11 +14,13 @@ impl Invoke for DownToDoNode {
         let start_int_val = args.first().unwrap();
         let end_int_val = args.get(1).unwrap();
         let body_block_val = args.get(2).unwrap();
-
-        match (start_int_val, end_int_val, body_block_val) {
-            (Value::Integer(a), Value::Integer(b), Value::Block(c)) => Self::do_int_loop(*a, *b, *c, universe),
-            (Value::Double(a), Value::Double(b), Value::Block(c)) => Self::do_double_loop(*a, *b, *c, universe),
-            (a, b, c) => panic!("downTo:do: was not given two ints and a block as arguments, but {:?} and {:?} and {:?}", a, b, c)
+        
+        if let (Some(a), Some(b), Some(c)) = (start_int_val.as_integer(), end_int_val.as_integer(), body_block_val.as_block()) {
+            Self::do_int_loop(a, b, c, universe)
+        } else if let (Some(a), Some(b), Some(c)) = (start_int_val.as_double(), end_int_val.as_double(), body_block_val.as_block()) {
+            Self::do_double_loop(a, b, c, universe)
+        } else {
+            panic!("downTo:do: was not given two numbers and a block as arguments, but {:?} and {:?} and {:?}", start_int_val, end_int_val, body_block_val)
         }
     }
 }

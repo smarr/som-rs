@@ -5,7 +5,6 @@ use crate::ast::{AstBody, AstExpression};
 use crate::evaluate::Evaluate;
 use crate::invokable::Return;
 use crate::universe::UniverseAST;
-use crate::value::Value;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct OrInlinedNode {
@@ -26,9 +25,13 @@ impl Display for OrInlinedNode {
 impl Evaluate for OrInlinedNode {
     fn evaluate(&mut self, universe: &mut UniverseAST) -> Return {
         let first_result = propagate!(self.first.evaluate(universe));
-        match first_result {
-            Value::Boolean(true) => Return::Local(first_result),
-            Value::Boolean(false) => self.second.evaluate(universe),
+        match first_result.as_boolean() {
+            Some(b) => {
+                match b {
+                    true => Return::Local(first_result),
+                    false => self.second.evaluate(universe),
+                }
+            },
             _ => panic!("or:'s first part didn't evaluate to a boolean?")
         }
     }

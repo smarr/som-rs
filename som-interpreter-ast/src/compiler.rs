@@ -10,7 +10,7 @@ use crate::specialized::to_do_node::ToDoNode;
 use crate::specialized::trivial_methods::{TrivialGetterMethod, TrivialGlobalMethod, TrivialLiteralMethod, TrivialSetterMethod};
 use crate::specialized::while_node::WhileNode;
 use som_core::ast;
-use som_core::ast::{Expression, MethodBody};
+use som_core::ast::{Expression, Literal, MethodBody};
 use som_core::gc::{GCInterface, GCRef};
 
 pub struct AstMethodCompilerCtxt<'a> {
@@ -156,7 +156,19 @@ impl<'a> AstMethodCompilerCtxt<'a> {
                     _ => AstExpression::NonLocalExit(Box::new(self.parse_expression(a.as_ref())), b)
                 }
             }
-            Expression::Literal(a) => AstExpression::Literal(a),
+            Expression::Literal(a) => {
+                match &a {
+                    // this is to handle a weird corner case where "-2147483648" is considered to be a bigint by the lexer and then parser, when it's in fact just barely in i32 range
+                    Literal::BigInteger(big_int_str) => {
+                        match big_int_str.parse::<i32>() {
+                            Ok(x) => AstExpression::Literal(Literal::Integer(x)),
+                            _ => AstExpression::Literal(a)
+                        }
+                        
+                    },
+                    _ => AstExpression::Literal(a)
+                }
+            },
             Expression::Block(a) => AstExpression::Block(GCRef::<AstBlock>::alloc(self.parse_block(&a), self.gc_interface))
         }
     }

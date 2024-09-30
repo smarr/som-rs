@@ -179,8 +179,8 @@ impl UniverseAST {
 
         globals.insert("true".into(), Value::Boolean(true));
         globals.insert("false".into(), Value::Boolean(false));
-        globals.insert("nil".into(), Value::Nil);
-        globals.insert("system".into(), Value::System);
+        globals.insert("nil".into(), Value::NIL);
+        globals.insert("system".into(), Value::SYSTEM);
 
         Ok(Self {
             globals,
@@ -247,10 +247,10 @@ impl UniverseAST {
             }
 
             let super_class = if let Some(ref super_class) = defn.super_class {
-                match self.lookup_global(super_class) {
-                    Some(Value::Class(super_class)) => super_class,
-                    _ => self.load_class(super_class)?,
-                }
+                self.lookup_global(super_class)
+                    .and_then(Value::as_class)
+                    .and_then(|cls| Some(cls))
+                    .unwrap_or_else(|| self.load_class(super_class).unwrap())
             } else {
                 self.core.object_class.clone()
             };
@@ -558,10 +558,10 @@ impl UniverseAST {
 
     /// Call `System>>#initialize:` with the given name, if it is defined.
     pub fn initialize(&mut self, args: Vec<Value>) -> Option<Return> {
-        let initialize = Value::System.lookup_method(self, "initialize:")?;
+        let initialize = Value::SYSTEM.lookup_method(self, "initialize:")?;
         let args = Value::Array(GCRef::<Vec<Value>>::alloc(args, &mut self.gc_interface));
 
-        let program_result = initialize.to_obj().invoke(self, vec![Value::System, args]);
+        let program_result = initialize.to_obj().invoke(self, vec![Value::SYSTEM, args]);
         Some(program_result)
     }
 }

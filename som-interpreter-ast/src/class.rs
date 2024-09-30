@@ -51,7 +51,7 @@ impl Class {
         let static_locals = {
             let mut static_locals = IndexMap::new();
             for field in defn.static_locals.iter() {
-                if static_locals.insert(field.clone(), Value::Nil).is_some() {
+                if static_locals.insert(field.clone(), Value::NIL).is_some() {
                     return Err(format!(
                         "{}: the field named '{}' is already defined in this class",
                         defn.name, field,
@@ -64,7 +64,7 @@ impl Class {
         let instance_locals = {
             let mut instance_locals = IndexMap::new();
             for field in defn.instance_locals.iter() {
-                if instance_locals.insert(field.clone(), Value::Nil).is_some() {
+                if instance_locals.insert(field.clone(), Value::NIL).is_some() {
                     return Err(format!(
                         "{}: the field named '{}' is already defined in this class",
                         defn.name, field,
@@ -83,7 +83,7 @@ impl Class {
             name: format!("{} class", defn.name),
             class: GCRef::default(),
             super_class: maybe_static_superclass,
-            fields: vec![Value::Nil; static_locals.len()],
+            fields: vec![Value::NIL; static_locals.len()],
             field_names: defn.static_locals,
             methods: IndexMap::new(),
             is_static: true,
@@ -95,7 +95,7 @@ impl Class {
             name: defn.name.clone(),
             class: static_class_gc_ptr,
             super_class,
-            fields: vec![Value::Nil; instance_locals.len()],
+            fields: vec![Value::NIL; instance_locals.len()],
             field_names: defn.instance_locals,
             methods: IndexMap::new(),
             is_static: false,

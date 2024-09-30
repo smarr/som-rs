@@ -361,18 +361,37 @@ fn lt(_: &mut UniverseAST, a: DoubleLike, b: DoubleLike) -> Return {
 }
 
 fn eq(_: &mut UniverseAST, a: Value, b: Value) -> Return {
-    match (a, b) {
-        (Value::Integer(a), Value::Integer(b)) => Return::Local(Value::Boolean(a == b)),
-        (Value::BigInteger(a), Value::BigInteger(b)) => Return::Local(Value::Boolean(a.as_ref() == b.as_ref())),
-        (Value::Integer(a), Value::BigInteger(b)) | (Value::BigInteger(b), Value::Integer(a)) => {
-            Return::Local(Value::Boolean(BigInt::from(a) == *b.as_ref()))
-        }
-        (Value::Double(a), Value::Double(b)) => Return::Local(Value::Boolean(a == b)),
-        (Value::Integer(a), Value::Double(b)) | (Value::Double(b), Value::Integer(a)) => {
-            Return::Local(Value::Boolean((a as f64) == b))
-        }
-        _ => Return::Local(Value::Boolean(false)),
-    }
+    // match (a, b) {
+    //     (Value::Integer(a), Value::Integer(b)) => Return::Local(Value::Boolean(a == b)),
+    //     (Value::BigInteger(a), Value::BigInteger(b)) => Return::Local(Value::Boolean(a.as_ref() == b.as_ref())),
+    //     (Value::Integer(a), Value::BigInteger(b)) | (Value::BigInteger(b), Value::Integer(a)) => {
+    //         Return::Local(Value::Boolean(BigInt::from(a) == *b.as_ref()))
+    //     }
+    //     (Value::Double(a), Value::Double(b)) => Return::Local(Value::Boolean(a == b)),
+    //     (Value::Integer(a), Value::Double(b)) | (Value::Double(b), Value::Integer(a)) => {
+    //         Return::Local(Value::Boolean((a as f64) == b))
+    //     }
+    //     _ => Return::Local(Value::Boolean(false)),
+    // }
+
+    let Ok(a) = DoubleLike::try_from(a) else {
+        return Return::Local(Value::Boolean(false));
+    };
+
+    let Ok(b) = DoubleLike::try_from(b) else {
+        return Return::Local(Value::Boolean(false));
+    };
+    
+    let value = match (a, b) {
+        (DoubleLike::Integer(a), DoubleLike::Integer(b)) => a == b,
+        (DoubleLike::BigInteger(a), DoubleLike::BigInteger(b)) => a.as_ref() == b.as_ref(),
+        (DoubleLike::Double(a), DoubleLike::Double(b)) => a == b,
+        (DoubleLike::Integer(a), DoubleLike::Double(b)) => (a as f64) == b,
+        (DoubleLike::Double(a), DoubleLike::Integer(b)) => a == (b as f64),
+        _ => false,
+    };
+
+    Return::Local(Value::Boolean(value))
 }
 
 fn shift_left(universe: &mut UniverseAST, a: IntegerLike, b: i32) -> Return {

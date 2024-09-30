@@ -39,7 +39,7 @@ fn load_file(universe: &mut UniverseAST, _: Value, path: StringLike) -> Return {
 
     match fs::read_to_string(path) {
         Ok(value) => Return::Local(Value::String(GCRef::<String>::alloc(value, &mut universe.gc_interface))),
-        Err(_) => Return::Local(Value::Nil),
+        Err(_) => Return::Local(Value::NIL),
     }
 }
 
@@ -50,12 +50,12 @@ fn print_string(universe: &mut UniverseAST, _: Value, string: StringLike) -> Ret
     };
 
     print!("{}", string);
-    Return::Local(Value::System)
+    Return::Local(Value::SYSTEM)
 }
 
 fn print_newline(_: &mut UniverseAST, _: Value) -> Return {
     println!();
-    Return::Local(Value::Nil)
+    Return::Local(Value::NIL)
 }
 
 fn error_print(universe: &mut UniverseAST, _: Value, string: StringLike) -> Return {
@@ -65,7 +65,7 @@ fn error_print(universe: &mut UniverseAST, _: Value, string: StringLike) -> Retu
     };
 
     eprint!("{}", string);
-    Return::Local(Value::System)
+    Return::Local(Value::SYSTEM)
 }
 
 fn error_println(universe: &mut UniverseAST, _: Value, string: StringLike) -> Return {
@@ -77,7 +77,7 @@ fn error_println(universe: &mut UniverseAST, _: Value, string: StringLike) -> Re
     };
 
     eprintln!("{}", string);
-    Return::Local(Value::System)
+    Return::Local(Value::SYSTEM)
 }
 
 fn load(universe: &mut UniverseAST, _: Value, class_name: Interned) -> Return {
@@ -85,8 +85,10 @@ fn load(universe: &mut UniverseAST, _: Value, class_name: Interned) -> Return {
 
     let name = universe.lookup_symbol(class_name).to_string();
 
-    if let Some(cached_class @ Value::Class(_)) = universe.lookup_global(&name) {
-        return Return::Local(cached_class);
+    if let Some(cached_class) = universe.lookup_global(&name) {
+        if cached_class.is_class() {
+            return Return::Local(cached_class);
+        }
     }
 
     match universe.load_class(name) {
@@ -103,7 +105,7 @@ fn has_global(universe: &mut UniverseAST, _: Value, name: Interned) -> Return {
 
 fn global(universe: &mut UniverseAST, _: Value, name: Interned) -> Return {
     let symbol = universe.lookup_symbol(name);
-    Return::Local(universe.lookup_global(symbol).unwrap_or(Value::Nil))
+    Return::Local(universe.lookup_global(symbol).unwrap_or(Value::NIL))
 }
 
 fn global_put(universe: &mut UniverseAST, _: Value, name: Interned, value: Value) -> Return {

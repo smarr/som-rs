@@ -12,8 +12,8 @@ impl Invoke for IfTrueIfFalseNode {
             (args.get_unchecked(0), args.get_unchecked(1), args.get_unchecked(2))
         };
 
-        let bool_val = match cond_block_val {
-            Value::Boolean(a) => *a,
+        let bool_val = match cond_block_val.as_boolean() {
+            Some(a) => a,
             _ => panic!("ifTrue:ifFalse: condition did not evaluate to boolean")
         };
 
@@ -24,18 +24,16 @@ impl Invoke for IfTrueIfFalseNode {
 
         let block_to_evaluate = if bool_val { block_1_arg } else { block_2_arg };
 
-        match block_to_evaluate {
-            Value::Block(b) => {
+        match block_to_evaluate.as_block() {
+            Some(mut b) => {
                 let nbr_locals = b.borrow().block.borrow().nbr_locals;
-                let mut b = *b;
-                
                 universe.with_frame(
                     nbr_locals,
                     vec![Value::Block(b)],
                     |universe| b.evaluate(universe),
                 )
             },
-            a => Return::Local(a.clone()),
+            None => Return::Local(block_to_evaluate.clone()),
         }
     }
 }

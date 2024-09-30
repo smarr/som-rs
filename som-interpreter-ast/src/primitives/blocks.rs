@@ -108,8 +108,8 @@ pub mod block3 {
         Lazy::new(|| Box::new([]));
 
     fn value_with(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
-        let mut block = match args.first() {
-            Some(Value::Block(b)) => b.clone(),
+        let mut block = match args.first().unwrap().as_block() {
+            Some(blk) => blk,
             _ => panic!("Calling value: on a block... not on a block?")
         };
 

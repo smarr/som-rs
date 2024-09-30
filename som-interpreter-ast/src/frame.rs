@@ -87,15 +87,15 @@ impl Frame {
             return *current_frame;
         }
 
-        let mut target_frame: GCRef<Frame> = match current_frame.lookup_argument(0) {
-            Value::Block(block) => {
+        let mut target_frame: GCRef<Frame> = match current_frame.lookup_argument(0).as_block() {
+            Some(block) => {
                 block.to_obj().frame
             }
             v => panic!("attempting to access a non local var/arg from a method instead of a block: self wasn't blockself but {:?}.", v)
         };
         for _ in 1..n {
-            target_frame = match target_frame.lookup_argument(0) {
-                Value::Block(block) => {
+            target_frame = match target_frame.lookup_argument(0).as_block() {
+                Some(block) => {
                     block.to_obj().frame
                 }
                 v => panic!("attempting to access a non local var/arg from a method instead of a block (but the original frame we were in was a block): self wasn't blockself but {:?}.", v)
@@ -118,8 +118,8 @@ impl Frame {
 
     /// Get the method invocation frame for that frame.
     pub fn method_frame(frame: &GCRef<Frame>) -> GCRef<Frame> {
-        if let Value::Block(b) = frame.lookup_argument(0) {
-            Frame::method_frame(&b.to_obj().frame)
+        if let Some(blk) = frame.lookup_argument(0).as_block() {
+            Frame::method_frame(&blk.to_obj().frame)
         } else {
             *frame
         }
@@ -141,10 +141,22 @@ pub trait FrameAccess {
 impl FrameAccess for GCRef<Frame> {
     /// Get the self value for this frame.
     fn get_self(&self) -> Value {
-        match self.lookup_argument(0) {
-            Value::Block(b) => b.borrow().frame.get_self(),
-            s => s.clone()
+        let maybe_self_arg = self.lookup_argument(0);
+        match maybe_self_arg.as_block() {
+            Some(blk) => blk.borrow().frame.get_self(),
+            None => maybe_self_arg.clone() // it is self, we've reached the root
         }
+    }
+
+    fn lookup_argument(&self, idx: usize) -> Value {
+        unsafe {
+            let arg_ptr: &Value = self.ptr.add(Self::ARG_OFFSET).add(idx * size_of::<Value>()).as_ref();
+            arg_ptr.clone()
+        }
+    }
+
+    fn assign_arg(&mut self, idx: usize, value: Value) { // TODO: shouldn't assignments take refs?
+        unsafe { *self.ptr.add(Self::ARG_OFFSET).add(idx * size_of::<Value>()).as_mut_ref() = value }
     }
 
     #[inline] // not sure if necessary
@@ -161,30 +173,25 @@ impl FrameAccess for GCRef<Frame> {
         unsafe { *self.ptr.add(Self::ARG_OFFSET).add((nbr_args + idx) * size_of::<Value>()).as_mut_ref() = value }
     }
 
-    fn lookup_argument(&self, idx: usize) -> Value {
-        unsafe {
-            let arg_ptr: &Value = self.ptr.add(Self::ARG_OFFSET).add(idx * size_of::<Value>()).as_ref();
-            arg_ptr.clone()
-        }
-    }
-
-    fn assign_arg(&mut self, idx: usize, value: Value) { // TODO: shouldn't assignments take refs?
-        unsafe { *self.ptr.add(Self::ARG_OFFSET).add(idx * size_of::<Value>()).as_mut_ref() = value }
-    }
-
     fn lookup_field(&self, idx: usize) -> Value {
-        match self.get_self() {
-            Value::Instance(i) => { i.borrow_mut().lookup_local(idx) }
-            Value::Class(c) => { c.borrow().class().borrow_mut().lookup_field(idx) }
-            v => { panic!("{:?}", &v) }
+        let self_ = self.get_self();
+        if let Some(instance) = self_.as_instance() {
+            instance.borrow_mut().lookup_local(idx)
+        } else if let Some(cls) = self_.as_class() {
+            cls.borrow().class().borrow_mut().lookup_field(idx)
+        } else {
+            panic!("{:?}", &self_)
         }
     }
 
     fn assign_field(&self, idx: usize, value: &Value) {
-        match self.get_self() {
-            Value::Instance(i) => { i.borrow_mut().assign_local(idx, value.clone()) }
-            Value::Class(c) => { c.borrow().class().borrow_mut().assign_field(idx, value.clone()) }
-            v => { panic!("{:?}", &v) }
+        let self_ = self.get_self();
+        if let Some(instance) = self_.as_instance() {
+            instance.borrow_mut().assign_local(idx, value.clone())
+        } else if let Some(cls) = self_.as_class() {
+            cls.borrow().class().borrow_mut().assign_field(idx, value.clone())
+        } else {
+            panic!("{:?}", &self_)
         }
     }
 }
@@ -202,7 +209,7 @@ impl CustomAlloc<Frame> for Frame {
         unsafe {
             let mut locals_addr = frame_ptr.ptr.add(size_of::<Frame>()).add(nbr_args * size_of::<Value>());
             for _ in 0..nbr_locals {
-                *locals_addr.as_mut_ref() = Value::Nil;
+                *locals_addr.as_mut_ref() = Value::NIL;
                 locals_addr = locals_addr.add(size_of::<Value>());
             }
         };

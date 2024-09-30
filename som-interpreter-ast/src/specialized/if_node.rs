@@ -2,7 +2,6 @@ use crate::evaluate::Evaluate;
 use crate::invokable::{Invoke, Return};
 use crate::universe::UniverseAST;
 use crate::value::Value;
-use crate::value::Value::Nil;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct IfNode {
@@ -14,15 +13,15 @@ impl Invoke for IfNode {
         let cond_block_val = unsafe { args.get_unchecked(0) };
         let body_block_arg = unsafe { args.get_unchecked(1) };
 
-        let (bool_val, mut body_block) = match (cond_block_val, body_block_arg) {
-            (Value::Boolean(b), Value::Block(c)) => (*b, *c),
+        let (bool_val, mut body_block) = match (cond_block_val.as_boolean(), body_block_arg.as_block()) {
+            (Some(b), Some(blk)) => (b, blk),
             (a, b) => panic!("if[True|False] was not given a bool and a block as arguments, but {:?} and {:?}", a, b)
         };
 
         let nbr_locals = body_block.borrow().block.borrow().nbr_locals;
 
         if bool_val != self.expected_bool {
-            Return::Local(Nil)
+            Return::Local(Value::NIL)
         } else {
             universe.with_frame(
                 nbr_locals,

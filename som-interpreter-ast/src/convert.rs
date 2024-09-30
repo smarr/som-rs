@@ -4,19 +4,19 @@
 
 use std::convert::TryFrom;
 
-use anyhow::{anyhow, bail, Error};
+use anyhow::{bail, Context, Error};
 
 use crate::block::Block;
 use crate::class::Class;
 use crate::instance::Instance;
 use crate::interner::Interned;
+use crate::invokable::Return;
 use crate::method::Method;
 use crate::primitives::PrimitiveFn;
 use crate::universe::UniverseAST;
 use crate::value::Value;
 use num_bigint::BigInt;
 use som_core::gc::{GCInterface, GCRef};
-use crate::invokable::Return;
 
 pub trait IntoValue {
     fn into_value(&self, gc_interface: &mut GCInterface) -> Value;
@@ -29,9 +29,10 @@ impl TryFrom<Value> for Nil {
     type Error = Error;
 
     fn try_from(value: Value) -> Result<Self, Self::Error> {
-        match value {
-            Value::Nil => Ok(Self),
-            _ => bail!("could not resolve `Value` as `Nil`")
+        if value == Value::NIL {
+            Ok(Self)
+        } else {
+            bail!("could not resolve `Value` as `Nil`")
         }
     }
 }
@@ -52,9 +53,10 @@ impl TryFrom<Value> for System {
     type Error = Error;
 
     fn try_from(value: Value) -> Result<Self, Self::Error> {
-        match value {
-            Value::Nil => Ok(Self),
-            _ => bail!("could not resolve `Value` as `System`")
+        if value == Value::SYSTEM {
+            Ok(Self)
+        } else {
+            bail!("could not resolve `Value` as `System`")
         }
     }
 }
@@ -78,15 +80,11 @@ impl TryFrom<Value> for StringLike {
     type Error = Error;
 
     fn try_from(value: Value) -> Result<Self, Self::Error> {
-        match value {
-            Value::String(string) => {
-                Ok(StringLike::String(string))
-            },
-            Value::Symbol(i) => {
-                Ok(StringLike::Symbol(i))
-            }
-            _ => Err(anyhow!("could not resolve `Value` as `String`, or `Symbol`"))
-        }
+        value
+            .as_string()
+            .map(Self::String)
+            .or_else(|| value.as_symbol().map(Self::Symbol))
+            .context("could not resolve `Value` as `String`, or `Symbol`")
     }
 }
 
@@ -110,18 +108,12 @@ impl TryFrom<Value> for DoubleLike {
     type Error = Error;
 
     fn try_from(value: Value) -> Result<Self, Self::Error> {
-        match value {
-            Value::Double(double) => {
-                Ok(DoubleLike::Double(double))
-            },
-            Value::Integer(i) => {
-                Ok(DoubleLike::Integer(i))
-            },
-            Value::BigInteger(i) => {
-                Ok(DoubleLike::BigInteger(i))
-            }
-            _ => Err(anyhow!("could not resolve `Value` as `Double`, `Integer`, or `BigInteger`"))
-        }
+        value
+            .as_double()
+            .map(Self::Double)
+            .or_else(|| value.as_integer().map(Self::Integer))
+            .or_else(|| value.as_big_integer().map(Self::BigInteger))
+            .context("could not resolve `Value` as `Double`, `Integer`, or `BigInteger`")
     }
 }
 
@@ -144,15 +136,11 @@ impl TryFrom<Value> for IntegerLike {
     type Error = Error;
 
     fn try_from(value: Value) -> Result<Self, Self::Error> {
-        match value {
-            Value::Integer(i) => {
-                Ok(IntegerLike::Integer(i))
-            },
-            Value::BigInteger(i) => {
-                Ok(IntegerLike::BigInteger(i))
-            }
-            _ => Err(anyhow!("could not resolve `Value` as `Integer`, or `BigInteger`"))
-        }
+        value
+            .as_integer()
+            .map(Self::Integer)
+            .or_else(|| value.as_big_integer().map(Self::BigInteger))
+            .context("could not resolve `Value` as `Integer`, or `BigInteger`")
     }
 }
 
@@ -186,10 +174,7 @@ impl FromArgs for bool {
         arg: Value,
         _: &mut UniverseAST,
     ) -> Result<Self, Error> {
-        match arg {
-            Value::Boolean(b) => Ok(b),
-            _ => Err(anyhow::anyhow!("could not resolve `Value` as `Boolean`")),
-        }
+        arg.as_boolean().context("could not resolve `Value` as `Boolean`")
     }
 }
 
@@ -198,10 +183,7 @@ impl FromArgs for i32 {
         arg: Value,
         _: &mut UniverseAST,
     ) -> Result<Self, Error> {
-        match arg {
-            Value::Integer(i) => Ok(i),
-            a => Err(anyhow::anyhow!("could not resolve `Value` as `Integer` (was {:?})", a)),
-        }
+        arg.as_integer().context("could not resolve `Value` as `Integer`")
     }
 }
 
@@ -210,10 +192,7 @@ impl FromArgs for f64 {
         arg: Value,
         _: &mut UniverseAST,
     ) -> Result<Self, Error> {
-        match arg {
-            Value::Double(i) => Ok(i),
-            _ => Err(anyhow::anyhow!("could not resolve `Value` as `Double`")),
-        }
+        arg.as_double().context("could not resolve `Value` as `Double`")
     }
 }
 
@@ -222,10 +201,7 @@ impl FromArgs for Interned {
         arg: Value,
         _: &mut UniverseAST,
     ) -> Result<Self, Error> {
-        match arg {
-            Value::Symbol(val) => Ok(val),
-            _ => Err(anyhow::anyhow!("could not resolve `Value` as `Symbol`")),
-        }
+        arg.as_symbol().context("could not resolve `Value` as `Symbol`")
     }
 }
 
@@ -234,10 +210,7 @@ impl FromArgs for GCRef<String> {
         arg: Value,
         _: &mut UniverseAST,
     ) -> Result<Self, Error> {
-        match arg {
-            Value::String(val) => Ok(val),
-            _ => Err(anyhow::anyhow!("could not resolve `Value` as `String`")),
-        }
+        arg.as_string().context("could not resolve `Value` as `String`")
     }
 }
 
@@ -246,10 +219,7 @@ impl FromArgs for GCRef<Vec<Value>> {
         arg: Value,
         _: &mut UniverseAST,
     ) -> Result<Self, Error> {
-        match arg {
-            Value::Array(val) => Ok(val),
-            _ => Err(anyhow::anyhow!("could not resolve `Value` as `Array`")),
-        }
+        arg.as_array().context("could not resolve `Value` as `Array`")
     }
 }
 
@@ -258,10 +228,7 @@ impl FromArgs for GCRef<Class> {
         arg: Value,
         _: &mut UniverseAST,
     ) -> Result<Self, Error> {
-        match arg {
-            Value::Class(val) => Ok(val),
-            _ => Err(anyhow::anyhow!("could not resolve `Value` as `Class`")),
-        }
+        arg.as_class().context("could not resolve `Value` as `Class`")
     }
 }
 
@@ -270,10 +237,7 @@ impl FromArgs for GCRef<Instance> {
         arg: Value,
         _: &mut UniverseAST,
     ) -> Result<Self, Error> {
-        match arg {
-            Value::Instance(val) => Ok(val),
-            _ => Err(anyhow::anyhow!("could not resolve `Value` as `Instance`")),
-        }
+        arg.as_instance().context("could not resolve `Value` as `Instance`")
     }
 }
 
@@ -282,10 +246,7 @@ impl FromArgs for GCRef<Block> {
         arg: Value,
         _: &mut UniverseAST,
     ) -> Result<Self, Error> {
-        match arg {
-            Value::Block(val) => Ok(val),
-            _ => Err(anyhow::anyhow!("could not resolve `Value` as `Block`")),
-        }
+        arg.as_block().context("could not resolve `Value` as `Block`")
     }
 }
 
@@ -294,10 +255,7 @@ impl FromArgs for GCRef<Method> {
         arg: Value,
         _: &mut UniverseAST,
     ) -> Result<Self, Error> {
-        match arg {
-            Value::Invokable(val) => Ok(val),
-            _ => Err(anyhow::anyhow!("could not resolve `Value` as `Method`")),
-        }
+        arg.as_invokable().context("could not resolve `Value` as `Method`")
     }
 }
 
@@ -371,7 +329,7 @@ pub trait Primitive<T>: Sized + Send + Sync + 'static {
     fn invoke(
         &self,
         universe: &mut UniverseAST,
-        args: Vec<Value>
+        args: Vec<Value>,
     ) -> Return;
 
     fn into_func(self) -> &'static PrimitiveFn {
@@ -414,19 +372,19 @@ impl IntoValue for Value {
 
 impl IntoValue for Nil {
     fn into_value(&self, _: &mut GCInterface) -> Value {
-        Value::Nil
+        Value::NIL
     }
 }
 
 impl IntoValue for System {
     fn into_value(&self, _: &mut GCInterface) -> Value {
-        Value::System
+        Value::SYSTEM
     }
 }
 
 impl<T: IntoValue> IntoValue for Option<T> {
     fn into_value(&self, heap: &mut GCInterface) -> Value {
-        self.as_ref().map_or(Value::Nil, |it| it.into_value(heap))
+        self.as_ref().map_or(Value::NIL, |it| it.into_value(heap))
     }
 }
 

@@ -25,7 +25,7 @@ fn at(_: &mut UniverseAST, values: GCRef<Vec<Value>>, index: i32) -> Return {
         Ok(index) => index,
         Err(err) => return Return::Exception(format!("'{}': {}", SIGNATURE, err)),
     };
-    let value = values.borrow().get(index).cloned().unwrap_or(Value::Nil);
+    let value = values.borrow().get(index).cloned().unwrap_or(Value::NIL);
     Return::Local(value)
 }
 
@@ -57,7 +57,7 @@ fn new(universe: &mut UniverseAST, _: Value, count: i32) -> Return {
     
     match usize::try_from(count) {
         Ok(length) => Return::Local(Value::Array(GCRef::<Vec<Value>>::alloc(vec![
-            Value::Nil;
+            Value::NIL;
             length
         ], &mut universe.gc_interface))),
         Err(err) => Return::Exception(format!("'{}': {}", SIGNATURE, err)),
