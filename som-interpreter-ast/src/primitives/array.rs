@@ -1,26 +1,25 @@
 use std::convert::TryFrom;
+use once_cell::sync::Lazy;
 use som_core::gc::GCRef;
-use crate::expect_args;
+use crate::convert::Primitive;
 use crate::invokable::Return;
 use crate::primitives::PrimitiveFn;
 use crate::universe::UniverseAST;
 use crate::value::Value;
 
-pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[
-    ("at:", self::at, true),
-    ("at:put:", self::at_put, true),
-    ("length", self::length, true),
-];
+pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| {
+    Box::new([
+        ("at:", self::at.into_func(), true),
+        ("at:put:", self::at_put.into_func(), true),
+        ("length", self::length.into_func(), true),
+    ])
+});
 
-pub static CLASS_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[("new:", self::new, true)];
+pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| Box::new([("new:", self::new.into_func(), true)]));
 
-fn at(_: &mut UniverseAST, args: Vec<Value>) -> Return {
+
+fn at(_: &mut UniverseAST, values: GCRef<Vec<Value>>, index: i32) -> Return {
     const SIGNATURE: &str = "Array>>#at:";
-
-    expect_args!(SIGNATURE, args, [
-        Value::Array(values) => values,
-        Value::Integer(index) => index,
-    ]);
 
     let index = match usize::try_from(index - 1) {
         Ok(index) => index,
@@ -30,14 +29,8 @@ fn at(_: &mut UniverseAST, args: Vec<Value>) -> Return {
     Return::Local(value)
 }
 
-fn at_put(_: &mut UniverseAST, args: Vec<Value>) -> Return {
+fn at_put(_: &mut UniverseAST, values: GCRef<Vec<Value>>, index: i32, value: Value) -> Return {
     const SIGNATURE: &str = "Array>>#at:put:";
-
-    expect_args!(SIGNATURE, args, [
-        Value::Array(values) => values,
-        Value::Integer(index) => index,
-        value => value,
-    ]);
 
     let index = match usize::try_from(index - 1) {
         Ok(index) => index,
@@ -49,12 +42,8 @@ fn at_put(_: &mut UniverseAST, args: Vec<Value>) -> Return {
     Return::Local(Value::Array(values))
 }
 
-fn length(_: &mut UniverseAST, args: Vec<Value>) -> Return {
+fn length(_: &mut UniverseAST, values: GCRef<Vec<Value>>) -> Return {
     const SIGNATURE: &str = "Array>>#length";
-
-    expect_args!(SIGNATURE, args, [
-        Value::Array(values) => values,
-    ]);
 
     let length = values.borrow().len();
     match i32::try_from(length) {
@@ -63,13 +52,8 @@ fn length(_: &mut UniverseAST, args: Vec<Value>) -> Return {
     }
 }
 
-fn new(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
+fn new(universe: &mut UniverseAST, _: Value, count: i32) -> Return {
     const SIGNATURE: &str = "Array>>#new:";
-
-    expect_args!(SIGNATURE, args, [
-        _,
-        Value::Integer(count) => count,
-    ]);
     
     match usize::try_from(count) {
         Ok(length) => Return::Local(Value::Array(GCRef::<Vec<Value>>::alloc(vec![
@@ -81,7 +65,7 @@ fn new(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
 }
 
 /// Search for an instance primitive matching the given signature.
-pub fn get_instance_primitive(signature: &str) -> Option<PrimitiveFn> {
+pub fn get_instance_primitive(signature: &str) -> Option<&'static PrimitiveFn> {
     INSTANCE_PRIMITIVES
         .iter()
         .find(|it| it.0 == signature)
@@ -89,7 +73,7 @@ pub fn get_instance_primitive(signature: &str) -> Option<PrimitiveFn> {
 }
 
 /// Search for a class primitive matching the given signature.
-pub fn get_class_primitive(signature: &str) -> Option<PrimitiveFn> {
+pub fn get_class_primitive(signature: &str) -> Option<&'static PrimitiveFn> {
     CLASS_PRIMITIVES
         .iter()
         .find(|it| it.0 == signature)

@@ -1,42 +1,40 @@
-use crate::expect_args;
+use crate::convert::{Primitive, StringLike};
 use crate::invokable::Return;
 use crate::primitives::PrimitiveFn;
 use crate::universe::UniverseAST;
 use crate::value::Value;
+use once_cell::sync::Lazy;
 use som_core::gc::GCRef;
 use std::convert::TryFrom;
 use std::fs;
+use anyhow::Context;
+use crate::interner::Interned;
 
-pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[
-    ("loadFile:", self::load_file, true),
-    ("printString:", self::print_string, true),
-    ("printNewline", self::print_newline, true),
-    ("errorPrint:", self::error_print, true),
-    ("errorPrintln:", self::error_println, true),
-    ("load:", self::load, true),
-    ("ticks", self::ticks, true),
-    ("time", self::time, true),
-    ("fullGC", self::full_gc, true),
-    ("exit:", self::exit, true),
-    ("global:", self::global, true),
-    ("global:put:", self::global_put, true),
-    ("hasGlobal:", self::has_global, true),
-    ("printStackTrace", self::print_stack_trace, true),
-];
-pub static CLASS_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[];
+pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| {
+    Box::new([
+        ("loadFile:", self::load_file.into_func(), true),
+        ("printString:", self::print_string.into_func(), true),
+        ("printNewline", self::print_newline.into_func(), true),
+        ("errorPrint:", self::error_print.into_func(), true),
+        ("errorPrintln:", self::error_println.into_func(), true),
+        ("load:", self::load.into_func(), true),
+        ("ticks", self::ticks.into_func(), true),
+        ("time", self::time.into_func(), true),
+        ("fullGC", self::full_gc.into_func(), true),
+        ("exit:", self::exit.into_func(), true),
+        ("global:", self::global.into_func(), true),
+        ("global:put:", self::global_put.into_func(), true),
+        ("hasGlobal:", self::has_global.into_func(), true),
+        ("printStackTrace", self::print_stack_trace.into_func(), true),
+    ])
+});
+pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> =
+    Lazy::new(|| Box::new([]));
 
-fn load_file(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
-    const SIGNATURE: &str = "System>>#loadFile:";
-
-    expect_args!(SIGNATURE, args, [
-        Value::System,
-        value => value,
-    ]);
-
-    let path = match value {
-        Value::String(ref string) => string.to_obj(),
-        Value::Symbol(sym) => universe.lookup_symbol(sym),
-        _ => return Return::Exception(format!("'{}': wrong type", SIGNATURE)),
+fn load_file(universe: &mut UniverseAST, _: Value, path: StringLike) -> Return {
+    let path = match path {
+        StringLike::String(ref string) => string.to_obj(),
+        StringLike::Symbol(sym) => universe.lookup_symbol(sym),
     };
 
     match fs::read_to_string(path) {
@@ -45,156 +43,94 @@ fn load_file(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
     }
 }
 
-fn print_string(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
-    const SIGNATURE: &str = "System>>#printString:";
-
-    expect_args!(SIGNATURE, args, [
-        Value::System,
-        value => value,
-    ]);
-
-    let string = match value {
-        Value::String(ref string) => string.to_obj(),
-        Value::Symbol(sym) => universe.lookup_symbol(sym),
-        _ => return Return::Exception(format!("'{}': wrong type", SIGNATURE)),
+fn print_string(universe: &mut UniverseAST, _: Value, string: StringLike) -> Return {
+    let string = match string {
+        StringLike::String(ref string) => string.to_obj(),
+        StringLike::Symbol(sym) => universe.lookup_symbol(sym),
     };
 
     print!("{}", string);
     Return::Local(Value::System)
 }
 
-fn print_newline(_: &mut UniverseAST, args: Vec<Value>) -> Return {
-    const SIGNATURE: &'static str = "System>>#printNewline";
-
-    expect_args!(SIGNATURE, args, [Value::System]);
-
+fn print_newline(_: &mut UniverseAST, _: Value) -> Return {
     println!();
     Return::Local(Value::Nil)
 }
 
-fn error_print(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
-    const SIGNATURE: &'static str = "System>>#errorPrint:";
-
-    expect_args!(SIGNATURE, args, [
-        Value::System,
-        value => value,
-    ]);
-
-    let string = match value {
-        Value::String(ref string) => string.to_obj(),
-        Value::Symbol(sym) => universe.lookup_symbol(sym),
-        _ => return Return::Exception(format!("'{}': wrong type", SIGNATURE)),
+fn error_print(universe: &mut UniverseAST, _: Value, string: StringLike) -> Return {
+    let string = match string {
+        StringLike::String(ref string) => string.to_obj(),
+        StringLike::Symbol(sym) => universe.lookup_symbol(sym),
     };
 
     eprint!("{}", string);
     Return::Local(Value::System)
 }
 
-fn error_println(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
-    const SIGNATURE: &str = "System>>#errorPrintln:";
+fn error_println(universe: &mut UniverseAST, _: Value, string: StringLike) -> Return {
+    const _: &str = "System>>#errorPrintln:";
 
-    expect_args!(SIGNATURE, args, [
-        Value::System,
-        value => value,
-    ]);
-
-    let string = match value {
-        Value::String(ref string) => string.to_obj(),
-        Value::Symbol(sym) => universe.lookup_symbol(sym),
-        _ => return Return::Exception(format!("'{}': wrong type", SIGNATURE)),
+    let string = match string {
+        StringLike::String(ref string) => string.to_obj(),
+        StringLike::Symbol(sym) => universe.lookup_symbol(sym),
     };
 
     eprintln!("{}", string);
     Return::Local(Value::System)
 }
 
-fn load(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
+fn load(universe: &mut UniverseAST, _: Value, class_name: Interned) -> Return {
     const SIGNATURE: &str = "System>>#load:";
 
-    expect_args!(SIGNATURE, args, [
-        Value::System,
-        Value::Symbol(sym) => sym,
-    ]);
+    let name = universe.lookup_symbol(class_name).to_string();
 
-    let name = universe.lookup_symbol(sym).to_string();
-    
     if let Some(cached_class @ Value::Class(_)) = universe.lookup_global(&name) {
         return Return::Local(cached_class);
     }
-    
+
     match universe.load_class(name) {
         Ok(class) => Return::Local(Value::Class(class)),
         Err(err) => Return::Exception(format!("'{}': {}", SIGNATURE, err)),
     }
 }
 
-fn has_global(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
-    const SIGNATURE: &str = "System>>#hasGlobal:";
-
-    expect_args!(SIGNATURE, args, [
-        Value::System,
-        Value::Symbol(sym) => sym,
-    ]);
-
-    let symbol = universe.lookup_symbol(sym);
+fn has_global(universe: &mut UniverseAST, _: Value, name: Interned) -> Return {
+    const _: &str = "System>>#hasGlobal:";
+    let symbol = universe.lookup_symbol(name);
     Return::Local(Value::Boolean(universe.has_global(symbol)))
 }
 
-fn global(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
-    const SIGNATURE: &str = "System>>#global:";
-
-    expect_args!(SIGNATURE, args, [
-        Value::System,
-        Value::Symbol(sym) => sym,
-    ]);
-
-    let symbol = universe.lookup_symbol(sym);
+fn global(universe: &mut UniverseAST, _: Value, name: Interned) -> Return {
+    let symbol = universe.lookup_symbol(name);
     Return::Local(universe.lookup_global(symbol).unwrap_or(Value::Nil))
 }
 
-fn global_put(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
-    const SIGNATURE: &str = "System>>#global:put:";
-
-    expect_args!(SIGNATURE, args, [
-        Value::System,
-        Value::Symbol(sym) => sym,
-        value => value,
-    ]);
-
-    let symbol = universe.lookup_symbol(sym).to_string();
+fn global_put(universe: &mut UniverseAST, _: Value, name: Interned, value: Value) -> Return {
+    let symbol = universe.lookup_symbol(name).to_string();
     universe.assign_global(symbol, &value);
     Return::Local(value)
 }
 
-fn exit(_: &mut UniverseAST, args: Vec<Value>) -> Return {
-    const SIGNATURE: &str = "System>>#exit:";
-
-    expect_args!(SIGNATURE, args, [
-        Value::System,
-        Value::Integer(code) => code,
-    ]);
-
-    match i32::try_from(code) {
-        Ok(code) => std::process::exit(code),
-        Err(err) => Return::Exception(format!("'{}': {}", SIGNATURE, err)),
-    }
+fn exit(_: &mut UniverseAST, status: i32) -> Return {
+    const _: &str = "System>>#exit:";
+    std::process::exit(status)
 }
 
-fn ticks(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
+fn ticks(universe: &mut UniverseAST, _: Value) -> Return {
     const SIGNATURE: &str = "System>>#ticks";
 
-    expect_args!(SIGNATURE, args, [Value::System]);
-
-    match i32::try_from(universe.start_time.elapsed().as_micros()) {
-        Ok(micros) => Return::Local(Value::Integer(micros)),
-        Err(err) => Return::Exception(format!("'{}': {}", SIGNATURE, err)),
-    }
+    let x = universe.start_time
+        .elapsed()
+        .as_micros()
+        .try_into()
+        .with_context(|| format!("`{SIGNATURE}`: could not convert `i128` to `i32`")).unwrap();
+    
+    Return::Local(Value::Integer(x))
 }
 
-fn time(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
+fn time(universe: &mut UniverseAST, _: Value) -> Return {
     const SIGNATURE: &str = "System>>#time";
-
-    expect_args!(SIGNATURE, args, [Value::System]);
 
     match i32::try_from(universe.start_time.elapsed().as_millis()) {
         Ok(micros) => Return::Local(Value::Integer(micros)),
@@ -207,36 +143,30 @@ fn print_stack_trace(_: &mut UniverseAST, _: Vec<Value>) -> Return {
     // const SIGNATURE: &str = "System>>#printStackTrace";
 
     dbg!("printStackTrace is broken (on purpose). It can be fixed and reenabled with a debug flag, though.");
-/*
-    expect_args!(SIGNATURE, args, [Value::System]);
-
-    for frame in &universe.frames {
-        // let class = frame.borrow().get_method_holder(universe);
-        // let signature = frame.borrow().get_method_signature();
-        // let signature = universe.lookup_symbol(signature);
-        let signature = "we do not support method signatures in stack traces anymore...";
-        // let block = match frame.borrow().kind() {
-        //     FrameKind::Block { .. } => "$block",
-        //     _ => "",
-        // };
-        // println!("{}>>#{}{}", class.borrow().name(), signature, block);
-        println!("{}>>#{}", class.borrow().name(), signature);
-    }
-*/
+    /*
+            for frame in &universe.frames {
+            // let class = frame.borrow().get_method_holder(universe);
+            // let signature = frame.borrow().get_method_signature();
+            // let signature = universe.lookup_symbol(signature);
+            let signature = "we do not support method signatures in stack traces anymore...";
+            // let block = match frame.borrow().kind() {
+            //     FrameKind::Block { .. } => "$block",
+            //     _ => "",
+            // };
+            // println!("{}>>#{}{}", class.borrow().name(), signature, block);
+            println!("{}>>#{}", class.borrow().name(), signature);
+        }
+    */
     Return::Local(Value::Boolean(true))
 }
 
-fn full_gc(_: &mut UniverseAST, args: Vec<Value>) -> Return {
-    const SIGNATURE: &str = "System>>#fullGC";
-
-    expect_args!(SIGNATURE, args, [Value::System]);
-
+fn full_gc(_: &mut UniverseAST, _: Value) -> Return {
     // We don't do any garbage collection at all, so we return false.
     Return::Local(Value::Boolean(false))
 }
 
 /// Search for an instance primitive matching the given signature.
-pub fn get_instance_primitive(signature: &str) -> Option<PrimitiveFn> {
+pub fn get_instance_primitive(signature: &str) -> Option<&'static PrimitiveFn> {
     INSTANCE_PRIMITIVES
         .iter()
         .find(|it| it.0 == signature)
@@ -244,7 +174,7 @@ pub fn get_instance_primitive(signature: &str) -> Option<PrimitiveFn> {
 }
 
 /// Search for a class primitive matching the given signature.
-pub fn get_class_primitive(signature: &str) -> Option<PrimitiveFn> {
+pub fn get_class_primitive(signature: &str) -> Option<&'static PrimitiveFn> {
     CLASS_PRIMITIVES
         .iter()
         .find(|it| it.0 == signature)

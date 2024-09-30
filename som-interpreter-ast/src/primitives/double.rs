@@ -1,159 +1,122 @@
-use crate::expect_args;
+use crate::convert::{DoubleLike, Primitive, StringLike};
 use crate::invokable::Return;
 use crate::primitives::PrimitiveFn;
 use crate::universe::UniverseAST;
 use crate::value::Value;
 use num_traits::ToPrimitive;
+use once_cell::sync::Lazy;
 use som_core::gc::GCRef;
 
-pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[
-    ("+", self::plus, true),
-    ("-", self::minus, true),
-    ("*", self::times, true),
-    ("//", self::divide, true),
-    ("%", self::modulo, true),
-    ("=", self::eq, true),
-    ("<", self::lt, true),
-    ("sqrt", self::sqrt, true),
-    ("round", self::round, true),
-    ("cos", self::cos, true),
-    ("sin", self::sin, true),
-    ("asString", self::as_string, true),
-    ("asInteger", self::as_integer, true),
-];
-pub static CLASS_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[
-    ("fromString:", self::from_string, true),
-    ("PositiveInfinity", self::positive_infinity, true),
-];
+pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| {
+    Box::new([
+        ("+", self::plus.into_func(), true),
+        ("-", self::minus.into_func(), true),
+        ("*", self::times.into_func(), true),
+        ("//", self::divide.into_func(), true),
+        ("%", self::modulo.into_func(), true),
+        ("=", self::eq.into_func(), true),
+        ("<", self::lt.into_func(), true),
+        ("sqrt", self::sqrt.into_func(), true),
+        ("round", self::round.into_func(), true),
+        ("cos", self::cos.into_func(), true),
+        ("sin", self::sin.into_func(), true),
+        ("asString", self::as_string.into_func(), true),
+        ("asInteger", self::as_integer.into_func(), true),
+    ])
+});
+pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| {
+    Box::new([
+        ("fromString:", self::from_string.into_func(), true),
+        (
+            "PositiveInfinity",
+            self::positive_infinity.into_func(),
+            true,
+        ),
+    ])
+});
 
 macro_rules! promote {
     ($signature:expr, $value:expr) => {
         match $value {
-            Value::Integer(value) => value as f64,
-            Value::BigInteger(value) => match value.as_ref().to_f64() {
+            DoubleLike::Double(value) => value,
+            DoubleLike::Integer(value) => value as f64,
+            DoubleLike::BigInteger(value) => match value.to_obj().to_f64() {
                 Some(value) => value,
                 None => {
-                    return Return::Exception(format!(
+                    panic!(
                         "'{}': `Integer` too big to be converted to `Double`",
                         $signature
-                    ))
+                    )
                 }
             },
-            Value::Double(value) => value,
-            _ => {
-                return Return::Exception(format!(
-                    "'{}': wrong type (expected `integer` or `double`)",
-                    $signature
-                ))
-            }
         }
     };
 }
 
-fn from_string(_: &mut UniverseAST, args: Vec<Value>) -> Return {
+fn from_string(universe: &mut UniverseAST, _: Value, string: StringLike) -> Return {
     const SIGNATURE: &str = "Double>>#fromString:";
 
-    expect_args!(SIGNATURE, args, [
-        _,
-        Value::String(string) => string,
-    ]);
+    let string = match string {
+        StringLike::String(ref value) => value.as_str(),
+        StringLike::Symbol(sym) => universe.lookup_symbol(sym),
+    };
 
-    match string.to_obj().parse() {
+    match string.parse() {
         Ok(parsed) => Return::Local(Value::Double(parsed)),
         Err(err) => Return::Exception(format!("'{}': {}", SIGNATURE, err)),
     }
 }
 
-fn as_string(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
+fn as_string(universe: &mut UniverseAST, receiver: DoubleLike) -> Return {
     const SIGNATURE: &str = "Double>>#asString";
 
-    expect_args!(SIGNATURE, args, [
-        value => value,
-    ]);
-
-    let value = promote!(SIGNATURE, value);
+    let value = promote!(SIGNATURE, receiver);
 
     Return::Local(Value::String(GCRef::<String>::alloc(value.to_string(), &mut universe.gc_interface)))
 }
 
-fn as_integer(_: &mut UniverseAST, args: Vec<Value>) -> Return {
-    const SIGNATURE: &str = "Double>>#asInteger";
-
-    expect_args!(SIGNATURE, args, [
-        Value::Double(value) => value,
-    ]);
-
-    Return::Local(Value::Integer(value.trunc() as i32))
+fn as_integer(_: &mut UniverseAST, receiver: f64) -> Return {
+    Return::Local(Value::Integer(receiver.trunc() as i32))
 }
 
-fn sqrt(_: &mut UniverseAST, args: Vec<Value>) -> Return {
+fn sqrt(_: &mut UniverseAST, receiver: DoubleLike) -> Return {
     const SIGNATURE: &str = "Double>>#sqrt";
 
-    expect_args!(SIGNATURE, args, [
-        value => value,
-    ]);
-
-    let value = promote!(SIGNATURE, value);
+    let value = promote!(SIGNATURE, receiver);
 
     Return::Local(Value::Double(value.sqrt()))
 }
 
-fn round(_: &mut UniverseAST, args: Vec<Value>) -> Return {
+fn round(_: &mut UniverseAST, receiver: DoubleLike) -> Return {
     const SIGNATURE: &str = "Double>>#round";
 
-    expect_args!(SIGNATURE, args, [
-        value => value,
-    ]);
-
-    let value = promote!(SIGNATURE, value);
+    let value = promote!(SIGNATURE, receiver);
 
     Return::Local(Value::Double(value.round()))
 }
 
-fn cos(_: &mut UniverseAST, args: Vec<Value>) -> Return {
+fn cos(_: &mut UniverseAST, value: DoubleLike) -> Return {
     const SIGNATURE: &str = "Double>>#cos";
-
-    expect_args!(SIGNATURE, args, [
-        value => value,
-    ]);
 
     let value = promote!(SIGNATURE, value);
 
     Return::Local(Value::Double(value.cos()))
 }
 
-fn sin(_: &mut UniverseAST, args: Vec<Value>) -> Return {
+fn sin(_: &mut UniverseAST, receiver: DoubleLike) -> Return {
     const SIGNATURE: &str = "Double>>#sin";
 
-    expect_args!(SIGNATURE, args, [
-        value => value,
-    ]);
-
-    let value = promote!(SIGNATURE, value);
+    let value = promote!(SIGNATURE, receiver);
 
     Return::Local(Value::Double(value.sin()))
 }
 
-fn eq(_: &mut UniverseAST, args: Vec<Value>) -> Return {
-    const SIGNATURE: &str = "Double>>#=";
-
-    expect_args!(SIGNATURE, args, [
-        // Value::Double(a) => a,
-        // Value::Double(b) => b,
-        a => a,
-        b => b,
-    ]);
-
+fn eq(_: &mut UniverseAST, a: Value, b: Value) -> Return {
     Return::Local(Value::Boolean(a == b))
 }
 
-fn lt(_: &mut UniverseAST, args: Vec<Value>) -> Return {
+fn lt(_: &mut UniverseAST, a: DoubleLike, b: DoubleLike) -> Return {
     const SIGNATURE: &str = "Double>>#<";
-
-    expect_args!(SIGNATURE, args, [
-        a => a,
-        b => b,
-    ]);
 
     let a = promote!(SIGNATURE, a);
     let b = promote!(SIGNATURE, b);
@@ -161,13 +124,8 @@ fn lt(_: &mut UniverseAST, args: Vec<Value>) -> Return {
     Return::Local(Value::Boolean(a < b))
 }
 
-fn plus(_: &mut UniverseAST, args: Vec<Value>) -> Return {
+fn plus(_: &mut UniverseAST, a: DoubleLike, b: DoubleLike) -> Return {
     const SIGNATURE: &str = "Double>>#+";
-
-    expect_args!(SIGNATURE, args, [
-        a => a,
-        b => b,
-    ]);
 
     let a = promote!(SIGNATURE, a);
     let b = promote!(SIGNATURE, b);
@@ -175,13 +133,8 @@ fn plus(_: &mut UniverseAST, args: Vec<Value>) -> Return {
     Return::Local(Value::Double(a + b))
 }
 
-fn minus(_: &mut UniverseAST, args: Vec<Value>) -> Return {
+fn minus(_: &mut UniverseAST, a: DoubleLike, b: DoubleLike) -> Return {
     const SIGNATURE: &str = "Double>>#-";
-
-    expect_args!(SIGNATURE, args, [
-        a => a,
-        b => b,
-    ]);
 
     let a = promote!(SIGNATURE, a);
     let b = promote!(SIGNATURE, b);
@@ -189,13 +142,8 @@ fn minus(_: &mut UniverseAST, args: Vec<Value>) -> Return {
     Return::Local(Value::Double(a - b))
 }
 
-fn times(_: &mut UniverseAST, args: Vec<Value>) -> Return {
+fn times(_: &mut UniverseAST, a: DoubleLike, b: DoubleLike) -> Return {
     const SIGNATURE: &str = "Double>>#*";
-
-    expect_args!(SIGNATURE, args, [
-        a => a,
-        b => b,
-    ]);
 
     let a = promote!(SIGNATURE, a);
     let b = promote!(SIGNATURE, b);
@@ -203,13 +151,8 @@ fn times(_: &mut UniverseAST, args: Vec<Value>) -> Return {
     Return::Local(Value::Double(a * b))
 }
 
-fn divide(_: &mut UniverseAST, args: Vec<Value>) -> Return {
+fn divide(_: &mut UniverseAST, a: DoubleLike, b: DoubleLike) -> Return {
     const SIGNATURE: &str = "Double>>#//";
-
-    expect_args!(SIGNATURE, args, [
-        a => a,
-        b => b,
-    ]);
 
     let a = promote!(SIGNATURE, a);
     let b = promote!(SIGNATURE, b);
@@ -217,13 +160,8 @@ fn divide(_: &mut UniverseAST, args: Vec<Value>) -> Return {
     Return::Local(Value::Double(a / b))
 }
 
-fn modulo(_: &mut UniverseAST, args: Vec<Value>) -> Return {
+fn modulo(_: &mut UniverseAST, a: DoubleLike, b: DoubleLike) -> Return {
     const SIGNATURE: &str = "Double>>#%";
-
-    expect_args!(SIGNATURE, args, [
-        a => a,
-        b => b,
-    ]);
 
     let a = promote!(SIGNATURE, a);
     let b = promote!(SIGNATURE, b);
@@ -238,7 +176,7 @@ fn positive_infinity(_: &mut UniverseAST, _: Vec<Value>) -> Return {
 }
 
 /// Search for an instance primitive matching the given signature.
-pub fn get_instance_primitive(signature: &str) -> Option<PrimitiveFn> {
+pub fn get_instance_primitive(signature: &str) -> Option<&'static PrimitiveFn> {
     INSTANCE_PRIMITIVES
         .iter()
         .find(|it| it.0 == signature)
@@ -246,7 +184,7 @@ pub fn get_instance_primitive(signature: &str) -> Option<PrimitiveFn> {
 }
 
 /// Search for a class primitive matching the given signature.
-pub fn get_class_primitive(signature: &str) -> Option<PrimitiveFn> {
+pub fn get_class_primitive(signature: &str) -> Option<&'static PrimitiveFn> {
     CLASS_PRIMITIVES
         .iter()
         .find(|it| it.0 == signature)

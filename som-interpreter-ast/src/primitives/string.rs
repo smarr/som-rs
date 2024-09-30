@@ -1,38 +1,41 @@
-use crate::expect_args;
+use crate::convert::{Primitive, StringLike};
 use crate::invokable::Return;
 use crate::primitives::PrimitiveFn;
 use crate::universe::UniverseAST;
 use crate::value::Value;
+use once_cell::sync::Lazy;
 use som_core::gc::GCRef;
 use std::collections::hash_map::DefaultHasher;
 use std::convert::TryFrom;
 use std::hash::Hasher;
 
-pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[
-    ("length", self::length, true),
-    ("hashcode", self::hashcode, true),
-    ("isLetters", self::is_letters, true),
-    ("isDigits", self::is_digits, true),
-    ("isWhiteSpace", self::is_whitespace, true),
-    ("asSymbol", self::as_symbol, true),
-    ("charAt:", self::char_at, true),
-    ("concatenate:", self::concatenate, true),
-    ("primSubstringFrom:to:", self::prim_substring_from_to, true),
-    ("=", self::eq, true),
-];
-pub static CLASS_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[];
+pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| {
+    Box::new([
+        ("length", self::length.into_func(), true),
+        ("hashcode", self::hashcode.into_func(), true),
+        ("isLetters", self::is_letters.into_func(), true),
+        ("isDigits", self::is_digits.into_func(), true),
+        ("isWhiteSpace", self::is_whitespace.into_func(), true),
+        ("asSymbol", self::as_symbol.into_func(), true),
+        ("concatenate:", self::concatenate.into_func(), true),
+        (
+            "primSubstringFrom:to:",
+            self::prim_substring_from_to.into_func(),
+            true,
+        ),
+        ("=", self::eq.into_func(), true),
+        ("charAt:", self::char_at.into_func(), true),
+    ])
+});
+pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> =
+    Lazy::new(|| Box::new([]));
 
-fn length(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
+fn length(universe: &mut UniverseAST, value: StringLike) -> Return {
     const SIGNATURE: &str = "String>>#length";
 
-    expect_args!(SIGNATURE, args, [
-        value => value,
-    ]);
-
     let value = match value {
-        Value::String(ref value) => value.as_str(),
-        Value::Symbol(sym) => universe.lookup_symbol(sym),
-        _ => return Return::Exception(format!("'{}': invalid self type", SIGNATURE)),
+        StringLike::String(ref value) => value.as_str(),
+        StringLike::Symbol(sym) => universe.lookup_symbol(sym)
     };
 
     match i32::try_from(value.chars().count()) {
@@ -41,17 +44,10 @@ fn length(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
     }
 }
 
-fn hashcode(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
-    const SIGNATURE: &str = "String>>#hashcode";
-
-    expect_args!(SIGNATURE, args, [
-        value => value,
-    ]);
-
+fn hashcode(universe: &mut UniverseAST, value: StringLike) -> Return {
     let value = match value {
-        Value::String(ref value) => value.as_str(),
-        Value::Symbol(sym) => universe.lookup_symbol(sym),
-        _ => return Return::Exception(format!("'{}': invalid self type", SIGNATURE)),
+        StringLike::String(ref value) => value.as_str(),
+        StringLike::Symbol(sym) => universe.lookup_symbol(sym),
     };
 
     let mut hasher = DefaultHasher::new();
@@ -66,17 +62,10 @@ fn hashcode(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
     Return::Local(Value::Integer((hasher.finish() as i32).abs()))
 }
 
-fn is_letters(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
-    const SIGNATURE: &str = "String>>#isLetters";
-
-    expect_args!(SIGNATURE, args, [
-        value => value,
-    ]);
-
+fn is_letters(universe: &mut UniverseAST, value: StringLike) -> Return {
     let value = match value {
-        Value::String(ref value) => value.as_str(),
-        Value::Symbol(sym) => universe.lookup_symbol(sym),
-        _ => return Return::Exception(format!("'{}': invalid self type", SIGNATURE)),
+        StringLike::String(ref value) => value.as_str(),
+        StringLike::Symbol(sym) => universe.lookup_symbol(sym),
     };
 
     Return::Local(Value::Boolean(
@@ -84,17 +73,10 @@ fn is_letters(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
     ))
 }
 
-fn is_digits(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
-    const SIGNATURE: &str = "String>>#isDigits";
-
-    expect_args!(SIGNATURE, args, [
-        value => value,
-    ]);
-
+fn is_digits(universe: &mut UniverseAST, value: StringLike) -> Return {
     let value = match value {
-        Value::String(ref value) => value.as_str(),
-        Value::Symbol(sym) => universe.lookup_symbol(sym),
-        _ => return Return::Exception(format!("'{}': invalid self type", SIGNATURE)),
+        StringLike::String(ref value) => value.as_str(),
+        StringLike::Symbol(sym) => universe.lookup_symbol(sym),
     };
 
     Return::Local(Value::Boolean(
@@ -102,17 +84,10 @@ fn is_digits(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
     ))
 }
 
-fn is_whitespace(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
-    const SIGNATURE: &str = "String>>#isWhiteSpace";
-
-    expect_args!(SIGNATURE, args, [
-        value => value,
-    ]);
-
+fn is_whitespace(universe: &mut UniverseAST, value: StringLike) -> Return {
     let value = match value {
-        Value::String(ref value) => value.as_str(),
-        Value::Symbol(sym) => universe.lookup_symbol(sym),
-        _ => return Return::Exception(format!("'{}': invalid self type", SIGNATURE)),
+        StringLike::String(ref value) => value.as_str(),
+        StringLike::Symbol(sym) => universe.lookup_symbol(sym),
     };
 
     Return::Local(Value::Boolean(
@@ -120,113 +95,76 @@ fn is_whitespace(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
     ))
 }
 
-fn concatenate(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
-    const SIGNATURE: &str = "String>>#concatenate:";
-
-    expect_args!(SIGNATURE, args, [
-        s1 => s1,
-        s2 => s2,
-    ]);
-
-    let s1 = match s1 {
-        Value::String(ref value) => value.as_str(),
-        Value::Symbol(sym) => universe.lookup_symbol(sym),
-        _ => return Return::Exception(format!("'{}': wrong types", SIGNATURE)),
+fn concatenate(universe: &mut UniverseAST, receiver: StringLike, other: StringLike) -> Return {
+    let s1 = match receiver {
+        StringLike::String(ref value) => value.as_str(),
+        StringLike::Symbol(sym) => universe.lookup_symbol(sym),
     };
-    let s2 = match s2 {
-        Value::String(ref value) => value.as_str(),
-        Value::Symbol(sym) => universe.lookup_symbol(sym),
-        _ => return Return::Exception(format!("'{}': wrong types", SIGNATURE)),
+
+    let s2 = match other {
+        StringLike::String(ref value) => value.as_str(),
+        StringLike::Symbol(sym) => universe.lookup_symbol(sym),
     };
 
     Return::Local(Value::String(GCRef::<String>::alloc(format!("{}{}", s1, s2), &mut universe.gc_interface)))
 }
 
-fn as_symbol(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
-    const SIGNATURE: &str = "String>>#asSymbol";
-
-    expect_args!(SIGNATURE, args, [
-        value => value,
-    ]);
-
+fn as_symbol(universe: &mut UniverseAST, value: StringLike) -> Return {
     match value {
-        Value::String(ref value) => {
+        StringLike::String(ref value) => {
             Return::Local(Value::Symbol(universe.intern_symbol(value.as_str())))
         }
-        Value::Symbol(sym) => Return::Local(Value::Symbol(sym)),
-        _ => Return::Exception(format!("'{}': invalid self type", SIGNATURE)),
+        StringLike::Symbol(sym) => Return::Local(Value::Symbol(sym)),
     }
 }
 
-fn char_at(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
-    const SIGNATURE: &str = "String>>#charAt:";
-
-    expect_args!(SIGNATURE, args, [
-        s1 => s1,
-        s2 => s2,
-    ]);
-
-    let (value, idx) = match (&s1, s2) {
-        (Value::String(ref value), Value::Integer(i)) => (value.as_str(), i as usize - 1),
-        (Value::Symbol(intern), Value::Integer(i)) => {
-            let str = universe.lookup_symbol(*intern);
-            (str, i as usize - 1)
-        },
-        a => panic!("charAt not given a [String|Symbol] + integer but {:?}", a)
+fn char_at(universe: &mut UniverseAST, receiver: StringLike, idx: i32) -> Return {
+    let string = match receiver {
+        StringLike::String(ref value) => value.as_str(),
+        StringLike::Symbol(sym) => universe.lookup_symbol(sym),
     };
 
-    Return::Local(Value::String(GCRef::<String>::alloc(String::from(value.chars().nth(idx).unwrap()), &mut universe.gc_interface)))
+    Return::Local(Value::String(GCRef::<String>::alloc(String::from(string.chars().nth((idx - 1) as usize).unwrap()), &mut universe.gc_interface)))
 }
 
-fn eq(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
-    const SIGNATURE: &str = "String>>#=";
-
-    expect_args!(SIGNATURE, args, [
-        s1 => s1,
-        s2 => s2,
-    ]);
-
-    let s1 = match s1 {
-        Value::String(ref s1) => s1.as_str(),
-        Value::Symbol(s1) => universe.lookup_symbol(s1),
-        _ => {
-            return Return::Local(Value::Boolean(false));
-        }
+fn eq(universe: &mut UniverseAST, a: Value, b: Value) -> Return {
+    let Ok(a) = StringLike::try_from(a) else {
+        return Return::Local(Value::Boolean(false));
     };
 
-    let s2 = match s2 {
-        Value::String(ref s2) => s2.as_str(),
-        Value::Symbol(s2) => universe.lookup_symbol(s2),
-        _ => {
-            return Return::Local(Value::Boolean(false));
-        }
+    let Ok(b) = StringLike::try_from(b) else {
+        return Return::Local(Value::Boolean(false));
     };
 
-    Return::Local(Value::Boolean(s1 == s2))
+    let a = match a {
+        StringLike::String(ref value) => value.as_str(),
+        StringLike::Symbol(sym) => universe.lookup_symbol(sym),
+    };
+
+    let b = match b {
+        StringLike::String(ref value) => value.as_str(),
+        StringLike::Symbol(sym) => universe.lookup_symbol(sym),
+    };
+
+    Return::Local(Value::Boolean(a == b))
 }
 
-fn prim_substring_from_to(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
-    const SIGNATURE: &str = "String>>#primSubstringFrom:to:";
+fn prim_substring_from_to(universe: &mut UniverseAST, receiver: StringLike, from: i32, to: i32) -> Return {
+    let from = usize::try_from(from - 1).unwrap();
+    let to = usize::try_from(to).unwrap();
 
-    expect_args!(SIGNATURE, args, [
-        value => value,
-        Value::Integer(from) => from,
-        Value::Integer(to) => to,
-    ]);
-
-    let (value, from, to) = match (&value, usize::try_from(from - 1), usize::try_from(to)) {
-        (Value::String(ref value), Ok(from), Ok(to)) => (value.as_str(), from, to),
-        (Value::Symbol(sym), Ok(from), Ok(to)) => (universe.lookup_symbol(*sym), from, to),
-        (_, _, _) => return Return::Exception(format!("'{}': wrong types", SIGNATURE)),
+    let string = match receiver {
+        StringLike::String(ref value) => value.as_str(),
+        StringLike::Symbol(sym) => universe.lookup_symbol(sym),
     };
-
-    let string = GCRef::<String>::alloc(String::from(&value[from..to]), &mut universe.gc_interface);
-
-    Return::Local(Value::String(string))
+    
+    let s = universe.gc_interface.allocate(string.chars().skip(from).take(to - from).collect());
+    
+    Return::Local(Value::String(s))
 }
 
 /// Search for an instance primitive matching the given signature.
-pub fn get_instance_primitive(signature: &str) -> Option<PrimitiveFn> {
+pub fn get_instance_primitive(signature: &str) -> Option<&'static PrimitiveFn> {
     INSTANCE_PRIMITIVES
         .iter()
         .find(|it| it.0 == signature)
@@ -234,7 +172,7 @@ pub fn get_instance_primitive(signature: &str) -> Option<PrimitiveFn> {
 }
 
 /// Search for a class primitive matching the given signature.
-pub fn get_class_primitive(signature: &str) -> Option<PrimitiveFn> {
+pub fn get_class_primitive(signature: &str) -> Option<&'static PrimitiveFn> {
     CLASS_PRIMITIVES
         .iter()
         .find(|it| it.0 == signature)

@@ -1,3 +1,4 @@
+use std::fmt::{Debug, Formatter};
 use som_core::gc::GCRef;
 use crate::class::Class;
 use crate::primitives::PrimitiveFn;
@@ -12,12 +13,13 @@ use crate::specialized::to_do_node::ToDoNode;
 use crate::specialized::trivial_methods::{TrivialGetterMethod, TrivialGlobalMethod, TrivialLiteralMethod, TrivialSetterMethod};
 
 /// The kind of a class method.
-#[derive(Clone, Debug, PartialEq)]
+// #[derive(Clone, Debug, PartialEq)]
+#[derive(Clone)]
 pub enum MethodKind {
     /// A user-defined method from the AST.
     Defined(AstMethodDef),
     /// An interpreter primitive.
-    Primitive(PrimitiveFn),
+    Primitive(&'static PrimitiveFn),
     /// A trivial literal read
     TrivialLiteral(TrivialLiteralMethod),
     /// A trivial global read
@@ -30,6 +32,18 @@ pub enum MethodKind {
     Specialized(MethodKindSpecialized),
     /// A non-implemented primitive.
     NotImplemented(String),
+}
+
+impl Debug for MethodKind {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str("I broke debug for MethodKind since PrimitiveFn can't implement it right now... todo fix")
+    }
+}
+
+impl PartialEq for MethodKind {
+    fn eq(&self, _other: &Self) -> bool {
+        todo!("is this comparison used during runtime?")
+    }
 }
 
 /// MethodKind for specialized methods, which are very common methods whose behaviour we know ahead of time (control flow, for the most part)

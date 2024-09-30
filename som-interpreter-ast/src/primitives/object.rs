@@ -1,87 +1,77 @@
-use std::collections::hash_map::DefaultHasher;
-use std::convert::TryFrom;
-use std::hash::{Hash, Hasher};
-
+use crate::convert::Primitive;
 use crate::invokable::{Invoke, Return};
 use crate::primitives::PrimitiveFn;
 use crate::universe::UniverseAST;
 use crate::value::Value;
-use crate::expect_args;
 use crate::value::Value::Nil;
+use once_cell::sync::Lazy;
+use std::collections::hash_map::DefaultHasher;
+use std::convert::TryFrom;
+use std::hash::{Hash, Hasher};
+use som_core::gc::GCRef;
+use crate::class::Class;
+use crate::interner::Interned;
 
-pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[
-    ("halt", self::halt, true),
-    ("class", self::class, true),
-    ("objectSize", self::object_size, true),
-    ("hashcode", self::hashcode, true),
-    ("perform:", self::perform, true),
-    ("perform:withArguments:", self::perform_with_arguments, true),
-    ("perform:inSuperclass:", self::perform_in_super_class, true),
-    (
-        "perform:withArguments:inSuperclass:",
-        self::perform_with_arguments_in_super_class,
-        true,
-    ),
-    ("instVarAt:", self::inst_var_at, true),
-    ("instVarAt:put:", self::inst_var_at_put, true),
-    ("==", self::eq, true),
-];
-pub static CLASS_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[];
+pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| {
+    Box::new([
+        ("halt", self::halt.into_func(), true),
+        ("class", self::class.into_func(), true),
+        ("objectSize", self::object_size.into_func(), true),
+        ("hashcode", self::hashcode.into_func(), true),
+        ("perform:", self::perform.into_func(), true),
+        (
+            "perform:withArguments:",
+            self::perform_with_arguments.into_func(),
+            true,
+        ),
+        (
+            "perform:inSuperclass:",
+            self::perform_in_super_class.into_func(),
+            true,
+        ),
+        (
+            "perform:withArguments:inSuperclass:",
+            self::perform_with_arguments_in_super_class.into_func(),
+            true,
+        ),
+        ("instVarAt:", self::inst_var_at.into_func(), true),
+        ("instVarAt:put:", self::inst_var_at_put.into_func(), true),
+        ("==", self::eq.into_func(), true),
+    ])
+});
+pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> =
+    Lazy::new(|| Box::new([]));
 
-fn halt(_universe: &mut UniverseAST, _args: Vec<Value>) -> Return{
-    const _: &'static str = "Object>>#halt";
+
+fn halt(_: &mut UniverseAST, _: Value) -> Return {
     println!("HALT"); // so a breakpoint can be put
     Return::Local(Nil)
 }
 
-fn class(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
-    const SIGNATURE: &'static str = "Object>>#class";
-
-    expect_args!(SIGNATURE, args, [
-        object => object,
-    ]);
-
+fn class(universe: &mut UniverseAST, object: Value) -> Return {
     Return::Local(Value::Class(object.class(universe)))
 }
 
-fn object_size(_: &mut UniverseAST, _: Vec<Value>) -> Return {
+fn object_size(_: &mut UniverseAST, _: Value) -> Return {
     const _: &'static str = "Object>>#objectSize";
 
     Return::Local(Value::Integer(std::mem::size_of::<Value>() as i32))
 }
 
-fn hashcode(_: &mut UniverseAST, args: Vec<Value>) -> Return {
-    const SIGNATURE: &'static str = "Object>>#hashcode";
-
-    expect_args!(SIGNATURE, args, [
-        value => value,
-    ]);
-
+fn hashcode(_: &mut UniverseAST, receiver: Value) -> Return {
     let mut hasher = DefaultHasher::new();
-    value.hash(&mut hasher);
+    receiver.hash(&mut hasher);
     let hash = (hasher.finish() as i32).abs();
 
     Return::Local(Value::Integer(hash))
 }
 
-fn eq(_: &mut UniverseAST, args: Vec<Value>) -> Return {
-    const SIGNATURE: &'static str = "Object>>#==";
-
-    expect_args!(SIGNATURE, args, [
-        a => a,
-        b => b,
-    ]);
-
-    Return::Local(Value::Boolean(a == b))
+fn eq(_: &mut UniverseAST, receiver: Value, other: Value) -> Return {
+    Return::Local(Value::Boolean(receiver == other))
 }
 
-fn perform(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
+fn perform(universe: &mut UniverseAST, object: Value, sym: Interned) -> Return {
     const SIGNATURE: &'static str = "Object>>#perform:";
-
-    expect_args!(SIGNATURE, args, [
-        object => object,
-        Value::Symbol(sym) => sym,
-    ]);
 
     let signature = universe.lookup_symbol(sym);
     let method = object.lookup_method(universe, signature);
@@ -105,14 +95,8 @@ fn perform(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
     }
 }
 
-fn perform_with_arguments(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
+fn perform_with_arguments(universe: &mut UniverseAST, object: Value, sym: Interned, arr: GCRef<Vec<Value>>) -> Return {
     const SIGNATURE: &'static str = "Object>>#perform:withArguments:";
-
-    expect_args!(SIGNATURE, args, [
-        object => object,
-        Value::Symbol(sym) => sym,
-        Value::Array(arr) => arr,
-    ]);
 
     let signature = universe.lookup_symbol(sym);
     let method = object.lookup_method(universe, signature);
@@ -131,7 +115,7 @@ fn perform_with_arguments(universe: &mut UniverseAST, args: Vec<Value>) -> Retur
             //     .chain(arr.to_obj().replace(Vec::default()))
             //     .collect();
             let args = std::iter::once(object.clone()).chain(arr.to_obj().clone()).collect();
-            
+
             universe
                 .does_not_understand(object.clone(), signature.as_str(), args)
                 .unwrap_or_else(|| {
@@ -147,14 +131,8 @@ fn perform_with_arguments(universe: &mut UniverseAST, args: Vec<Value>) -> Retur
     }
 }
 
-fn perform_in_super_class(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
+fn perform_in_super_class(universe: &mut UniverseAST, object: Value, sym: Interned, class: GCRef<Class>) -> Return {
     const SIGNATURE: &'static str = "Object>>#perform:inSuperclass:";
-
-    expect_args!(SIGNATURE, args, [
-        object => object,
-        Value::Symbol(sym) => sym,
-        Value::Class(class) => class,
-    ]);
 
     let signature = universe.lookup_symbol(sym);
     let method = class.borrow().lookup_method(signature);
@@ -179,15 +157,8 @@ fn perform_in_super_class(universe: &mut UniverseAST, args: Vec<Value>) -> Retur
     }
 }
 
-fn perform_with_arguments_in_super_class(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
+fn perform_with_arguments_in_super_class(universe: &mut UniverseAST, object: Value, sym: Interned, arr: GCRef<Vec<Value>>, class: GCRef<Class>) -> Return {
     const SIGNATURE: &'static str = "Object>>#perform:withArguments:inSuperclass:";
-
-    expect_args!(SIGNATURE, args, [
-        object => object,
-        Value::Symbol(sym) => sym,
-        Value::Array(arr) => arr,
-        Value::Class(class) => class,
-    ]);
 
     let signature = universe.lookup_symbol(sym);
     let method = class.borrow().lookup_method(signature);
@@ -198,7 +169,7 @@ fn perform_with_arguments_in_super_class(universe: &mut UniverseAST, args: Vec<V
             //     .chain(arr.to_obj().replace(Vec::default()))
             //     .collect();
             let args = std::iter::once(object).chain(arr.to_obj().clone()).collect();
-            
+
             invokable.to_obj().invoke(universe, args)
         }
         None => {
@@ -206,7 +177,7 @@ fn perform_with_arguments_in_super_class(universe: &mut UniverseAST, args: Vec<V
             //     .chain(arr.to_obj().replace(Vec::default()))
             //     .collect();
             let args = std::iter::once(object.clone()).chain(arr.to_obj().clone()).collect();
-            
+
             let signature = signature.to_string();
             universe
                 .does_not_understand(Value::Class(class), signature.as_str(), args)
@@ -223,13 +194,8 @@ fn perform_with_arguments_in_super_class(universe: &mut UniverseAST, args: Vec<V
     }
 }
 
-fn inst_var_at(_: &mut UniverseAST, args: Vec<Value>) -> Return {
+fn inst_var_at(_: &mut UniverseAST, object: Value, index: i32) -> Return {
     const SIGNATURE: &'static str = "Object>>#instVarAt:";
-
-    expect_args!(SIGNATURE, args, [
-        object => object,
-        Value::Integer(index) => index,
-    ]);
 
     let index = match usize::try_from(index - 1) {
         Ok(index) => index,
@@ -242,21 +208,15 @@ fn inst_var_at(_: &mut UniverseAST, args: Vec<Value>) -> Return {
         }
         Value::Class(c) => {
             c.clone().borrow().fields.get(index).cloned().unwrap_or(Value::Nil)
-        },
+        }
         _ => unreachable!("instVarAt called not on an instance or a class")
     };
 
     Return::Local(local)
 }
 
-fn inst_var_at_put(_: &mut UniverseAST, args: Vec<Value>) -> Return {
+fn inst_var_at_put(_: &mut UniverseAST, object: Value, index: i32, value: Value) -> Return {
     const SIGNATURE: &'static str = "Object>>#instVarAt:put:";
-
-    expect_args!(SIGNATURE, args, [
-        object => object,
-        Value::Integer(index) => index,
-        value => value,
-    ]);
 
     let index = match usize::try_from(index - 1) {
         Ok(index) => index,
@@ -265,7 +225,7 @@ fn inst_var_at_put(_: &mut UniverseAST, args: Vec<Value>) -> Return {
 
     let does_have_local = match &object {
         Value::Instance(c) => { c.borrow().locals.len() > index }
-        Value::Class(c) => { c.clone().borrow().fields.len() > index },
+        Value::Class(c) => { c.clone().borrow().fields.len() > index }
         _ => unreachable!("instVarAtPut called not on an instance or a class")
     };
 
@@ -281,7 +241,7 @@ fn inst_var_at_put(_: &mut UniverseAST, args: Vec<Value>) -> Return {
 }
 
 /// Search for an instance primitive matching the given signature.
-pub fn get_instance_primitive(signature: &str) -> Option<PrimitiveFn> {
+pub fn get_instance_primitive(signature: &str) -> Option<&'static PrimitiveFn> {
     INSTANCE_PRIMITIVES
         .iter()
         .find(|it| it.0 == signature)
@@ -289,7 +249,7 @@ pub fn get_instance_primitive(signature: &str) -> Option<PrimitiveFn> {
 }
 
 /// Search for a class primitive matching the given signature.
-pub fn get_class_primitive(signature: &str) -> Option<PrimitiveFn> {
+pub fn get_class_primitive(signature: &str) -> Option<&'static PrimitiveFn> {
     CLASS_PRIMITIVES
         .iter()
         .find(|it| it.0 == signature)

@@ -1,62 +1,45 @@
-use crate::expect_args;
+use once_cell::sync::Lazy;
 use crate::instance::Instance;
 use crate::invokable::Return;
 use crate::primitives::PrimitiveFn;
 use crate::universe::UniverseAST;
 use crate::value::Value;
 use som_core::gc::GCRef;
+use crate::class::Class;
+use crate::convert::Primitive;
 
-pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[
-    ("new", self::new, true),
-    ("name", self::name, true),
-    ("fields", self::fields, true),
-    ("methods", self::methods, true),
-    ("superclass", self::superclass, true),
-];
-pub static CLASS_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[];
+pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| {
+    Box::new({
+        [
+            ("new", self::new.into_func(), true),
+            ("name", self::name.into_func(), true),
+            ("fields", self::fields.into_func(), true),
+            ("methods", self::methods.into_func(), true),
+            ("superclass", self::superclass.into_func(), true),
+        ]
+    })
+});
+pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> =
+    Lazy::new(|| Box::new([]));
 
-fn superclass(_: &mut UniverseAST, args: Vec<Value>) -> Return {
-    const SIGNATURE: &str = "Class>>#superclass";
-
-    expect_args!(SIGNATURE, args, [
-        Value::Class(class) => class,
-    ]);
-
-    let super_class = class.borrow().super_class();
+fn superclass(_: &mut UniverseAST, receiver: GCRef<Class>) -> Return {
+    let super_class = receiver.borrow().super_class();
     Return::Local(super_class.map(Value::Class).unwrap_or(Value::Nil))
 }
 
-fn new(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
-    const SIGNATURE: &str = "Class>>#new";
-
-    expect_args!(SIGNATURE, args, [
-        Value::Class(class) => class,
-    ]);
-
-    let instance = Instance::from_class(class);
+fn new(universe: &mut UniverseAST, receiver: GCRef<Class>) -> Return {
+    let instance = Instance::from_class(receiver);
     let instance_ptr = GCRef::<Instance>::alloc(instance, &mut universe.gc_interface);
     Return::Local(Value::Instance(instance_ptr))
 }
 
-fn name(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
-    const SIGNATURE: &str = "Class>>#name";
-
-    expect_args!(SIGNATURE, args, [
-        Value::Class(class) => class,
-    ]);
-
-    let sym = universe.intern_symbol(class.borrow().name());
+fn name(universe: &mut UniverseAST, receiver: GCRef<Class>) -> Return {
+    let sym = universe.intern_symbol(receiver.borrow().name());
     Return::Local(Value::Symbol(sym))
 }
 
-fn methods(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
-    const SIGNATURE: &str = "Class>>#methods";
-
-    expect_args!(SIGNATURE, args, [
-        Value::Class(class) => class,
-    ]);
-
-    let methods = class
+fn methods(universe: &mut UniverseAST, receiver: GCRef<Class>) -> Return {
+    let methods = receiver
         .borrow()
         .methods
         .values()
@@ -66,14 +49,8 @@ fn methods(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
     Return::Local(Value::Array(GCRef::<Vec<Value>>::alloc(methods, &mut universe.gc_interface)))
 }
 
-fn fields(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
-    const SIGNATURE: &str = "Class>>#fields";
-
-    expect_args!(SIGNATURE, args, [
-        Value::Class(class) => class,
-    ]);
-
-    let fields = class.borrow().get_all_field_names().iter()
+fn fields(universe: &mut UniverseAST, receiver: GCRef<Class>) -> Return {
+    let fields = receiver.borrow().get_all_field_names().iter()
         .map(|field_name| Value::String(GCRef::<String>::alloc(field_name.clone(), &mut universe.gc_interface)))
         .collect();
 
@@ -81,7 +58,7 @@ fn fields(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
 }
 
 /// Search for an instance primitive matching the given signature.
-pub fn get_instance_primitive(signature: &str) -> Option<PrimitiveFn> {
+pub fn get_instance_primitive(signature: &str) -> Option<&'static PrimitiveFn> {
     INSTANCE_PRIMITIVES
         .iter()
         .find(|it| it.0 == signature)
@@ -89,7 +66,7 @@ pub fn get_instance_primitive(signature: &str) -> Option<PrimitiveFn> {
 }
 
 /// Search for a class primitive matching the given signature.
-pub fn get_class_primitive(signature: &str) -> Option<PrimitiveFn> {
+pub fn get_class_primitive(signature: &str) -> Option<&'static PrimitiveFn> {
     CLASS_PRIMITIVES
         .iter()
         .find(|it| it.0 == signature)

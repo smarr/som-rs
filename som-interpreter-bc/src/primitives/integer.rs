@@ -63,7 +63,6 @@ macro_rules! demote {
     }};
 }
 
-#[allow(unused_variables)]
 fn from_string(
     _: &mut Interpreter,
     universe: &mut UniverseBC,
@@ -83,7 +82,7 @@ fn from_string(
         Err(_) => {
             match string.parse::<BigInt>() {
                 Ok(b) => Ok(Value::BigInteger(GCRef::<BigInt>::alloc(b, &mut universe.gc_interface))),
-                err => panic!("couldn't turn an int/bigint into a string")
+                _ => panic!("couldn't turn an int/bigint into a string")
             }
         }
     }
