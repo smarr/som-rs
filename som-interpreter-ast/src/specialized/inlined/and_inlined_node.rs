@@ -4,7 +4,7 @@ use indenter::indented;
 use crate::ast::{AstBody, AstExpression};
 use crate::evaluate::Evaluate;
 use crate::invokable::Return;
-use crate::universe::UniverseAST;
+use crate::universe::Universe;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct AndInlinedNode {
@@ -23,7 +23,7 @@ impl Display for AndInlinedNode {
 }
 
 impl Evaluate for AndInlinedNode {
-    fn evaluate(&mut self, universe: &mut UniverseAST) -> Return {
+    fn evaluate(&mut self, universe: &mut Universe) -> Return {
         let first_result = propagate!(self.first.evaluate(universe));
         match first_result.as_boolean() {
             Some(b) => {

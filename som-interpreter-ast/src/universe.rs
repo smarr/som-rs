@@ -66,7 +66,7 @@ pub struct CoreClasses {
 ///
 /// It represents the complete state of the interpreter, like the known class definitions,
 /// the string interner and the stack frames.
-pub struct UniverseAST {
+pub struct Universe {
     /// The string interner for symbols.
     pub interner: Interner,
     /// The known global bindings.
@@ -83,7 +83,7 @@ pub struct UniverseAST {
     pub gc_interface: GCInterface
 }
 
-impl UniverseAST {
+impl Universe {
     /// Initialize the universe from the given classpath.
     pub fn with_classpath(classpath: Vec<PathBuf>, mut gc_interface: GCInterface) -> Result<Self, Error> {
         let interner = Interner::with_capacity(100);
@@ -426,7 +426,7 @@ impl UniverseAST {
     }
 }
 
-impl UniverseAST {
+impl Universe {
     /// Execute a piece of code within a new stack frame.
     // pub fn with_frame<T>(&mut self, kind: FrameKind, self_value: Value, nbr_locals: usize, func: impl FnOnce(&mut Self) -> T) -> T {
     //     let frame = Rc::new(RefCell::new(Frame::from_kind(kind, nbr_locals, self_value)));
@@ -511,7 +511,7 @@ impl UniverseAST {
     }
 }
 
-impl UniverseAST {
+impl Universe {
     /// Call `escapedBlock:` on the given value, if it is defined.
     pub fn escaped_block(&mut self, value: Value, block: GCRef<Block>) -> Option<Return> {
         let initialize = value.lookup_method(self, "escapedBlock:")?;

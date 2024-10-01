@@ -2,7 +2,7 @@ use crate::class::Class;
 use crate::convert::Primitive;
 use crate::invokable::{Invoke, Return};
 use crate::primitives::PrimitiveFn;
-use crate::universe::UniverseAST;
+use crate::universe::Universe;
 use crate::value::Value;
 use once_cell::sync::Lazy;
 use som_core::gc::GCRef;
@@ -42,22 +42,22 @@ pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> =
     Lazy::new(|| Box::new([]));
 
 
-fn halt(_: &mut UniverseAST, _: Value) -> Return {
+fn halt(_: &mut Universe, _: Value) -> Return {
     println!("HALT"); // so a breakpoint can be put
     Return::Local(Value::NIL)
 }
 
-fn class(universe: &mut UniverseAST, object: Value) -> Return {
+fn class(universe: &mut Universe, object: Value) -> Return {
     Return::Local(Value::Class(object.class(universe)))
 }
 
-fn object_size(_: &mut UniverseAST, _: Value) -> Return {
+fn object_size(_: &mut Universe, _: Value) -> Return {
     const _: &'static str = "Object>>#objectSize";
 
     Return::Local(Value::Integer(std::mem::size_of::<Value>() as i32))
 }
 
-fn hashcode(_: &mut UniverseAST, receiver: Value) -> Return {
+fn hashcode(_: &mut Universe, receiver: Value) -> Return {
     let mut hasher = DefaultHasher::new();
     receiver.hash(&mut hasher);
     let hash = (hasher.finish() as i32).abs();
@@ -65,11 +65,11 @@ fn hashcode(_: &mut UniverseAST, receiver: Value) -> Return {
     Return::Local(Value::Integer(hash))
 }
 
-fn eq(_: &mut UniverseAST, receiver: Value, other: Value) -> Return {
+fn eq(_: &mut Universe, receiver: Value, other: Value) -> Return {
     Return::Local(Value::Boolean(receiver == other))
 }
 
-fn perform(universe: &mut UniverseAST, object: Value, sym: Interned) -> Return {
+fn perform(universe: &mut Universe, object: Value, sym: Interned) -> Return {
     const SIGNATURE: &'static str = "Object>>#perform:";
 
     let signature = universe.lookup_symbol(sym);
@@ -94,7 +94,7 @@ fn perform(universe: &mut UniverseAST, object: Value, sym: Interned) -> Return {
     }
 }
 
-fn perform_with_arguments(universe: &mut UniverseAST, object: Value, sym: Interned, arr: GCRef<Vec<Value>>) -> Return {
+fn perform_with_arguments(universe: &mut Universe, object: Value, sym: Interned, arr: GCRef<Vec<Value>>) -> Return {
     const SIGNATURE: &'static str = "Object>>#perform:withArguments:";
 
     let signature = universe.lookup_symbol(sym);
@@ -130,7 +130,7 @@ fn perform_with_arguments(universe: &mut UniverseAST, object: Value, sym: Intern
     }
 }
 
-fn perform_in_super_class(universe: &mut UniverseAST, object: Value, sym: Interned, class: GCRef<Class>) -> Return {
+fn perform_in_super_class(universe: &mut Universe, object: Value, sym: Interned, class: GCRef<Class>) -> Return {
     const SIGNATURE: &'static str = "Object>>#perform:inSuperclass:";
 
     let signature = universe.lookup_symbol(sym);
@@ -156,7 +156,7 @@ fn perform_in_super_class(universe: &mut UniverseAST, object: Value, sym: Intern
     }
 }
 
-fn perform_with_arguments_in_super_class(universe: &mut UniverseAST, object: Value, sym: Interned, arr: GCRef<Vec<Value>>, class: GCRef<Class>) -> Return {
+fn perform_with_arguments_in_super_class(universe: &mut Universe, object: Value, sym: Interned, arr: GCRef<Vec<Value>>, class: GCRef<Class>) -> Return {
     const SIGNATURE: &'static str = "Object>>#perform:withArguments:inSuperclass:";
 
     let signature = universe.lookup_symbol(sym);
@@ -193,7 +193,7 @@ fn perform_with_arguments_in_super_class(universe: &mut UniverseAST, object: Val
     }
 }
 
-fn inst_var_at(_: &mut UniverseAST, object: Value, index: i32) -> Return {
+fn inst_var_at(_: &mut Universe, object: Value, index: i32) -> Return {
     const SIGNATURE: &'static str = "Object>>#instVarAt:";
 
     let index = match usize::try_from(index - 1) {
@@ -214,7 +214,7 @@ fn inst_var_at(_: &mut UniverseAST, object: Value, index: i32) -> Return {
     Return::Local(local)
 }
 
-fn inst_var_at_put(_: &mut UniverseAST, object: Value, index: i32, value: Value) -> Return {
+fn inst_var_at_put(_: &mut Universe, object: Value, index: i32, value: Value) -> Return {
     const SIGNATURE: &'static str = "Object>>#instVarAt:put:";
 
     let index = match usize::try_from(index - 1) {

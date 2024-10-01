@@ -4,7 +4,7 @@ use indenter::indented;
 use crate::ast::{AstBody, AstExpression};
 use crate::evaluate::Evaluate;
 use crate::invokable::Return;
-use crate::universe::UniverseAST;
+use crate::universe::Universe;
 use crate::value::Value;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -25,7 +25,7 @@ impl Display for IfInlinedNode {
 }
 
 impl Evaluate for IfInlinedNode {
-    fn evaluate(&mut self, universe: &mut UniverseAST) -> Return {
+    fn evaluate(&mut self, universe: &mut Universe) -> Return {
         let cond_result = propagate!(self.cond_expr.evaluate(universe));
         if cond_result == Value::Boolean(self.expected_bool) {
             self.body_instrs.evaluate(universe)

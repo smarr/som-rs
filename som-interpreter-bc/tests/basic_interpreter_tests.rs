@@ -2,18 +2,18 @@ use som_core::gc::{GCInterface, GCRef};
 use som_interpreter_bc::compiler;
 use som_interpreter_bc::frame::Frame;
 use som_interpreter_bc::interpreter::Interpreter;
-use som_interpreter_bc::universe::UniverseBC;
+use som_interpreter_bc::universe::Universe;
 use som_interpreter_bc::value::Value;
 use som_lexer::{Lexer, Token};
 use som_parser::lang;
 use std::path::PathBuf;
 
-fn setup_universe() -> UniverseBC {
+fn setup_universe() -> Universe {
     let classpath = vec![
         PathBuf::from("../core-lib/Smalltalk"),
         PathBuf::from("../core-lib/TestSuite/BasicInterpreterTests"),
     ];
-    UniverseBC::with_classpath(classpath, GCInterface::init()).expect("could not setup test universe")
+    Universe::with_classpath(classpath, GCInterface::init()).expect("could not setup test universe")
 }
 
 #[test]

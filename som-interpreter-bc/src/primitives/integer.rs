@@ -4,7 +4,7 @@ use crate::block::Block;
 use crate::convert::{DoubleLike, IntegerLike, Primitive, StringLike};
 use crate::interpreter::Interpreter;
 use crate::primitives::PrimitiveFn;
-use crate::universe::UniverseBC;
+use crate::universe::Universe;
 use crate::value::Value;
 use anyhow::{bail, Context, Error};
 use num_bigint::{BigInt, BigUint, ToBigInt};
@@ -65,7 +65,7 @@ macro_rules! demote {
 
 fn from_string(
     _: &mut Interpreter,
-    universe: &mut UniverseBC,
+    universe: &mut Universe,
     _: Value,
     string: StringLike,
 ) -> Result<Value, Error> {
@@ -90,7 +90,7 @@ fn from_string(
 
 fn as_string(
     _: &mut Interpreter,
-    universe: &mut UniverseBC,
+    universe: &mut Universe,
     receiver: IntegerLike,
 ) -> Result<GCRef<String>, Error> {
     const _: &str = "Integer>>#asString";
@@ -105,7 +105,7 @@ fn as_string(
 
 fn as_double(
     _: &mut Interpreter,
-    _: &mut UniverseBC,
+    _: &mut Universe,
     receiver: IntegerLike,
 ) -> Result<f64, Error> {
     const _: &str = "Integer>>#asDouble";
@@ -122,7 +122,7 @@ fn as_double(
 
 fn at_random(
     _: &mut Interpreter,
-    _: &mut UniverseBC,
+    _: &mut Universe,
     receiver: IntegerLike,
 ) -> Result<i32, Error> {
     const SIGNATURE: &str = "Integer>>#atRandom";
@@ -143,7 +143,7 @@ fn at_random(
 
 fn as_32bit_signed_value(
     _: &mut Interpreter,
-    _: &mut UniverseBC,
+    _: &mut Universe,
     receiver: IntegerLike,
 ) -> Result<i32, Error> {
     const _: &str = "Integer>>#as32BitSignedValue";
@@ -163,7 +163,7 @@ fn as_32bit_signed_value(
 
 fn as_32bit_unsigned_value(
     _: &mut Interpreter,
-    universe: &mut UniverseBC,
+    universe: &mut Universe,
     receiver: IntegerLike,
 ) -> Result<IntegerLike, Error> {
     const _: &str = "Integer>>#as32BitUnsignedValue";
@@ -191,7 +191,7 @@ fn as_32bit_unsigned_value(
 
 fn plus(
     _: &mut Interpreter,
-    universe: &mut UniverseBC,
+    universe: &mut Universe,
     a: DoubleLike,
     b: DoubleLike,
 ) -> Result<Value, Error> {
@@ -229,7 +229,7 @@ fn plus(
 
 fn minus(
     _: &mut Interpreter,
-    universe: &mut UniverseBC,
+    universe: &mut Universe,
     a: DoubleLike,
     b: DoubleLike,
 ) -> Result<Value, Error> {
@@ -272,7 +272,7 @@ fn minus(
 
 fn times(
     _: &mut Interpreter,
-    universe: &mut UniverseBC,
+    universe: &mut Universe,
     a: DoubleLike,
     b: DoubleLike,
 ) -> Result<Value, Error> {
@@ -309,7 +309,7 @@ fn times(
 
 fn divide(
     _: &mut Interpreter,
-    universe: &mut UniverseBC,
+    universe: &mut Universe,
     a: DoubleLike,
     b: DoubleLike,
 ) -> Result<Value, Error> {
@@ -353,7 +353,7 @@ fn divide(
 
 fn divide_float(
     _: &mut Interpreter,
-    _: &mut UniverseBC,
+    _: &mut Universe,
     a: DoubleLike,
     b: DoubleLike,
 ) -> Result<f64, Error> {
@@ -386,7 +386,7 @@ fn divide_float(
 
 fn modulo(
     _: &mut Interpreter,
-    universe: &mut UniverseBC,
+    universe: &mut Universe,
     a: IntegerLike,
     b: i32,
 ) -> Result<Value, Error> {
@@ -416,7 +416,7 @@ fn modulo(
 
 fn remainder(
     _: &mut Interpreter,
-    _: &mut UniverseBC,
+    _: &mut Universe,
     a: i32,
     b: i32,
 ) -> Result<i32, Error> {
@@ -432,7 +432,7 @@ fn remainder(
 
 fn sqrt(
     _: &mut Interpreter,
-    universe: &mut UniverseBC,
+    universe: &mut Universe,
     a: DoubleLike,
 ) -> Result<Value, Error> {
     const _: &str = "Integer>>#sqrt";
@@ -456,7 +456,7 @@ fn sqrt(
 
 fn bitand(
     _: &mut Interpreter,
-    universe: &mut UniverseBC,
+    universe: &mut Universe,
     a: IntegerLike,
     b: IntegerLike,
 ) -> Result<Value, Error> {
@@ -478,7 +478,7 @@ fn bitand(
 
 fn bitxor(
     _: &mut Interpreter,
-    universe: &mut UniverseBC,
+    universe: &mut Universe,
     a: IntegerLike,
     b: IntegerLike,
 ) -> Result<Value, Error> {
@@ -500,7 +500,7 @@ fn bitxor(
 
 fn lt(
     _: &mut Interpreter,
-    _: &mut UniverseBC,
+    _: &mut Universe,
     a: DoubleLike,
     b: DoubleLike,
 ) -> Result<Value, Error> {
@@ -528,7 +528,7 @@ fn lt(
 
 fn eq(
     _: &mut Interpreter,
-    _: &mut UniverseBC,
+    _: &mut Universe,
     a: Value,
     b: Value,
 ) -> Result<bool, Error> {
@@ -556,7 +556,7 @@ fn eq(
 
 fn shift_left(
     _: &mut Interpreter,
-    universe: &mut UniverseBC,
+    universe: &mut Universe,
     a: IntegerLike,
     b: i32,
 ) -> Result<Value, Error> {
@@ -592,7 +592,7 @@ fn shift_left(
 
 fn shift_right(
     _: &mut Interpreter,
-    universe: &mut UniverseBC,
+    universe: &mut Universe,
     a: IntegerLike,
     b: i32,
 ) -> Result<Value, Error> {
@@ -635,7 +635,7 @@ fn shift_right(
 }
 
 // Nota Bene: blocks for to:do: and friends get instrumented as a special case in the parser, so that they don't leave their "self" on the stack.
-fn to_do(interpreter: &mut Interpreter, universe: &mut UniverseBC, start: i32, end: i32, blk: GCRef<Block>) -> Result<i32, Error> {
+fn to_do(interpreter: &mut Interpreter, universe: &mut Universe, start: i32, end: i32, blk: GCRef<Block>) -> Result<i32, Error> {
     let new_blk = blk.to_obj().make_equivalent_with_no_return(&mut universe.gc_interface);
     // calling rev() because it's a stack of frames: LIFO means we want to add the last one first, then the penultimate one, etc., til the first
     for i in (start..=end).rev() {
@@ -645,7 +645,7 @@ fn to_do(interpreter: &mut Interpreter, universe: &mut UniverseBC, start: i32, e
     Ok(start)
 }
 
-fn to_by_do(interpreter: &mut Interpreter, universe: &mut UniverseBC, start: i32, step: i32, end: i32, blk: GCRef<Block>) -> Result<i32, Error> {
+fn to_by_do(interpreter: &mut Interpreter, universe: &mut Universe, start: i32, step: i32, end: i32, blk: GCRef<Block>) -> Result<i32, Error> {
     let new_blk = blk.to_obj().make_equivalent_with_no_return(&mut universe.gc_interface);
     for i in (start..=end).rev().step_by(step as usize) {
         interpreter.push_block_frame(new_blk, vec![Value::Block(new_blk), Value::Integer(i)], &mut universe.gc_interface);
@@ -654,7 +654,7 @@ fn to_by_do(interpreter: &mut Interpreter, universe: &mut UniverseBC, start: i32
     Ok(start)
 }
 
-fn down_to_do(interpreter: &mut Interpreter, universe: &mut UniverseBC, start: i32, end: i32, blk: GCRef<Block>) -> Result<i32, Error> {
+fn down_to_do(interpreter: &mut Interpreter, universe: &mut Universe, start: i32, end: i32, blk: GCRef<Block>) -> Result<i32, Error> {
     let new_blk = blk.to_obj().make_equivalent_with_no_return(&mut universe.gc_interface);
     for i in end..=start {
         interpreter.push_block_frame(new_blk, vec![Value::Block(new_blk), Value::Integer(i)], &mut universe.gc_interface);
@@ -664,7 +664,7 @@ fn down_to_do(interpreter: &mut Interpreter, universe: &mut UniverseBC, start: i
 }
 
 // NB: this guy isn't a speedup, it's never used in our benchmarks as far as I'm aware.
-fn down_to_by_do(interpreter: &mut Interpreter, universe: &mut UniverseBC, start: i32, step: i32, end: i32, blk: GCRef<Block>) -> Result<i32, Error> {
+fn down_to_by_do(interpreter: &mut Interpreter, universe: &mut Universe, start: i32, step: i32, end: i32, blk: GCRef<Block>) -> Result<i32, Error> {
     let new_blk = blk.to_obj().make_equivalent_with_no_return(&mut universe.gc_interface);
     for i in (start..=end).step_by(step as usize) {
         interpreter.push_block_frame(new_blk, vec![Value::Block(new_blk), Value::Integer(i)], &mut universe.gc_interface);
@@ -674,7 +674,7 @@ fn down_to_by_do(interpreter: &mut Interpreter, universe: &mut UniverseBC, start
 }
 
 // NB: also not a speedup, also unused.
-fn times_repeat(interpreter: &mut Interpreter, universe: &mut UniverseBC, n: i32, blk: GCRef<Block>) -> Result<i32, Error> {
+fn times_repeat(interpreter: &mut Interpreter, universe: &mut Universe, n: i32, blk: GCRef<Block>) -> Result<i32, Error> {
     let new_blk = blk.to_obj().make_equivalent_with_no_return(&mut universe.gc_interface);
     for _ in 1..=n {
         interpreter.push_block_frame(new_blk, vec![Value::Block(new_blk)], &mut universe.gc_interface); // NB: this doesn't take the index as an argument

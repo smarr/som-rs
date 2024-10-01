@@ -2,7 +2,7 @@ use once_cell::sync::Lazy;
 use crate::instance::Instance;
 use crate::invokable::Return;
 use crate::primitives::PrimitiveFn;
-use crate::universe::UniverseAST;
+use crate::universe::Universe;
 use crate::value::Value;
 use som_core::gc::GCRef;
 use crate::class::Class;
@@ -22,23 +22,23 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> 
 pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> =
     Lazy::new(|| Box::new([]));
 
-fn superclass(_: &mut UniverseAST, receiver: GCRef<Class>) -> Return {
+fn superclass(_: &mut Universe, receiver: GCRef<Class>) -> Return {
     let super_class = receiver.borrow().super_class();
     Return::Local(super_class.map(Value::Class).unwrap_or(Value::NIL))
 }
 
-fn new(universe: &mut UniverseAST, receiver: GCRef<Class>) -> Return {
+fn new(universe: &mut Universe, receiver: GCRef<Class>) -> Return {
     let instance = Instance::from_class(receiver);
     let instance_ptr = GCRef::<Instance>::alloc(instance, &mut universe.gc_interface);
     Return::Local(Value::Instance(instance_ptr))
 }
 
-fn name(universe: &mut UniverseAST, receiver: GCRef<Class>) -> Return {
+fn name(universe: &mut Universe, receiver: GCRef<Class>) -> Return {
     let sym = universe.intern_symbol(receiver.borrow().name());
     Return::Local(Value::Symbol(sym))
 }
 
-fn methods(universe: &mut UniverseAST, receiver: GCRef<Class>) -> Return {
+fn methods(universe: &mut Universe, receiver: GCRef<Class>) -> Return {
     let methods = receiver
         .borrow()
         .methods
@@ -49,7 +49,7 @@ fn methods(universe: &mut UniverseAST, receiver: GCRef<Class>) -> Return {
     Return::Local(Value::Array(GCRef::<Vec<Value>>::alloc(methods, &mut universe.gc_interface)))
 }
 
-fn fields(universe: &mut UniverseAST, receiver: GCRef<Class>) -> Return {
+fn fields(universe: &mut Universe, receiver: GCRef<Class>) -> Return {
     let fields = receiver.borrow().get_all_field_names().iter()
         .map(|field_name| Value::String(GCRef::<String>::alloc(field_name.clone(), &mut universe.gc_interface)))
         .collect();

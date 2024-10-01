@@ -23,11 +23,11 @@ pub use self::blocks::{block1, block2, block3};
 use anyhow::Error;
 
 use crate::interpreter::Interpreter;
-use crate::universe::UniverseBC;
+use crate::universe::Universe;
 
 // TODO we're missing several primitive changes from master originally
 
-pub type PrimitiveFn = dyn Fn(&mut Interpreter, &mut UniverseBC) -> Result<(), Error>
+pub type PrimitiveFn = dyn Fn(&mut Interpreter, &mut Universe) -> Result<(), Error>
 + Send
 + Sync
 + 'static;

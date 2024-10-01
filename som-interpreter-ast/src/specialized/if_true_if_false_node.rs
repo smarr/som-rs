@@ -1,13 +1,13 @@
 use crate::evaluate::Evaluate;
 use crate::invokable::{Invoke, Return};
-use crate::universe::UniverseAST;
+use crate::universe::Universe;
 use crate::value::Value;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct IfTrueIfFalseNode {}
 
 impl Invoke for IfTrueIfFalseNode {
-    fn invoke(&mut self, universe: &mut UniverseAST, args: Vec<Value>) -> Return {
+    fn invoke(&mut self, universe: &mut Universe, args: Vec<Value>) -> Return {
         let (cond_block_val, block_1_arg, block_2_arg) = unsafe {
             (args.get_unchecked(0), args.get_unchecked(1), args.get_unchecked(2))
         };

@@ -1,6 +1,6 @@
 use crate::invokable::Return;
 use crate::primitives::PrimitiveFn;
-use crate::universe::UniverseAST;
+use crate::universe::Universe;
 use crate::value::Value;
 use once_cell::sync::Lazy;
 
@@ -22,7 +22,7 @@ pub mod block1 {
     pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> =
         Lazy::new(|| Box::new([]));
 
-    fn value(universe: &mut UniverseAST, mut block: GCRef<Block>) -> Return {
+    fn value(universe: &mut Universe, mut block: GCRef<Block>) -> Return {
         let nbr_locals = block.borrow().block.borrow().nbr_locals;
         universe.with_frame(
             nbr_locals,
@@ -32,7 +32,7 @@ pub mod block1 {
     }
 
     // TODO: with inlining, this is never called. Maybe it could be removed for better perf since we could forego Return::Restart? but this wouldn't be fully valid interpreter behaviour.
-    fn restart(_: &mut UniverseAST, _: GCRef<Block>) -> Return {
+    fn restart(_: &mut Universe, _: GCRef<Block>) -> Return {
         Return::Restart
     }
 
@@ -66,7 +66,7 @@ pub mod block2 {
     pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> =
         Lazy::new(|| Box::new([]));
 
-    fn value(universe: &mut UniverseAST,
+    fn value(universe: &mut Universe,
              mut block: GCRef<Block>,
              argument: Value,
     ) -> Return {
@@ -107,7 +107,7 @@ pub mod block3 {
     pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> =
         Lazy::new(|| Box::new([]));
 
-    fn value_with(universe: &mut UniverseAST, args: Vec<Value>) -> Return {
+    fn value_with(universe: &mut Universe, args: Vec<Value>) -> Return {
         let mut block = match args.first().unwrap().as_block() {
             Some(blk) => blk,
             _ => panic!("Calling value: on a block... not on a block?")

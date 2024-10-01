@@ -16,7 +16,7 @@ mod shell;
 use som_core::gc::{GCInterface, GCRef};
 use som_interpreter_bc::disassembler::disassemble_method_body;
 use som_interpreter_bc::method::{Method, MethodKind};
-use som_interpreter_bc::universe::UniverseBC;
+use som_interpreter_bc::universe::Universe;
 use som_interpreter_bc::value::Value;
 
 #[cfg(feature = "profiler")]
@@ -81,7 +81,7 @@ fn run() -> anyhow::Result<()> {
 
     let gc_interface = GCInterface::init();
 
-    let mut universe = UniverseBC::with_classpath(classpath, gc_interface)?;
+    let mut universe = Universe::with_classpath(classpath, gc_interface)?;
     
     let args = std::iter::once(String::from(file_stem))
         .chain(opts.args.iter().cloned())
@@ -127,11 +127,11 @@ fn disassemble_class(opts: Options) -> anyhow::Result<()> {
     }
     
     let gc_interface = GCInterface::init();
-    let mut universe = UniverseBC::with_classpath(classpath.clone(), gc_interface)?;
+    let mut universe = Universe::with_classpath(classpath.clone(), gc_interface)?;
 
     // "Object" special casing needed since `load_class` assumes the class has a superclass and Object doesn't, and I didn't want to change the class loading logic just for the disassembler (tho it's probably fine)
     let class = match file_stem {
-        "Object" => UniverseBC::load_system_class(&mut universe.interner, classpath.as_slice(), "Object", &mut universe.gc_interface)?,
+        "Object" => Universe::load_system_class(&mut universe.interner, classpath.as_slice(), "Object", &mut universe.gc_interface)?,
         _ => universe.load_class(file_stem)?
     };
 
@@ -142,7 +142,7 @@ fn disassemble_class(opts: Options) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn dump_class_methods(class: GCRef<Class>, opts: &Options, file_stem: &str, universe: &mut UniverseBC) {
+fn dump_class_methods(class: GCRef<Class>, opts: &Options, file_stem: &str, universe: &mut Universe) {
     let methods: Vec<GCRef<Method>> = if opts.args.is_empty() {
         class.to_obj().methods.values().cloned().collect::<Vec<GCRef<Method>>>()
     } else {

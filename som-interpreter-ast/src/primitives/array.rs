@@ -4,7 +4,7 @@ use som_core::gc::GCRef;
 use crate::convert::Primitive;
 use crate::invokable::Return;
 use crate::primitives::PrimitiveFn;
-use crate::universe::UniverseAST;
+use crate::universe::Universe;
 use crate::value::Value;
 
 pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| {
@@ -18,7 +18,7 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> 
 pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| Box::new([("new:", self::new.into_func(), true)]));
 
 
-fn at(_: &mut UniverseAST, values: GCRef<Vec<Value>>, index: i32) -> Return {
+fn at(_: &mut Universe, values: GCRef<Vec<Value>>, index: i32) -> Return {
     const SIGNATURE: &str = "Array>>#at:";
 
     let index = match usize::try_from(index - 1) {
@@ -29,7 +29,7 @@ fn at(_: &mut UniverseAST, values: GCRef<Vec<Value>>, index: i32) -> Return {
     Return::Local(value)
 }
 
-fn at_put(_: &mut UniverseAST, values: GCRef<Vec<Value>>, index: i32, value: Value) -> Return {
+fn at_put(_: &mut Universe, values: GCRef<Vec<Value>>, index: i32, value: Value) -> Return {
     const SIGNATURE: &str = "Array>>#at:put:";
 
     let index = match usize::try_from(index - 1) {
@@ -42,7 +42,7 @@ fn at_put(_: &mut UniverseAST, values: GCRef<Vec<Value>>, index: i32, value: Val
     Return::Local(Value::Array(values))
 }
 
-fn length(_: &mut UniverseAST, values: GCRef<Vec<Value>>) -> Return {
+fn length(_: &mut Universe, values: GCRef<Vec<Value>>) -> Return {
     const SIGNATURE: &str = "Array>>#length";
 
     let length = values.borrow().len();
@@ -52,7 +52,7 @@ fn length(_: &mut UniverseAST, values: GCRef<Vec<Value>>) -> Return {
     }
 }
 
-fn new(universe: &mut UniverseAST, _: Value, count: i32) -> Return {
+fn new(universe: &mut Universe, _: Value, count: i32) -> Return {
     const SIGNATURE: &str = "Array>>#new:";
     
     match usize::try_from(count) {

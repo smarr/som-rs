@@ -1,7 +1,7 @@
 use crate::convert::{Primitive, StringLike};
 use crate::invokable::Return;
 use crate::primitives::PrimitiveFn;
-use crate::universe::UniverseAST;
+use crate::universe::Universe;
 use crate::value::Value;
 use once_cell::sync::Lazy;
 use som_core::gc::GCRef;
@@ -30,7 +30,7 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> 
 pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> =
     Lazy::new(|| Box::new([]));
 
-fn length(universe: &mut UniverseAST, value: StringLike) -> Return {
+fn length(universe: &mut Universe, value: StringLike) -> Return {
     const SIGNATURE: &str = "String>>#length";
 
     let value = match value {
@@ -44,7 +44,7 @@ fn length(universe: &mut UniverseAST, value: StringLike) -> Return {
     }
 }
 
-fn hashcode(universe: &mut UniverseAST, value: StringLike) -> Return {
+fn hashcode(universe: &mut Universe, value: StringLike) -> Return {
     let value = match value {
         StringLike::String(ref value) => value.as_str(),
         StringLike::Symbol(sym) => universe.lookup_symbol(sym),
@@ -62,7 +62,7 @@ fn hashcode(universe: &mut UniverseAST, value: StringLike) -> Return {
     Return::Local(Value::Integer((hasher.finish() as i32).abs()))
 }
 
-fn is_letters(universe: &mut UniverseAST, value: StringLike) -> Return {
+fn is_letters(universe: &mut Universe, value: StringLike) -> Return {
     let value = match value {
         StringLike::String(ref value) => value.as_str(),
         StringLike::Symbol(sym) => universe.lookup_symbol(sym),
@@ -73,7 +73,7 @@ fn is_letters(universe: &mut UniverseAST, value: StringLike) -> Return {
     ))
 }
 
-fn is_digits(universe: &mut UniverseAST, value: StringLike) -> Return {
+fn is_digits(universe: &mut Universe, value: StringLike) -> Return {
     let value = match value {
         StringLike::String(ref value) => value.as_str(),
         StringLike::Symbol(sym) => universe.lookup_symbol(sym),
@@ -84,7 +84,7 @@ fn is_digits(universe: &mut UniverseAST, value: StringLike) -> Return {
     ))
 }
 
-fn is_whitespace(universe: &mut UniverseAST, value: StringLike) -> Return {
+fn is_whitespace(universe: &mut Universe, value: StringLike) -> Return {
     let value = match value {
         StringLike::String(ref value) => value.as_str(),
         StringLike::Symbol(sym) => universe.lookup_symbol(sym),
@@ -95,7 +95,7 @@ fn is_whitespace(universe: &mut UniverseAST, value: StringLike) -> Return {
     ))
 }
 
-fn concatenate(universe: &mut UniverseAST, receiver: StringLike, other: StringLike) -> Return {
+fn concatenate(universe: &mut Universe, receiver: StringLike, other: StringLike) -> Return {
     let s1 = match receiver {
         StringLike::String(ref value) => value.as_str(),
         StringLike::Symbol(sym) => universe.lookup_symbol(sym),
@@ -109,7 +109,7 @@ fn concatenate(universe: &mut UniverseAST, receiver: StringLike, other: StringLi
     Return::Local(Value::String(GCRef::<String>::alloc(format!("{}{}", s1, s2), &mut universe.gc_interface)))
 }
 
-fn as_symbol(universe: &mut UniverseAST, value: StringLike) -> Return {
+fn as_symbol(universe: &mut Universe, value: StringLike) -> Return {
     match value {
         StringLike::String(ref value) => {
             Return::Local(Value::Symbol(universe.intern_symbol(value.as_str())))
@@ -118,7 +118,7 @@ fn as_symbol(universe: &mut UniverseAST, value: StringLike) -> Return {
     }
 }
 
-fn char_at(universe: &mut UniverseAST, receiver: StringLike, idx: i32) -> Return {
+fn char_at(universe: &mut Universe, receiver: StringLike, idx: i32) -> Return {
     let string = match receiver {
         StringLike::String(ref value) => value.as_str(),
         StringLike::Symbol(sym) => universe.lookup_symbol(sym),
@@ -127,7 +127,7 @@ fn char_at(universe: &mut UniverseAST, receiver: StringLike, idx: i32) -> Return
     Return::Local(Value::String(GCRef::<String>::alloc(String::from(string.chars().nth((idx - 1) as usize).unwrap()), &mut universe.gc_interface)))
 }
 
-fn eq(universe: &mut UniverseAST, a: Value, b: Value) -> Return {
+fn eq(universe: &mut Universe, a: Value, b: Value) -> Return {
     let Ok(a) = StringLike::try_from(a) else {
         return Return::Local(Value::Boolean(false));
     };
@@ -149,7 +149,7 @@ fn eq(universe: &mut UniverseAST, a: Value, b: Value) -> Return {
     Return::Local(Value::Boolean(a == b))
 }
 
-fn prim_substring_from_to(universe: &mut UniverseAST, receiver: StringLike, from: i32, to: i32) -> Return {
+fn prim_substring_from_to(universe: &mut Universe, receiver: StringLike, from: i32, to: i32) -> Return {
     let from = usize::try_from(from - 1).unwrap();
     let to = usize::try_from(to).unwrap();
 

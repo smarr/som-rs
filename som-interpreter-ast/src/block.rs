@@ -4,7 +4,7 @@ use crate::ast::AstBlock;
 
 use crate::class::Class;
 use crate::frame::Frame;
-use crate::universe::UniverseAST;
+use crate::universe::Universe;
 
 /// Represents an executable block.
 #[derive(Clone)]
@@ -17,7 +17,7 @@ pub struct Block {
 
 impl Block {
     /// Get the block's class.
-    pub fn class(&self, universe: &UniverseAST) -> GCRef<Class> {
+    pub fn class(&self, universe: &Universe) -> GCRef<Class> {
         match self.nb_parameters() {
             0 => universe.block1_class(),
             1 => universe.block2_class(),

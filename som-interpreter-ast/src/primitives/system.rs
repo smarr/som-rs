@@ -1,7 +1,7 @@
 use crate::convert::{Primitive, StringLike};
 use crate::invokable::Return;
 use crate::primitives::PrimitiveFn;
-use crate::universe::UniverseAST;
+use crate::universe::Universe;
 use crate::value::Value;
 use anyhow::Context;
 use once_cell::sync::Lazy;
@@ -31,7 +31,7 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> 
 pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> =
     Lazy::new(|| Box::new([]));
 
-fn load_file(universe: &mut UniverseAST, _: Value, path: StringLike) -> Return {
+fn load_file(universe: &mut Universe, _: Value, path: StringLike) -> Return {
     let path = match path {
         StringLike::String(ref string) => string.to_obj(),
         StringLike::Symbol(sym) => universe.lookup_symbol(sym),
@@ -43,7 +43,7 @@ fn load_file(universe: &mut UniverseAST, _: Value, path: StringLike) -> Return {
     }
 }
 
-fn print_string(universe: &mut UniverseAST, _: Value, string: StringLike) -> Return {
+fn print_string(universe: &mut Universe, _: Value, string: StringLike) -> Return {
     let string = match string {
         StringLike::String(ref string) => string.to_obj(),
         StringLike::Symbol(sym) => universe.lookup_symbol(sym),
@@ -53,12 +53,12 @@ fn print_string(universe: &mut UniverseAST, _: Value, string: StringLike) -> Ret
     Return::Local(Value::SYSTEM)
 }
 
-fn print_newline(_: &mut UniverseAST, _: Value) -> Return {
+fn print_newline(_: &mut Universe, _: Value) -> Return {
     println!();
     Return::Local(Value::NIL)
 }
 
-fn error_print(universe: &mut UniverseAST, _: Value, string: StringLike) -> Return {
+fn error_print(universe: &mut Universe, _: Value, string: StringLike) -> Return {
     let string = match string {
         StringLike::String(ref string) => string.to_obj(),
         StringLike::Symbol(sym) => universe.lookup_symbol(sym),
@@ -68,7 +68,7 @@ fn error_print(universe: &mut UniverseAST, _: Value, string: StringLike) -> Retu
     Return::Local(Value::SYSTEM)
 }
 
-fn error_println(universe: &mut UniverseAST, _: Value, string: StringLike) -> Return {
+fn error_println(universe: &mut Universe, _: Value, string: StringLike) -> Return {
     const _: &str = "System>>#errorPrintln:";
 
     let string = match string {
@@ -80,7 +80,7 @@ fn error_println(universe: &mut UniverseAST, _: Value, string: StringLike) -> Re
     Return::Local(Value::SYSTEM)
 }
 
-fn load(universe: &mut UniverseAST, _: Value, class_name: Interned) -> Return {
+fn load(universe: &mut Universe, _: Value, class_name: Interned) -> Return {
     const SIGNATURE: &str = "System>>#load:";
 
     let name = universe.lookup_symbol(class_name).to_string();
@@ -97,29 +97,29 @@ fn load(universe: &mut UniverseAST, _: Value, class_name: Interned) -> Return {
     }
 }
 
-fn has_global(universe: &mut UniverseAST, _: Value, name: Interned) -> Return {
+fn has_global(universe: &mut Universe, _: Value, name: Interned) -> Return {
     const _: &str = "System>>#hasGlobal:";
     let symbol = universe.lookup_symbol(name);
     Return::Local(Value::Boolean(universe.has_global(symbol)))
 }
 
-fn global(universe: &mut UniverseAST, _: Value, name: Interned) -> Return {
+fn global(universe: &mut Universe, _: Value, name: Interned) -> Return {
     let symbol = universe.lookup_symbol(name);
     Return::Local(universe.lookup_global(symbol).unwrap_or(Value::NIL))
 }
 
-fn global_put(universe: &mut UniverseAST, _: Value, name: Interned, value: Value) -> Return {
+fn global_put(universe: &mut Universe, _: Value, name: Interned, value: Value) -> Return {
     let symbol = universe.lookup_symbol(name).to_string();
     universe.assign_global(symbol, &value);
     Return::Local(value)
 }
 
-fn exit(_: &mut UniverseAST, status: i32) -> Return {
+fn exit(_: &mut Universe, status: i32) -> Return {
     const _: &str = "System>>#exit:";
     std::process::exit(status)
 }
 
-fn ticks(universe: &mut UniverseAST, _: Value) -> Return {
+fn ticks(universe: &mut Universe, _: Value) -> Return {
     const SIGNATURE: &str = "System>>#ticks";
 
     let x = universe.start_time
@@ -131,7 +131,7 @@ fn ticks(universe: &mut UniverseAST, _: Value) -> Return {
     Return::Local(Value::Integer(x))
 }
 
-fn time(universe: &mut UniverseAST, _: Value) -> Return {
+fn time(universe: &mut Universe, _: Value) -> Return {
     const SIGNATURE: &str = "System>>#time";
 
     match i32::try_from(universe.start_time.elapsed().as_millis()) {
@@ -141,7 +141,7 @@ fn time(universe: &mut UniverseAST, _: Value) -> Return {
 }
 
 // this function is unusable after my recent changes to the frame. needs to be fixed when a compilation flag for frame debug info is enabled
-fn print_stack_trace(_: &mut UniverseAST, _: Vec<Value>) -> Return {
+fn print_stack_trace(_: &mut Universe, _: Vec<Value>) -> Return {
     // const SIGNATURE: &str = "System>>#printStackTrace";
 
     dbg!("printStackTrace is broken (on purpose). It can be fixed and reenabled with a debug flag, though.");
@@ -162,7 +162,7 @@ fn print_stack_trace(_: &mut UniverseAST, _: Vec<Value>) -> Return {
     Return::Local(Value::Boolean(true))
 }
 
-fn full_gc(_: &mut UniverseAST, _: Value) -> Return {
+fn full_gc(_: &mut Universe, _: Value) -> Return {
     // We don't do any garbage collection at all, so we return false.
     Return::Local(Value::Boolean(false))
 }

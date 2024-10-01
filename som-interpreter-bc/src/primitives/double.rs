@@ -1,7 +1,7 @@
 use crate::convert::{DoubleLike, Primitive};
 use crate::interpreter::Interpreter;
 use crate::primitives::PrimitiveFn;
-use crate::universe::UniverseBC;
+use crate::universe::Universe;
 use crate::value::Value;
 use anyhow::{Context, Error};
 use num_traits::ToPrimitive;
@@ -56,7 +56,7 @@ macro_rules! promote {
 
 fn from_string(
     _: &mut Interpreter,
-    _: &mut UniverseBC,
+    _: &mut Universe,
     _: Value,
     string: GCRef<String>,
 ) -> Result<f64, Error> {
@@ -69,7 +69,7 @@ fn from_string(
 
 fn as_string(
     _: &mut Interpreter,
-    universe: &mut UniverseBC,
+    universe: &mut Universe,
     receiver: DoubleLike,
 ) -> Result<GCRef<String>, Error> {
     const SIGNATURE: &str = "Double>>#asString";
@@ -81,7 +81,7 @@ fn as_string(
 
 fn as_integer(
     _: &mut Interpreter,
-    _: &mut UniverseBC,
+    _: &mut Universe,
     receiver: f64,
 ) -> Result<i32, Error> {
     const _: &str = "Double>>#asInteger";
@@ -91,7 +91,7 @@ fn as_integer(
 
 fn sqrt(
     _: &mut Interpreter,
-    _: &mut UniverseBC,
+    _: &mut Universe,
     receiver: DoubleLike,
 ) -> Result<f64, Error> {
     const SIGNATURE: &str = "Double>>#sqrt";
@@ -103,7 +103,7 @@ fn sqrt(
 
 fn round(
     _: &mut Interpreter,
-    _: &mut UniverseBC,
+    _: &mut Universe,
     receiver: DoubleLike,
 ) -> Result<f64, Error> {
     const SIGNATURE: &str = "Double>>#round";
@@ -115,7 +115,7 @@ fn round(
 
 fn cos(
     _: &mut Interpreter,
-    _: &mut UniverseBC,
+    _: &mut Universe,
     receiver: DoubleLike,
 ) -> Result<f64, Error> {
     const SIGNATURE: &str = "Double>>#cos";
@@ -127,7 +127,7 @@ fn cos(
 
 fn sin(
     _: &mut Interpreter,
-    _: &mut UniverseBC,
+    _: &mut Universe,
     receiver: DoubleLike,
 ) -> Result<f64, Error> {
     const SIGNATURE: &str = "Double>>#sin";
@@ -139,7 +139,7 @@ fn sin(
 
 fn eq(
     _: &mut Interpreter,
-    _: &mut UniverseBC,
+    _: &mut Universe,
     a: Value,
     b: Value,
 ) -> Result<bool, Error> {
@@ -150,7 +150,7 @@ fn eq(
 
 fn lt(
     _: &mut Interpreter,
-    _: &mut UniverseBC,
+    _: &mut Universe,
     a: DoubleLike,
     b: DoubleLike,
 ) -> Result<bool, Error> {
@@ -164,7 +164,7 @@ fn lt(
 
 fn plus(
     _: &mut Interpreter,
-    _: &mut UniverseBC,
+    _: &mut Universe,
     a: DoubleLike,
     b: DoubleLike,
 ) -> Result<f64, Error> {
@@ -178,7 +178,7 @@ fn plus(
 
 fn minus(
     _: &mut Interpreter,
-    _: &mut UniverseBC,
+    _: &mut Universe,
     a: DoubleLike,
     b: DoubleLike,
 ) -> Result<f64, Error> {
@@ -192,7 +192,7 @@ fn minus(
 
 fn times(
     _: &mut Interpreter,
-    _: &mut UniverseBC,
+    _: &mut Universe,
     a: DoubleLike,
     b: DoubleLike,
 ) -> Result<f64, Error> {
@@ -206,7 +206,7 @@ fn times(
 
 fn divide(
     _: &mut Interpreter,
-    _: &mut UniverseBC,
+    _: &mut Universe,
     a: DoubleLike,
     b: DoubleLike,
 ) -> Result<f64, Error> {
@@ -220,7 +220,7 @@ fn divide(
 
 fn modulo(
     _: &mut Interpreter,
-    _: &mut UniverseBC,
+    _: &mut Universe,
     a: DoubleLike,
     b: DoubleLike,
 ) -> Result<f64, Error> {
@@ -234,7 +234,7 @@ fn modulo(
 
 fn positive_infinity(
     _: &mut Interpreter,
-    _: &mut UniverseBC,
+    _: &mut Universe,
     _: Value,
 ) -> Result<f64, Error> {
     const _: &str = "Double>>#positiveInfinity";

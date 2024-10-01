@@ -7,7 +7,7 @@ use som_core::gc::GCRef;
 use crate::convert::Primitive;
 use crate::interpreter::Interpreter;
 use crate::primitives::PrimitiveFn;
-use crate::universe::UniverseBC;
+use crate::universe::Universe;
 use crate::value::Value;
 
 pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| {
@@ -23,7 +23,7 @@ pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> =
 
 fn at(
     _: &mut Interpreter,
-    _: &mut UniverseBC,
+    _: &mut Universe,
     receiver: GCRef<Vec<Value>>,
     index: i32,
 ) -> Result<Value, Error> {
@@ -40,7 +40,7 @@ fn at(
 
 fn at_put(
     _: &mut Interpreter,
-    _: &mut UniverseBC,
+    _: &mut Universe,
     receiver: GCRef<Vec<Value>>,
     index: i32,
     value: Value,
@@ -58,7 +58,7 @@ fn at_put(
 
 fn length(
     _: &mut Interpreter,
-    _: &mut UniverseBC,
+    _: &mut Universe,
     receiver: GCRef<Vec<Value>>,
 ) -> Result<i32, Error> {
     const _: &str = "Array>>#length";
@@ -72,7 +72,7 @@ fn length(
 
 fn new(
     _: &mut Interpreter,
-    universe: &mut UniverseBC,
+    universe: &mut Universe,
     _: Value,
     count: i32,
 ) -> Result<GCRef<Vec<Value>>, Error> {

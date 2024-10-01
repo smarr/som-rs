@@ -3,7 +3,7 @@ use crate::convert::Primitive;
 use crate::interpreter::Interpreter;
 use crate::method::{Invoke, Method};
 use crate::primitives::PrimitiveFn;
-use crate::universe::UniverseBC;
+use crate::universe::Universe;
 use crate::value::Value;
 use anyhow::Error;
 use once_cell::sync::Lazy;
@@ -22,7 +22,7 @@ pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> =
 
 fn holder(
     _: &mut Interpreter,
-    _: &mut UniverseBC,
+    _: &mut Universe,
     invokable: GCRef<Method>,
 ) -> Result<GCRef<Class>, Error> {
     const _: &str = "Method>>#holder";
@@ -32,7 +32,7 @@ fn holder(
 
 fn signature(
     _: &mut Interpreter,
-    universe: &mut UniverseBC,
+    universe: &mut Universe,
     invokable: GCRef<Method>,
 ) -> Result<Interned, Error> {
     const _: &str = "Method>>#signature";
@@ -42,7 +42,7 @@ fn signature(
 
 fn invoke_on_with(
     interpreter: &mut Interpreter,
-    universe: &mut UniverseBC,
+    universe: &mut Universe,
     invokable: GCRef<Method>,
     receiver: Value,
     arguments: GCRef<Vec<Value>>,

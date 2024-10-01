@@ -7,16 +7,16 @@ use std::path::PathBuf;
 use som_core::gc::{GCInterface, GCRef};
 use som_interpreter_bc::compiler;
 use som_interpreter_bc::method::MethodKind;
-use som_interpreter_bc::universe::UniverseBC;
+use som_interpreter_bc::universe::Universe;
 use som_lexer::{Lexer, Token};
 use som_parser::lang;
 
-fn setup_universe() -> UniverseBC {
+fn setup_universe() -> Universe {
     let classpath = vec![
         PathBuf::from("../core-lib/Smalltalk"),
         PathBuf::from("../core-lib/TestSuite/BasicInterpreterTests"),
     ];
-    UniverseBC::with_classpath(classpath, GCInterface::init()).expect("could not setup test universe")
+    Universe::with_classpath(classpath, GCInterface::init()).expect("could not setup test universe")
 }
 
 fn get_bytecodes_from_method(class_txt: &str, method_name: &str) -> Vec<Bytecode> {

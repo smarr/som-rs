@@ -7,7 +7,7 @@ use rand::Rng;
 use crate::convert::{DoubleLike, IntegerLike, Primitive, StringLike};
 use crate::invokable::Return;
 use crate::primitives::PrimitiveFn;
-use crate::universe::UniverseAST;
+use crate::universe::Universe;
 use crate::value::Value;
 use som_core::gc::GCRef;
 
@@ -57,7 +57,7 @@ macro_rules! demote {
     }};
 }
 
-fn from_string(universe: &mut UniverseAST, _: Value, string: StringLike) -> Return {
+fn from_string(universe: &mut Universe, _: Value, string: StringLike) -> Return {
     let value = match string {
         StringLike::String(ref value) => value.as_str(),
         StringLike::Symbol(sym) => universe.lookup_symbol(sym)
@@ -74,7 +74,7 @@ fn from_string(universe: &mut UniverseAST, _: Value, string: StringLike) -> Retu
     }
 }
 
-fn as_string(universe: &mut UniverseAST, receiver: IntegerLike) -> Return {
+fn as_string(universe: &mut Universe, receiver: IntegerLike) -> Return {
     let value = match receiver {
         IntegerLike::Integer(value) => value.to_string(),
         IntegerLike::BigInteger(value) => value.as_ref().to_string(),
@@ -83,7 +83,7 @@ fn as_string(universe: &mut UniverseAST, receiver: IntegerLike) -> Return {
     Return::Local(Value::String(GCRef::<String>::alloc(value, &mut universe.gc_interface)))
 }
 
-fn as_double(_: &mut UniverseAST, receiver: IntegerLike) -> Return {
+fn as_double(_: &mut Universe, receiver: IntegerLike) -> Return {
     const SIGNATURE: &str = "Integer>>#asDouble";
 
     match receiver {
@@ -98,7 +98,7 @@ fn as_double(_: &mut UniverseAST, receiver: IntegerLike) -> Return {
     }
 }
 
-fn at_random(_: &mut UniverseAST, receiver: IntegerLike) -> Return {
+fn at_random(_: &mut Universe, receiver: IntegerLike) -> Return {
     const SIGNATURE: &str = "Integer>>#atRandom";
 
     let chosen = match receiver {
@@ -118,7 +118,7 @@ fn at_random(_: &mut UniverseAST, receiver: IntegerLike) -> Return {
     Return::Local(Value::Integer(chosen))
 }
 
-fn as_32bit_signed_value(_: &mut UniverseAST, receiver: IntegerLike) -> Return {
+fn as_32bit_signed_value(_: &mut Universe, receiver: IntegerLike) -> Return {
     let value = match receiver {
         IntegerLike::Integer(value) => value,
         IntegerLike::BigInteger(value) => match value.as_ref().to_u32_digits() {
@@ -130,7 +130,7 @@ fn as_32bit_signed_value(_: &mut UniverseAST, receiver: IntegerLike) -> Return {
     Return::Local(Value::Integer(value))
 }
 
-fn as_32bit_unsigned_value(universe: &mut UniverseAST, receiver: IntegerLike) -> Return {
+fn as_32bit_unsigned_value(universe: &mut Universe, receiver: IntegerLike) -> Return {
     let value = match receiver {
         IntegerLike::Integer(value) => value as u32,
         IntegerLike::BigInteger(value) => {
@@ -151,7 +151,7 @@ fn as_32bit_unsigned_value(universe: &mut UniverseAST, receiver: IntegerLike) ->
     Return::Local(value)
 }
 
-fn plus(universe: &mut UniverseAST, a: DoubleLike, b: DoubleLike) -> Return {
+fn plus(universe: &mut Universe, a: DoubleLike, b: DoubleLike) -> Return {
     const SIGNATURE: &str = "Integer>>#+";
 
     let heap = &mut universe.gc_interface;
@@ -180,7 +180,7 @@ fn plus(universe: &mut UniverseAST, a: DoubleLike, b: DoubleLike) -> Return {
     }
 }
 
-fn minus(universe: &mut UniverseAST, a: DoubleLike, b: DoubleLike) -> Return {
+fn minus(universe: &mut Universe, a: DoubleLike, b: DoubleLike) -> Return {
     const SIGNATURE: &str = "Integer>>#-";
 
     let heap = &mut universe.gc_interface;
@@ -213,7 +213,7 @@ fn minus(universe: &mut UniverseAST, a: DoubleLike, b: DoubleLike) -> Return {
     }
 }
 
-fn times(universe: &mut UniverseAST, a: DoubleLike, b: DoubleLike) -> Return {
+fn times(universe: &mut Universe, a: DoubleLike, b: DoubleLike) -> Return {
     const SIGNATURE: &str = "Integer>>#*";
 
     let heap = &mut universe.gc_interface;
@@ -235,7 +235,7 @@ fn times(universe: &mut UniverseAST, a: DoubleLike, b: DoubleLike) -> Return {
     }
 }
 
-fn divide(universe: &mut UniverseAST, a: DoubleLike, b: DoubleLike) -> Return {
+fn divide(universe: &mut Universe, a: DoubleLike, b: DoubleLike) -> Return {
     const SIGNATURE: &str = "Integer>>#/";
 
     let heap = &mut universe.gc_interface;
@@ -257,7 +257,7 @@ fn divide(universe: &mut UniverseAST, a: DoubleLike, b: DoubleLike) -> Return {
     }
 }
 
-fn divide_float(_: &mut UniverseAST, a: DoubleLike, b: DoubleLike) -> Return {
+fn divide_float(_: &mut Universe, a: DoubleLike, b: DoubleLike) -> Return {
     const SIGNATURE: &str = "Integer>>#//";
 
     match (a, b) {
@@ -272,7 +272,7 @@ fn divide_float(_: &mut UniverseAST, a: DoubleLike, b: DoubleLike) -> Return {
     }
 }
 
-fn modulo(universe: &mut UniverseAST, a: IntegerLike, b: i32) -> Return {
+fn modulo(universe: &mut Universe, a: IntegerLike, b: i32) -> Return {
     match a {
         IntegerLike::Integer(a) => {
             let result = a % b;
@@ -293,7 +293,7 @@ fn modulo(universe: &mut UniverseAST, a: IntegerLike, b: i32) -> Return {
     }
 }
 
-fn remainder(_: &mut UniverseAST, a: i32, b: i32) -> Return {
+fn remainder(_: &mut Universe, a: i32, b: i32) -> Return {
     let result = a % b;
     if result.signum() != a.signum() {
         Return::Local(Value::Integer((result + a) % a))
@@ -302,7 +302,7 @@ fn remainder(_: &mut UniverseAST, a: i32, b: i32) -> Return {
     }
 }
 
-fn sqrt(universe: &mut UniverseAST, a: DoubleLike) -> Return {
+fn sqrt(universe: &mut Universe, a: DoubleLike) -> Return {
     match a {
         DoubleLike::Integer(a) => {
             let sqrt = (a as f64).sqrt();
@@ -318,7 +318,7 @@ fn sqrt(universe: &mut UniverseAST, a: DoubleLike) -> Return {
     }
 }
 
-fn bitand(universe: &mut UniverseAST, a: IntegerLike, b: IntegerLike) -> Return {
+fn bitand(universe: &mut Universe, a: IntegerLike, b: IntegerLike) -> Return {
     let heap = &mut universe.gc_interface;
     match (a, b) {
         (IntegerLike::Integer(a), IntegerLike::Integer(b)) => Return::Local(Value::Integer(a & b)),
@@ -329,7 +329,7 @@ fn bitand(universe: &mut UniverseAST, a: IntegerLike, b: IntegerLike) -> Return 
     }
 }
 
-fn bitxor(universe: &mut UniverseAST, a: IntegerLike, b: IntegerLike) -> Return {
+fn bitxor(universe: &mut Universe, a: IntegerLike, b: IntegerLike) -> Return {
     let heap = &mut universe.gc_interface;
     match (a, b) {
         (IntegerLike::Integer(a), IntegerLike::Integer(b)) => Return::Local(Value::Integer(a ^ b)),
@@ -340,7 +340,7 @@ fn bitxor(universe: &mut UniverseAST, a: IntegerLike, b: IntegerLike) -> Return 
     }
 }
 
-fn lt(_: &mut UniverseAST, a: DoubleLike, b: DoubleLike) -> Return {
+fn lt(_: &mut Universe, a: DoubleLike, b: DoubleLike) -> Return {
     const SIGNATURE: &str = "Integer>>#<";
 
     match (a, b) {
@@ -360,7 +360,7 @@ fn lt(_: &mut UniverseAST, a: DoubleLike, b: DoubleLike) -> Return {
     }
 }
 
-fn eq(_: &mut UniverseAST, a: Value, b: Value) -> Return {
+fn eq(_: &mut Universe, a: Value, b: Value) -> Return {
     // match (a, b) {
     //     (Value::Integer(a), Value::Integer(b)) => Return::Local(Value::Boolean(a == b)),
     //     (Value::BigInteger(a), Value::BigInteger(b)) => Return::Local(Value::Boolean(a.as_ref() == b.as_ref())),
@@ -394,7 +394,7 @@ fn eq(_: &mut UniverseAST, a: Value, b: Value) -> Return {
     Return::Local(Value::Boolean(value))
 }
 
-fn shift_left(universe: &mut UniverseAST, a: IntegerLike, b: i32) -> Return {
+fn shift_left(universe: &mut Universe, a: IntegerLike, b: i32) -> Return {
     // old code pre integers being i32 because of nan boxing:
 
     // match a {
@@ -422,7 +422,7 @@ fn shift_left(universe: &mut UniverseAST, a: IntegerLike, b: i32) -> Return {
     }
 }
 
-fn shift_right(universe: &mut UniverseAST, a: IntegerLike, b: i32) -> Return {
+fn shift_right(universe: &mut Universe, a: IntegerLike, b: i32) -> Return {
     
     // match a {
     //     Value::Integer(a) => match a.checked_shr(b as u32) {

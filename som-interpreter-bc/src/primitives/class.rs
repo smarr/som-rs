@@ -3,7 +3,7 @@ use crate::convert::Primitive;
 use crate::instance::Instance;
 use crate::interpreter::Interpreter;
 use crate::primitives::PrimitiveFn;
-use crate::universe::UniverseBC;
+use crate::universe::Universe;
 use crate::value::Value;
 use anyhow::Error;
 use once_cell::sync::Lazy;
@@ -26,7 +26,7 @@ pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> =
 
 fn superclass(
     interpreter: &mut Interpreter,
-    _: &mut UniverseBC,
+    _: &mut Universe,
     receiver: GCRef<Class>,
 ) -> Result<(), Error> {
     const _: &str = "Class>>#superclass";
@@ -40,7 +40,7 @@ fn superclass(
 
 fn new(
     _: &mut Interpreter,
-    universe: &mut UniverseBC,
+    universe: &mut Universe,
     receiver: GCRef<Class>,
 ) -> Result<GCRef<Instance>, Error> {
     const _: &str = "Class>>#new";
@@ -52,7 +52,7 @@ fn new(
 
 fn name(
     _: &mut Interpreter,
-    universe: &mut UniverseBC,
+    universe: &mut Universe,
     receiver: GCRef<Class>,
 ) -> Result<Interned, Error> {
     const _: &str = "Class>>#name";
@@ -62,7 +62,7 @@ fn name(
 
 fn methods(
     _: &mut Interpreter,
-    universe: &mut UniverseBC,
+    universe: &mut Universe,
     receiver: GCRef<Class>,
 ) -> Result<GCRef<Vec<Value>>, Error> {
     const _: &str = "Class>>#methods";
@@ -80,7 +80,7 @@ fn methods(
 
 fn fields(
     _: &mut Interpreter,
-    universe: &mut UniverseBC,
+    universe: &mut Universe,
     receiver: GCRef<Class>,
 ) -> Result<GCRef<Vec<Value>>, Error> {
     const _: &str = "Class>>#fields";

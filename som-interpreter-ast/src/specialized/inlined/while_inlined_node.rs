@@ -6,7 +6,7 @@ use indenter::indented;
 use crate::ast::AstBody;
 use crate::evaluate::Evaluate;
 use crate::invokable::Return;
-use crate::universe::UniverseAST;
+use crate::universe::Universe;
 use crate::value::Value;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -27,7 +27,7 @@ impl Display for WhileInlinedNode {
 }
 
 impl Evaluate for WhileInlinedNode {
-    fn evaluate(&mut self, universe: &mut UniverseAST) -> Return {
+    fn evaluate(&mut self, universe: &mut Universe) -> Return {
         loop {
             let cond_result = propagate!(self.cond_instrs.evaluate(universe));
             match cond_result.as_boolean() {

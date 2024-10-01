@@ -7,7 +7,7 @@ use crate::class::Class;
 use crate::compiler::Literal;
 use crate::interpreter::Interpreter;
 use crate::primitives::PrimitiveFn;
-use crate::universe::UniverseBC;
+use crate::universe::Universe;
 use crate::value::Value;
 
 #[cfg(feature = "frame-debug-info")]
@@ -51,7 +51,7 @@ pub struct Method {
 }
 
 impl Method {
-    pub fn class(&self, universe: &UniverseBC) -> GCRef<Class> {
+    pub fn class(&self, universe: &Universe) -> GCRef<Class> {
         if self.is_primitive() {
             universe.primitive_class()
         } else {
@@ -78,14 +78,14 @@ impl Method {
 }
 
 pub trait Invoke {
-    fn invoke(&self, interpreter: &mut Interpreter, universe: &mut UniverseBC, receiver: Value, args: Vec<Value>);
+    fn invoke(&self, interpreter: &mut Interpreter, universe: &mut Universe, receiver: Value, args: Vec<Value>);
 }
 
 impl Invoke for GCRef<Method> {
     fn invoke(
         &self,
         interpreter: &mut Interpreter,
-        universe: &mut UniverseBC,
+        universe: &mut Universe,
         receiver: Value,
         mut args: Vec<Value>,
     ) {

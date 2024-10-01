@@ -2,14 +2,14 @@ use som_core::gc::GCRef;
 use crate::block::Block;
 use crate::evaluate::Evaluate;
 use crate::invokable::{Invoke, Return};
-use crate::universe::UniverseAST;
+use crate::universe::Universe;
 use crate::value::Value;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ToDoNode {}
 
 impl Invoke for ToDoNode {
-    fn invoke(&mut self, universe: &mut UniverseAST, args: Vec<Value>) -> Return {
+    fn invoke(&mut self, universe: &mut Universe, args: Vec<Value>) -> Return {
         let start_int_val = args.first().unwrap();
         let end_int_val = args.get(1).unwrap();
         let body_block_val = args.get(2).unwrap();
@@ -25,7 +25,7 @@ impl Invoke for ToDoNode {
 }
 
 impl ToDoNode {
-    fn do_int_loop(start_int: i32, end_int: i32, mut body_block: GCRef<Block>, universe: &mut UniverseAST) -> Return {
+    fn do_int_loop(start_int: i32, end_int: i32, mut body_block: GCRef<Block>, universe: &mut Universe) -> Return {
         let nbr_locals = body_block.borrow().block.borrow().nbr_locals;
         
         for i in start_int..=end_int {
@@ -38,7 +38,7 @@ impl ToDoNode {
         Return::Local(Value::Integer(start_int))
     }
 
-    fn do_double_loop(start_double: f64, end_double: f64, mut body_block: GCRef<Block>, universe: &mut UniverseAST) -> Return {
+    fn do_double_loop(start_double: f64, end_double: f64, mut body_block: GCRef<Block>, universe: &mut Universe) -> Return {
         let nbr_locals = body_block.borrow().block.borrow().nbr_locals;
         let mut i = start_double;
 

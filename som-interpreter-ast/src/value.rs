@@ -6,7 +6,7 @@ use crate::block::Block;
 use crate::class::Class;
 use crate::instance::Instance;
 use crate::method::Method;
-use crate::universe::UniverseAST;
+use crate::universe::Universe;
 use num_bigint::BigInt;
 use som_core::gc::GCRef;
 use som_core::interner::Interned;
@@ -432,7 +432,7 @@ impl Value {
 
     /// Get the class of the current value.
     #[inline(always)]
-    pub fn class(&self, universe: &UniverseAST) -> GCRef<Class> {
+    pub fn class(&self, universe: &Universe) -> GCRef<Class> {
         match self.tag() {
             NIL_TAG => universe.nil_class(),
             SYSTEM_TAG => universe.system_class(),
@@ -462,7 +462,7 @@ impl Value {
     }
 
     /// Search for a given method for this value.
-    pub fn lookup_method(&self, universe: &UniverseAST, signature: &str) -> Option<GCRef<Method>> {
+    pub fn lookup_method(&self, universe: &Universe, signature: &str) -> Option<GCRef<Method>> {
         self.class(universe).borrow().lookup_method(signature)
     }
 
@@ -489,7 +489,7 @@ impl Value {
     }
 
     /// Get the string representation of this value.
-    pub fn to_string(&self, universe: &UniverseAST) -> String {
+    pub fn to_string(&self, universe: &Universe) -> String {
         match self.tag() {
             NIL_TAG => "nil".to_string(),
             SYSTEM_TAG => "system".to_string(),
@@ -706,7 +706,7 @@ pub enum ValueEnum {
 
 impl ValueEnum {
     /// Get the class of the current value.
-    pub fn class(&self, universe: &UniverseAST) -> GCRef<Class> {
+    pub fn class(&self, universe: &Universe) -> GCRef<Class> {
         match self {
             Self::Nil => universe.nil_class(),
             Self::System => universe.system_class(),
@@ -727,7 +727,7 @@ impl ValueEnum {
 
     /// Search for a given method for this value.
     #[inline(always)]
-    pub fn lookup_method(&self, universe: &UniverseAST, signature: &str) -> Option<GCRef<Method>> {
+    pub fn lookup_method(&self, universe: &Universe, signature: &str) -> Option<GCRef<Method>> {
         self.class(universe).to_obj().lookup_method(signature)
     }
 
@@ -751,7 +751,7 @@ impl ValueEnum {
     }
 
     /// Get the string representation of this value.
-    pub fn to_string(&self, universe: &UniverseAST) -> String {
+    pub fn to_string(&self, universe: &Universe) -> String {
         match self {
             Self::Nil => "nil".to_string(),
             Self::System => "system".to_string(),

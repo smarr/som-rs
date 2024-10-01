@@ -3,7 +3,7 @@ use crate::compiler::Literal;
 use crate::frame::Frame;
 // use crate::interner::Interned;
 use crate::method::Method;
-use crate::universe::UniverseBC;
+use crate::universe::Universe;
 #[cfg(feature = "frame-debug-info")]
 use som_core::ast::BlockDebugInfo;
 use som_core::bytecode::Bytecode;
@@ -33,7 +33,7 @@ pub struct Block {
 
 impl Block {
     /// Get the block's class.
-    pub fn class(&self, universe: &UniverseBC) -> GCRef<Class> {
+    pub fn class(&self, universe: &Universe) -> GCRef<Class> {
         match self.nb_parameters() {
             0 => universe.block1_class(),
             1 => universe.block2_class(),

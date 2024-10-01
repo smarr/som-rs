@@ -22,13 +22,13 @@ pub mod system;
 use crate::invokable::Return;
 pub use self::blocks::{block1, block2, block3};
 
-use crate::universe::UniverseAST;
+use crate::universe::Universe;
 use crate::value::Value;
 
 /// A interpreter primitive (just a bare function pointer).
 // pub type PrimitiveFn = fn(universe: &mut UniverseAST, args: Vec<Value>) -> Return;
 // pub type PrimitiveFn = dyn Fn(&mut UniverseAST, Vec<Value>) -> Result<Return, Error>
-pub type PrimitiveFn = dyn Fn(&mut UniverseAST, Vec<Value>) -> Return
+pub type PrimitiveFn = dyn Fn(&mut Universe, Vec<Value>) -> Return
 + Send
 + Sync
 + 'static;

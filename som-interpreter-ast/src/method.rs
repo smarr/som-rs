@@ -2,7 +2,7 @@ use std::fmt::{Debug, Formatter};
 use som_core::gc::GCRef;
 use crate::class::Class;
 use crate::primitives::PrimitiveFn;
-use crate::universe::UniverseAST;
+use crate::universe::Universe;
 use crate::ast::AstMethodDef;
 use crate::specialized::down_to_do_node::DownToDoNode;
 use crate::specialized::while_node::WhileNode;
@@ -86,7 +86,7 @@ impl PartialEq for Method {
 }
 
 impl Method {
-    pub fn class(&self, universe: &UniverseAST) -> GCRef<Class> {
+    pub fn class(&self, universe: &Universe) -> GCRef<Class> {
         if self.is_primitive() {
             universe.primitive_class()
         } else {

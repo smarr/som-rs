@@ -5,7 +5,7 @@ use crate::block::Block;
 use crate::convert::Primitive;
 use crate::interpreter::Interpreter;
 use crate::primitives::PrimitiveFn;
-use crate::universe::UniverseBC;
+use crate::universe::Universe;
 use crate::value::Value;
 
 /// Primitives for the **Block** and **Block1** class.
@@ -25,7 +25,7 @@ pub mod block1 {
 
     fn value(
         interpreter: &mut Interpreter,
-        universe: &mut UniverseBC,
+        universe: &mut Universe,
         receiver: GCRef<Block>,
     ) -> Result<(), Error> {
         const _: &str = "Block1>>#value";
@@ -37,7 +37,7 @@ pub mod block1 {
 
     fn restart(
         interpreter: &mut Interpreter,
-        _: &mut UniverseBC,
+        _: &mut Universe,
         _: GCRef<Block>,
     ) -> Result<(), Error> {
         const _: &str = "Block>>#restart";
@@ -79,7 +79,7 @@ pub mod block2 {
 
     fn value(
         interpreter: &mut Interpreter,
-        universe: &mut UniverseBC,
+        universe: &mut Universe,
         receiver: GCRef<Block>,
         argument: Value,
     ) -> Result<(), Error> {
@@ -119,7 +119,7 @@ pub mod block3 {
 
     fn value_with(
         interpreter: &mut Interpreter,
-        universe: &mut UniverseBC,
+        universe: &mut Universe,
         receiver: GCRef<Block>,
         argument1: Value,
         argument2: Value,

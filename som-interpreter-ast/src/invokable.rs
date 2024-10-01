@@ -2,7 +2,7 @@ use som_core::gc::GCRef;
 use crate::evaluate::Evaluate;
 use crate::frame::Frame;
 use crate::method::{Method, MethodKind, MethodKindSpecialized};
-use crate::universe::UniverseAST;
+use crate::universe::Universe;
 use crate::value::Value;
 
 /// Represents the kinds of possible returns from an invocation.
@@ -21,11 +21,11 @@ pub enum Return {
 /// The trait for invoking methods and primitives.
 pub trait Invoke {
     /// Invoke within the given universe and with the given arguments.
-    fn invoke(&mut self, universe: &mut UniverseAST, args: Vec<Value>) -> Return;
+    fn invoke(&mut self, universe: &mut Universe, args: Vec<Value>) -> Return;
 }
 
 impl Invoke for Method {
-    fn invoke(&mut self, universe: &mut UniverseAST, args: Vec<Value>) -> Return {
+    fn invoke(&mut self, universe: &mut Universe, args: Vec<Value>) -> Return {
         // println!("--- Invoking \"{:1}\" ({:2})", &self.signature, &self.holder.to_obj().class().borrow().name);
         // println!("--- ...with args: {:?}", &args);
 

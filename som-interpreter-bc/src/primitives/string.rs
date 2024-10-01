@@ -5,7 +5,7 @@ use std::hash::Hasher;
 use crate::convert::{Primitive, StringLike};
 use crate::interpreter::Interpreter;
 use crate::primitives::PrimitiveFn;
-use crate::universe::UniverseBC;
+use crate::universe::Universe;
 use crate::value::Value;
 use anyhow::Error;
 use num_bigint::BigInt;
@@ -36,7 +36,7 @@ pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> =
 
 fn length(
     _: &mut Interpreter,
-    universe: &mut UniverseBC,
+    universe: &mut Universe,
     receiver: StringLike,
 ) -> Result<Value, Error> {
     const _: &str = "String>>#length";
@@ -59,7 +59,7 @@ fn length(
 
 fn hashcode(
     _: &mut Interpreter,
-    universe: &mut UniverseBC,
+    universe: &mut Universe,
     receiver: StringLike,
 ) -> Result<i32, Error> {
     const _: &str = "String>>#hashcode";
@@ -78,7 +78,7 @@ fn hashcode(
 
 fn is_letters(
     _: &mut Interpreter,
-    universe: &mut UniverseBC,
+    universe: &mut Universe,
     receiver: StringLike,
 ) -> Result<bool, Error> {
     const _: &str = "String>>#isLetters";
@@ -93,7 +93,7 @@ fn is_letters(
 
 fn is_digits(
     _: &mut Interpreter,
-    universe: &mut UniverseBC,
+    universe: &mut Universe,
     receiver: StringLike,
 ) -> Result<bool, Error> {
     const _: &str = "String>>#isDigits";
@@ -108,7 +108,7 @@ fn is_digits(
 
 fn is_whitespace(
     _: &mut Interpreter,
-    universe: &mut UniverseBC,
+    universe: &mut Universe,
     receiver: StringLike,
 ) -> Result<bool, Error> {
     const _: &str = "String>>#isWhiteSpace";
@@ -123,7 +123,7 @@ fn is_whitespace(
 
 fn concatenate(
     _: &mut Interpreter,
-    universe: &mut UniverseBC,
+    universe: &mut Universe,
     receiver: StringLike,
     other: StringLike,
 ) -> Result<GCRef<String>, Error> {
@@ -144,7 +144,7 @@ fn concatenate(
 
 fn as_symbol(
     _: &mut Interpreter,
-    universe: &mut UniverseBC,
+    universe: &mut Universe,
     receiver: StringLike,
 ) -> Result<Interned, Error> {
     const _: &str = "String>>#asSymbol";
@@ -159,7 +159,7 @@ fn as_symbol(
 
 fn eq(
     _: &mut Interpreter,
-    universe: &mut UniverseBC,
+    universe: &mut Universe,
     a: Value,
     b: Value,
 ) -> Result<bool, Error> {
@@ -188,7 +188,7 @@ fn eq(
 
 fn prim_substring_from_to(
     _: &mut Interpreter,
-    universe: &mut UniverseBC,
+    universe: &mut Universe,
     receiver: StringLike,
     from: i32,
     to: i32,
@@ -208,7 +208,7 @@ fn prim_substring_from_to(
 
 fn char_at(
     _: &mut Interpreter,
-    universe: &mut UniverseBC,
+    universe: &mut Universe,
     receiver: StringLike,
     idx: i32,
 ) -> Result<GCRef<String>, Error> {

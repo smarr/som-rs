@@ -66,7 +66,7 @@ pub struct CoreClasses {
 ///
 /// It represents the complete state of the interpreter, like the known class definitions,
 /// the string interner and the stack frames.
-pub struct UniverseBC {
+pub struct Universe {
     /// The string interner for symbols.
     pub interner: Interner,
     /// The known global bindings.
@@ -79,7 +79,7 @@ pub struct UniverseBC {
     pub gc_interface: GCInterface,
 }
 
-impl UniverseBC {
+impl Universe {
     /// Initialize the universe from the given classpath.
     pub fn with_classpath(classpath: Vec<PathBuf>, mut gc_interface: GCInterface) -> Result<Self, Error> {
         let mut interner = Interner::with_capacity(100);
@@ -416,7 +416,7 @@ impl UniverseBC {
     }
 }
 
-impl UniverseBC {
+impl Universe {
     /// Call `escapedBlock:` on the given value, if it is defined.
     pub fn escaped_block(
         &mut self,

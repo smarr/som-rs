@@ -1,6 +1,6 @@
 use crate::evaluate::Evaluate;
 use crate::invokable::{Invoke, Return};
-use crate::universe::UniverseAST;
+use crate::universe::Universe;
 use crate::value::Value;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -9,7 +9,7 @@ pub struct WhileNode {
 }
 
 impl Invoke for WhileNode {
-    fn invoke(&mut self, universe: &mut UniverseAST, args: Vec<Value>) -> Return {
+    fn invoke(&mut self, universe: &mut Universe, args: Vec<Value>) -> Return {
         let cond_block_val = unsafe { args.get_unchecked(0) };
         let body_block_arg = unsafe { args.get_unchecked(1) };
 

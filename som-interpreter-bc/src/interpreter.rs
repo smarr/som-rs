@@ -4,7 +4,7 @@ use crate::compiler::Literal;
 use crate::frame::{Frame, FrameAccess};
 use crate::instance::InstanceAccess;
 use crate::method::{Method, MethodKind};
-use crate::universe::UniverseBC;
+use crate::universe::Universe;
 use crate::value::Value;
 use anyhow::Context;
 use num_bigint::BigInt;
@@ -118,7 +118,7 @@ impl Interpreter {
         }
     }
 
-    pub fn run(&mut self, universe: &mut UniverseBC) -> Option<Value> {
+    pub fn run(&mut self, universe: &mut Universe) -> Option<Value> {
         loop {
             let frame = &self.current_frame;
 
@@ -429,7 +429,7 @@ impl Interpreter {
 
         pub fn do_send(
             interpreter: &mut Interpreter,
-            universe: &mut UniverseBC,
+            universe: &mut Universe,
             method: Option<GCRef<Method>>,
             symbol: Interned,
             nb_params: usize,

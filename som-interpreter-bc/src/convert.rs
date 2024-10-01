@@ -12,7 +12,7 @@ use crate::instance::Instance;
 use crate::interpreter::Interpreter;
 use crate::method::Method;
 use crate::primitives::PrimitiveFn;
-use crate::universe::UniverseBC;
+use crate::universe::Universe;
 use crate::value::Value;
 use num_bigint::BigInt;
 use som_core::gc::{GCInterface, GCRef};
@@ -40,7 +40,7 @@ impl TryFrom<Value> for Nil {
 impl FromArgs for Nil {
     fn from_args(
         interpreter: &mut Interpreter,
-        _: &mut UniverseBC,
+        _: &mut Universe,
     ) -> Result<Self, Error> {
         let value = interpreter
             .stack
@@ -69,7 +69,7 @@ impl TryFrom<Value> for System {
 impl FromArgs for System {
     fn from_args(
         interpreter: &mut Interpreter,
-        _: &mut UniverseBC,
+        _: &mut Universe,
     ) -> Result<Self, Error> {
         let value = interpreter
             .stack
@@ -101,7 +101,7 @@ impl TryFrom<Value> for StringLike {
 impl FromArgs for StringLike {
     fn from_args(
         interpreter: &mut Interpreter,
-        _: &mut UniverseBC,
+        _: &mut Universe,
     ) -> Result<Self, Error> {
         let value = interpreter
             .stack
@@ -135,7 +135,7 @@ impl TryFrom<Value> for DoubleLike {
 impl FromArgs for DoubleLike {
     fn from_args(
         interpreter: &mut Interpreter,
-        _: &mut UniverseBC,
+        _: &mut Universe,
     ) -> Result<Self, Error> {
         let value = interpreter
             .stack
@@ -167,7 +167,7 @@ impl TryFrom<Value> for IntegerLike {
 impl FromArgs for IntegerLike {
     fn from_args(
         interpreter: &mut Interpreter,
-        _: &mut UniverseBC,
+        _: &mut Universe,
     ) -> Result<Self, Error> {
         let value = interpreter
             .stack
@@ -181,14 +181,14 @@ impl FromArgs for IntegerLike {
 pub trait FromArgs: Sized {
     fn from_args(
         interpreter: &mut Interpreter,
-        universe: &mut UniverseBC,
+        universe: &mut Universe,
     ) -> Result<Self, Error>;
 }
 
 impl FromArgs for Value {
     fn from_args(
         interpreter: &mut Interpreter,
-        _: &mut UniverseBC,
+        _: &mut Universe,
     ) -> Result<Self, Error> {
         interpreter
             .stack
@@ -200,7 +200,7 @@ impl FromArgs for Value {
 impl FromArgs for bool {
     fn from_args(
         interpreter: &mut Interpreter,
-        _: &mut UniverseBC,
+        _: &mut Universe,
     ) -> Result<Self, Error> {
         let arg = interpreter
             .stack
@@ -214,7 +214,7 @@ impl FromArgs for bool {
 impl FromArgs for i32 {
     fn from_args(
         interpreter: &mut Interpreter,
-        _: &mut UniverseBC,
+        _: &mut Universe,
     ) -> Result<Self, Error> {
         let arg = interpreter
             .stack
@@ -228,7 +228,7 @@ impl FromArgs for i32 {
 impl FromArgs for f64 {
     fn from_args(
         interpreter: &mut Interpreter,
-        _: &mut UniverseBC,
+        _: &mut Universe,
     ) -> Result<Self, Error> {
         let arg = interpreter
             .stack
@@ -242,7 +242,7 @@ impl FromArgs for f64 {
 impl FromArgs for Interned {
     fn from_args(
         interpreter: &mut Interpreter,
-        _: &mut UniverseBC,
+        _: &mut Universe,
     ) -> Result<Self, Error> {
         let arg = interpreter
             .stack
@@ -256,7 +256,7 @@ impl FromArgs for Interned {
 impl FromArgs for GCRef<String> {
     fn from_args(
         interpreter: &mut Interpreter,
-        _: &mut UniverseBC,
+        _: &mut Universe,
     ) -> Result<Self, Error> {
         let arg = interpreter
             .stack
@@ -270,7 +270,7 @@ impl FromArgs for GCRef<String> {
 impl FromArgs for GCRef<Vec<Value>> {
     fn from_args(
         interpreter: &mut Interpreter,
-        _: &mut UniverseBC,
+        _: &mut Universe,
     ) -> Result<Self, Error> {
         let arg = interpreter
             .stack
@@ -284,7 +284,7 @@ impl FromArgs for GCRef<Vec<Value>> {
 impl FromArgs for GCRef<Class> {
     fn from_args(
         interpreter: &mut Interpreter,
-        _: &mut UniverseBC,
+        _: &mut Universe,
     ) -> Result<Self, Error> {
         let arg = interpreter
             .stack
@@ -298,7 +298,7 @@ impl FromArgs for GCRef<Class> {
 impl FromArgs for GCRef<Instance> {
     fn from_args(
         interpreter: &mut Interpreter,
-        _: &mut UniverseBC,
+        _: &mut Universe,
     ) -> Result<Self, Error> {
         let arg = interpreter
             .stack
@@ -312,7 +312,7 @@ impl FromArgs for GCRef<Instance> {
 impl FromArgs for GCRef<Block> {
     fn from_args(
         interpreter: &mut Interpreter,
-        _: &mut UniverseBC,
+        _: &mut Universe,
     ) -> Result<Self, Error> {
         let arg = interpreter
             .stack
@@ -326,7 +326,7 @@ impl FromArgs for GCRef<Block> {
 impl FromArgs for GCRef<Method> {
     fn from_args(
         interpreter: &mut Interpreter,
-        _: &mut UniverseBC,
+        _: &mut Universe,
     ) -> Result<Self, Error> {
         let arg = interpreter
             .stack
@@ -407,12 +407,12 @@ pub trait Primitive<T>: Sized + Send + Sync + 'static {
     fn invoke(
         &self,
         interpreter: &mut Interpreter,
-        universe: &mut UniverseBC,
+        universe: &mut Universe,
     ) -> Result<(), Error>;
 
     fn into_func(self) -> &'static PrimitiveFn {
         let boxed = Box::new(
-            move |interpreter: &mut Interpreter, universe: &mut UniverseBC| {
+            move |interpreter: &mut Interpreter, universe: &mut Universe| {
                 self.invoke(interpreter, universe)
             },
         );
@@ -456,7 +456,7 @@ macro_rules! derive_stuff {
         }
 
         impl <$($ty: $crate::convert::FromArgs),*> $crate::convert::FromArgs for ($($ty),*,) {
-            fn from_args(interpreter: &mut $crate::interpreter::Interpreter, universe: &mut $crate::universe::UniverseBC) -> Result<Self, Error> {
+            fn from_args(interpreter: &mut $crate::interpreter::Interpreter, universe: &mut $crate::universe::Universe) -> Result<Self, Error> {
                 $(
                     #[allow(non_snake_case)]
                     let $ty = $ty::from_args(interpreter, universe)?;
@@ -467,11 +467,11 @@ macro_rules! derive_stuff {
 
         impl <F, R, $($ty),*> $crate::convert::Primitive<($($ty),*,)> for F
         where
-            F: Fn(&mut $crate::interpreter::Interpreter, &mut $crate::universe::UniverseBC, $($ty),*) -> Result<R, Error> + Send + Sync + 'static,
+            F: Fn(&mut $crate::interpreter::Interpreter, &mut $crate::universe::Universe, $($ty),*) -> Result<R, Error> + Send + Sync + 'static,
             R: $crate::convert::IntoReturn,
             $($ty: $crate::convert::FromArgs),*,
         {
-            fn invoke(&self, interpreter: &mut $crate::interpreter::Interpreter, universe: &mut $crate::universe::UniverseBC) -> Result<(), Error> {
+            fn invoke(&self, interpreter: &mut $crate::interpreter::Interpreter, universe: &mut $crate::universe::Universe) -> Result<(), Error> {
                 reverse!(interpreter, universe, [$($ty),*], []);
                 let result = (self)(interpreter, universe, $($ty),*,)?;
                 result.into_return(interpreter, &mut universe.gc_interface)
@@ -547,7 +547,7 @@ impl IntoValue for DoubleLike {
 
 impl<F> Primitive<()> for F
 where
-    F: Fn(&mut Interpreter, &mut UniverseBC) -> Result<(), Error>
+    F: Fn(&mut Interpreter, &mut Universe) -> Result<(), Error>
     + Send
     + Sync
     + 'static,
@@ -555,7 +555,7 @@ where
     fn invoke(
         &self,
         interpreter: &mut Interpreter,
-        universe: &mut UniverseBC,
+        universe: &mut Universe,
     ) -> Result<(), Error> {
         (self)(interpreter, universe)
     }

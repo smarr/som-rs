@@ -7,7 +7,7 @@ use crate::convert::Primitive;
 use crate::interpreter::Interpreter;
 use crate::method::Invoke;
 use crate::primitives::PrimitiveFn;
-use crate::universe::UniverseBC;
+use crate::universe::Universe;
 use crate::value::Value;
 use anyhow::{Context, Error};
 use once_cell::sync::Lazy;
@@ -45,7 +45,7 @@ pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> =
 
 fn class(
     _: &mut Interpreter,
-    universe: &mut UniverseBC,
+    universe: &mut Universe,
     receiver: Value,
 ) -> Result<GCRef<Class>, Error> {
     const _: &'static str = "Object>>#class";
@@ -55,7 +55,7 @@ fn class(
 
 fn object_size(
     _: &mut Interpreter,
-    _: &mut UniverseBC,
+    _: &mut Universe,
     receiver: Value,
 ) -> Result<i32, Error> {
     const SIGNATURE: &'static str = "Object>>#objectSize";
@@ -67,7 +67,7 @@ fn object_size(
 
 fn hashcode(
     _: &mut Interpreter,
-    _: &mut UniverseBC,
+    _: &mut Universe,
     receiver: Value,
 ) -> Result<i32, Error> {
     const _: &'static str = "Object>>#hashcode";
@@ -81,7 +81,7 @@ fn hashcode(
 
 fn eq(
     _: &mut Interpreter,
-    _: &mut UniverseBC,
+    _: &mut Universe,
     receiver: Value,
     other: Value,
 ) -> Result<bool, Error> {
@@ -92,7 +92,7 @@ fn eq(
 
 fn perform(
     interpreter: &mut Interpreter,
-    universe: &mut UniverseBC,
+    universe: &mut Universe,
     receiver: Value,
     signature: Interned,
 ) -> Result<(), Error> {
@@ -117,7 +117,7 @@ fn perform(
 
 fn perform_with_arguments(
     interpreter: &mut Interpreter,
-    universe: &mut UniverseBC,
+    universe: &mut Universe,
     receiver: Value,
     signature: Interned,
     arguments: GCRef<Vec<Value>>,
@@ -143,7 +143,7 @@ fn perform_with_arguments(
 
 fn perform_in_super_class(
     interpreter: &mut Interpreter,
-    universe: &mut UniverseBC,
+    universe: &mut Universe,
     receiver: Value,
     signature: Interned,
     class: GCRef<Class>,
@@ -169,7 +169,7 @@ fn perform_in_super_class(
 
 fn perform_with_arguments_in_super_class(
     interpreter: &mut Interpreter,
-    universe: &mut UniverseBC,
+    universe: &mut Universe,
     receiver: Value,
     signature: Interned,
     arguments: GCRef<Vec<Value>>,
@@ -198,7 +198,7 @@ fn perform_with_arguments_in_super_class(
 
 fn inst_var_at(
     _: &mut Interpreter,
-    _: &mut UniverseBC,
+    _: &mut Universe,
     receiver: Value,
     index: i32,
 ) -> Result<Option<Value>, Error> {
@@ -229,7 +229,7 @@ fn inst_var_at(
 
 fn inst_var_at_put(
     _: &mut Interpreter,
-    _: &mut UniverseBC,
+    _: &mut Universe,
     mut receiver: Value,
     index: i32,
     value: Value,

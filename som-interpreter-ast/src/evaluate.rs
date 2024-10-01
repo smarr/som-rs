@@ -3,7 +3,7 @@ use crate::block::Block;
 use crate::frame::{Frame, FrameAccess};
 use crate::invokable::{Invoke, Return};
 use crate::method::Method;
-use crate::universe::UniverseAST;
+use crate::universe::Universe;
 use crate::value::Value;
 use num_bigint::BigInt;
 use som_core::ast;
@@ -12,11 +12,11 @@ use som_core::gc::GCRef;
 /// The trait for evaluating AST nodes.
 pub trait Evaluate {
     /// Evaluate the node within a given universe.
-    fn evaluate(&mut self, universe: &mut UniverseAST) -> Return;
+    fn evaluate(&mut self, universe: &mut Universe) -> Return;
 }
 
 impl Evaluate for AstExpression {
-    fn evaluate(&mut self, universe: &mut UniverseAST) -> Return {
+    fn evaluate(&mut self, universe: &mut Universe) -> Return {
         match self {
             Self::LocalVarWrite(idx, expr) => {
                 // TODO: this doesn't call the fastest path for evaluate, still has to dispatch the right expr even though it's always a var write. potential minor speedup there
@@ -136,7 +136,7 @@ impl Evaluate for AstExpression {
 }
 
 impl Evaluate for ast::Literal {
-    fn evaluate(&mut self, universe: &mut UniverseAST) -> Return {
+    fn evaluate(&mut self, universe: &mut Universe) -> Return {
         match self {
             Self::Array(array) => {
                 let mut output = Vec::with_capacity(array.len());
@@ -159,13 +159,13 @@ impl Evaluate for ast::Literal {
 }
 
 impl Evaluate for AstTerm {
-    fn evaluate(&mut self, universe: &mut UniverseAST) -> Return {
+    fn evaluate(&mut self, universe: &mut Universe) -> Return {
         self.body.evaluate(universe)
     }
 }
 
 impl Evaluate for GCRef<AstBlock> {
-    fn evaluate(&mut self, universe: &mut UniverseAST) -> Return {
+    fn evaluate(&mut self, universe: &mut Universe) -> Return {
         let block = Block {
             block: *self,
             frame: universe.current_frame,
@@ -177,7 +177,7 @@ impl Evaluate for GCRef<AstBlock> {
 
 impl AstDispatchNode {
     #[inline(always)]
-    fn lookup_invokable(&mut self, receiver: &Value, universe: &mut UniverseAST) -> (Option<GCRef<Method>>, bool) {
+    fn lookup_invokable(&mut self, receiver: &Value, universe: &mut Universe) -> (Option<GCRef<Method>>, bool) {
         let mut is_cache_hit = false;
         let invokable = match &self.inline_cache {
             Some((cached_rcvr_ptr, method)) => {
@@ -197,7 +197,7 @@ impl AstDispatchNode {
     }
     
     #[inline(always)]
-    fn dispatch_or_dnu(&mut self, invokable: Option<GCRef<Method>>, args: Vec<Value>, is_cache_hit: bool, universe: &mut UniverseAST) -> Return {
+    fn dispatch_or_dnu(&mut self, invokable: Option<GCRef<Method>>, args: Vec<Value>, is_cache_hit: bool, universe: &mut Universe) -> Return {
         match invokable {
             Some(invokable) => {
                 
@@ -233,7 +233,7 @@ impl AstDispatchNode {
 }
 
 impl Evaluate for AstUnaryDispatch {
-    fn evaluate(&mut self, universe: &mut UniverseAST) -> Return {
+    fn evaluate(&mut self, universe: &mut Universe) -> Return {
         let receiver = propagate!(self.dispatch_node.receiver.evaluate(universe));
         let (invokable, is_cache_hit) = self.dispatch_node.lookup_invokable(&receiver, universe);
         self.dispatch_node.dispatch_or_dnu(invokable, vec![receiver], is_cache_hit, universe)
@@ -241,7 +241,7 @@ impl Evaluate for AstUnaryDispatch {
 }
 
 impl Evaluate for AstBinaryDispatch {
-    fn evaluate(&mut self, universe: &mut UniverseAST) -> Return {
+    fn evaluate(&mut self, universe: &mut Universe) -> Return {
         let receiver = propagate!(self.dispatch_node.receiver.evaluate(universe));
         let (invokable, is_cache_hit) = self.dispatch_node.lookup_invokable(&receiver, universe);
 
@@ -252,7 +252,7 @@ impl Evaluate for AstBinaryDispatch {
 }
 
 impl Evaluate for AstTernaryDispatch {
-    fn evaluate(&mut self, universe: &mut UniverseAST) -> Return {
+    fn evaluate(&mut self, universe: &mut Universe) -> Return {
         let receiver = propagate!(self.dispatch_node.receiver.evaluate(universe));
         let (invokable, is_cache_hit) = self.dispatch_node.lookup_invokable(&receiver, universe);
 
@@ -264,7 +264,7 @@ impl Evaluate for AstTernaryDispatch {
 }
 
 impl Evaluate for AstNAryDispatch {
-    fn evaluate(&mut self, universe: &mut UniverseAST) -> Return {
+    fn evaluate(&mut self, universe: &mut Universe) -> Return {
         let receiver = propagate!(self.dispatch_node.receiver.evaluate(universe));
         let (invokable, is_cache_hit) = self.dispatch_node.lookup_invokable(&receiver, universe);
 
@@ -285,7 +285,7 @@ impl Evaluate for AstNAryDispatch {
 }
 
 impl Evaluate for AstSuperMessage {
-    fn evaluate(&mut self, universe: &mut UniverseAST) -> Return {
+    fn evaluate(&mut self, universe: &mut Universe) -> Return {
         let invokable = self.super_class.to_obj().lookup_method(&self.signature);
         let receiver = universe.current_frame.get_self();
         let args = {
@@ -322,7 +322,7 @@ impl Evaluate for AstSuperMessage {
 
 
 impl Evaluate for AstBody {
-    fn evaluate(&mut self, universe: &mut UniverseAST) -> Return {
+    fn evaluate(&mut self, universe: &mut Universe) -> Return {
         let mut last_value = Value::NIL;
         for expr in &mut self.exprs {
             last_value = propagate!(expr.evaluate(universe));
@@ -332,7 +332,7 @@ impl Evaluate for AstBody {
 }
 
 impl Evaluate for AstMethodDef {
-    fn evaluate(&mut self, universe: &mut UniverseAST) -> Return {
+    fn evaluate(&mut self, universe: &mut Universe) -> Return {
         let current_frame = universe.current_frame;
 
         loop {
@@ -353,7 +353,7 @@ impl Evaluate for AstMethodDef {
 }
 
 impl Evaluate for GCRef<Block> {
-    fn evaluate(&mut self, universe: &mut UniverseAST) -> Return {
+    fn evaluate(&mut self, universe: &mut Universe) -> Return {
         self.to_obj().block.to_obj().body.evaluate(universe)
     }
 }

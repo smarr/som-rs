@@ -1,7 +1,7 @@
 use crate::convert::Primitive;
 use crate::invokable::Return;
 use crate::primitives::PrimitiveFn;
-use crate::universe::UniverseAST;
+use crate::universe::Universe;
 use crate::value::Value;
 use once_cell::sync::Lazy;
 use som_core::gc::GCRef;
@@ -13,7 +13,7 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> 
 pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> =
     Lazy::new(|| Box::new([]));
 
-fn as_string(universe: &mut UniverseAST, sym: Interned) -> Return {
+fn as_string(universe: &mut Universe, sym: Interned) -> Return {
     Return::Local(Value::String(GCRef::<String>::alloc(universe.lookup_symbol(sym).to_string(), &mut universe.gc_interface)))
 }
 

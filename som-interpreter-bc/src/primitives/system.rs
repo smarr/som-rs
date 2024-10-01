@@ -6,7 +6,7 @@ use crate::class::Class;
 use crate::convert::{Nil, Primitive, StringLike, System};
 use crate::interpreter::Interpreter;
 use crate::primitives::PrimitiveFn;
-use crate::universe::UniverseBC;
+use crate::universe::Universe;
 use crate::value::Value;
 use anyhow::{Context, Error};
 use once_cell::sync::Lazy;
@@ -36,7 +36,7 @@ pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> =
 
 fn load_file(
     _: &mut Interpreter,
-    universe: &mut UniverseBC,
+    universe: &mut Universe,
     _: Value,
     path: StringLike,
 ) -> Result<Option<GCRef<String>>, Error> {
@@ -56,7 +56,7 @@ fn load_file(
 
 fn print_string(
     _: &mut Interpreter,
-    universe: &mut UniverseBC,
+    universe: &mut Universe,
     _: Value,
     string: StringLike,
 ) -> Result<System, Error> {
@@ -75,7 +75,7 @@ fn print_string(
 
 fn print_newline(
     _: &mut Interpreter,
-    _: &mut UniverseBC,
+    _: &mut Universe,
     _: Value,
 ) -> Result<Nil, Error> {
     const _: &'static str = "System>>#printNewline";
@@ -87,7 +87,7 @@ fn print_newline(
 
 fn error_print(
     _: &mut Interpreter,
-    universe: &mut UniverseBC,
+    universe: &mut Universe,
     _: Value,
     string: StringLike,
 ) -> Result<System, Error> {
@@ -106,7 +106,7 @@ fn error_print(
 
 fn error_println(
     _: &mut Interpreter,
-    universe: &mut UniverseBC,
+    universe: &mut Universe,
     _: Value,
     string: StringLike,
 ) -> Result<System, Error> {
@@ -124,7 +124,7 @@ fn error_println(
 
 fn load(
     _: &mut Interpreter,
-    universe: &mut UniverseBC,
+    universe: &mut Universe,
     _: Value,
     class_name: Interned,
 ) -> Result<GCRef<Class>, Error> {
@@ -138,7 +138,7 @@ fn load(
 
 fn has_global(
     _: &mut Interpreter,
-    universe: &mut UniverseBC,
+    universe: &mut Universe,
     _: Value,
     name: Interned,
 ) -> Result<bool, Error> {
@@ -149,7 +149,7 @@ fn has_global(
 
 fn global(
     _: &mut Interpreter,
-    universe: &mut UniverseBC,
+    universe: &mut Universe,
     _: Value,
     name: Interned,
 ) -> Result<Option<Value>, Error> {
@@ -160,7 +160,7 @@ fn global(
 
 fn global_put(
     _: &mut Interpreter,
-    universe: &mut UniverseBC,
+    universe: &mut Universe,
     _: Value,
     name: Interned,
     value: Value,
@@ -170,7 +170,7 @@ fn global_put(
     Ok(universe.assign_global(name, value.clone()).map(|_| value))
 }
 
-fn exit(_: &mut Interpreter, _: &mut UniverseBC, status: i32) -> Result<(), Error> {
+fn exit(_: &mut Interpreter, _: &mut Universe, status: i32) -> Result<(), Error> {
     const _: &str = "System>>#exit:";
 
     std::process::exit(status);
@@ -178,7 +178,7 @@ fn exit(_: &mut Interpreter, _: &mut UniverseBC, status: i32) -> Result<(), Erro
 
 fn ticks(
     interpreter: &mut Interpreter,
-    _: &mut UniverseBC,
+    _: &mut Universe,
     _: Value,
 ) -> Result<i32, Error> {
     const SIGNATURE: &str = "System>>#ticks";
@@ -193,7 +193,7 @@ fn ticks(
 
 fn time(
     interpreter: &mut Interpreter,
-    _: &mut UniverseBC,
+    _: &mut Universe,
     _: Value,
 ) -> Result<i32, Error> {
     const SIGNATURE: &str = "System>>#time";
@@ -208,7 +208,7 @@ fn time(
 
 fn print_stack_trace(
     _: &mut Interpreter,
-    _: &mut UniverseBC,
+    _: &mut Universe,
     _: Value,
 ) -> Result<bool, Error> {
     const _: &str = "System>>#printStackTrace";
@@ -237,7 +237,7 @@ fn print_stack_trace(
 
 fn full_gc(
     _: &mut Interpreter,
-    universe: &mut UniverseBC,
+    universe: &mut Universe,
     _: Value,
 ) -> Result<bool, Error> {
     const _: &str = "System>>#fullGC";
