@@ -16,8 +16,6 @@ pub mod frame;
 pub mod hashcode;
 /// Facilities for manipulating class instances.
 pub mod instance;
-/// Facilities for string interning.
-pub mod interner;
 /// The interpreter's main data structure.
 pub mod interpreter;
 /// Facilities for manipulating class methods.

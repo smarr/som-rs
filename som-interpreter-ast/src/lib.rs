@@ -30,8 +30,6 @@ pub mod frame;
 pub mod hashcode;
 /// Facilities for manipulating class instances.
 pub mod instance;
-/// Facilities for string interning.
-pub mod interner;
 /// Facilities for invoking methods and/or primitives.
 pub mod invokable;
 /// Facilities for manipulating class methods.
@@ -40,12 +38,12 @@ pub mod method;
 pub mod primitives;
 /// The interpreter's main data structure.
 pub mod universe;
-/// Facilities for manipulating values.
-pub mod value;
 
 /// Specialized AST nodes
 pub mod specialized;
 mod convert;
+/// Facilities for manipulating values.
+pub mod value;
 // /// A strong and owning reference to an object.
 // pub type SOMRef<T> = Rc<RefCell<T>>;
 // /// A weak reference to an object.

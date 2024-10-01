@@ -3,10 +3,10 @@ use once_cell::sync::Lazy;
 use som_core::gc::GCRef;
 
 use crate::convert::Primitive;
-use crate::interner::Interned;
 use crate::interpreter::Interpreter;
 use crate::primitives::PrimitiveFn;
 use crate::universe::UniverseBC;
+use som_core::interner::Interned;
 
 pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> =
     Lazy::new(|| Box::new([("asString", self::as_string.into_func(), true)]));

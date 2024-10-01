@@ -4,7 +4,6 @@ use std::io::Write;
 
 use crate::class::Class;
 use crate::convert::{Nil, Primitive, StringLike, System};
-use crate::interner::Interned;
 use crate::interpreter::Interpreter;
 use crate::primitives::PrimitiveFn;
 use crate::universe::UniverseBC;
@@ -12,6 +11,7 @@ use crate::value::Value;
 use anyhow::{Context, Error};
 use once_cell::sync::Lazy;
 use som_core::gc::GCRef;
+use som_core::interner::Interned;
 
 pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| {
     Box::new([
@@ -214,25 +214,25 @@ fn print_stack_trace(
     const _: &str = "System>>#printStackTrace";
 
     todo!("no stack trace implemented. it's doable, though")
-/*    for frame in &interpreter.frames {
-        let frame_ref = frame.borrow();
-        let class = frame_ref.get_method_holder();
-        let method = frame_ref.get_method();
-        let bytecode_idx = frame_ref.bytecode_idx;
-        let block = match frame_ref.kind() {
-            FrameKind::Block { .. } => "$block",
-            _ => "",
-        };
-        println!(
-            "{}>>#{}{} @bi: {}",
-            class.borrow().name(),
-            method.signature(),
-            block,
-            bytecode_idx
-        );
-    }
+    /*    for frame in &interpreter.frames {
+            let frame_ref = frame.borrow();
+            let class = frame_ref.get_method_holder();
+            let method = frame_ref.get_method();
+            let bytecode_idx = frame_ref.bytecode_idx;
+            let block = match frame_ref.kind() {
+                FrameKind::Block { .. } => "$block",
+                _ => "",
+            };
+            println!(
+                "{}>>#{}{} @bi: {}",
+                class.borrow().name(),
+                method.signature(),
+                block,
+                bytecode_idx
+            );
+        }
 
-    Ok(true)*/
+        Ok(true)*/
 }
 
 fn full_gc(

@@ -3,7 +3,6 @@ use std::convert::{TryFrom, TryInto};
 use std::hash::Hasher;
 
 use crate::convert::{Primitive, StringLike};
-use crate::interner::Interned;
 use crate::interpreter::Interpreter;
 use crate::primitives::PrimitiveFn;
 use crate::universe::UniverseBC;
@@ -12,6 +11,7 @@ use anyhow::Error;
 use num_bigint::BigInt;
 use once_cell::sync::Lazy;
 use som_core::gc::GCRef;
+use som_core::interner::Interned;
 
 pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| {
     Box::new([

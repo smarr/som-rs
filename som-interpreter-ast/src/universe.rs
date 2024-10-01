@@ -7,11 +7,11 @@ use std::time::Instant;
 use crate::block::Block;
 use crate::class::Class;
 use crate::frame::{Frame, FrameAccess};
-use crate::interner::{Interned, Interner};
 use crate::invokable::{Invoke, Return};
 use crate::value::Value;
 use anyhow::{anyhow, Error};
 use som_core::gc::{GCInterface, GCRef};
+use som_core::interner::{Interned, Interner};
 
 /// The core classes of the SOM interpreter.
 ///

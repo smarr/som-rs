@@ -9,7 +9,6 @@ use anyhow::{bail, Context, Error};
 use crate::block::Block;
 use crate::class::Class;
 use crate::instance::Instance;
-use crate::interner::Interned;
 use crate::invokable::Return;
 use crate::method::Method;
 use crate::primitives::PrimitiveFn;
@@ -17,6 +16,7 @@ use crate::universe::UniverseAST;
 use crate::value::Value;
 use num_bigint::BigInt;
 use som_core::gc::{GCInterface, GCRef};
+use som_core::interner::Interned;
 
 pub trait IntoValue {
     fn into_value(&self, gc_interface: &mut GCInterface) -> Value;

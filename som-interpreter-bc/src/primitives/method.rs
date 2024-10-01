@@ -1,6 +1,5 @@
 use crate::class::Class;
 use crate::convert::Primitive;
-use crate::interner::Interned;
 use crate::interpreter::Interpreter;
 use crate::method::{Invoke, Method};
 use crate::primitives::PrimitiveFn;
@@ -9,6 +8,7 @@ use crate::value::Value;
 use anyhow::Error;
 use once_cell::sync::Lazy;
 use som_core::gc::GCRef;
+use som_core::interner::Interned;
 
 pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| {
     Box::new([

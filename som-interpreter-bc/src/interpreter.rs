@@ -3,15 +3,15 @@ use crate::class::Class;
 use crate::compiler::Literal;
 use crate::frame::{Frame, FrameAccess};
 use crate::instance::InstanceAccess;
-use crate::interner::Interned;
 use crate::method::{Method, MethodKind};
 use crate::universe::UniverseBC;
 use crate::value::Value;
+use anyhow::Context;
 use num_bigint::BigInt;
 use som_core::bytecode::Bytecode;
 use som_core::gc::{GCInterface, GCRef};
+use som_core::interner::Interned;
 use std::time::Instant;
-use anyhow::Context;
 
 macro_rules! send {
     ($interp:expr, $universe:expr, $frame:expr, $lit_idx:expr, $nb_params:expr) => {{
@@ -79,7 +79,7 @@ impl Interpreter {
 
     pub fn push_method_frame(&mut self, method: GCRef<Method>, args: Vec<Value>, mutator: &mut GCInterface) -> GCRef<Frame> {
         let frame_ptr = Frame::alloc_from_method(method, args, self.current_frame, mutator);
-        
+
         self.bytecode_idx = 0;
         self.current_bytecodes = frame_ptr.to_obj().bytecodes;
         self.current_frame = frame_ptr;
@@ -233,7 +233,7 @@ impl Interpreter {
                         Literal::Symbol(sym) => sym,
                         _ => panic!("Global is not a symbol."),
                     };
-                   if let Some(value) = universe.lookup_global(symbol) {
+                    if let Some(value) = universe.lookup_global(symbol) {
                         self.stack.push(value);
                     } else {
                         let self_value = frame.get_self();
@@ -254,7 +254,7 @@ impl Interpreter {
                 }
                 Bytecode::Pop => {
                     match cfg!(debug_assertions) {
-                        true => { self.stack.pop(); },
+                        true => { self.stack.pop(); }
                         false => unsafe { self.stack.set_len(self.stack.len() - 1); }
                     };
                 }
@@ -281,7 +281,6 @@ impl Interpreter {
                     } else {
                         panic!("trying to assign a field to a {:?}?", &self_val)
                     }
-
                 }
                 Bytecode::Send1(idx) => {
                     send! {self, universe, &frame, idx, Some(0)} // Send1 => receiver + 0 args, so we pass Some(0)
@@ -335,7 +334,7 @@ impl Interpreter {
 
                         loop {
                             if current_frame == method_frame {
-                                break Some(count)
+                                break Some(count);
                             } else if current_frame.is_empty() {
                                 break None
                             } else {
@@ -519,7 +518,7 @@ impl Interpreter {
                 Literal::BigInteger(val) => {
                     let ptr_big_int = GCRef::<BigInt>::alloc(val, gc_interface);
                     Value::BigInteger(ptr_big_int)
-                },
+                }
                 Literal::Array(val) => {
                     let arr = val
                         .into_iter()

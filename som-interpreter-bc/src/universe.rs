@@ -7,11 +7,11 @@ use crate::block::Block;
 use crate::class::Class;
 use crate::compiler;
 use crate::frame::Frame;
-use crate::interner::{Interned, Interner};
 use crate::interpreter::Interpreter;
 use crate::value::Value;
 use anyhow::{anyhow, Error};
 use som_core::gc::{GCInterface, GCRef};
+use som_core::interner::{Interned, Interner};
 
 /// The core classes of the SOM interpreter.
 ///
@@ -76,7 +76,7 @@ pub struct UniverseBC {
     /// The interpreter's core classes.
     pub core: CoreClasses,
     /// GC interface for GC operations
-    pub gc_interface: GCInterface
+    pub gc_interface: GCInterface,
 }
 
 impl UniverseBC {
@@ -208,7 +208,7 @@ impl UniverseBC {
                 true_class,
                 false_class,
             },
-            gc_interface
+            gc_interface,
         })
     }
 
@@ -247,8 +247,8 @@ impl UniverseBC {
 
             let super_class = if let Some(ref super_class) = defn.super_class {
                 let symbol = self.intern_symbol(super_class.as_str());
-                match self.lookup_global(symbol) { 
-                    v if v.is_some() && v.unwrap().is_class() => {v.unwrap().as_class().unwrap()},
+                match self.lookup_global(symbol) {
+                    v if v.is_some() && v.unwrap().is_class() => { v.unwrap().as_class().unwrap() }
                     _ => self.load_class(super_class)?,
                 }
             } else {
@@ -273,7 +273,7 @@ impl UniverseBC {
         interner: &mut Interner,
         classpath: &[impl AsRef<Path>],
         class_name: impl Into<String>,
-        allocator: &mut GCInterface
+        allocator: &mut GCInterface,
     ) -> Result<GCRef<Class>, Error> {
         let class_name = class_name.into();
         for path in classpath {
@@ -438,11 +438,10 @@ impl UniverseBC {
         value: Value,
         symbol: Interned,
         args: Vec<Value>,
-        
     ) -> Option<()> {
         // dbg!(&interpreter.stack);
         // panic!("does not understand: {:?}, called on {:?}", self.interner.lookup(symbol), &value);
-        
+
         let method_name = self.intern_symbol("doesNotUnderstand:arguments:");
         let method = value.lookup_method(self, method_name)?;
 
@@ -473,7 +472,7 @@ impl UniverseBC {
     pub fn initialize(&mut self, args: Vec<Value>) -> Option<Interpreter> {
         let method_name = self.interner.intern("initialize:");
         let method = Value::SYSTEM.lookup_method(self, method_name)?;
-        
+
         let args_vec = GCRef::<Vec<Value>>::alloc(args, &mut self.gc_interface);
         let frame_ptr = Frame::alloc_from_method(method,
                                                  vec![Value::SYSTEM, Value::Array(args_vec)],

@@ -1,15 +1,15 @@
+use crate::class::Class;
 use crate::convert::Primitive;
 use crate::invokable::{Invoke, Return};
 use crate::primitives::PrimitiveFn;
 use crate::universe::UniverseAST;
 use crate::value::Value;
 use once_cell::sync::Lazy;
+use som_core::gc::GCRef;
+use som_core::interner::Interned;
 use std::collections::hash_map::DefaultHasher;
 use std::convert::TryFrom;
 use std::hash::{Hash, Hasher};
-use som_core::gc::GCRef;
-use crate::class::Class;
-use crate::interner::Interned;
 
 pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| {
     Box::new([

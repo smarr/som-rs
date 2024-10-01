@@ -4,12 +4,12 @@ use std::mem::size_of;
 
 use crate::block::Block;
 use crate::class::Class;
-use crate::instance::{Instance};
-use crate::interner::Interned;
+use crate::instance::Instance;
 use crate::method::Method;
+use crate::universe::UniverseAST;
 use num_bigint::BigInt;
 use som_core::gc::GCRef;
-use crate::universe::UniverseAST;
+use som_core::interner::Interned;
 
 static_assertions::const_assert_eq!(size_of::<f64>(), 8);
 static_assertions::assert_eq_size!(f64, u64, *const ());

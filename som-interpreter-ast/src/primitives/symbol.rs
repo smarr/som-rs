@@ -1,11 +1,11 @@
-use once_cell::sync::Lazy;
+use crate::convert::Primitive;
 use crate::invokable::Return;
 use crate::primitives::PrimitiveFn;
 use crate::universe::UniverseAST;
 use crate::value::Value;
+use once_cell::sync::Lazy;
 use som_core::gc::GCRef;
-use crate::convert::Primitive;
-use crate::interner::Interned;
+use som_core::interner::Interned;
 
 pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> =
     Lazy::new(|| Box::new([("asString", self::as_string.into_func(), true)]));

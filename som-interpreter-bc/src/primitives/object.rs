@@ -4,7 +4,6 @@ use std::hash::{Hash, Hasher};
 
 use crate::class::Class;
 use crate::convert::Primitive;
-use crate::interner::Interned;
 use crate::interpreter::Interpreter;
 use crate::method::Invoke;
 use crate::primitives::PrimitiveFn;
@@ -13,6 +12,7 @@ use crate::value::Value;
 use anyhow::{Context, Error};
 use once_cell::sync::Lazy;
 use som_core::gc::GCRef;
+use som_core::interner::Interned;
 
 pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| {
     Box::new([
@@ -192,7 +192,7 @@ fn perform_with_arguments_in_super_class(
             });
     };
 
-   invokable.invoke(interpreter, universe, receiver, arguments.to_obj().clone());
+    invokable.invoke(interpreter, universe, receiver, arguments.to_obj().clone());
     Ok(())
 }
 
@@ -220,7 +220,6 @@ fn inst_var_at(
     //
     // interpreter.stack.push(local);
 
-
     const _: &'static str = "Object>>#instVarAt:";
 
     let index = usize::try_from(index.saturating_sub(1))?;
@@ -238,9 +237,9 @@ fn inst_var_at_put(
     const _: &'static str = "Object>>#instVarAt:put:";
 
     let index = usize::try_from(index.saturating_sub(1))?;
-    
+
     receiver.assign_local(index, value.clone());
-    
+
     Ok(Some(value))
 }
 

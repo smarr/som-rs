@@ -3,12 +3,12 @@ use crate::invokable::Return;
 use crate::primitives::PrimitiveFn;
 use crate::universe::UniverseAST;
 use crate::value::Value;
+use anyhow::Context;
 use once_cell::sync::Lazy;
 use som_core::gc::GCRef;
+use som_core::interner::Interned;
 use std::convert::TryFrom;
 use std::fs;
-use anyhow::Context;
-use crate::interner::Interned;
 
 pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| {
     Box::new([

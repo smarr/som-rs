@@ -11,7 +11,6 @@ use crate::block::{Block, BlockInfo};
 use crate::class::Class;
 #[cfg(not(feature = "inlining-disabled"))]
 use crate::inliner::PrimMessageInliner;
-use crate::interner::{Interned, Interner};
 use crate::method::{Method, MethodEnv, MethodKind};
 use crate::primitives;
 use crate::value::Value;
@@ -21,6 +20,7 @@ use som_core::ast::BlockDebugInfo;
 use som_core::ast::{Expression, MethodBody};
 use som_core::bytecode::Bytecode;
 use som_core::gc::{GCInterface, GCRef};
+use som_core::interner::{Interned, Interner};
 
 #[derive(Debug, Clone)]
 pub enum Literal {
