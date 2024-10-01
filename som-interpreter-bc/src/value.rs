@@ -117,20 +117,23 @@ const IS_CELL_PATTERN: u64 = CELL_BASE_TAG << TAG_SHIFT;
 // 0111111111111xxx yyy... -> xxx = non-pointer type, yyy = value
 // 1111111111111xxx yyy... -> xxx = pointer type,     yyy = pointer value
 
+pub type Value = NaNBoxedVal;
+// pub type Value = ValueEnum;
+
 /// Represents an SOM value.
 #[derive(Clone, Copy, Eq, Hash)]
-pub struct Value {
+pub struct NaNBoxedVal {
     /// The 64-bit value that is used to store SOM values using NaN-boxing.
     encoded: u64,
 }
 
-impl Default for Value {
+impl Default for NaNBoxedVal {
     fn default() -> Self {
         Self::NIL
     }
 }
 
-impl Value {
+impl NaNBoxedVal {
     /// Returns the tag bits of the value.
     #[inline(always)]
     pub fn tag(self) -> u64 {
@@ -236,7 +239,7 @@ impl Value {
     }
     /// Returns this value as an array, if such is its type.
     #[inline(always)]
-    pub fn as_array(self) -> Option<GCRef<Vec<Value>>> {
+    pub fn as_array(self) -> Option<GCRef<Vec<NaNBoxedVal>>> {
         self.is_array().then(|| self.extract_gc_cell())
     }
     /// Returns this value as a block, if such is its type.
@@ -563,71 +566,71 @@ impl Value {
 
 // TODO: remove all these. it's for backwards compatibility (i.e.: i don't want to do massive amounts of refactoring)
 #[allow(non_snake_case)]
-impl Value {
+impl NaNBoxedVal {
     #[inline(always)]
     pub fn Boolean(value: bool) -> Self {
-        Value::new_boolean(value)
+        NaNBoxedVal::new_boolean(value)
     }
 
     #[inline(always)]
     pub fn Integer(value: i32) -> Self {
-        Value::new_integer(value)
+        NaNBoxedVal::new_integer(value)
     }
 
     #[inline(always)]
     pub fn Double(value: f64) -> Self {
-        Value::new_double(value)
+        NaNBoxedVal::new_double(value)
     }
 
     #[inline(always)]
     pub fn Symbol(value: Interned) -> Self {
-        Value::new_symbol(value)
+        NaNBoxedVal::new_symbol(value)
     }
 
     #[inline(always)]
     pub fn BigInteger(value: GCRef<BigInt>) -> Self {
-        Value::new_big_integer(value)
+        NaNBoxedVal::new_big_integer(value)
     }
 
     #[inline(always)]
     pub fn String(value: GCRef<String>) -> Self {
-        Value::new_string(value)
+        NaNBoxedVal::new_string(value)
     }
 
     #[inline(always)]
     pub fn Array(value: GCRef<Vec<Self>>) -> Self {
-        Value::new_array(value)
+        NaNBoxedVal::new_array(value)
     }
 
     #[inline(always)]
     pub fn Block(value: GCRef<Block>) -> Self {
-        Value::new_block(value)
+        NaNBoxedVal::new_block(value)
     }
 
     #[inline(always)]
     pub fn Class(value: GCRef<Class>) -> Self {
-        Value::new_class(value)
+        NaNBoxedVal::new_class(value)
     }
 
     #[inline(always)]
     pub fn Instance(value: GCRef<Instance>) -> Self {
-        Value::new_instance(value)
+        NaNBoxedVal::new_instance(value)
     }
 
     #[inline(always)]
     pub fn Invokable(value: GCRef<Method>) -> Self {
-        Value::new_invokable(value)
+        NaNBoxedVal::new_invokable(value)
     }
 }
 
-impl PartialEq for Value {
+impl PartialEq for NaNBoxedVal {
     fn eq(&self, other: &Self) -> bool {
         ValueEnum::from(*self) == ValueEnum::from(*other)
     }
 }
 
-impl From<Value> for ValueEnum {
-    fn from(value: Value) -> Self {
+impl From<NaNBoxedVal> for ValueEnum {
+    fn from(value: NaNBoxedVal) -> Self {
         if let Some(value) = value.as_double() {
             Self::Double(value)
         } else if value.is_nil() {
@@ -660,7 +663,7 @@ impl From<Value> for ValueEnum {
     }
 }
 
-impl From<ValueEnum> for Value {
+impl From<ValueEnum> for NaNBoxedVal {
     fn from(value: ValueEnum) -> Self {
         match value {
             ValueEnum::Nil => Self::NIL,
@@ -680,7 +683,7 @@ impl From<ValueEnum> for Value {
     }
 }
 
-impl fmt::Debug for Value {
+impl fmt::Debug for NaNBoxedVal {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         ValueEnum::from(*self).fmt(f)
     }
@@ -706,7 +709,7 @@ pub enum ValueEnum {
     /// A string value.
     String(GCRef<String>),
     /// An array of values.
-    Array(GCRef<Vec<Value>>),
+    Array(GCRef<Vec<NaNBoxedVal>>),
     /// A block value, ready to be evaluated.
     Block(GCRef<Block>),
     /// A generic (non-primitive) class instance.
