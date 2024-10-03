@@ -377,51 +377,49 @@ impl Interpreter {
                 Bytecode::JumpOnTrueTopNil(offset) => {
                     let condition_result = self.stack.last()?;
 
-                    match condition_result.as_boolean() {
-                        Some(true) => {
-                            self.bytecode_idx += offset - 1;
-                            *self.stack.last_mut()? = Value::NIL;
-                        }
-                        Some(false) => {
-                            self.stack.pop();
-                        }
-                        _ => panic!("JumpOnTrueTopNil condition did not evaluate to boolean (was {:?})", condition_result),
+                    if condition_result.is_boolean_true() {
+                        self.bytecode_idx += offset - 1;
+                        *self.stack.last_mut()? = Value::NIL;
+                    } else if condition_result.is_boolean_false() {
+                        self.stack.pop();
+                    } else {
+                        panic!("JumpOnTrueTopNil condition did not evaluate to boolean (was {:?})", condition_result)
                     }
                 }
                 Bytecode::JumpOnFalseTopNil(offset) => {
                     let condition_result = self.stack.last()?;
 
-                    match condition_result.as_boolean() {
-                        Some(false) => {
-                            self.bytecode_idx += offset - 1;
-                            *self.stack.last_mut()? = Value::NIL;
-                        }
-                        Some(true) => {
-                            self.stack.pop();
-                        }
-                        _ => panic!("JumpOnFalseTopNil condition did not evaluate to boolean (was {:?})", condition_result),
+                    if condition_result.is_boolean_true() {
+                        self.stack.pop();
+                    } else if condition_result.is_boolean_false(){
+                        self.bytecode_idx += offset - 1;
+                        *self.stack.last_mut()? = Value::NIL;
+                    } else {
+                        panic!("JumpOnFalseTopNil condition did not evaluate to boolean (was {:?})", condition_result)
                     }
                 }
                 Bytecode::JumpOnTruePop(offset) => {
                     let condition_result = self.stack.pop()?;
-
-                    match condition_result.as_boolean() {
-                        Some(true) => {
-                            self.bytecode_idx += offset - 1;
-                        }
-                        Some(false) => {}
-                        _ => panic!("JumpOnTruePop condition did not evaluate to boolean (was {:?})", condition_result),
+                    
+                    if condition_result.is_boolean_true() {
+                        self.bytecode_idx += offset - 1;
+                    } else if condition_result.is_boolean_false() {
+                        // pass
+                    } 
+                    else {
+                        panic!("JumpOnTruePop condition did not evaluate to boolean (was {:?})", condition_result)
                     }
                 }
                 Bytecode::JumpOnFalsePop(offset) => {
                     let condition_result = self.stack.pop()?;
 
-                    match condition_result.as_boolean() {
-                        Some(false) => {
-                            self.bytecode_idx += offset - 1;
-                        }
-                        Some(true) => {}
-                        _ => panic!("JumpOnFalsePop condition did not evaluate to boolean (was {:?})", condition_result),
+                    if condition_result.is_boolean_false() {
+                        self.bytecode_idx += offset - 1;
+                    } else if condition_result.is_boolean_true() {
+                        // pass
+                    }
+                    else {
+                        panic!("JumpOnFalsePop condition did not evaluate to boolean (was {:?})", condition_result)
                     }
                 }
             }

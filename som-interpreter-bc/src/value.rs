@@ -211,6 +211,19 @@ impl NaNBoxedVal {
     pub fn is_boolean(self) -> bool {
         self.tag() == BOOLEAN_TAG
     }
+
+    /// Returns whether or not it's a boolean corresponding to true. NB: does NOT check if the type actually is a boolean.
+    #[inline(always)]
+    pub fn is_boolean_true(self) -> bool {
+        self.payload() == 1
+    }
+
+    /// Returns whether or not it's a boolean corresponding to false. NB: does NOT check if the type actually is a boolean.
+    #[inline(always)]
+    pub fn is_boolean_false(self) -> bool {
+        self.payload() == 0
+    }
+    
     /// Returns whether this value is a symbol.
     #[inline(always)]
     pub fn is_symbol(self) -> bool {

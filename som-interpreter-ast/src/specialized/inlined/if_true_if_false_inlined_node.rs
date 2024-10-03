@@ -5,7 +5,6 @@ use crate::ast::{AstBody, AstExpression};
 use crate::evaluate::Evaluate;
 use crate::invokable::Return;
 use crate::universe::Universe;
-use crate::value::Value;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct IfTrueIfFalseInlinedNode {
@@ -30,7 +29,8 @@ impl Display for IfTrueIfFalseInlinedNode {
 impl Evaluate for IfTrueIfFalseInlinedNode {
     fn evaluate(&mut self, universe: &mut Universe) -> Return {
         let cond_result = propagate!(self.cond_expr.evaluate(universe));
-        if cond_result == Value::Boolean(self.expected_bool) {
+        debug_assert!(cond_result.is_boolean());
+        if cond_result.as_boolean_unchecked() == self.expected_bool {
             self.body_1_instrs.evaluate(universe)
         } else {
             self.body_2_instrs.evaluate(universe)

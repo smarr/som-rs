@@ -25,14 +25,11 @@ impl Display for OrInlinedNode {
 impl Evaluate for OrInlinedNode {
     fn evaluate(&mut self, universe: &mut Universe) -> Return {
         let first_result = propagate!(self.first.evaluate(universe));
-        match first_result.as_boolean() {
-            Some(b) => {
-                match b {
-                    true => Return::Local(first_result),
-                    false => self.second.evaluate(universe),
-                }
-            },
-            _ => panic!("or:'s first part didn't evaluate to a boolean?")
+        debug_assert!(first_result.is_boolean());
+        if first_result.is_boolean_true() {
+            Return::Local(first_result)
+        } else {
+            self.second.evaluate(universe)
         }
     }
 }

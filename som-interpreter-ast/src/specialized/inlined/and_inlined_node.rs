@@ -25,19 +25,14 @@ impl Display for AndInlinedNode {
 impl Evaluate for AndInlinedNode {
     fn evaluate(&mut self, universe: &mut Universe) -> Return {
         let first_result = propagate!(self.first.evaluate(universe));
-        match first_result.as_boolean() {
-            Some(b) => {
-                match b {
-                    false => Return::Local(first_result),
-                    true => {
-                        match self.second.evaluate(universe) {
-                            Return::Local(a) if a.is_boolean() => Return::Local(a),
-                            invalid => panic!("and:'s second part didn't evaluate to a returnlocal + boolean, but {:?}?", invalid)
-                        }
-                    }
-                }
+        debug_assert!(first_result.is_boolean());
+        if first_result.is_boolean_false() {
+            Return::Local(first_result)
+        } else {
+            match self.second.evaluate(universe) {
+                Return::Local(a) if a.is_boolean() => Return::Local(a),
+                invalid => panic!("and:'s second part didn't evaluate to a returnlocal + boolean, but {:?}?", invalid)
             }
-            _ => panic!("and:'s first part didn't evaluate to a boolean?")
         }
     }
 }

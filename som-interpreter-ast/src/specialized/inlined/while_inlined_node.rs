@@ -30,16 +30,12 @@ impl Evaluate for WhileInlinedNode {
     fn evaluate(&mut self, universe: &mut Universe) -> Return {
         loop {
             let cond_result = propagate!(self.cond_instrs.evaluate(universe));
-            match cond_result.as_boolean() {
-                Some(b) => {
-                    if b != self.expected_bool {
-                        break;
-                    } else {
-                        propagate!(self.body_instrs.evaluate(universe));                        
-                    }
-                },
-                val => panic!("whileinlined condition did not evaluate to boolean but {:?}", val)
-            };
+            debug_assert!(cond_result.is_boolean());
+            if cond_result.as_boolean_unchecked() != self.expected_bool {
+                break;
+            } else {
+                propagate!(self.body_instrs.evaluate(universe));
+            }
         }
         Return::Local(Value::NIL)
     }
