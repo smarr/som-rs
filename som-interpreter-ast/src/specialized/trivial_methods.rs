@@ -2,12 +2,12 @@ use crate::evaluate::Evaluate;
 use crate::invokable::{Invoke, Return};
 use crate::universe::Universe;
 use crate::value::Value;
-use som_core::ast::Literal;
+use crate::ast::AstLiteral;
 use crate::frame::FrameAccess;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct TrivialLiteralMethod {
-    pub(crate) literal: Literal,
+    pub(crate) literal: AstLiteral,
 }
 
 #[derive(Debug, Clone, PartialEq)]

@@ -1,4 +1,5 @@
-use crate::ast::{AstBinaryDispatch, AstBlock, AstBody, AstDispatchNode, AstExpression, AstMethodDef, AstNAryDispatch, AstSuperMessage, AstTernaryDispatch, AstUnaryDispatch};
+use num_bigint::BigInt;
+use crate::ast::{AstBinaryDispatch, AstBlock, AstBody, AstDispatchNode, AstExpression, AstLiteral, AstMethodDef, AstNAryDispatch, AstSuperMessage, AstTernaryDispatch, AstUnaryDispatch};
 use crate::class::Class;
 use crate::inliner::PrimMessageInliner;
 use crate::method::{MethodKind, MethodKindSpecialized};
@@ -96,7 +97,7 @@ impl<'a> AstMethodCompilerCtxt<'a> {
             AstExpression::LocalExit(expr) => {
                 match expr.as_ref() {
                     AstExpression::Literal(lit) => {
-                        Some(MethodKind::TrivialLiteral(TrivialLiteralMethod { literal: *lit.clone() })) // todo avoid clone by moving code to previous function tbh
+                        Some(MethodKind::TrivialLiteral(TrivialLiteralMethod { literal: lit.clone() })) // todo avoid clone by moving code to previous function tbh
                     }
                     AstExpression::GlobalRead(global) => {
                         Some(MethodKind::TrivialGlobal(TrivialGlobalMethod { global_name: *global.clone() }))
@@ -161,12 +162,12 @@ impl<'a> AstMethodCompilerCtxt<'a> {
                     // this is to handle a weird corner case where "-2147483648" is considered to be a bigint by the lexer and then parser, when it's in fact just barely in i32 range
                     Literal::BigInteger(big_int_str) => {
                         match big_int_str.parse::<i32>() {
-                            Ok(x) => AstExpression::Literal(Box::new(Literal::Integer(x))),
-                            _ => AstExpression::Literal(Box::new(a))
+                            Ok(x) => AstExpression::Literal(AstLiteral::Integer(x)),
+                            _ => AstExpression::Literal(self.parse_literal(&a))
                         }
                         
                     },
-                    _ => AstExpression::Literal(Box::new(a))
+                    _ => AstExpression::Literal(self.parse_literal(&a))
                 }
             },
             Expression::Block(a) => AstExpression::Block(GCRef::<AstBlock>::alloc(self.parse_block(&a), self.gc_interface))
@@ -294,6 +295,30 @@ impl<'a> AstMethodCompilerCtxt<'a> {
         match self.class.unwrap().to_obj().get_field_offset_by_name(&name) {
             Some(offset) => AstExpression::FieldWrite(offset as u8, Box::new(self.parse_expression(expr))),
             _ => panic!("can't turn the GlobalWrite `{}` into a FieldWrite, and GlobalWrite shouldn't exist at runtime", name)
+        }
+    }
+
+    pub fn parse_literal(&mut self, lit: &ast::Literal) -> AstLiteral {
+        match lit {
+            Literal::String(str) => {
+                let str_ptr = GCRef::<String>::alloc(str.clone(), self.gc_interface);
+                AstLiteral::String(str_ptr)
+            }
+            Literal::Symbol(str) => {
+                let str_ptr = GCRef::<String>::alloc(str.clone(), self.gc_interface);
+                AstLiteral::Symbol(str_ptr)
+            }
+            Literal::Double(double) => AstLiteral::Double(*double),
+            Literal::Integer(int) => AstLiteral::Integer(*int),
+            Literal::BigInteger(bigint_str) => {
+                let bigint_ptr = GCRef::<BigInt>::alloc(bigint_str.parse().unwrap(), self.gc_interface);
+                AstLiteral::BigInteger(bigint_ptr)
+            }
+            Literal::Array(arr) => {
+                let arr = arr.iter().map(|lit| self.parse_literal(lit)).collect();
+                let arr_ptr = GCRef::<Vec<AstLiteral>>::alloc(arr, self.gc_interface);
+                AstLiteral::Array(arr_ptr)
+            }
         }
     }
 }

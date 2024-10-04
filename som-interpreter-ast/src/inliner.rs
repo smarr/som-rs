@@ -101,7 +101,7 @@ impl PrimMessageInliner for AstMethodCompilerCtxt<'_> {
                 }
             },
             Expression::Message(msg) => self.parse_message_with_inlining(msg),
-            Expression::Literal(lit) => AstExpression::Literal(Box::new(lit.clone())),
+            Expression::Literal(lit) => AstExpression::Literal(self.parse_literal(lit)),
         };
 
         expr

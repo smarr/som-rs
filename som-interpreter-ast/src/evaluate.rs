@@ -1,12 +1,10 @@
-use crate::ast::{AstBinaryDispatch, AstBlock, AstBody, AstDispatchNode, AstExpression, AstMethodDef, AstNAryDispatch, AstSuperMessage, AstTerm, AstTernaryDispatch, AstUnaryDispatch, InlinedNode};
+use crate::ast::{AstBinaryDispatch, AstBlock, AstBody, AstDispatchNode, AstExpression, AstLiteral, AstMethodDef, AstNAryDispatch, AstSuperMessage, AstTerm, AstTernaryDispatch, AstUnaryDispatch, InlinedNode};
 use crate::block::Block;
 use crate::frame::{Frame, FrameAccess};
 use crate::invokable::{Invoke, Return};
 use crate::method::Method;
 use crate::universe::Universe;
 use crate::value::Value;
-use num_bigint::BigInt;
-use som_core::ast;
 use som_core::gc::GCRef;
 
 /// The trait for evaluating AST nodes.
@@ -135,25 +133,22 @@ impl Evaluate for AstExpression {
     }
 }
 
-impl Evaluate for ast::Literal {
+impl Evaluate for AstLiteral {
     fn evaluate(&mut self, universe: &mut Universe) -> Return {
         match self {
-            Self::Array(array) => {
-                let mut output = Vec::with_capacity(array.len());
-                for literal in array {
+            Self::Array(array) => { // todo: couldn't we precompute those astliterals, really?
+                let mut output = Vec::with_capacity(array.to_obj().len());
+                for literal in array.to_obj() {
                     let value = propagate!(literal.evaluate(universe));
                     output.push(value);
                 }
                 Return::Local(Value::Array(GCRef::<Vec<Value>>::alloc(output, &mut universe.gc_interface)))
             }
             Self::Integer(int) => Return::Local(Value::Integer(*int)),
-            Self::BigInteger(int) => match int.parse() {
-                Ok(value) => Return::Local(Value::BigInteger(GCRef::<BigInt>::alloc(value, &mut universe.gc_interface))),
-                Err(err) => Return::Exception(err.to_string()),
-            },
+            Self::BigInteger(bigint) => Return::Local(Value::BigInteger(*bigint)),
             Self::Double(double) => Return::Local(Value::Double(*double)),
-            Self::Symbol(sym) => Return::Local(Value::Symbol(universe.intern_symbol(sym))),
-            Self::String(string) => Return::Local(Value::String(GCRef::<String>::alloc(string.clone(), &mut universe.gc_interface))),
+            Self::Symbol(sym) => Return::Local(Value::Symbol(universe.intern_symbol(sym.to_obj()))),
+            Self::String(string) => Return::Local(Value::String(*string)),
         }
     }
 }

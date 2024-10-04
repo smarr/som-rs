@@ -1,6 +1,7 @@
 use std::fmt::{Debug, Display, Formatter};
 use indenter::indented;
 use std::fmt::Write;
+use num_bigint::BigInt;
 use som_core::gc::GCRef;
 use crate::class::Class;
 use crate::method::Method;
@@ -42,11 +43,27 @@ pub enum AstExpression {
     SuperMessage(Box<AstSuperMessage>),
     LocalExit(Box<AstExpression>),
     NonLocalExit(Box<AstExpression>, u8),
-    Literal(Box<som_core::ast::Literal>),
+    Literal(AstLiteral),
     Block(GCRef<AstBlock>),
     /// Call to an inlined method node (no dispatching like a message would)
     InlinedCall(Box<InlinedNode>),
     // TODO: we might want a SEQUENCENODE of some kind. instead of relying on AstBody at all, actually.
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum AstLiteral {
+    /// Represents a symbol literal (eg. `#foo`).
+    Symbol(GCRef<String>),
+    /// Represents a string literal (eg. `'hello'`).
+    String(GCRef<String>),
+    /// Represents a decimal number literal (eg. `3.14`).
+    Double(f64),
+    /// Represents a integer number literal (eg. `42`).
+    Integer(i32),
+    /// Represents a big integer (bigger than a 64-bit signed integer can represent).
+    BigInteger(GCRef<BigInt>),
+    /// Represents an array literal (eg. `$(1 2 3)`)
+    Array(GCRef<Vec<AstLiteral>>),
 }
 
 #[derive(Debug, Clone, PartialEq)]
