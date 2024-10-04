@@ -7,7 +7,6 @@ use crate::method::{Method, MethodKind};
 use crate::universe::Universe;
 use crate::value::Value;
 use anyhow::Context;
-use num_bigint::BigInt;
 use som_core::bytecode::Bytecode;
 use som_core::gc::{GCInterface, GCRef};
 use som_core::interner::Interned;
@@ -514,14 +513,14 @@ impl Interpreter {
                 Literal::Double(val) => Value::Double(val),
                 Literal::Integer(val) => Value::Integer(val),
                 Literal::BigInteger(val) => {
-                    let ptr_big_int = GCRef::<BigInt>::alloc(val, gc_interface);
-                    Value::BigInteger(ptr_big_int)
+                    Value::BigInteger(val)
                 }
                 Literal::Array(val) => {
                     let arr = val
+                        .to_obj()
                         .into_iter()
                         .map(|idx| {
-                            let lit = frame.to_obj().lookup_constant(idx as usize);
+                            let lit = frame.to_obj().lookup_constant(*idx as usize);
                             convert_literal(frame, lit, gc_interface)
                         })
                         .collect::<Vec<_>>();

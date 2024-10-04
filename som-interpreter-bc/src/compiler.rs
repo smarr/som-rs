@@ -28,8 +28,8 @@ pub enum Literal {
     String(GCRef<String>),
     Double(f64),
     Integer(i32),
-    BigInteger(BigInt),
-    Array(Vec<u8>),
+    BigInteger(GCRef<BigInt>),
+    Array(GCRef<Vec<u8>>),
     Block(GCRef<Block>),
 }
 
@@ -71,11 +71,11 @@ impl Hash for Literal {
             }
             Literal::BigInteger(val) => {
                 state.write(b"bigint#");
-                val.hash(state);
+                val.to_obj().hash(state);
             }
             Literal::Array(val) => {
                 state.write(b"array#");
-                val.hash(state);
+                val.to_obj().hash(state);
             }
             Literal::Block(val) => {
                 state.write(b"blk");
@@ -586,7 +586,10 @@ impl MethodCodegen for ast::Expression {
                         },
                         ast::Literal::Double(val) => Literal::Double(*val),
                         ast::Literal::Integer(val) => Literal::Integer(*val),
-                        ast::Literal::BigInteger(val) => Literal::BigInteger(val.parse().unwrap()),
+                        ast::Literal::BigInteger(val) => {
+                            let bigint = val.parse().unwrap();
+                            Literal::BigInteger(GCRef::<BigInt>::alloc(bigint, mutator))
+                        }
                         ast::Literal::Array(val) => {
                             let literals = val
                                 .iter()
@@ -595,7 +598,8 @@ impl MethodCodegen for ast::Expression {
                                     ctxt.push_literal(literal) as u8
                                 })
                                 .collect();
-                            Literal::Array(literals)
+                            let literal_ptr = GCRef::<Vec<u8>>::alloc(literals, mutator);
+                            Literal::Array(literal_ptr)
                         }
                     }
                 }

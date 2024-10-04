@@ -152,7 +152,7 @@ impl fmt::Display for Method {
                                 Literal::Double(value) => write!(f, "value: (#Double) {}", value),
                                 Literal::Integer(value) => write!(f, "value: (#Integer) {}", value),
                                 Literal::BigInteger(value) => {
-                                    write!(f, "value: (#Integer) {}", value)
+                                    write!(f, "value: (#Integer) {}", value.to_obj())
                                 }
                                 Literal::Array(_) => write!(f, "value: (#Array)"),
                                 Literal::Block(_) => write!(f, "value: (#Block)"),
