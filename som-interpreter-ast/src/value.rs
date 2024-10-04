@@ -487,7 +487,7 @@ impl NaNBoxedVal {
     }
 
     /// Search for a local binding within this value.
-    pub fn lookup_local(&self, idx: usize) -> Self {
+    pub fn lookup_local(&self, idx: u8) -> Self {
         if let Some(instance) = self.as_instance() {
             instance.to_obj().lookup_local(idx)
         } else if let Some(class) = self.as_class() {
@@ -498,7 +498,7 @@ impl NaNBoxedVal {
     }
 
     /// Assign a value to a local binding within this value.
-    pub fn assign_local(&mut self, idx: usize, value: Self) -> Option<()> {
+    pub fn assign_local(&mut self, idx: u8, value: Self) -> Option<()> {
         if let Some(instance) = self.as_instance() {
             Some(instance.to_obj().assign_local(idx, value))
         } else if let Some(class) = self.as_class() {
@@ -753,7 +753,7 @@ impl ValueEnum {
 
     /// Search for a local binding within this value.
     #[inline(always)]
-    pub fn lookup_local(&self, idx: usize) -> Option<Self> {
+    pub fn lookup_local(&self, idx: u8) -> Option<Self> {
         match self {
             Self::Instance(instance_ptr) => Some(instance_ptr.to_obj().lookup_local(idx).into()),
             Self::Class(class) => Some(class.to_obj().lookup_field(idx).into()),
@@ -762,7 +762,7 @@ impl ValueEnum {
     }
 
     /// Assign a value to a local binding within this value.
-    pub fn assign_local(&mut self, idx: usize, value: Self) {
+    pub fn assign_local(&mut self, idx: u8, value: Self) {
         match self {
             Self::Instance(instance_ptr) => instance_ptr.to_obj().assign_local(idx, value.into()),
             Self::Class(class) => class.to_obj().assign_field(idx, value.into()),

@@ -32,7 +32,7 @@ impl Evaluate for TrivialGlobalMethod {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct TrivialGetterMethod {
-    pub(crate) field_idx: usize,
+    pub(crate) field_idx: u8,
 }
 
 impl Invoke for TrivialGetterMethod {
@@ -51,7 +51,7 @@ impl Invoke for TrivialGetterMethod {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct TrivialSetterMethod {
-    pub(crate) field_idx: usize,
+    pub(crate) field_idx: u8,
 }
 
 impl Invoke for TrivialSetterMethod {

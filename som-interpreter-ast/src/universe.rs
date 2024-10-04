@@ -436,7 +436,7 @@ impl Universe {
     //     ret
     // }
 
-    pub fn with_frame<T>(&mut self, nbr_locals: usize, args: Vec<Value>, func: impl FnOnce(&mut Self) -> T) -> T {
+    pub fn with_frame<T>(&mut self, nbr_locals: u8, args: Vec<Value>, func: impl FnOnce(&mut Self) -> T) -> T {
         let frame = Frame::alloc_new_frame(nbr_locals, args, self.current_frame, &mut self.gc_interface);
         self.current_frame = frame;
         let ret = func(self);
@@ -455,21 +455,21 @@ impl Universe {
     }
 
     /// Search for a local binding.
-    pub fn lookup_local(&self, idx: usize) -> Value {
+    pub fn lookup_local(&self, idx: u8) -> Value {
         self.current_frame.lookup_local(idx)
     }
 
     /// Look up a variable we know to have been defined in another scope.
-    pub fn lookup_non_local(&self, idx: usize, target_scope: usize) -> Value {
+    pub fn lookup_non_local(&self, idx: u8, target_scope: u8) -> Value {
         Frame::nth_frame_back(&self.current_frame, target_scope).lookup_local(idx)
     }
 
     /// Look up a field.
-    pub fn lookup_field(&self, idx: usize) -> Value {
+    pub fn lookup_field(&self, idx: u8) -> Value {
         self.current_frame.lookup_field(idx)
     }
 
-    pub fn lookup_arg(&self, idx: usize, scope: usize) -> Value {
+    pub fn lookup_arg(&self, idx: u8, scope: u8) -> Value {
         Frame::nth_frame_back(&self.current_frame, scope).lookup_argument(idx)
     }
 
@@ -486,20 +486,20 @@ impl Universe {
     }
 
     /// Assign a value to a local binding.
-    pub fn assign_local(&mut self, idx: usize, value: &Value) {
+    pub fn assign_local(&mut self, idx: u8, value: &Value) {
         self.current_frame.assign_local(idx, value.clone())
     }
 
-    pub fn assign_non_local(&mut self, idx: usize, scope: usize, value: &Value) {
+    pub fn assign_non_local(&mut self, idx: u8, scope: u8, value: &Value) {
         Frame::nth_frame_back(&self.current_frame, scope).assign_local(idx, value.clone())
     }
 
-    pub fn assign_field(&mut self, idx: usize, value: &Value) {
+    pub fn assign_field(&mut self, idx: u8, value: &Value) {
         // dbg!(&idx);
         self.current_frame.assign_field(idx, value)
     }
 
-    pub fn assign_arg(&mut self, idx: usize, scope: usize, value: &Value) {
+    pub fn assign_arg(&mut self, idx: u8, scope: u8, value: &Value) {
         Frame::nth_frame_back(&self.current_frame, scope).assign_arg(idx, value.clone())
     }
 

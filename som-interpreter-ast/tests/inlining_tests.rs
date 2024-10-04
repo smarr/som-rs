@@ -37,14 +37,14 @@ fn if_true_inlining_ok() {
                     Box::new(IfInlined(
                         IfInlinedNode {
                             expected_bool: true,
-                            cond_expr: GlobalRead("true".to_string()),
+                            cond_expr: GlobalRead(Box::new("true".to_string())),
                             body_instrs: AstBody {
-                                exprs: vec![LocalExit(Box::new(GlobalRead("true".to_string())))],
+                                exprs: vec![LocalExit(Box::new(GlobalRead(Box::new("true".to_string()))))],
                             },
                         },
                     ),
                     )),
-                LocalExit(Box::new(GlobalRead("false".to_string()))),
+                LocalExit(Box::new(GlobalRead(Box::new("false".to_string())))),
             ],
         },
     }
@@ -78,7 +78,7 @@ fn if_false_inlining_ok() {
                                         receiver: LocalVarRead(0),
                                         inline_cache: None
                                     },
-                                    arg: GlobalRead("nil".to_string()),
+                                    arg: GlobalRead(Box::new("nil".to_string())),
                                 }),
                             ),
                             body_instrs: AstBody { exprs: vec![LocalExit(Box::new(LocalVarRead(0)))] },

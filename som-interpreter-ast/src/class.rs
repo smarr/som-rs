@@ -218,8 +218,8 @@ impl Class {
     }
 
     /// Search for a local binding.
-    pub fn lookup_field(&self, idx: usize) -> Value {
-        self.fields.get(idx).cloned().unwrap_or_else(|| {
+    pub fn lookup_field(&self, idx: u8) -> Value {
+        self.fields.get(idx as usize).cloned().unwrap_or_else(|| {
             let super_class = self.super_class().unwrap();
             let super_class_ref = super_class.borrow_mut();
             super_class_ref.lookup_field(idx)
@@ -227,8 +227,8 @@ impl Class {
     }
 
     /// Assign a value to a local binding.
-    pub fn assign_field(&mut self, idx: usize, value: Value) {
-        if let Some(local) = self.fields.get_mut(idx) {
+    pub fn assign_field(&mut self, idx: u8, value: Value) {
+        if let Some(local) = self.fields.get_mut(idx as usize) {
             *local = value;
             return;
         }

@@ -217,17 +217,17 @@ fn inst_var_at(_: &mut Universe, object: Value, index: i32) -> Return {
 fn inst_var_at_put(_: &mut Universe, object: Value, index: i32, value: Value) -> Return {
     const SIGNATURE: &'static str = "Object>>#instVarAt:put:";
 
-    let index = match usize::try_from(index - 1) {
+    let index = match u8::try_from(index - 1) {
         Ok(index) => index,
         Err(err) => return Return::Exception(format!("'{}': {}", SIGNATURE, err)),
     };
     
     if let Some(instance) = object.as_instance() {
-        if instance.borrow().locals.len() > index {
+        if instance.borrow().locals.len() as u8 > index {
             instance.borrow_mut().assign_local(index, value.clone())
         }
     } else if let Some(cls) = object.as_class() {
-        if cls.borrow().fields.len() > index {
+        if cls.borrow().fields.len() as u8 > index {
             cls.borrow_mut().assign_field(index, value.clone())
         }
     } else {

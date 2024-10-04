@@ -27,7 +27,7 @@ impl Block {
     }
 
     /// Retrieve the number of parameters this block accepts.
-    pub fn nb_parameters(&self) -> usize {
+    pub fn nb_parameters(&self) -> u8 {
         self.block.borrow().nbr_params
     }
 }

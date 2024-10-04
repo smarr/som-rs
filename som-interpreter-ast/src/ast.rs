@@ -26,23 +26,23 @@ pub struct AstBody {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum AstExpression {
-    GlobalRead(String),
-    LocalVarRead(usize),
-    NonLocalVarRead(usize, usize),
-    ArgRead(usize, usize),
-    FieldRead(usize),
-    LocalVarWrite(usize, Box<AstExpression>),
-    NonLocalVarWrite(usize, usize, Box<AstExpression>),
-    ArgWrite(usize, usize, Box<AstExpression>),
-    FieldWrite(usize, Box<AstExpression>),
+    GlobalRead(Box<String>),
+    LocalVarRead(u8),
+    NonLocalVarRead(u8, u8),
+    ArgRead(u8, u8),
+    FieldRead(u8),
+    LocalVarWrite(u8, Box<AstExpression>),
+    NonLocalVarWrite(u8, u8, Box<AstExpression>),
+    ArgWrite(u8, u8, Box<AstExpression>),
+    FieldWrite(u8, Box<AstExpression>),
     UnaryDispatch(Box<AstUnaryDispatch>),
     BinaryDispatch(Box<AstBinaryDispatch>),
     TernaryDispatch(Box<AstTernaryDispatch>),
     NAryDispatch(Box<AstNAryDispatch>),
     SuperMessage(Box<AstSuperMessage>),
     LocalExit(Box<AstExpression>),
-    NonLocalExit(Box<AstExpression>, usize),
-    Literal(som_core::ast::Literal),
+    NonLocalExit(Box<AstExpression>, u8),
+    Literal(Box<som_core::ast::Literal>),
     Block(GCRef<AstBlock>),
     /// Call to an inlined method node (no dispatching like a message would)
     InlinedCall(Box<InlinedNode>),
@@ -56,8 +56,8 @@ pub struct AstTerm {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct AstBlock {
-    pub nbr_params: usize,
-    pub nbr_locals: usize,
+    pub nbr_params: u8,
+    pub nbr_locals: u8,
     pub body: AstBody
 }
 
@@ -110,7 +110,7 @@ pub struct AstMethodDef {
     /// The method's body.
     pub body: AstBody,
     /// Number of local variables
-    pub locals_nbr: usize,
+    pub locals_nbr: u8,
 }
 
 // ----------------

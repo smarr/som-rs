@@ -14,7 +14,7 @@ pub trait PrimMessageInliner {
     fn parse_expression_with_inlining(&mut self, expression: &Expression) -> AstExpression;
     fn inline_block(&mut self, expression: &Block) -> AstBody;
     fn adapt_block_after_outer_inlined(&mut self, blk: &Block) -> AstBlock;
-    fn adapt_var_or_args_coords_from_inlining(&self, up_idx: usize, idx: usize, vars_or_args_fetcher_func: fn(&AstScopeCtxt) -> usize) -> (usize, usize);
+    fn adapt_var_or_args_coords_from_inlining(&self, up_idx: usize, idx: usize, vars_or_args_fetcher_func: fn(&AstScopeCtxt) -> usize) -> (u8, u8);
     fn inline_if_true_or_if_false(&mut self, msg: &ast::Message, expected_bool: bool) -> Option<InlinedNode>;
     fn inline_if_true_if_false(&mut self, msg: &ast::Message, expected_bool: bool) -> Option<InlinedNode>;
     fn inline_while(&mut self, msg: &ast::Message, expected_bool: bool) -> Option<InlinedNode>;
@@ -87,7 +87,7 @@ impl PrimMessageInliner for AstMethodCompilerCtxt<'_> {
                 let new_scope = scope - adjust_scope_by;
                 match new_scope {
                     0 => AstExpression::LocalExit(Box::new(inline_expr)),
-                    _ => AstExpression::NonLocalExit(Box::new(inline_expr), new_scope)
+                    _ => AstExpression::NonLocalExit(Box::new(inline_expr), new_scope as u8)
                 }
             }
             Expression::GlobalRead(a) => self.global_or_field_read_from_superclass(a.clone()),
@@ -96,12 +96,12 @@ impl PrimMessageInliner for AstMethodCompilerCtxt<'_> {
                     panic!("can't turn the GlobalWrite `{}` into a FieldWrite, and GlobalWrite shouldn't exist at runtime", name)
                 }
                 match self.class.unwrap().to_obj().get_field_offset_by_name(&name) {
-                    Some(offset) => AstExpression::FieldWrite(offset, Box::new(self.parse_expression_with_inlining(expr))),
+                    Some(offset) => AstExpression::FieldWrite(offset as u8, Box::new(self.parse_expression_with_inlining(expr))),
                     _ => panic!("can't turn the GlobalWrite `{}` into a FieldWrite, and GlobalWrite shouldn't exist at runtime", name)
                 }
             },
             Expression::Message(msg) => self.parse_message_with_inlining(msg),
-            Expression::Literal(lit) => AstExpression::Literal(lit.clone()),
+            Expression::Literal(lit) => AstExpression::Literal(Box::new(lit.clone())),
         };
 
         expr
@@ -135,7 +135,7 @@ impl PrimMessageInliner for AstMethodCompilerCtxt<'_> {
 
         let (nbr_params, nbr_locals) = {
             let outer_blk_scope = self.scopes.last().unwrap();
-            (outer_blk_scope.get_nbr_args(), outer_blk_scope.get_nbr_locals())
+            (outer_blk_scope.get_nbr_args() as u8, outer_blk_scope.get_nbr_locals() as u8)
         };
 
         let adapted_inner_block = AstBlock {
@@ -149,7 +149,7 @@ impl PrimMessageInliner for AstMethodCompilerCtxt<'_> {
         adapted_inner_block
     }
 
-    fn adapt_var_or_args_coords_from_inlining(&self, up_idx: usize, idx: usize, vars_or_args_fetcher_func: fn(&AstScopeCtxt) -> usize) -> (usize, usize) {
+    fn adapt_var_or_args_coords_from_inlining(&self, up_idx: usize, idx: usize, vars_or_args_fetcher_func: fn(&AstScopeCtxt) -> usize) -> (u8, u8) {
         // new up index is the target var scope minus the number of inlined scopes in between the current scope and the target var scope
         // if you do a NonLocalVarRead(3, 0), and there's 1 inlined scope before that (3) target, then now that target scope is only (2) scopes away.
         let new_up_idx = match up_idx {
@@ -192,7 +192,7 @@ impl PrimMessageInliner for AstMethodCompilerCtxt<'_> {
             nbr_vars_in_final_scope_to_offset_by + idx
         };
 
-        (new_up_idx, new_idx)
+        (new_up_idx as u8, new_idx as u8)
     }
 
     fn inline_if_true_or_if_false(&mut self, msg: &ast::Message, expected_bool: bool) -> Option<InlinedNode> {

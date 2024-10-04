@@ -96,10 +96,10 @@ impl<'a> AstMethodCompilerCtxt<'a> {
             AstExpression::LocalExit(expr) => {
                 match expr.as_ref() {
                     AstExpression::Literal(lit) => {
-                        Some(MethodKind::TrivialLiteral(TrivialLiteralMethod { literal: lit.clone() })) // todo avoid clone by moving code to previous function tbh
+                        Some(MethodKind::TrivialLiteral(TrivialLiteralMethod { literal: *lit.clone() })) // todo avoid clone by moving code to previous function tbh
                     }
                     AstExpression::GlobalRead(global) => {
-                        Some(MethodKind::TrivialGlobal(TrivialGlobalMethod { global_name: global.clone() }))
+                        Some(MethodKind::TrivialGlobal(TrivialGlobalMethod { global_name: *global.clone() }))
                     }
                     AstExpression::FieldRead(idx) => {
                         Some(MethodKind::TrivialGetter(TrivialGetterMethod { field_idx: *idx }))
@@ -128,7 +128,7 @@ impl<'a> AstMethodCompilerCtxt<'a> {
                 let args_nbr = method_def.signature.chars().filter(|e| *e == ':').count(); // not sure if needed
                 let mut ctxt = AstMethodCompilerCtxt { class, scopes: vec![AstScopeCtxt::init(args_nbr, *locals_nbr, false)], gc_interface: gc_interface };
 
-                (ctxt.parse_body(body), ctxt.scopes.last().unwrap().get_nbr_locals())
+                (ctxt.parse_body(body), ctxt.scopes.last().unwrap().get_nbr_locals() as u8)
             }
         };
 
@@ -143,17 +143,17 @@ impl<'a> AstMethodCompilerCtxt<'a> {
         match expr.clone() {
             Expression::GlobalRead(global_name) => self.global_or_field_read_from_superclass(global_name),
             Expression::GlobalWrite(global_name, expr) => self.resolve_global_write_to_field_write(&global_name, expr.as_ref()),
-            Expression::LocalVarRead(idx) => AstExpression::LocalVarRead(idx),
-            Expression::NonLocalVarRead(scope, idx) => AstExpression::NonLocalVarRead(scope, idx),
-            Expression::ArgRead(scope, idx) => AstExpression::ArgRead(scope, idx),
-            Expression::LocalVarWrite(a, b) => AstExpression::LocalVarWrite(a, Box::new(self.parse_expression(b.as_ref()))),
-            Expression::NonLocalVarWrite(a, b, c) => AstExpression::NonLocalVarWrite(a, b, Box::new(self.parse_expression(c.as_ref()))),
-            Expression::ArgWrite(a, b, c) => AstExpression::ArgWrite(a, b, Box::new(self.parse_expression(c.as_ref()))),
+            Expression::LocalVarRead(idx) => AstExpression::LocalVarRead(idx as u8),
+            Expression::NonLocalVarRead(scope, idx) => AstExpression::NonLocalVarRead(scope as u8, idx as u8),
+            Expression::ArgRead(scope, idx) => AstExpression::ArgRead(scope as u8, idx as u8),
+            Expression::LocalVarWrite(a, b) => AstExpression::LocalVarWrite(a as u8, Box::new(self.parse_expression(b.as_ref()))),
+            Expression::NonLocalVarWrite(a, b, c) => AstExpression::NonLocalVarWrite(a as u8, b as u8, Box::new(self.parse_expression(c.as_ref()))),
+            Expression::ArgWrite(a, b, c) => AstExpression::ArgWrite(a as u8, b as u8, Box::new(self.parse_expression(c.as_ref()))),
             Expression::Message(msg) => self.parse_message(msg.as_ref()),
             Expression::Exit(a, b) => {
                 match b {
                     0 => AstExpression::LocalExit(Box::new(self.parse_expression(a.as_ref()))),
-                    _ => AstExpression::NonLocalExit(Box::new(self.parse_expression(a.as_ref())), b)
+                    _ => AstExpression::NonLocalExit(Box::new(self.parse_expression(a.as_ref())), b as u8)
                 }
             }
             Expression::Literal(a) => {
@@ -161,12 +161,12 @@ impl<'a> AstMethodCompilerCtxt<'a> {
                     // this is to handle a weird corner case where "-2147483648" is considered to be a bigint by the lexer and then parser, when it's in fact just barely in i32 range
                     Literal::BigInteger(big_int_str) => {
                         match big_int_str.parse::<i32>() {
-                            Ok(x) => AstExpression::Literal(Literal::Integer(x)),
-                            _ => AstExpression::Literal(a)
+                            Ok(x) => AstExpression::Literal(Box::new(Literal::Integer(x))),
+                            _ => AstExpression::Literal(Box::new(a))
                         }
                         
                     },
-                    _ => AstExpression::Literal(a)
+                    _ => AstExpression::Literal(Box::new(a))
                 }
             },
             Expression::Block(a) => AstExpression::Block(GCRef::<AstBlock>::alloc(self.parse_block(&a), self.gc_interface))
@@ -185,8 +185,8 @@ impl<'a> AstMethodCompilerCtxt<'a> {
         let body = self.parse_body(&blk.body);
         let bl = self.scopes.last().unwrap();
         let output_blk = AstBlock {
-            nbr_params: bl.get_nbr_args(),
-            nbr_locals: bl.get_nbr_locals(),
+            nbr_params: bl.get_nbr_args() as u8,
+            nbr_locals: bl.get_nbr_locals() as u8,
             body,
         };
 
@@ -272,16 +272,16 @@ impl<'a> AstMethodCompilerCtxt<'a> {
 
     pub fn global_or_field_read_from_superclass(&self, name: String) -> AstExpression {
         if name.as_str() == "super" {
-            return AstExpression::ArgRead(self.scopes.len() - 1, 0);
+            return AstExpression::ArgRead((self.scopes.len() - 1) as u8, 0);
         }
 
         if self.class.is_none() {
-            return AstExpression::GlobalRead(name.clone());
+            return AstExpression::GlobalRead(Box::new(name.clone()));
         }
         
         match self.class.unwrap().to_obj().get_field_offset_by_name(&name) {
-            Some(offset) => AstExpression::FieldRead(offset),
-            _ => AstExpression::GlobalRead(name.clone())
+            Some(offset) => AstExpression::FieldRead(offset as u8),
+            _ => AstExpression::GlobalRead(Box::new(name.clone()))
         }
     }
 
@@ -292,7 +292,7 @@ impl<'a> AstMethodCompilerCtxt<'a> {
         }
         
         match self.class.unwrap().to_obj().get_field_offset_by_name(&name) {
-            Some(offset) => AstExpression::FieldWrite(offset, Box::new(self.parse_expression(expr))),
+            Some(offset) => AstExpression::FieldWrite(offset as u8, Box::new(self.parse_expression(expr))),
             _ => panic!("can't turn the GlobalWrite `{}` into a FieldWrite, and GlobalWrite shouldn't exist at runtime", name)
         }
     }
