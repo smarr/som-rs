@@ -39,7 +39,7 @@ fn disassemble_body(
             Bytecode::Halt => {
                 println!();
             }
-            Bytecode::Dup => {
+            Bytecode::Dup | Bytecode::Dup2 => {
                 println!();
             }
             Bytecode::Inc => {
@@ -55,9 +55,14 @@ fn disassemble_body(
             },
             Bytecode::PushNonLocal(up_idx, idx) | Bytecode::PopLocal(up_idx, idx) => {
                 print!(" {up_idx}, {idx}");
-                let local_str = (env.iter().rev().nth(usize::from(up_idx)))
+                let local_str = env.iter().rev().nth(usize::from(up_idx))
                     .and_then(|env| Some(env.resolve_local(idx)));
                 println!(" (`{0}`)", local_str.unwrap()); // code's kinda all over the place, it was a quick and easy refactor. could/should be cleaned
+            }
+            Bytecode::NilLocal(idx) => {
+                print!(" {idx}");
+                let local_str = env.last().unwrap().resolve_local(idx);
+                println!(" (`{0}`)", local_str);
             }
             Bytecode::PushField(idx) | Bytecode::PopField(idx) => {
                 print!(" {idx}");
@@ -159,8 +164,9 @@ fn disassemble_body(
             | Bytecode::JumpOnFalsePop(idx)
             | Bytecode::JumpOnTruePop(idx)
             | Bytecode::JumpOnFalseTopNil(idx)
-            | Bytecode::JumpOnTrueTopNil(idx) => {
-                println!(" {} (jump to bytecode index {})", idx, cur_idx + idx as usize);
+            | Bytecode::JumpOnTrueTopNil(idx)
+            | Bytecode::JumpIfGreater(idx) => {
+                println!(" {} (jump to bytecode index {})", idx, cur_idx + idx);
             }
             Bytecode::JumpBackward(idx) => {
                 println!(" {} (jump to bytecode index {})", idx, cur_idx - idx as usize);

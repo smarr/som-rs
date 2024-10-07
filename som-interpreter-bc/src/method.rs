@@ -121,7 +121,7 @@ impl fmt::Display for Method {
                     writeln!(f)?;
                     write!(f, "    {}  ", bytecode.padded_name())?;
                     match bytecode {
-                        Bytecode::Dup => {}
+                        Bytecode::Dup | Bytecode::Dup2 => {}
                         Bytecode::PushLocal(idx) => {
                             write!(f, "local: {}", idx)?;
                         }
@@ -167,6 +167,9 @@ impl fmt::Display for Method {
                         Bytecode::PopLocal(up_idx, idx) => {
                             write!(f, "local: {}, context: {}", idx, up_idx)?;
                         }
+                        Bytecode::NilLocal(idx) => {
+                            write!(f, "local: {}", idx)?;
+                        }
                         Bytecode::PopArg(up_idx, idx) => {
                             write!(f, "argument: {}, context: {}", idx, up_idx)?;
                         }
@@ -193,7 +196,8 @@ impl fmt::Display for Method {
                         | Bytecode::JumpOnTruePop(idx)
                         | Bytecode::JumpOnFalsePop(idx)
                         | Bytecode::JumpOnFalseTopNil(idx)
-                        | Bytecode::JumpOnTrueTopNil(idx) => {
+                        | Bytecode::JumpOnTrueTopNil(idx)
+                        | Bytecode::JumpIfGreater(idx) => {
                             write!(f, "index: {}", idx)?;
                         }
                         Bytecode::Halt => {}

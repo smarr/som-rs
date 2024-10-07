@@ -82,7 +82,8 @@ impl PrimMessageInliner for ast::Message {
             "whileFalse:" => self.inline_while(ctxt, JumpOnTrue, mutator),
             "or:" | "||" => self.inline_or_and(ctxt, Or, mutator),
             "and:" | "&&" => self.inline_or_and(ctxt, And, mutator),
-            // "to:do:" => self.inline_to_do(ctxt, message), // todo (haha lol haha)
+            "to:do:" => self.inline_to_do(ctxt, mutator),
+            // to:by:do, downTo:do:, perhaps?
             _ => None,
         }
     }
@@ -140,6 +141,9 @@ impl PrimMessageInliner for ast::Message {
                         )),
                         1.. => ctxt.push_instr(Bytecode::PopLocal(*up_idx - 1, *idx)),
                     },
+                    Bytecode::NilLocal(idx) => {
+                        ctxt.push_instr(Bytecode::NilLocal(nbr_locals_pre_inlining as u8 + *idx))
+                    }
                     Bytecode::PushArg(idx) => {
                         ctxt.push_instr(Bytecode::PushArg(*idx + nbr_args_pre_inlining as u8))
                     }
@@ -250,8 +254,12 @@ impl PrimMessageInliner for ast::Message {
                     Bytecode::JumpOnFalseTopNil(idx) => {
                         ctxt.push_instr(Bytecode::JumpOnFalseTopNil(*idx))
                     }
+                    Bytecode::JumpIfGreater(idx) => {
+                        ctxt.push_instr(Bytecode::JumpIfGreater(*idx))
+                    }
                     Bytecode::Halt
                     | Bytecode::Dup
+                    | Bytecode::Dup2
                     | Bytecode::Inc
                     | Bytecode::Dec
                     | Bytecode::Push0
@@ -526,39 +534,34 @@ impl PrimMessageInliner for ast::Message {
         ctxt: &mut dyn InnerGenCtxt,
         mutator: &mut GCInterface
     ) -> Option<()> {
-        // to: limit do: block = (
-        //         self to: limit by: 1 do: block
-        // )
-
         if self.values.len() != 2 {
             return None;
         }
 
-        // stack state at this point: "1" is on it. or some pushinteger probably? idk
+        // dbg!(&self.signature);
+        // dbg!(&self.values);
+        
+        self.inline_expression(ctxt, &self.receiver, mutator);
+        self.inline_expression(ctxt, self.values.first()?, mutator);
 
-        self.values.get(0)?.codegen(ctxt, mutator);
-        self.values.get(1)?.codegen(ctxt, mutator);
-        dbg!(ctxt.get_instructions());
+        let idx_loop_accumulator = (ctxt.get_nbr_locals() + 1) as u8; // not sure that's correct
 
-        let limit_expr = self.values.get(0)?; // in practice it's always a self read so an argread(0,0)
-        let block_expr = self.values.get(1)?;
+        ctxt.push_instr(Bytecode::Dup2);
+        ctxt.push_instr(Bytecode::NilLocal(idx_loop_accumulator));
+        let jump_if_greater_idx = ctxt.get_cur_instr_idx();
+        ctxt.push_instr(Bytecode::JumpIfGreater(0));
 
-        let _idx_before_condition = ctxt.get_cur_instr_idx();
-
-        dbg!(&self.values);
-
-        // condition goes here
-
-        let cond_jump_idx = ctxt.get_cur_instr_idx();
-        ctxt.push_instr(Bytecode::JumpOnFalsePop(0));
-
-        self.inline_expression(ctxt, block_expr, mutator);
-
-        limit_expr.codegen(ctxt, mutator)?;
+        ctxt.push_instr(Bytecode::Dup);
+        ctxt.push_instr(Bytecode::PopLocal(0, idx_loop_accumulator));
+        
+        self.inline_expression(ctxt, self.values.get(1)?, mutator); // inline the block
+        
         ctxt.push_instr(Bytecode::Inc);
+        ctxt.push_instr(Bytecode::NilLocal(idx_loop_accumulator));
+        ctxt.push_instr(Bytecode::JumpBackward(jump_if_greater_idx));
 
-        ctxt.backpatch_jump_to_current(cond_jump_idx);
+        ctxt.backpatch_jump_to_current(jump_if_greater_idx);
 
-        todo!()
+        Some(())
     }
 }

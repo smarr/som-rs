@@ -11,6 +11,7 @@ use som_core::bytecode::Bytecode;
 use som_core::gc::{GCInterface, GCRef};
 use som_core::interner::Interned;
 use std::time::Instant;
+use crate::convert::DoubleLike;
 
 macro_rules! send {
     ($interp:expr, $universe:expr, $frame:expr, $lit_idx:expr, $nb_params:expr) => {{
@@ -130,6 +131,33 @@ impl Interpreter {
             self.bytecode_idx += 1;
 
             match bytecode {
+                Bytecode::Dup2 => {
+                    let second_to_last = self.stack.iter().nth_back(1).unwrap().clone();
+                    self.stack.push(second_to_last)
+                }
+                Bytecode::NilLocal(idx) => {
+                    self.current_frame.assign_local(idx as usize, Value::NIL);
+                }
+                Bytecode::JumpIfGreater(offset) => {
+                    let top = self.stack.last().unwrap();
+                    let top2 = self.stack.iter().nth_back(1).unwrap();
+
+                    let is_greater = {
+                        if let (Some(a), Some(b)) = (top.as_integer(), top2.as_integer()) {
+                            a > b
+                        } else if let (Some(a), Some(b)) = (top.as_double(), top2.as_double()) {
+                            a > b
+                        } else {
+                            panic!("we don't handle this case.")
+                        }
+                    };
+                    
+                    if is_greater {
+                        self.stack.pop();
+                        self.stack.pop();
+                        self.bytecode_idx -= offset + 1;
+                    }
+                },
                 Bytecode::Halt => {
                     return Some(Value::NIL);
                 }
