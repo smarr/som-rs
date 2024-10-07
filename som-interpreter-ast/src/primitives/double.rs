@@ -1,5 +1,5 @@
+use anyhow::{bail, Error};
 use crate::convert::{DoubleLike, Primitive, StringLike};
-use crate::invokable::Return;
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
 use crate::value::Value;
@@ -53,7 +53,7 @@ macro_rules! promote {
     };
 }
 
-fn from_string(universe: &mut Universe, _: Value, string: StringLike) -> Return {
+fn from_string(universe: &mut Universe, _: Value, string: StringLike)-> Result<Value, Error> {
     const SIGNATURE: &str = "Double>>#fromString:";
 
     let string = match string {
@@ -62,117 +62,117 @@ fn from_string(universe: &mut Universe, _: Value, string: StringLike) -> Return 
     };
 
     match string.parse() {
-        Ok(parsed) => Return::Local(Value::Double(parsed)),
-        Err(err) => Return::Exception(format!("'{}': {}", SIGNATURE, err)),
+        Ok(parsed) => Ok(Value::Double(parsed)),
+        Err(err) => bail!(format!("'{}': {}", SIGNATURE, err)),
     }
 }
 
-fn as_string(universe: &mut Universe, receiver: DoubleLike) -> Return {
+fn as_string(universe: &mut Universe, receiver: DoubleLike)-> Result<Value, Error> {
     const SIGNATURE: &str = "Double>>#asString";
 
     let value = promote!(SIGNATURE, receiver);
 
-    Return::Local(Value::String(GCRef::<String>::alloc(value.to_string(), &mut universe.gc_interface)))
+    Ok(Value::String(GCRef::<String>::alloc(value.to_string(), &mut universe.gc_interface)))
 }
 
-fn as_integer(_: &mut Universe, receiver: f64) -> Return {
-    Return::Local(Value::Integer(receiver.trunc() as i32))
+fn as_integer(_: &mut Universe, receiver: f64)-> Result<Value, Error> {
+    Ok(Value::Integer(receiver.trunc() as i32))
 }
 
-fn sqrt(_: &mut Universe, receiver: DoubleLike) -> Return {
+fn sqrt(_: &mut Universe, receiver: DoubleLike)-> Result<Value, Error> {
     const SIGNATURE: &str = "Double>>#sqrt";
 
     let value = promote!(SIGNATURE, receiver);
 
-    Return::Local(Value::Double(value.sqrt()))
+    Ok(Value::Double(value.sqrt()))
 }
 
-fn round(_: &mut Universe, receiver: DoubleLike) -> Return {
+fn round(_: &mut Universe, receiver: DoubleLike)-> Result<Value, Error> {
     const SIGNATURE: &str = "Double>>#round";
 
     let value = promote!(SIGNATURE, receiver);
 
-    Return::Local(Value::Double(value.round()))
+    Ok(Value::Double(value.round()))
 }
 
-fn cos(_: &mut Universe, value: DoubleLike) -> Return {
+fn cos(_: &mut Universe, value: DoubleLike)-> Result<Value, Error> {
     const SIGNATURE: &str = "Double>>#cos";
 
     let value = promote!(SIGNATURE, value);
 
-    Return::Local(Value::Double(value.cos()))
+    Ok(Value::Double(value.cos()))
 }
 
-fn sin(_: &mut Universe, receiver: DoubleLike) -> Return {
+fn sin(_: &mut Universe, receiver: DoubleLike)-> Result<Value, Error> {
     const SIGNATURE: &str = "Double>>#sin";
 
     let value = promote!(SIGNATURE, receiver);
 
-    Return::Local(Value::Double(value.sin()))
+    Ok(Value::Double(value.sin()))
 }
 
-fn eq(_: &mut Universe, a: Value, b: Value) -> Return {
-    Return::Local(Value::Boolean(a == b))
+fn eq(_: &mut Universe, a: Value, b: Value)-> Result<Value, Error> {
+    Ok(Value::Boolean(a == b))
 }
 
-fn lt(_: &mut Universe, a: DoubleLike, b: DoubleLike) -> Return {
+fn lt(_: &mut Universe, a: DoubleLike, b: DoubleLike)-> Result<Value, Error> {
     const SIGNATURE: &str = "Double>>#<";
 
     let a = promote!(SIGNATURE, a);
     let b = promote!(SIGNATURE, b);
 
-    Return::Local(Value::Boolean(a < b))
+    Ok(Value::Boolean(a < b))
 }
 
-fn plus(_: &mut Universe, a: DoubleLike, b: DoubleLike) -> Return {
+fn plus(_: &mut Universe, a: DoubleLike, b: DoubleLike)-> Result<Value, Error> {
     const SIGNATURE: &str = "Double>>#+";
 
     let a = promote!(SIGNATURE, a);
     let b = promote!(SIGNATURE, b);
 
-    Return::Local(Value::Double(a + b))
+    Ok(Value::Double(a + b))
 }
 
-fn minus(_: &mut Universe, a: DoubleLike, b: DoubleLike) -> Return {
+fn minus(_: &mut Universe, a: DoubleLike, b: DoubleLike)-> Result<Value, Error> {
     const SIGNATURE: &str = "Double>>#-";
 
     let a = promote!(SIGNATURE, a);
     let b = promote!(SIGNATURE, b);
 
-    Return::Local(Value::Double(a - b))
+    Ok(Value::Double(a - b))
 }
 
-fn times(_: &mut Universe, a: DoubleLike, b: DoubleLike) -> Return {
+fn times(_: &mut Universe, a: DoubleLike, b: DoubleLike)-> Result<Value, Error> {
     const SIGNATURE: &str = "Double>>#*";
 
     let a = promote!(SIGNATURE, a);
     let b = promote!(SIGNATURE, b);
 
-    Return::Local(Value::Double(a * b))
+    Ok(Value::Double(a * b))
 }
 
-fn divide(_: &mut Universe, a: DoubleLike, b: DoubleLike) -> Return {
+fn divide(_: &mut Universe, a: DoubleLike, b: DoubleLike)-> Result<Value, Error> {
     const SIGNATURE: &str = "Double>>#//";
 
     let a = promote!(SIGNATURE, a);
     let b = promote!(SIGNATURE, b);
 
-    Return::Local(Value::Double(a / b))
+    Ok(Value::Double(a / b))
 }
 
-fn modulo(_: &mut Universe, a: DoubleLike, b: DoubleLike) -> Return {
+fn modulo(_: &mut Universe, a: DoubleLike, b: DoubleLike)-> Result<Value, Error> {
     const SIGNATURE: &str = "Double>>#%";
 
     let a = promote!(SIGNATURE, a);
     let b = promote!(SIGNATURE, b);
 
-    Return::Local(Value::Double(a % b))
+    Ok(Value::Double(a % b))
 }
 
-fn positive_infinity(_: &mut Universe, _: Vec<Value>) -> Return {
+fn positive_infinity(_: &mut Universe, _: Value)-> Result<Value, Error> {
     const _: &str = "Double>>#positiveInfinity";
 
-    Return::Local(Value::Double(f64::INFINITY))
+    Ok(Value::Double(f64::INFINITY))
 }
 
 /// Search for an instance primitive matching the given signature.

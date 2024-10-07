@@ -545,21 +545,21 @@ impl IntoValue for DoubleLike {
     }
 }
 
-impl<F> Primitive<()> for F
-where
-    F: Fn(&mut Interpreter, &mut Universe) -> Result<(), Error>
-    + Send
-    + Sync
-    + 'static,
-{
-    fn invoke(
-        &self,
-        interpreter: &mut Interpreter,
-        universe: &mut Universe,
-    ) -> Result<(), Error> {
-        (self)(interpreter, universe)
-    }
-}
+// impl<F> Primitive<()> for F
+// where
+//     F: Fn(&mut Interpreter, &mut Universe) -> Result<(), Error>
+//     + Send
+//     + Sync
+//     + 'static,
+// {
+//     fn invoke(
+//         &self,
+//         interpreter: &mut Interpreter,
+//         universe: &mut Universe,
+//     ) -> Result<(), Error> {
+//         (self)(interpreter, universe)
+//     }
+// }
 
 derive_stuff!(_A);
 derive_stuff!(_A, _B);

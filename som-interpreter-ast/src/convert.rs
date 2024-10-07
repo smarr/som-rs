@@ -259,6 +259,15 @@ impl FromArgs for GCRef<Method> {
     }
 }
 
+impl FromArgs for Return {
+    fn from_args(
+        val: Value,
+        _: &mut Universe,
+    ) -> Result<Self, Error> {
+        Ok(Return::Local(val))
+    }
+}
+
 impl IntoValue for bool {
     fn into_value(&self, _: &mut GCInterface) -> Value {
         Value::Boolean(*self)
@@ -344,25 +353,42 @@ pub trait Primitive<T>: Sized + Send + Sync + 'static {
 
 macro_rules! derive_stuff {
     ($($ty:ident),* $(,)?) => {
-        impl <F, $($ty),*> $crate::convert::Primitive<($($ty),*,)> for F
+        impl <F, R, $($ty),*> $crate::convert::Primitive<($($ty),*,)> for F
         where
-            F: Fn(&mut $crate::universe::Universe, $($ty),*) -> Return + Send + Sync + 'static,
+            F: Fn(&mut $crate::universe::Universe, $($ty),*) -> Result<R, Error> + Send + Sync + 'static,
+            R: $crate::convert::IntoReturn,
             $($ty: $crate::convert::FromArgs),*,
         {
             fn invoke(&self, universe: &mut $crate::universe::Universe, args: Vec<Value>) -> Return {
-                //no_longer_need_reverse!(universe, args.iter(), [$($ty),*]);
-                
                 let mut args_iter = args.iter();
                 $(
                     #[allow(non_snake_case)]
                     let $ty = $ty::from_args(args_iter.next().unwrap().clone(), universe).unwrap();
                 )*
                 
-                (self)(universe, $($ty),*,)
+                let result = (self)(universe, $($ty),*,).unwrap();
+                result.into_return(&mut universe.gc_interface)
             }
         }
     };
 }
+
+pub trait IntoReturn {
+    fn into_return(self, heap: &mut GCInterface) -> Return;
+}
+
+impl<T: IntoValue> IntoReturn for T {
+    fn into_return(self, heap: &mut GCInterface) -> Return {
+        Return::Local(self.into_value(heap))
+    }
+}
+
+impl IntoReturn for Return {
+    fn into_return(self, _: &mut GCInterface) -> Return {
+        self
+    }
+}
+
 
 impl IntoValue for Value {
     fn into_value(&self, _: &mut GCInterface) -> Value {
@@ -387,12 +413,6 @@ impl<T: IntoValue> IntoValue for Option<T> {
         self.as_ref().map_or(Value::NIL, |it| it.into_value(heap))
     }
 }
-
-// impl IntoReturn for () {
-//     fn into_return(self, _: &mut GCInterface) -> Return {
-//         todo!("err, not sure?")
-//     }
-// }
 
 impl IntoValue for StringLike {
     fn into_value(&self, heap: &mut GCInterface) -> Value {
@@ -422,17 +442,17 @@ impl IntoValue for DoubleLike {
     }
 }
 
-impl<F> Primitive<()> for F
-where
-    F: Fn(&mut Universe, Vec<Value>) -> Return
-    + Send
-    + Sync
-    + 'static,
-{
-    fn invoke(&self, universe: &mut Universe, args: Vec<Value>) -> Return {
-        self(universe, args)
-    }
-}
+// impl<F> Primitive<()> for F
+// where
+//     F: Fn(&mut Universe, Vec<Value>) -> Return
+//     + Send
+//     + Sync
+//     + 'static,
+// {
+//     fn invoke(&self, universe: &mut Universe, args: Vec<Value>) -> Return {
+//         self(universe, args)
+//     }
+// }
 
 derive_stuff!(_A);
 derive_stuff!(_A, _B);

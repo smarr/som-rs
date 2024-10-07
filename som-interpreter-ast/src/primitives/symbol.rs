@@ -1,5 +1,5 @@
+use anyhow::Error;
 use crate::convert::Primitive;
-use crate::invokable::Return;
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
 use crate::value::Value;
@@ -13,8 +13,8 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> 
 pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> =
     Lazy::new(|| Box::new([]));
 
-fn as_string(universe: &mut Universe, sym: Interned) -> Return {
-    Return::Local(Value::String(GCRef::<String>::alloc(universe.lookup_symbol(sym).to_string(), &mut universe.gc_interface)))
+fn as_string(universe: &mut Universe, sym: Interned)-> Result<Value, Error> {
+    Ok(Value::String(GCRef::<String>::alloc(universe.lookup_symbol(sym).to_string(), &mut universe.gc_interface)))
 }
 
 /// Search for an instance primitive matching the given signature.

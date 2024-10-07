@@ -10,6 +10,7 @@ pub mod block1 {
     use crate::block::Block;
     use crate::convert::Primitive;
     use crate::evaluate::Evaluate;
+    use anyhow::Error;
     use som_core::gc::GCRef;
 
     pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> =
@@ -22,18 +23,18 @@ pub mod block1 {
     pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> =
         Lazy::new(|| Box::new([]));
 
-    fn value(universe: &mut Universe, mut block: GCRef<Block>) -> Return {
+    fn value(universe: &mut Universe, mut block: GCRef<Block>) -> Result<Return, Error> {
         let nbr_locals = block.borrow().block.borrow().nbr_locals;
-        universe.with_frame(
+        Ok(universe.with_frame(
             nbr_locals,
             vec![Value::Block(block)],
             |universe| block.evaluate(universe),
-        )
+        ))
     }
 
     // TODO: with inlining, this is never called. Maybe it could be removed for better perf since we could forego Return::Restart? but this wouldn't be fully valid interpreter behaviour.
-    fn restart(_: &mut Universe, _: GCRef<Block>) -> Return {
-        Return::Restart
+    fn restart(_: &mut Universe, _: GCRef<Block>) -> Result<Return, Error> {
+        Ok(Return::Restart)
     }
 
     /// Search for an instance primitive matching the given signature.
@@ -59,6 +60,7 @@ pub mod block2 {
     use crate::block::Block;
     use crate::convert::Primitive;
     use crate::evaluate::Evaluate;
+    use anyhow::Error;
     use som_core::gc::GCRef;
 
     pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> =
@@ -69,14 +71,14 @@ pub mod block2 {
     fn value(universe: &mut Universe,
              mut block: GCRef<Block>,
              argument: Value,
-    ) -> Return {
+    ) -> Result<Return, Error> {
         let nbr_locals = block.borrow().block.borrow().nbr_locals;
 
-        universe.with_frame(
+        Ok(universe.with_frame(
             nbr_locals,
             vec![Value::Block(block), argument],
             |universe| block.evaluate(universe),
-        )
+        ))
     }
 
     /// Search for an instance primitive matching the given signature.
@@ -99,27 +101,28 @@ pub mod block2 {
 /// Primitives for the **Block3** class.
 pub mod block3 {
     use super::*;
+    use crate::block::Block;
     use crate::convert::Primitive;
     use crate::evaluate::Evaluate;
+    use anyhow::Error;
+    use som_core::gc::GCRef;
 
     pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> =
         Lazy::new(|| Box::new([("value:with:", self::value_with.into_func(), true)]));
     pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> =
         Lazy::new(|| Box::new([]));
 
-    fn value_with(universe: &mut Universe, args: Vec<Value>) -> Return {
-        let mut block = match args.first().unwrap().as_block() {
-            Some(blk) => blk,
-            _ => panic!("Calling value: on a block... not on a block?")
-        };
+    fn value_with(universe: &mut Universe,
+                  mut receiver: GCRef<Block>,
+                  argument1: Value,
+                  argument2: Value) -> Result<Return, Error> {
+        let nbr_locals = receiver.borrow().block.borrow().nbr_locals;
 
-        let nbr_locals = block.borrow().block.borrow().nbr_locals;
-
-        universe.with_frame(
+        Ok(universe.with_frame(
             nbr_locals,
-            args,
-            |universe| block.evaluate(universe),
-        )
+            vec![Value::Block(receiver), argument1, argument2],
+            |universe| receiver.evaluate(universe),
+        ))
     }
 
     /// Search for an instance primitive matching the given signature.
