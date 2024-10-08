@@ -9,31 +9,8 @@ use som_core::gc::{CustomAlloc, GCInterface, GCRef};
 use std::cell::RefCell;
 use std::marker::PhantomData;
 
-#[cfg(feature = "frame-debug-info")]
-/// The kind of a given frame.
-#[derive(Clone)]
-pub enum FrameKind {
-    /// A frame created from a block evaluation.
-    Block {
-        /// The block instance for the current frame.
-        block: GCRef<Block>,
-    },
-    /// A frame created from a method invocation.
-    Method {
-        /// The holder of the current method (used for lexical self/super).
-        holder: GCRef<Class>,
-        /// The current method.
-        method: GCRef<Method>,
-        /// The self value.
-        self_value: Value,
-    },
-}
-
 /// Represents a stack frame.
 pub struct Frame {
-    #[cfg(feature = "frame-debug-info")]
-    /// This frame's kind.
-    pub kind: FrameKind,
     /// The previous frame. Frames are handled as a linked list
     pub prev_frame: GCRef<Frame>,
     /// The method the execution context currently is in.
@@ -85,8 +62,6 @@ impl Frame {
     fn from_block(block: GCRef<Block>, nbr_args: usize, current_method: *const Method, prev_frame: GCRef<Frame>) -> Self {
         let block_obj = block.to_obj();
         Self {
-            #[cfg(feature = "frame-debug-info")]
-            kind: FrameKind::Block { block },
             prev_frame,
             current_method,
             nbr_locals: block_obj.blk_info.to_obj().nb_locals,
@@ -104,15 +79,6 @@ impl Frame {
         match method.to_obj().kind() {
             MethodKind::Defined(env) => {
                 Self {
-                    #[cfg(feature = "frame-debug-info")]
-                    kind: {
-                        let holder = method.holder.upgrade().unwrap();
-                        FrameKind::Method {
-                            self_value: args.get(0).unwrap().clone(),
-                            method: Rc::clone(&method),
-                            holder,
-                        }
-                    },
                     prev_frame,
                     nbr_locals: env.nbr_locals,
                     nbr_args,
@@ -126,67 +92,6 @@ impl Frame {
                 }
             }
             _ => unreachable!()
-        }
-    }
-
-    #[cfg(feature = "frame-debug-info")]
-    /// Construct a new empty frame from its kind.
-    pub fn from_kind(kind: FrameKind) -> Self {
-        match &kind {
-            FrameKind::Block { block } => {
-                // let locals = block.blk_info.locals.iter().map(|_| Value::NIL).collect();
-                let locals = (0..block.blk_info.nb_locals).map(|_| Value::NIL).collect();
-                let frame = Self {
-                    locals,
-                    args: vec![Value::Block(Rc::clone(&block))],
-                    literals: &block.blk_info.literals,
-                    bytecodes: &block.blk_info.body,
-                    bytecode_idx: 0,
-                    inline_cache: std::ptr::addr_of!(block.blk_info.inline_cache),
-                    kind,
-                };
-                frame
-            }
-            FrameKind::Method { method, .. } => {
-                if let MethodKind::Defined(env) = method.kind() {
-                    // let locals = env.locals.iter().map(|_| Value::NIL).collect();
-                    let locals = (0..env.nbr_locals).map(|_| Value::NIL).collect();
-                    Self {
-                        locals,
-                        args: vec![],
-                        literals: &env.literals,
-                        bytecodes: &env.body,
-                        bytecode_idx: 0,
-                        inline_cache: std::ptr::addr_of!(env.inline_cache),
-                        kind,
-                    }
-                } else {
-                    Self {
-                        locals: vec![],
-                        args: vec![],
-                        literals: std::ptr::null(), // todo this is totally safe haha i think
-                        bytecodes: std::ptr::null(), // yeah ditto
-                        inline_cache: std::ptr::null(), // inline cache is never accessed in prims so this will never fail.. right?
-                        bytecode_idx: 0,
-                        kind,
-                    }
-                }
-            }
-        }
-    }
-
-    #[cfg(feature = "frame-debug-info")]
-    /// Get the frame's kind.
-    pub fn kind(&self) -> &FrameKind {
-        &self.kind
-    }
-
-    #[cfg(feature = "frame-debug-info")]
-    /// Get the current method itself.
-    pub fn get_method(&self) -> GCRef<Method> {
-        match &self.kind {
-            FrameKind::Method { method, .. } => *method,
-            FrameKind::Block { block, .. } => block.to_obj().frame.as_ref().unwrap().to_obj().get_method(),
         }
     }
 

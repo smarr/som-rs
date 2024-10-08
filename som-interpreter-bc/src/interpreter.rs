@@ -11,7 +11,6 @@ use som_core::bytecode::Bytecode;
 use som_core::gc::{GCInterface, GCRef};
 use som_core::interner::Interned;
 use std::time::Instant;
-use crate::convert::DoubleLike;
 
 macro_rules! send {
     ($interp:expr, $universe:expr, $frame:expr, $lit_idx:expr, $nb_params:expr) => {{
@@ -155,7 +154,7 @@ impl Interpreter {
                     if is_greater {
                         self.stack.pop();
                         self.stack.pop();
-                        self.bytecode_idx -= offset + 1;
+                        self.bytecode_idx += offset - 1;
                     }
                 },
                 Bytecode::Halt => {
@@ -172,7 +171,7 @@ impl Interpreter {
                 Bytecode::Inc => {
                     let last = self.stack.last_mut()?;
                     if let Some(int) = last.as_integer() {
-                        *last = Value::new_integer(int + 1); // TODO: this implem's not as fast as it could be. need to add bindings to borrow ints/doubles mutably?
+                        *last = Value::new_integer(int + 1);
                     } else if let Some(double) = last.as_double() {
                         *last = Value::new_double(double + 1.0);
                     } else if let Some(big_int) = last.as_big_integer() {

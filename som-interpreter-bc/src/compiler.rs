@@ -175,7 +175,7 @@ impl InnerGenCtxt for BlockGenCtxt<'_> {
     }
 
     fn get_cur_instr_idx(&self) -> usize {
-        return self.body.as_ref().unwrap().iter().len();
+        self.body.as_ref().unwrap().iter().len()
     }
 
     fn backpatch_jump_to_current(&mut self, idx_to_backpatch: usize) {
@@ -185,9 +185,13 @@ impl InnerGenCtxt for BlockGenCtxt<'_> {
 
     fn patch_jump(&mut self, idx_to_patch: usize, new_val: u16) {
         match self.body.as_mut().unwrap().get_mut(idx_to_patch).unwrap() {
-            Bytecode::Jump(jump_idx) | Bytecode::JumpBackward(jump_idx)
-            | Bytecode::JumpOnTrueTopNil(jump_idx) | Bytecode::JumpOnFalseTopNil(jump_idx)
-            | Bytecode::JumpOnTruePop(jump_idx) | Bytecode::JumpOnFalsePop(jump_idx) => {
+            Bytecode::Jump(jump_idx) |
+            Bytecode::JumpBackward(jump_idx) |
+            Bytecode::JumpOnTrueTopNil(jump_idx) |
+            Bytecode::JumpOnFalseTopNil(jump_idx) |
+            Bytecode::JumpOnTruePop(jump_idx) |
+            Bytecode::JumpOnFalsePop(jump_idx) |
+            Bytecode::JumpIfGreater(jump_idx) => {
                 *jump_idx = new_val
             }
             _ => panic!("Attempting to patch a bytecode non jump"),
@@ -236,8 +240,9 @@ impl InnerGenCtxt for BlockGenCtxt<'_> {
                             | Bytecode::JumpOnTrueTopNil(jump_offset)
                             | Bytecode::JumpOnFalseTopNil(jump_offset)
                             | Bytecode::JumpOnTruePop(jump_offset)
-                            | Bytecode::JumpOnFalsePop(jump_offset) => {
-                                let bc_target_idx = maybe_jump_idx + *jump_offset as usize;
+                            | Bytecode::JumpOnFalsePop(jump_offset)
+                            | Bytecode::JumpIfGreater(jump_offset) => {
+                                let bc_target_idx = maybe_jump_idx + *jump_offset;
                                 bc_target_idx == idx || bc_target_idx == idx + 2
                             }
                             _ => false,
@@ -263,8 +268,8 @@ impl InnerGenCtxt for BlockGenCtxt<'_> {
                 | Bytecode::JumpOnTrueTopNil(jump_offset)
                 | Bytecode::JumpOnFalseTopNil(jump_offset)
                 | Bytecode::JumpOnTruePop(jump_offset)
-                | Bytecode::JumpOnFalsePop(jump_offset) => {
-                    let jump_offset = *jump_offset as usize;
+                | Bytecode::JumpOnFalsePop(jump_offset)
+                | Bytecode::JumpIfGreater(jump_offset) => {
                     if indices_to_remove.contains(&(cur_idx + jump_offset)) {
                         panic!("should be unreachable");
                         // let jump_target_in_removes_idx = indices_to_remove
@@ -335,13 +340,13 @@ impl GenCtxt for MethodGenCtxt<'_> {
     fn get_scope(&self) -> usize {
         0
     }
-    
-    fn class_name(&self) -> &str {
-        self.inner.class_name()
-    }
 
     fn find_field(&mut self, name: &str) -> Option<usize> {
         self.inner.find_field(name)
+    }
+
+    fn class_name(&self) -> &str {
+        self.inner.class_name()
     }
 }
 
@@ -375,7 +380,7 @@ impl InnerGenCtxt for MethodGenCtxt<'_> {
     }
 
     fn get_cur_instr_idx(&self) -> usize {
-        return self.inner.get_cur_instr_idx();
+        self.inner.get_cur_instr_idx()
     }
 
     fn patch_jump(&mut self, idx_to_backpatch: usize, new_val: u16) {
@@ -654,13 +659,13 @@ impl GenCtxt for ClassGenCtxt<'_> {
     fn get_scope(&self) -> usize {
         unreachable!("Asking for scope in a class generation context?")
     }
-    
-    fn class_name(&self) -> &str {
-        self.name.as_str()
-    }
 
     fn find_field(&mut self, name: &str) -> Option<usize> {
         self.fields.iter().position(|f_int| self.interner.lookup(*f_int) == name)
+    }
+
+    fn class_name(&self) -> &str {
+        self.name.as_str()
     }
 }
 
@@ -684,6 +689,7 @@ fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::MethodDef, mutator: &mut 
                         | Bytecode::JumpOnFalseTopNil(jump_idx)
                         | Bytecode::JumpOnTruePop(jump_idx)
                         | Bytecode::JumpOnFalsePop(jump_idx)
+                        | Bytecode::JumpIfGreater(jump_idx)
                         => {
                             bc_idx + *jump_idx as usize >= idx_of_pop_before_potential_return_self
                         }

@@ -118,10 +118,9 @@ impl PrimMessageInliner for ast::Message {
 
     fn inline_compiled_block(&self, ctxt: &mut dyn InnerGenCtxt, block: &BlockInfo, mutator: &mut GCInterface) -> Option<()> {
         let nbr_locals_pre_inlining = ctxt.get_nbr_locals();
-        let nbr_args_pre_inlining = ctxt.get_nbr_args();
+        let _nbr_args_pre_inlining = ctxt.get_nbr_args();
 
-        ctxt.set_nbr_locals(nbr_locals_pre_inlining + block.nb_locals);
-        ctxt.set_nbr_args(nbr_args_pre_inlining + block.nb_params);
+        ctxt.set_nbr_locals(nbr_locals_pre_inlining + block.nb_locals + block.nb_params);
 
         // last is always ReturnLocal, so it gets ignored
         if let Some((_, body)) = block.body.split_last() {
@@ -145,7 +144,7 @@ impl PrimMessageInliner for ast::Message {
                         ctxt.push_instr(Bytecode::NilLocal(nbr_locals_pre_inlining as u8 + *idx))
                     }
                     Bytecode::PushArg(idx) => {
-                        ctxt.push_instr(Bytecode::PushArg(*idx + nbr_args_pre_inlining as u8))
+                        ctxt.push_instr(Bytecode::PushLocal(*idx + nbr_locals_pre_inlining as u8 - 1))
                     }
                     Bytecode::PushNonLocalArg(up_idx, idx) => {
                         match *up_idx - 1 {
@@ -538,29 +537,29 @@ impl PrimMessageInliner for ast::Message {
             return None;
         }
 
-        // dbg!(&self.signature);
-        // dbg!(&self.values);
-        
-        self.inline_expression(ctxt, &self.receiver, mutator);
         self.inline_expression(ctxt, self.values.first()?, mutator);
 
-        let idx_loop_accumulator = (ctxt.get_nbr_locals() + 1) as u8; // not sure that's correct
+        let idx_loop_accumulator = ctxt.get_nbr_locals() as u8; // not sure that's correct
 
         ctxt.push_instr(Bytecode::Dup2);
         ctxt.push_instr(Bytecode::NilLocal(idx_loop_accumulator));
+
         let jump_if_greater_idx = ctxt.get_cur_instr_idx();
         ctxt.push_instr(Bytecode::JumpIfGreater(0));
 
         ctxt.push_instr(Bytecode::Dup);
         ctxt.push_instr(Bytecode::PopLocal(0, idx_loop_accumulator));
-        
+
         self.inline_expression(ctxt, self.values.get(1)?, mutator); // inline the block
-        
+
+        ctxt.push_instr(Bytecode::Pop);
         ctxt.push_instr(Bytecode::Inc);
         ctxt.push_instr(Bytecode::NilLocal(idx_loop_accumulator));
-        ctxt.push_instr(Bytecode::JumpBackward(jump_if_greater_idx));
+        ctxt.push_instr(Bytecode::JumpBackward(ctxt.get_cur_instr_idx() - jump_if_greater_idx));
 
         ctxt.backpatch_jump_to_current(jump_if_greater_idx);
+
+        // println!("--- Inlined to:do:.");
 
         Some(())
     }
