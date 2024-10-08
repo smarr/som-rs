@@ -13,7 +13,8 @@ pub fn init_gc() -> (VMMutatorThread, Box<Mutator<SOMVM>>, *mut BumpAllocator<SO
         // let heap_success = mmtk_set_fixed_heap_size(&mut builder, 1048576);
         // assert!(heap_success, "Couldn't set MMTk fixed heap size");
 
-        let gc_success = builder.set_option("plan", "SemiSpace");
+        // let gc_success = builder.set_option("plan", "SemiSpace");
+        let gc_success = builder.set_option("plan", "NoGC");
         assert!(gc_success, "Couldn't set GC plan");
 
         // let ok = builder.set_option("stress_factor", DEFAULT_STRESS_FACTOR.to_string().as_str());
