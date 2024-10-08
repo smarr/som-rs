@@ -242,7 +242,7 @@ impl InnerGenCtxt for BlockGenCtxt<'_> {
                             | Bytecode::JumpOnTruePop(jump_offset)
                             | Bytecode::JumpOnFalsePop(jump_offset)
                             | Bytecode::JumpIfGreater(jump_offset) => {
-                                let bc_target_idx = maybe_jump_idx + *jump_offset;
+                                let bc_target_idx = maybe_jump_idx + *jump_offset as usize;
                                 bc_target_idx == idx || bc_target_idx == idx + 2
                             }
                             _ => false,
@@ -270,6 +270,8 @@ impl InnerGenCtxt for BlockGenCtxt<'_> {
                 | Bytecode::JumpOnTruePop(jump_offset)
                 | Bytecode::JumpOnFalsePop(jump_offset)
                 | Bytecode::JumpIfGreater(jump_offset) => {
+                    let jump_offset = *jump_offset as usize;
+                    
                     if indices_to_remove.contains(&(cur_idx + jump_offset)) {
                         panic!("should be unreachable");
                         // let jump_target_in_removes_idx = indices_to_remove

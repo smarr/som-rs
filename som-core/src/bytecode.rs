@@ -46,7 +46,7 @@ pub enum Bytecode {
     JumpOnFalsePop(u16),
     Dup2,
     NilLocal(u8),
-    JumpIfGreater(usize),
+    JumpIfGreater(u16),
 }
 
 // TODO check case, padding, for pull request

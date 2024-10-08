@@ -154,7 +154,7 @@ impl Interpreter {
                     if is_greater {
                         self.stack.pop();
                         self.stack.pop();
-                        self.bytecode_idx += offset - 1;
+                        self.bytecode_idx += offset as usize - 1;
                     }
                 },
                 Bytecode::Halt => {
