@@ -160,10 +160,10 @@ fn disassemble_body(
             | Bytecode::JumpOnTruePop(idx)
             | Bytecode::JumpOnFalseTopNil(idx)
             | Bytecode::JumpOnTrueTopNil(idx) => {
-                println!(" {} (jump to bytecode index {})", idx, cur_idx + idx);
+                println!(" {} (jump to bytecode index {})", idx, cur_idx + idx as usize);
             }
             Bytecode::JumpBackward(idx) => {
-                println!(" {} (jump to bytecode index {})", idx, cur_idx - idx);
+                println!(" {} (jump to bytecode index {})", idx, cur_idx - idx as usize);
             }
             Bytecode::Push0 | Bytecode::Push1 | Bytecode::PushNil => {
                 println!();

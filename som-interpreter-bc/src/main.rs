@@ -58,6 +58,8 @@ fn main() -> anyhow::Result<()> {
 fn run() -> anyhow::Result<()> {
     let opts: Options = Options::from_args();
     
+    // dbg!(size_of::<Bytecode>()); std::process::exit(0);
+    
     if opts.disassemble {
         return disassemble_class(opts);
     }

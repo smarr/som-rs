@@ -106,7 +106,7 @@ pub trait InnerGenCtxt: GenCtxt {
     fn push_literal(&mut self, literal: Literal) -> usize;
     fn remove_literal(&mut self, idx: usize) -> Option<Literal>;
     fn get_cur_instr_idx(&self) -> usize;
-    fn patch_jump(&mut self, idx_to_backpatch: usize, new_val: usize);
+    fn patch_jump(&mut self, idx_to_backpatch: usize, new_val: u16);
     fn backpatch_jump_to_current(&mut self, idx_to_backpatch: usize);
     fn remove_dup_popx_pop_sequences(&mut self);
 }
@@ -180,10 +180,10 @@ impl InnerGenCtxt for BlockGenCtxt<'_> {
 
     fn backpatch_jump_to_current(&mut self, idx_to_backpatch: usize) {
         let jump_offset = self.get_cur_instr_idx() - idx_to_backpatch;
-        self.patch_jump(idx_to_backpatch, jump_offset)
+        self.patch_jump(idx_to_backpatch, jump_offset as u16)
     }
 
-    fn patch_jump(&mut self, idx_to_patch: usize, new_val: usize) {
+    fn patch_jump(&mut self, idx_to_patch: usize, new_val: u16) {
         match self.body.as_mut().unwrap().get_mut(idx_to_patch).unwrap() {
             Bytecode::Jump(jump_idx) | Bytecode::JumpBackward(jump_idx)
             | Bytecode::JumpOnTrueTopNil(jump_idx) | Bytecode::JumpOnFalseTopNil(jump_idx)
@@ -237,7 +237,7 @@ impl InnerGenCtxt for BlockGenCtxt<'_> {
                             | Bytecode::JumpOnFalseTopNil(jump_offset)
                             | Bytecode::JumpOnTruePop(jump_offset)
                             | Bytecode::JumpOnFalsePop(jump_offset) => {
-                                let bc_target_idx = maybe_jump_idx + *jump_offset;
+                                let bc_target_idx = maybe_jump_idx + *jump_offset as usize;
                                 bc_target_idx == idx || bc_target_idx == idx + 2
                             }
                             _ => false,
@@ -256,7 +256,7 @@ impl InnerGenCtxt for BlockGenCtxt<'_> {
             return;
         }
 
-        let mut jumps_to_patch = vec![];
+        let mut jumps_to_patch: Vec<(usize, u16)> = vec![];
         for (cur_idx, bc) in body.iter().enumerate() {
             match bc {
                 Bytecode::Jump(jump_offset)
@@ -264,6 +264,7 @@ impl InnerGenCtxt for BlockGenCtxt<'_> {
                 | Bytecode::JumpOnFalseTopNil(jump_offset)
                 | Bytecode::JumpOnTruePop(jump_offset)
                 | Bytecode::JumpOnFalsePop(jump_offset) => {
+                    let jump_offset = *jump_offset as usize;
                     if indices_to_remove.contains(&(cur_idx + jump_offset)) {
                         panic!("should be unreachable");
                         // let jump_target_in_removes_idx = indices_to_remove
@@ -287,14 +288,15 @@ impl InnerGenCtxt for BlockGenCtxt<'_> {
                         .iter()
                         .filter(|&&idx| cur_idx < idx && idx <= cur_idx + jump_offset)
                         .count();
-                    jumps_to_patch.push((cur_idx, jump_offset - nbr_to_adjust));
+                    jumps_to_patch.push((cur_idx, (jump_offset - nbr_to_adjust) as u16));
                 }
                 Bytecode::JumpBackward(jump_offset) => {
+                    let jump_offset = *jump_offset as usize;
                     let nbr_to_adjust = indices_to_remove
                         .iter()
                         .filter(|&&idx| cur_idx > idx && idx > cur_idx - jump_offset)
                         .count();
-                    jumps_to_patch.push((cur_idx, jump_offset - nbr_to_adjust));
+                    jumps_to_patch.push((cur_idx, (jump_offset - nbr_to_adjust) as u16));
                     // It's impossible for a JumpBackward to be generated to point to a duplicated dup/pop/pox sequence, as it stands, and as far as I know.
                 }
                 _ => {}
@@ -376,7 +378,7 @@ impl InnerGenCtxt for MethodGenCtxt<'_> {
         return self.inner.get_cur_instr_idx();
     }
 
-    fn patch_jump(&mut self, idx_to_backpatch: usize, new_val: usize) {
+    fn patch_jump(&mut self, idx_to_backpatch: usize, new_val: u16) {
         self.inner.patch_jump(idx_to_backpatch, new_val)
     }
 
@@ -683,7 +685,7 @@ fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::MethodDef, mutator: &mut 
                         | Bytecode::JumpOnTruePop(jump_idx)
                         | Bytecode::JumpOnFalsePop(jump_idx)
                         => {
-                            bc_idx + jump_idx >= idx_of_pop_before_potential_return_self
+                            bc_idx + *jump_idx as usize >= idx_of_pop_before_potential_return_self
                         }
                         _ => false
                     }

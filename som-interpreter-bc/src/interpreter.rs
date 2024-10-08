@@ -368,16 +368,16 @@ impl Interpreter {
                     }
                 }
                 Bytecode::Jump(offset) => {
-                    self.bytecode_idx += offset - 1; // minus one because it gets incremented by one already every loop
+                    self.bytecode_idx += offset as usize - 1; // minus one because it gets incremented by one already every loop
                 }
                 Bytecode::JumpBackward(offset) => {
-                    self.bytecode_idx -= offset + 1;
+                    self.bytecode_idx -= offset as usize + 1;
                 }
                 Bytecode::JumpOnTrueTopNil(offset) => {
                     let condition_result = self.stack.last()?;
 
                     if condition_result.is_boolean_true() {
-                        self.bytecode_idx += offset - 1;
+                        self.bytecode_idx += offset as usize - 1;
                         *self.stack.last_mut()? = Value::NIL;
                     } else if condition_result.is_boolean_false() {
                         self.stack.pop();
@@ -391,7 +391,7 @@ impl Interpreter {
                     if condition_result.is_boolean_true() {
                         self.stack.pop();
                     } else if condition_result.is_boolean_false(){
-                        self.bytecode_idx += offset - 1;
+                        self.bytecode_idx += offset as usize - 1;
                         *self.stack.last_mut()? = Value::NIL;
                     } else {
                         panic!("JumpOnFalseTopNil condition did not evaluate to boolean (was {:?})", condition_result)
@@ -401,7 +401,7 @@ impl Interpreter {
                     let condition_result = self.stack.pop()?;
                     
                     if condition_result.is_boolean_true() {
-                        self.bytecode_idx += offset - 1;
+                        self.bytecode_idx += offset as usize - 1;
                     } else if condition_result.is_boolean_false() {
                         // pass
                     } 
@@ -413,7 +413,7 @@ impl Interpreter {
                     let condition_result = self.stack.pop()?;
 
                     if condition_result.is_boolean_false() {
-                        self.bytecode_idx += offset - 1;
+                        self.bytecode_idx += offset as usize - 1;
                     } else if condition_result.is_boolean_true() {
                         // pass
                     }

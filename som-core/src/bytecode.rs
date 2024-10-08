@@ -38,12 +38,12 @@ pub enum Bytecode {
     ReturnSelf,
     ReturnLocal,
     ReturnNonLocal(u8),
-    Jump(usize),
-    JumpBackward(usize),
-    JumpOnTrueTopNil(usize),
-    JumpOnFalseTopNil(usize),
-    JumpOnTruePop(usize),
-    JumpOnFalsePop(usize),
+    Jump(u16),
+    JumpBackward(u16),
+    JumpOnTrueTopNil(u16),
+    JumpOnFalseTopNil(u16),
+    JumpOnTruePop(u16),
+    JumpOnFalsePop(u16),
 }
 
 // TODO check case, padding, for pull request

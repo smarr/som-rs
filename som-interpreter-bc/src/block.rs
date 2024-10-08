@@ -68,20 +68,20 @@ impl Block {
                         | Bytecode::JumpOnTruePop(jump_idx) | Bytecode::JumpOnFalsePop(jump_idx)
                         | Bytecode::JumpOnTrueTopNil(jump_idx) | Bytecode::JumpOnFalseTopNil(jump_idx) => {
                             let nbr_new_bc_in_range = non_local_rets_idx.iter()
-                                .filter(|new_bc_idx| (bc_idx < **new_bc_idx) && (**new_bc_idx <= *jump_idx + bc_idx))
+                                .filter(|new_bc_idx| (bc_idx < **new_bc_idx) && (**new_bc_idx as u16 <= *jump_idx + bc_idx as u16))
                                 .count();
 
                             if nbr_new_bc_in_range > 0 {
-                                *jump_idx += nbr_new_bc_in_range
+                                *jump_idx += nbr_new_bc_in_range as u16
                             }
                         }
                         Bytecode::JumpBackward(jump_idx) => {
                             let nbr_new_bc_in_range = non_local_rets_idx.iter()
-                                .filter(|new_bc_idx| (**new_bc_idx < bc_idx) && (**new_bc_idx >= bc_idx - *jump_idx))
+                                .filter(|new_bc_idx| (**new_bc_idx < bc_idx) && (**new_bc_idx as u16 >= bc_idx as u16 - *jump_idx))
                                 .count();
 
                             if nbr_new_bc_in_range > 0 {
-                                *jump_idx += nbr_new_bc_in_range
+                                *jump_idx += nbr_new_bc_in_range as u16
                             }
                         }
                         _ => {}

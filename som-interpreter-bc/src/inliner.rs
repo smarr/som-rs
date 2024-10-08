@@ -477,7 +477,7 @@ impl PrimMessageInliner for ast::Message {
 
         ctxt.push_instr(Bytecode::Pop);
         
-        ctxt.push_instr(Bytecode::JumpBackward(ctxt.get_cur_instr_idx() - idx_pre_condition + 1));
+        ctxt.push_instr(Bytecode::JumpBackward((ctxt.get_cur_instr_idx() - idx_pre_condition + 1) as u16));
         ctxt.backpatch_jump_to_current(cond_jump_idx);
 
         ctxt.push_instr(Bytecode::PushNil);
