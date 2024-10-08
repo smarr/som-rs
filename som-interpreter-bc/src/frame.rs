@@ -1,13 +1,13 @@
-use std::cell::RefCell;
-use std::marker::PhantomData;
-use core::mem::size_of;
-use som_core::bytecode::Bytecode;
 use crate::block::Block;
 use crate::class::Class;
 use crate::compiler::Literal;
-use som_core::gc::{CustomAlloc, GCInterface, GCRef};
 use crate::method::{Method, MethodKind};
 use crate::value::Value;
+use core::mem::size_of;
+use som_core::bytecode::Bytecode;
+use som_core::gc::{CustomAlloc, GCInterface, GCRef};
+use std::cell::RefCell;
+use std::marker::PhantomData;
 
 #[cfg(feature = "frame-debug-info")]
 /// The kind of a given frame.
@@ -50,7 +50,7 @@ pub struct Frame {
     /// markers. we don't use them... it's mostly a reminder that the struct looks different in memory... not the cleanest but not sure how else to go about it
     pub args_marker: PhantomData<Vec<Value>>,
     pub locals_marker: PhantomData<Vec<Value>>,
-    
+
     // /// The arguments within this frame.
     // pub args: Vec<Value>,
     // /// The bindings within this frame.
@@ -60,12 +60,12 @@ pub struct Frame {
 impl Frame {
     pub fn alloc_from_method(method: GCRef<Method>, mut args: Vec<Value>, prev_frame: GCRef<Frame>, mutator: &mut GCInterface) -> GCRef<Frame> {
         let mut frame_ptr = Frame::alloc(Frame::from_method(method, args.len(), prev_frame), mutator);
-        
+
         // might be faster if we did that in the alloc method, but that means passing args as an argument to the trait method `alloc` somehow.
         for i in (0..args.len()).rev() {
-            frame_ptr.assign_arg(i, args.pop().unwrap()) 
+            frame_ptr.assign_arg(i, args.pop().unwrap())
         }
-        
+
         frame_ptr
     }
 
@@ -78,7 +78,7 @@ impl Frame {
 
         frame_ptr
     }
-    
+
     fn from_block(block: GCRef<Block>, nbr_args: usize, prev_frame: GCRef<Frame>) -> Self {
         let block_obj = block.to_obj();
         Self {
@@ -92,7 +92,7 @@ impl Frame {
             bytecode_idx: 0,
             inline_cache: std::ptr::addr_of!(block_obj.blk_info.to_obj().inline_cache),
             args_marker: PhantomData,
-            locals_marker: PhantomData
+            locals_marker: PhantomData,
         }
     }
 
@@ -117,7 +117,7 @@ impl Frame {
                     bytecode_idx: 0,
                     inline_cache: std::ptr::addr_of!(env.inline_cache),
                     args_marker: PhantomData,
-                    locals_marker: PhantomData
+                    locals_marker: PhantomData,
                 }
             }
             _ => unreachable!()
@@ -130,7 +130,7 @@ impl Frame {
         match &kind {
             FrameKind::Block { block } => {
                 // let locals = block.blk_info.locals.iter().map(|_| Value::NIL).collect();
-                let locals =  (0..block.blk_info.nb_locals).map(|_| Value::NIL).collect();
+                let locals = (0..block.blk_info.nb_locals).map(|_| Value::NIL).collect();
                 let frame = Self {
                     locals,
                     args: vec![Value::Block(Rc::clone(&block))],
@@ -138,14 +138,14 @@ impl Frame {
                     bytecodes: &block.blk_info.body,
                     bytecode_idx: 0,
                     inline_cache: std::ptr::addr_of!(block.blk_info.inline_cache),
-                    kind
+                    kind,
                 };
                 frame
             }
             FrameKind::Method { method, .. } => {
                 if let MethodKind::Defined(env) = method.kind() {
                     // let locals = env.locals.iter().map(|_| Value::NIL).collect();
-                    let locals =  (0..env.nbr_locals).map(|_| Value::NIL).collect();
+                    let locals = (0..env.nbr_locals).map(|_| Value::NIL).collect();
                     Self {
                         locals,
                         args: vec![],
@@ -153,7 +153,7 @@ impl Frame {
                         bytecodes: &env.body,
                         bytecode_idx: 0,
                         inline_cache: std::ptr::addr_of!(env.inline_cache),
-                        kind
+                        kind,
                     }
                 } else {
                     Self {
@@ -163,7 +163,7 @@ impl Frame {
                         bytecodes: std::ptr::null(), // yeah ditto
                         inline_cache: std::ptr::null(), // inline cache is never accessed in prims so this will never fail.. right?
                         bytecode_idx: 0,
-                        kind
+                        kind,
                     }
                 }
             }
@@ -244,6 +244,8 @@ pub trait FrameAccess {
     fn assign_arg(&mut self, idx: usize, value: Value);
     fn lookup_local(&self, idx: usize) -> &Value;
     fn assign_local(&mut self, idx: usize, value: Value);
+    fn get_value_arr(&self, max_size: usize) -> &[Value];
+    fn get_value_arr_mut(&self, max_size: usize) -> &mut [Value];
 }
 
 impl FrameAccess for GCRef<Frame> {
@@ -254,34 +256,54 @@ impl FrameAccess for GCRef<Frame> {
             Some(b) => {
                 let block_frame = b.to_obj().frame.unwrap();
                 block_frame.get_self()
-            },
+            }
             None => self_arg.clone()
         }
     }
-    
+
+    #[inline(always)]
+    fn get_value_arr(&self, max_size: usize) -> &[Value] {
+        unsafe {
+            let ptr: *const Value = self.ptr.add(Self::ARG_OFFSET).to_ptr();
+            std::slice::from_raw_parts(ptr, max_size)
+        }
+    }
+
+    #[inline(always)]
+    fn get_value_arr_mut(&self, max_size: usize) -> &mut [Value] {
+        unsafe {
+            let ptr: *mut Value = self.ptr.add(Self::ARG_OFFSET).to_mut_ptr();
+            std::slice::from_raw_parts_mut(ptr, max_size)
+        }
+    }
+
     #[inline(always)]
     fn lookup_argument(&self, idx: usize) -> &Value {
-        unsafe { self.ptr.add(Self::ARG_OFFSET).add(idx * size_of::<Value>()).as_ref() }
+        let arr = self.get_value_arr(idx + 1); // we just say idx + 1 since that's enough. we don't need to actually know the total number of args.
+        &arr[idx]
     }
 
     /// Assign to an argument.
     #[inline(always)]
     fn assign_arg(&mut self, idx: usize, value: Value) {
-        unsafe { *self.ptr.add(Self::ARG_OFFSET).add(idx * size_of::<Value>()).as_mut_ref() = value }
+        let arr: &mut [Value] = self.get_value_arr_mut(idx + 1);
+        arr[idx] = value
     }
-    
+
     /// Search for a local binding.
     #[inline(always)]
     fn lookup_local(&self, idx: usize) -> &Value {
-        let nbr_args = self.to_obj().nbr_args;
-        unsafe { self.ptr.add(Self::ARG_OFFSET).add((nbr_args + idx) * size_of::<Value>()).as_ref() }
+        let local_idx = self.to_obj().nbr_args + idx;
+        let arr: &[Value] = self.get_value_arr(local_idx + 1);
+        &arr[local_idx]
     }
 
     /// Assign to a local binding.
     #[inline(always)]
     fn assign_local(&mut self, idx: usize, value: Value) {
-        let nbr_args = self.to_obj().nbr_args;
-        unsafe { *self.ptr.add(Self::ARG_OFFSET).add((nbr_args + idx) * size_of::<Value>()).as_mut_ref() = value }
+        let local_idx = self.to_obj().nbr_args + idx;
+        let arr: &mut [Value] = self.get_value_arr_mut(local_idx + 1);
+        arr[local_idx] = value
     }
 }
 
@@ -292,7 +314,7 @@ impl CustomAlloc<Frame> for Frame {
         let size = size_of::<Frame>() + ((nbr_args + nbr_locals) * size_of::<Value>());
 
         let frame_ptr = GCRef::<Frame>::alloc_with_size(frame, gc_interface, size);
-        
+
         unsafe {
             let mut locals_addr = frame_ptr.ptr.add(size_of::<Frame>()).add(nbr_args * size_of::<Value>());
             for _ in 0..nbr_locals {
@@ -300,7 +322,7 @@ impl CustomAlloc<Frame> for Frame {
                 locals_addr = locals_addr.add(size_of::<Value>());
             }
         };
-        
+
         frame_ptr
     }
 }
