@@ -27,9 +27,13 @@ pub struct Frame {
     pub nbr_args: usize, // todo u8 instead?
     pub nbr_locals: usize,
 
-    /// markers. we don't use them... it's mostly a reminder that the struct looks different in memory... not the cleanest but not sure how else to go about it
-    pub args_marker: PhantomData<Vec<Value>>,
-    pub locals_marker: PhantomData<Vec<Value>>,
+    pub stack: Vec<Value>,
+    pub stack_ptr: usize,
+
+    /// markers. we don't use them directly. it's mostly a reminder that the struct looks different in memory... not the cleanest but not sure how else to go about it
+    // pub stack_marker: PhantomData<[Value]>,
+    pub args_marker: PhantomData<[Value]>,
+    pub locals_marker: PhantomData<[Value]>,
 
     // /// The arguments within this frame.
     // pub args: Vec<Value>,
@@ -69,6 +73,8 @@ impl Frame {
             literals: &block_obj.blk_info.to_obj().literals,
             bytecodes: &block_obj.blk_info.to_obj().body,
             bytecode_idx: 0,
+            stack_ptr: 0,
+            stack: vec![],
             inline_cache: std::ptr::addr_of!(block_obj.blk_info.to_obj().inline_cache),
             args_marker: PhantomData,
             locals_marker: PhantomData,
@@ -86,6 +92,8 @@ impl Frame {
                     bytecodes: &env.body,
                     current_method: method.as_ref(),
                     bytecode_idx: 0,
+                    stack_ptr: 0,
+                    stack: vec![],
                     inline_cache: std::ptr::addr_of!(env.inline_cache),
                     args_marker: PhantomData,
                     locals_marker: PhantomData,
@@ -157,6 +165,14 @@ pub trait FrameAccess {
     fn assign_local(&mut self, idx: usize, value: Value);
     fn get_value_arr(&self, max_size: usize) -> &[Value];
     fn get_value_arr_mut(&self, max_size: usize) -> &mut [Value];
+
+    /// Stack operations
+    fn stack_push(&mut self, value: Value);
+    fn stack_pop(&mut self) -> Value;
+    fn stack_safe_pop(&mut self) -> Option<Value>;
+    fn stack_last(&self) -> &Value;
+    fn stack_last_mut(&self) -> &mut Value;
+    fn stack_len(&self) -> usize;
 }
 
 impl FrameAccess for GCRef<Frame> {
@@ -229,6 +245,36 @@ impl FrameAccess for GCRef<Frame> {
         let local_idx = self.to_obj().nbr_args + idx;
         let arr: &mut [Value] = self.get_value_arr_mut(local_idx + 1);
         arr[local_idx] = value
+    }
+
+    #[inline(always)]
+    fn stack_push(&mut self, value: Value) {
+        self.to_obj().stack.push(value);
+    }
+
+    #[inline(always)]
+    fn stack_pop(&mut self) -> Value {
+        self.to_obj().stack.pop().unwrap()
+    }
+
+    #[inline(always)]
+    fn stack_last(&self) -> &Value {
+        self.to_obj().stack.last().unwrap()
+    }
+
+    #[inline(always)]
+    fn stack_last_mut(&self) -> &mut Value {
+        self.to_obj().stack.last_mut().unwrap()
+    }
+    
+    #[inline(always)]
+    fn stack_safe_pop(&mut self) -> Option<Value> {
+        self.to_obj().stack.pop()
+    }
+
+    #[inline(always)]
+    fn stack_len(&self) -> usize {
+        self.to_obj().stack.len()
     }
 }
 

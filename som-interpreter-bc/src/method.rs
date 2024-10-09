@@ -10,6 +10,7 @@ use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
 use crate::value::Value;
 
+use crate::frame::FrameAccess;
 #[cfg(feature = "frame-debug-info")]
 use som_core::ast::BlockDebugInfo;
 use som_core::gc::GCRef;
@@ -96,8 +97,8 @@ impl Invoke for GCRef<Method> {
                 interpreter.push_method_frame(*self, frame_args, &mut universe.gc_interface);
             }
             MethodKind::Primitive(func) => {
-                interpreter.stack.push(receiver);
-                interpreter.stack.append(&mut args);
+                interpreter.current_frame.stack_push(receiver);
+                interpreter.current_frame.to_obj().stack.append(&mut args);
                 func(interpreter, universe).expect(&format!("invoking func {} failed", &self.to_obj().signature))
             }
             MethodKind::NotImplemented(_) => todo!(),
