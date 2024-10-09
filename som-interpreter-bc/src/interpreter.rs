@@ -128,7 +128,7 @@ impl Interpreter {
             let bytecode = *(unsafe { (*self.current_bytecodes).get_unchecked(self.bytecode_idx) });
 
             self.bytecode_idx += 1;
-
+            
             match bytecode {
                 Bytecode::Dup2 => {
                     let second_to_last = self.stack.iter().nth_back(1).unwrap().clone();
@@ -478,20 +478,20 @@ impl Interpreter {
 
             match method.to_obj().kind() {
                 MethodKind::Defined(_) => {
-                    // let name = &method.holder.upgrade().unwrap().borrow().name.clone();
+                    // let name = &method.to_obj().holder.borrow().name.clone();
                     // let filter_list = ["Integer", "Vector", "True", "Pair"];
                     // let filter_list = [];
 
                     // if !filter_list.contains(&name.as_str()) {
                     // if !SYSTEM_CLASS_NAMES.contains(&name.as_str()) {
-                    //     eprintln!("Invoking {:?} (in {:?})", &method.signature, &name);
+                    //     eprintln!("Invoking {:?} (in {:?})", &method.to_obj().signature, &name);
                     // }
 
                     let args = interpreter.stack.split_off(interpreter.stack.len() - nb_params - 1);
                     interpreter.push_method_frame(method, args, &mut universe.gc_interface);
                 }
                 MethodKind::Primitive(func) => {
-                    // eprintln!("Invoking prim {:?} (in {:?})", &method.signature, &method.holder.upgrade().unwrap().borrow().name);
+                    // eprintln!("Invoking prim {:?} (in {:?})", &method.to_obj().signature, &method.to_obj().holder.borrow().name);
                     func(interpreter, universe).with_context(|| anyhow::anyhow!("error calling primitive `{}`", universe.lookup_symbol(symbol))).unwrap();
                 }
                 MethodKind::NotImplemented(err) => {

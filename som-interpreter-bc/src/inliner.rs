@@ -533,7 +533,7 @@ impl PrimMessageInliner for ast::Message {
         ctxt: &mut dyn InnerGenCtxt,
         mutator: &mut GCInterface
     ) -> Option<()> {
-        if self.values.len() != 2 {
+        if self.values.len() != 2 || !matches!(self.values.get(1)?, ast::Expression::Block(_)) {
             return None;
         }
 
@@ -542,7 +542,7 @@ impl PrimMessageInliner for ast::Message {
         let idx_loop_accumulator = ctxt.get_nbr_locals() as u8; // not sure that's correct
 
         ctxt.push_instr(Bytecode::Dup2);
-        ctxt.push_instr(Bytecode::NilLocal(idx_loop_accumulator));
+        // ctxt.push_instr(Bytecode::NilLocal(idx_loop_accumulator));
 
         let jump_if_greater_idx = ctxt.get_cur_instr_idx();
         ctxt.push_instr(Bytecode::JumpIfGreater(0));
@@ -554,7 +554,7 @@ impl PrimMessageInliner for ast::Message {
 
         ctxt.push_instr(Bytecode::Pop);
         ctxt.push_instr(Bytecode::Inc);
-        ctxt.push_instr(Bytecode::NilLocal(idx_loop_accumulator));
+        // ctxt.push_instr(Bytecode::NilLocal(idx_loop_accumulator));
         ctxt.push_instr(Bytecode::JumpBackward((ctxt.get_cur_instr_idx() - jump_if_greater_idx) as u16));
 
         ctxt.backpatch_jump_to_current(jump_if_greater_idx);

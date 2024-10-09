@@ -123,10 +123,10 @@ impl TryFrom<Value> for DoubleLike {
     type Error = Error;
 
     fn try_from(value: Value) -> Result<Self, Self::Error> {
-        value
+        value.clone()
             .as_double()
             .map(Self::Double)
-            .or_else(|| value.as_integer().map(Self::Integer))
+            .or_else(|| value.clone().as_integer().map(Self::Integer))
             .or_else(|| value.as_big_integer().map(Self::BigInteger))
             .context("could not resolve `Value` as `Double`, `Integer`, or `BigInteger`")
     }

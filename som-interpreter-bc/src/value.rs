@@ -14,6 +14,10 @@ use som_core::interner::Interned;
 static_assertions::const_assert_eq!(size_of::<f64>(), 8);
 static_assertions::assert_eq_size!(f64, u64, *const ());
 
+// nan boxed is the default, but valueenum helps with debugging.
+pub type Value = NaNBoxedVal;
+// pub type Value = ValueEnum;
+
 /// Canonical `NaN` representation (minimum bitfield to represent `NaN`).
 ///
 /// Since we are hijacking most bits in `NaN` values, all legitimate `NaN` will need
@@ -116,9 +120,6 @@ const IS_CELL_PATTERN: u64 = CELL_BASE_TAG << TAG_SHIFT;
 // 0111111111111000 000... -> is the only real NaN
 // 0111111111111xxx yyy... -> xxx = non-pointer type, yyy = value
 // 1111111111111xxx yyy... -> xxx = pointer type,     yyy = pointer value
-
-pub type Value = NaNBoxedVal;
-// pub type Value = ValueEnum;
 
 /// Represents an SOM value.
 #[derive(Clone, Copy, Eq, Hash)]
@@ -223,7 +224,7 @@ impl NaNBoxedVal {
     pub fn is_boolean_false(self) -> bool {
         self.payload() == 0
     }
-    
+
     /// Returns whether this value is a symbol.
     #[inline(always)]
     pub fn is_symbol(self) -> bool {
@@ -483,7 +484,7 @@ impl NaNBoxedVal {
     }
 
     /// Search for a local binding within this value.
-    pub fn lookup_local(&self, idx: usize) -> Self {
+    pub fn lookup_local(&self, idx: usize) -> Value {
         if let Some(instance) = self.as_instance() {
             instance.lookup_local(idx)
         } else if let Some(class) = self.as_class() {
@@ -494,7 +495,7 @@ impl NaNBoxedVal {
     }
 
     /// Assign a value to a local binding within this value.
-    pub fn assign_local(&mut self, idx: usize, value: Self) -> Option<()> {
+    pub fn assign_local(&mut self, idx: usize, value: Value) -> Option<()> {
         if let Some(mut instance) = self.as_instance() {
             Some(instance.assign_local(idx, value))
         } else if let Some(class) = self.as_class() {
@@ -660,8 +661,8 @@ impl From<NaNBoxedVal> for ValueEnum {
             Self::Symbol(value)
         } else if let Some(value) = value.as_string() {
             Self::String(value)
-        } else if let Some(value) = value.as_array() {
-            Self::Array(value)
+        } else if let Some(_value) = value.as_array() {
+            unimplemented!("no impl for arr. would need mutator to be passed as an argument to create a new GCRef. not hard, but we'd ditch the From trait")
         } else if let Some(value) = value.as_block() {
             Self::Block(value)
         } else if let Some(value) = value.as_instance() {
@@ -687,7 +688,7 @@ impl From<ValueEnum> for NaNBoxedVal {
             ValueEnum::Double(value) => Self::new_double(value),
             ValueEnum::Symbol(value) => Self::new_symbol(value),
             ValueEnum::String(value) => Self::new_string(value),
-            ValueEnum::Array(value) => Self::new_array(value),
+            ValueEnum::Array(_value) => unimplemented!("no impl for arr. would need mutator to be passed as an argument to create a new GCRef. not hard, but we'd ditch the From trait"),
             ValueEnum::Block(value) => Self::new_block(value),
             ValueEnum::Instance(value) => Self::new_instance(value),
             ValueEnum::Class(value) => Self::new_class(value),
@@ -722,7 +723,7 @@ pub enum ValueEnum {
     /// A string value.
     String(GCRef<String>),
     /// An array of values.
-    Array(GCRef<Vec<NaNBoxedVal>>),
+    Array(GCRef<Vec<ValueEnum>>),
     /// A block value, ready to be evaluated.
     Block(GCRef<Block>),
     /// A generic (non-primitive) class instance.
@@ -762,10 +763,10 @@ impl ValueEnum {
 
     /// Search for a local binding within this value.
     #[inline(always)]
-    pub fn lookup_local(&self, idx: usize) -> Option<Self> {
+    pub fn lookup_local(&self, idx: usize) -> Self {
         match self {
-            Self::Instance(instance_ptr) => Some(instance_ptr.lookup_local(idx).into()),
-            Self::Class(class) => Some(class.to_obj().lookup_local(idx).into()),
+            Self::Instance(instance_ptr) => instance_ptr.lookup_local(idx).into(),
+            Self::Class(class) => class.to_obj().lookup_local(idx).into(),
             v => unreachable!("Attempting to look up a local in {:?}", v),
         }
     }
@@ -865,6 +866,247 @@ impl fmt::Debug for ValueEnum {
                 let signature = format!("{}>>#{}", val.to_obj().holder.to_obj().name(), val.to_obj().signature());
                 f.debug_tuple("Invokable").field(&signature).finish()
             }
+        }
+    }
+}
+
+impl ValueEnum {
+    /// Returns whether this value is a big integer.
+    #[inline(always)]
+    pub fn is_big_integer(&self) -> bool {
+        matches!(self, ValueEnum::BigInteger(_))
+    }
+    /// Returns whether this value is a string.
+    #[inline(always)]
+    pub fn is_string(&self) -> bool {
+        matches!(self, ValueEnum::String(_))
+    }
+    /// Returns whether this value is an array.
+    #[inline(always)]
+    pub fn is_array(&self) -> bool {
+        matches!(self, ValueEnum::Array(_))
+    }
+    /// Returns whether this value is a block.
+    #[inline(always)]
+    pub fn is_block(&self) -> bool {
+        matches!(self, ValueEnum::Block(_))
+    }
+    /// Returns whether this value is a class.
+    #[inline(always)]
+    pub fn is_class(&self) -> bool {
+        matches!(self, ValueEnum::Class(_))
+    }
+    /// Returns whether this value is an instance.
+    #[inline(always)]
+    pub fn is_instance(&self) -> bool {
+        matches!(self, ValueEnum::Instance(_))
+    }
+    /// Returns whether this value is an invocable.
+    #[inline(always)]
+    pub fn is_invocable(&self) -> bool {
+        matches!(self, ValueEnum::Invokable(_))
+    }
+
+    // `is_*` methods for pointer types
+
+    /// Returns whether this value is `nil``.
+    #[inline(always)]
+    pub fn is_nil(&self) -> bool {
+        matches!(self, ValueEnum::Nil)
+    }
+    /// Returns whether this value is `system`.
+    #[inline(always)]
+    pub fn is_system(&self) -> bool {
+        matches!(self, ValueEnum::System)
+    }
+    /// Returns whether this value is an integer.
+    #[inline(always)]
+    pub fn is_integer(&self) -> bool {
+        matches!(self, ValueEnum::Integer(_))
+    }
+    /// Returns whether this value is a boolean.
+    #[inline(always)]
+    pub fn is_boolean(&self) -> bool {
+        matches!(self, ValueEnum::Boolean(_))
+    }
+
+    /// Returns whether or not it's a boolean corresponding to true. NB: does NOT check if the type actually is a boolean.
+    #[inline(always)]
+    pub fn is_boolean_true(&self) -> bool {
+        matches!(self, ValueEnum::Boolean(true))
+    }
+
+    /// Returns whether or not it's a boolean corresponding to false. NB: does NOT check if the type actually is a boolean.
+    #[inline(always)]
+    pub fn is_boolean_false(&self) -> bool {
+        matches!(self, ValueEnum::Boolean(false))
+    }
+
+    /// Returns whether this value is a symbol.
+    #[inline(always)]
+    pub fn is_symbol(&self) -> bool {
+        matches!(self, ValueEnum::Symbol(_))
+    }
+
+    /// Returns whether this value is a double.
+    #[inline(always)]
+    pub fn is_double(&self) -> bool {
+        matches!(self, ValueEnum::Double(_))
+    }
+
+    // `as_*` for pointer types
+
+    /// Returns this value as a big integer, if such is its type.
+    #[inline(always)]
+    pub fn as_big_integer(&self) -> Option<GCRef<BigInt>> {
+        if let ValueEnum::BigInteger(v) = self { Some(*v) } else { None }
+    }
+    /// Returns this value as a string, if such is its type.
+    #[inline(always)]
+    pub fn as_string(&self) -> Option<GCRef<String>> {
+        if let ValueEnum::String(v) = self { Some(*v) } else { None }
+    }
+    /// Returns this value as an array, if such is its type.
+    #[inline(always)]
+    pub fn as_array(&self) -> Option<GCRef<Vec<ValueEnum>>> {
+        if let ValueEnum::Array(v) = self { Some(*v) } else { None }
+    }
+    /// Returns this value as a block, if such is its type.
+    #[inline(always)]
+    pub fn as_block(&self) -> Option<GCRef<Block>> {
+        if let ValueEnum::Block(blk) = self { Some(*blk) } else { None }
+    }
+
+    /// Returns this value as a class, if such is its type.
+    #[inline(always)]
+    pub fn as_class(&self) -> Option<GCRef<Class>> {
+        if let ValueEnum::Class(v) = self { Some(*v) } else { None }
+    }
+    /// Returns this value as an instance, if such is its type.
+    #[inline(always)]
+    pub fn as_instance(&self) -> Option<GCRef<Instance>> {
+        if let Self::Instance(v) = self { Some(*v) } else { None }
+    }
+    /// Returns this value as an invocable, if such is its type.
+    #[inline(always)]
+    pub fn as_invokable(&self) -> Option<GCRef<Method>> {
+        if let Self::Invokable(v) = self { Some(*v) } else { None }
+    }
+
+    // `as_*` for non pointer types
+
+    /// Returns this value as an integer, if such is its type.
+    #[inline(always)]
+    pub fn as_integer(&self) -> Option<i32> {
+        if let ValueEnum::Integer(v) = self { Some(*v) } else { None }
+    }
+    /// Returns this value as a boolean, if such is its type.
+    #[inline(always)]
+    pub fn as_boolean(&self) -> Option<bool> {
+        if let ValueEnum::Boolean(v) = self { Some(*v) } else { None }
+    }
+    /// Returns this value as a symbol, if such is its type.
+    #[inline(always)]
+    pub fn as_symbol(&self) -> Option<Interned> {
+        if let ValueEnum::Symbol(v) = self { Some(*v) } else { None }
+    }
+
+    /// Returns this value as a double, if such is its type.
+    #[inline(always)]
+    pub fn as_double(&self) -> Option<f64> {
+        if let ValueEnum::Double(v) = self { Some(*v) } else { None }
+    }
+
+    /// The `nil` value.
+    pub const NIL: Self = ValueEnum::Nil;
+    /// The `system` value.
+    pub const SYSTEM: Self = ValueEnum::System;
+    /// The boolean `true` value.
+    pub const TRUE: Self = ValueEnum::Boolean(true);
+    /// The boolean `false` value.
+    pub const FALSE: Self = ValueEnum::Boolean(false);
+
+    /// The integer `0` value.
+    pub const INTEGER_ZERO: Self = ValueEnum::Integer(0);
+    /// The integer `1` value.
+    pub const INTEGER_ONE: Self = ValueEnum::Integer(1);
+
+    /// Returns a new boolean value.
+    #[inline(always)]
+    pub fn new_boolean(value: bool) -> Self {
+        if value {
+            Self::TRUE
+        } else {
+            Self::FALSE
+        }
+    }
+
+    /// Returns a new integer value.
+    #[inline(always)]
+    pub fn new_integer(value: i32) -> Self {
+        ValueEnum::Integer(value)
+    }
+
+    /// Returns a new double value.
+    #[inline(always)]
+    pub fn new_double(value: f64) -> Self {
+        ValueEnum::Double(value)
+    }
+
+    /// Returns a new symbol value.
+    #[inline(always)]
+    pub fn new_symbol(value: Interned) -> Self {
+        ValueEnum::Symbol(value)
+    }
+
+    // `new_*` for pointer types
+
+    /// Returns a new big integer value.
+    #[inline(always)]
+    pub fn new_big_integer(value: GCRef<BigInt>) -> Self {
+        ValueEnum::BigInteger(value)
+    }
+    /// Returns a new string value.
+    #[inline(always)]
+    pub fn new_string(value: GCRef<String>) -> Self {
+        ValueEnum::String(value)
+    }
+    /// Returns a new array value.
+    #[inline(always)]
+    pub fn new_array(value: GCRef<Vec<ValueEnum>>) -> Self {
+        ValueEnum::Array(value)
+    }
+    /// Returns a new block value.
+    #[inline(always)]
+    pub fn new_block(value: GCRef<Block>) -> Self {
+        ValueEnum::Block(value)
+    }
+    /// Returns a new class value.
+    #[inline(always)]
+    pub fn new_class(value: GCRef<Class>) -> Self {
+        ValueEnum::Class(value)
+    }
+    /// Returns a new instance value.
+    #[inline(always)]
+    pub fn new_instance(value: GCRef<Instance>) -> Self {
+        ValueEnum::Instance(value)
+    }
+    /// Returns a new invocable value.
+    #[inline(always)]
+    pub fn new_invokable(value: GCRef<Method>) -> Self {
+        ValueEnum::Invokable(value)
+    }
+
+    /// Checks if a value has a local variable (field) at the given index. Used by the instVarAt and instVarAtPut primitives.
+    /// Basically, we want normal field lookups/assignments to not be able to fail (through unsafe) to be fast, since we know the bytecode we emitted that needs them is sound.
+    /// But those prims are free to be used and abused by devs, so they CAN fail, and we need to check that they won't fail before we invoke them. Hence this `has_local`.
+    pub fn has_local(&self, idx: usize) -> bool {
+        if let Some(instance) = self.as_instance() {
+            instance.to_obj().has_local(idx)
+        } else if let Some(class) = self.as_class() {
+            class.to_obj().has_local(idx)
+        } else {
+            false
         }
     }
 }

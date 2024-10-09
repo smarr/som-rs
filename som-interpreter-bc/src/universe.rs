@@ -248,7 +248,7 @@ impl Universe {
             let super_class = if let Some(ref super_class) = defn.super_class {
                 let symbol = self.intern_symbol(super_class.as_str());
                 match self.lookup_global(symbol) {
-                    v if v.is_some() && v.unwrap().is_class() => { v.unwrap().as_class().unwrap() }
+                    v if v.is_some() && v.clone().unwrap().is_class() => { v.unwrap().as_class().unwrap() }
                     _ => self.load_class(super_class)?,
                 }
             } else {

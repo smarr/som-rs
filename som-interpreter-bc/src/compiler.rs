@@ -133,7 +133,7 @@ impl GenCtxt for BlockGenCtxt<'_> {
     fn get_scope(&self) -> usize {
         self.outer.get_scope() + 1
     }
-    
+
     fn class_name(&self) -> &str {
         self.outer.class_name()
     }
@@ -235,18 +235,19 @@ impl InnerGenCtxt for BlockGenCtxt<'_> {
                     body
                         .iter()
                         .enumerate()
-                        .any(|(maybe_jump_idx, bc)| match bc {
-                            Bytecode::Jump(jump_offset)
-                            | Bytecode::JumpOnTrueTopNil(jump_offset)
-                            | Bytecode::JumpOnFalseTopNil(jump_offset)
-                            | Bytecode::JumpOnTruePop(jump_offset)
-                            | Bytecode::JumpOnFalsePop(jump_offset)
-                            | Bytecode::JumpIfGreater(jump_offset) => {
-                                let bc_target_idx = maybe_jump_idx + *jump_offset as usize;
-                                bc_target_idx == idx || bc_target_idx == idx + 2
-                            }
-                            _ => false,
-                        });
+                        .any(|(maybe_jump_idx, bc)|
+                            match bc {
+                                Bytecode::Jump(jump_offset)
+                                | Bytecode::JumpOnTrueTopNil(jump_offset)
+                                | Bytecode::JumpOnFalseTopNil(jump_offset)
+                                | Bytecode::JumpOnTruePop(jump_offset)
+                                | Bytecode::JumpOnFalsePop(jump_offset)
+                                | Bytecode::JumpIfGreater(jump_offset) => {
+                                    let bc_target_idx = maybe_jump_idx + *jump_offset as usize;
+                                    bc_target_idx == idx || bc_target_idx == idx + 2
+                                }
+                                _ => false,
+                            });
 
                 if are_bc_jump_targets {
                     continue;
@@ -271,7 +272,7 @@ impl InnerGenCtxt for BlockGenCtxt<'_> {
                 | Bytecode::JumpOnFalsePop(jump_offset)
                 | Bytecode::JumpIfGreater(jump_offset) => {
                     let jump_offset = *jump_offset as usize;
-                    
+
                     if indices_to_remove.contains(&(cur_idx + jump_offset)) {
                         panic!("should be unreachable");
                         // let jump_target_in_removes_idx = indices_to_remove
@@ -404,7 +405,7 @@ impl InnerGenCtxt for MethodGenCtxt<'_> {
     fn set_nbr_locals(&mut self, nbr_locals: usize) {
         self.inner.set_nbr_locals(nbr_locals)
     }
-    
+
     fn get_nbr_args(&self) -> usize {
         self.inner.get_nbr_args()
     }
@@ -457,7 +458,7 @@ impl MethodCodegen for ast::Expression {
                                     0 => ctxt.push_instr(Bytecode::PushSelf),
                                     scope => ctxt.push_instr(Bytecode::PushNonLocalArg(scope as u8, 0))
                                 }
-                            },
+                            }
                             _ => {
                                 let name = ctxt.intern_symbol(name);
                                 let idx = ctxt.push_literal(Literal::Symbol(name));
@@ -486,7 +487,7 @@ impl MethodCodegen for ast::Expression {
                         ctxt.push_instr(Bytecode::Dup);
                         ctxt.push_instr(Bytecode::PopField(idx as u8));
                         Some(())
-                    },
+                    }
                     None => panic!("couldn't resolve a globalwrite (`{}`) to a field write", name)
                 }
             }
@@ -515,7 +516,7 @@ impl MethodCodegen for ast::Expression {
                         "-" => ctxt.push_instr(Bytecode::Dec),
                         _ => unreachable!()
                     };
-                    return Some(())
+                    return Some(());
                 }
 
                 message
@@ -539,7 +540,7 @@ impl MethodCodegen for ast::Expression {
                             2 => ctxt.push_instr(Bytecode::Send3(idx as u8)),
                             _ => ctxt.push_instr(Bytecode::SendN(idx as u8)),
                         }
-                    },
+                    }
                     true => {
                         match nb_params {
                             0 => ctxt.push_instr(Bytecode::SuperSend1(idx as u8)),
@@ -592,7 +593,7 @@ impl MethodCodegen for ast::Expression {
                                 }
                                 i += 1;
                             }
-                        },
+                        }
                         ast::Literal::Double(val) => Literal::Double(*val),
                         ast::Literal::Integer(val) => Literal::Integer(*val),
                         ast::Literal::BigInteger(val) => {
@@ -733,9 +734,10 @@ fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::MethodDef, mutator: &mut 
             #[cfg(feature = "frame-debug-info")]
             debug_info: {
                 match &defn.body {
-                    MethodBody::Primitive => { BlockDebugInfo{ parameters: vec![], locals: vec![] } }
+                    MethodBody::Primitive => { BlockDebugInfo { parameters: vec![], locals: vec![] } }
                     MethodBody::Body { debug_info, .. } => debug_info.clone()
-            }},
+                }
+            },
         },
     };
 
@@ -787,7 +789,7 @@ fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::MethodDef, mutator: &mut 
                     literals,
                     inline_cache,
                     #[cfg(feature = "frame-debug-info")]
-                    block_debug_info: dbg_info
+                    block_debug_info: dbg_info,
                 })
             }
         },
@@ -811,7 +813,7 @@ fn compile_block(outer: &mut dyn GenCtxt, defn: &ast::Block, mutator: &mut GCInt
         literals: IndexSet::new(),
         body: None,
         #[cfg(feature = "frame-debug-info")]
-        debug_info: defn.dbg_info.clone()
+        debug_info: defn.dbg_info.clone(),
     };
 
     let splitted = defn.body.exprs.split_last();
@@ -830,7 +832,7 @@ fn compile_block(outer: &mut dyn GenCtxt, defn: &ast::Block, mutator: &mut GCInt
         ctxt.push_instr(Bytecode::ReturnLocal);
     }
 
-    
+
     let frame = None;
     // let locals = {
     // let locals = std::mem::take(&mut ctxt.locals);
@@ -855,7 +857,7 @@ fn compile_block(outer: &mut dyn GenCtxt, defn: &ast::Block, mutator: &mut GCInt
             nb_params,
             inline_cache,
             #[cfg(feature = "frame-debug-info")]
-            block_debug_info: ctxt.debug_info
+            block_debug_info: ctxt.debug_info,
         }, mutator),
     };
 
