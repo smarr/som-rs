@@ -4,6 +4,7 @@ use std::io::Write;
 
 use crate::class::Class;
 use crate::convert::{Nil, Primitive, StringLike, System};
+use crate::frame::FrameAccess;
 use crate::interpreter::Interpreter;
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
@@ -207,32 +208,36 @@ fn time(
 }
 
 fn print_stack_trace(
-    _: &mut Interpreter,
+    interpreter: &mut Interpreter,
     _: &mut Universe,
     _: Value,
 ) -> Result<bool, Error> {
     const _: &str = "System>>#printStackTrace";
 
-    todo!("no stack trace implemented. it's doable, though")
-    /*    for frame in &interpreter.frames {
-            let frame_ref = frame.borrow();
-            let class = frame_ref.get_method_holder();
-            let method = frame_ref.get_method();
-            let bytecode_idx = frame_ref.bytecode_idx;
-            let block = match frame_ref.kind() {
-                FrameKind::Block { .. } => "$block",
-                _ => "",
-            };
-            println!(
-                "{}>>#{}{} @bi: {}",
-                class.borrow().name(),
-                method.signature(),
-                block,
-                bytecode_idx
-            );
+    let frame_stack = {
+        let mut frame_stack = vec![];
+        let mut current_frame = interpreter.current_frame;
+        while !current_frame.is_empty() {
+            frame_stack.push(current_frame);
+            current_frame = current_frame.to_obj().prev_frame;
         }
+        frame_stack
+    };
 
-        Ok(true)*/
+    println!("Stack trace:");
+    for (frame_idx, frame) in frame_stack.iter().enumerate() {
+        let class = frame.get_method_holder();
+        println!(
+            "\t{}: {}>>#{} @bi: {}",
+            frame_idx,
+            class.borrow().name(),
+            unsafe { (*frame.to_obj().current_method).signature() },
+            frame.to_obj().bytecode_idx
+        );
+    }
+    println!("----------------");
+
+    Ok(true)
 }
 
 fn full_gc(
