@@ -24,7 +24,7 @@ macro_rules! send {
         };
         let method = {
             // dbg!($universe.lookup_symbol(symbol));
-            let receiver = $interp.current_frame.to_obj().stack.iter().nth_back(nb_params).unwrap();
+            let receiver = $interp.current_frame.stack_nth_back(nb_params);
             let receiver_class = receiver.class($universe);
             resolve_method($frame, &receiver_class, symbol, $interp.bytecode_idx)
         };
@@ -129,7 +129,7 @@ impl Interpreter {
             
             match bytecode {
                 Bytecode::Dup2 => {
-                    let second_to_last = self.current_frame.to_obj().stack.iter().nth_back(1).unwrap().clone();
+                    let second_to_last = self.current_frame.stack_nth_back(1).clone();
                     self.current_frame.stack_push(second_to_last)
                 }
                 Bytecode::NilLocal(idx) => {
@@ -137,7 +137,7 @@ impl Interpreter {
                 }
                 Bytecode::JumpIfGreater(offset) => {
                     let top = self.current_frame.stack_last();
-                    let top2 = self.current_frame.to_obj().stack.iter().nth_back(1).unwrap();
+                    let top2 = self.current_frame.stack_nth_back(1);
 
                     let is_greater = {
                         if let (Some(a), Some(b)) = (top.as_integer(), top2.as_integer()) {
@@ -163,7 +163,7 @@ impl Interpreter {
                     self.current_frame.stack_push(value);
                 }
                 Bytecode::Inc => {
-                    let last = self.current_frame.to_obj().stack.last_mut()?;
+                    let last = self.current_frame.stack_last_mut();
                     if let Some(int) = last.as_integer() {
                         *last = Value::new_integer(int + 1);
                     } else if let Some(double) = last.as_double() {
@@ -175,7 +175,7 @@ impl Interpreter {
                     }
                 }
                 Bytecode::Dec => {
-                    let last = self.current_frame.to_obj().stack.last_mut()?;
+                    let last = self.current_frame.stack_last_mut();
                     if let Some(int) = last.as_integer() {
                         *last = Value::new_integer(int - 1); // TODO: see Bytecode::Inc
                     } else if let Some(double) = last.as_double() {
@@ -279,7 +279,7 @@ impl Interpreter {
                     self.current_frame.stack_pop();
                 }
                 Bytecode::Pop2 => {
-                    self.current_frame.to_obj().stack.remove(self.current_frame.stack_len() - 2);
+                    unimplemented!("we're going to remove pop2 usages")
                 }
                 Bytecode::PopLocal(up_idx, idx) => {
                     let value = self.current_frame.stack_pop();
@@ -419,7 +419,7 @@ impl Interpreter {
                         self.current_frame.stack_pop();
                     } else if condition_result.is_boolean_false(){
                         self.bytecode_idx += offset as usize - 1;
-                        *self.current_frame.to_obj().stack.last_mut()? = Value::NIL;
+                        *self.current_frame.stack_last_mut() = Value::NIL;
                     } else {
                         panic!("JumpOnFalseTopNil condition did not evaluate to boolean (was {:?})", condition_result)
                     }
@@ -459,7 +459,7 @@ impl Interpreter {
             nb_params: usize,
         ) {
             let Some(method) = method else {
-                let args = interpreter.current_frame.to_obj().stack.split_off(interpreter.current_frame.stack_len() - nb_params);
+                let args = interpreter.current_frame.stack_n_last_elements(nb_params);
                 let self_value = interpreter.current_frame.stack_pop();
 
                 universe.does_not_understand(interpreter, self_value, symbol, args)
@@ -484,7 +484,7 @@ impl Interpreter {
                     //     eprintln!("Invoking {:?} (in {:?})", &method.to_obj().signature, &name);
                     // }
 
-                    let args = interpreter.current_frame.to_obj().stack.split_off(interpreter.current_frame.stack_len() - nb_params - 1);
+                    let args = interpreter.current_frame.stack_n_last_elements(nb_params + 1);
                     interpreter.push_method_frame(method, args, &mut universe.gc_interface);
                 }
                 MethodKind::Primitive(func) => {
@@ -492,7 +492,7 @@ impl Interpreter {
                     func(interpreter, universe).with_context(|| anyhow::anyhow!("error calling primitive `{}`", universe.lookup_symbol(symbol))).unwrap();
                 }
                 MethodKind::NotImplemented(err) => {
-                    let self_value = interpreter.current_frame.to_obj().stack.iter().nth_back(nb_params).unwrap();
+                    let self_value = interpreter.current_frame.stack_nth_back(nb_params);
                     println!(
                         "{}>>#{}",
                         self_value.class(&universe).to_obj().name(),

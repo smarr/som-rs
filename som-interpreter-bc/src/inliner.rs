@@ -82,7 +82,7 @@ impl PrimMessageInliner for ast::Message {
             "whileFalse:" => self.inline_while(ctxt, JumpOnTrue, mutator),
             "or:" | "||" => self.inline_or_and(ctxt, Or, mutator),
             "and:" | "&&" => self.inline_or_and(ctxt, And, mutator),
-            "to:do:" => self.inline_to_do(ctxt, mutator),
+            // "to:do:" => self.inline_to_do(ctxt, mutator),
             // to:by:do, downTo:do:, perhaps?
             _ => None,
         }

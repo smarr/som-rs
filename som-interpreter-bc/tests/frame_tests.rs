@@ -109,3 +109,59 @@ fn frame_mixed_local_and_arg_access() {
     assert_eq!(frame.lookup_argument(1).as_integer(), Some(42));
     assert_eq!(frame.lookup_local(2).as_double(), Some(42.42));
 }
+
+#[test]
+fn frame_stack_accesses() {
+    let mut universe = setup_universe();
+
+    let method_ref = get_method("foo: a and: b = ( | a b c | ^ false )", "foo:and:", &mut universe);
+
+    let mut frame = Frame::alloc_from_method(method_ref,
+                                             vec![Value::Double(1000.0), Value::SYSTEM],
+                                             GCRef::default(),
+                                             &mut universe.gc_interface);
+
+    assert_eq!(frame.stack_len(), 0);
+    frame.stack_push(Value::Boolean(true));
+    assert_eq!(frame.stack_len(), 1);
+    
+    assert_eq!(frame.stack_pop().as_boolean(), Some(true));
+    assert_eq!(frame.stack_len(), 0);
+
+    frame.stack_push(Value::Integer(10000));
+    frame.stack_push(Value::Double(424242.424242));
+    assert_eq!(frame.stack_len(), 2);
+    
+    assert_eq!(frame.stack_last().as_double(), Some(424242.424242));
+    assert_eq!(frame.stack_last_mut().as_double(), Some(424242.424242));
+
+    assert_eq!(frame.stack_nth_back(0).as_double(), Some(424242.424242));
+    assert_eq!(frame.stack_nth_back(1).as_integer(), Some(10000));
+}
+
+#[test]
+fn frame_stack_split_off() {
+    let mut universe = setup_universe();
+
+    let method_ref = get_method("foo: a and: b = ( | a b c | ^ false )", "foo:and:", &mut universe);
+
+    let mut frame = Frame::alloc_from_method(method_ref,
+                                             vec![Value::Double(1000.0), Value::SYSTEM],
+                                             GCRef::default(),
+                                             &mut universe.gc_interface);
+
+    frame.stack_push(Value::Integer(10000));
+    frame.stack_push(Value::Double(424242.424242));
+    frame.stack_push(Value::NIL);
+    frame.stack_push(Value::INTEGER_ONE);
+    frame.stack_push(Value::Boolean(true));
+
+    assert_eq!(frame.stack_len(), 5);
+    
+    let two_last = frame.stack_n_last_elements(2);
+
+    assert_eq!(two_last, vec![Value::INTEGER_ONE, Value::Boolean(true)]);
+
+    assert_eq!(frame.stack_len(), 3);
+    assert_eq!(frame.stack_last(), &Value::NIL);
+}

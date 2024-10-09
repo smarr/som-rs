@@ -98,7 +98,9 @@ impl Invoke for GCRef<Method> {
             }
             MethodKind::Primitive(func) => {
                 interpreter.current_frame.stack_push(receiver);
-                interpreter.current_frame.to_obj().stack.append(&mut args);
+                for arg in args {
+                    interpreter.current_frame.stack_push(arg)
+                }
                 func(interpreter, universe).expect(&format!("invoking func {} failed", &self.to_obj().signature))
             }
             MethodKind::NotImplemented(_) => todo!(),
