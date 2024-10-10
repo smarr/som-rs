@@ -297,9 +297,6 @@ impl Interpreter {
                 Bytecode::Pop => {
                     self.current_frame.stack_pop();
                 }
-                Bytecode::Pop2 => {
-                    unimplemented!("we're going to remove pop2 usages")
-                }
                 Bytecode::PopLocal(up_idx, idx) => {
                     let value = self.current_frame.stack_pop();
                     let mut from = Frame::nth_frame_back(&self.current_frame, up_idx);

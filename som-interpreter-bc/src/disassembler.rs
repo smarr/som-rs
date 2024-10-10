@@ -130,7 +130,7 @@ fn disassemble_body(
                 };
                 println!(" (`{0}`)", universe.lookup_symbol(*signature));
             }
-            Bytecode::Pop | Bytecode::Pop2 => {
+            Bytecode::Pop => {
                 println!();
             }
             Bytecode::PopArg(up_idx, idx) => {

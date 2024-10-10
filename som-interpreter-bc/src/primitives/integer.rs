@@ -12,6 +12,7 @@ use once_cell::sync::Lazy;
 use rand::distributions::Uniform;
 use rand::Rng;
 use som_core::gc::GCRef;
+use crate::block::Block;
 
 pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| {
     Box::new([
@@ -42,6 +43,11 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> 
             self::as_32bit_unsigned_value.into_func(),
             true,
         ),
+        ("to:do:", self::to_do.into_func(), true),
+        ("to:by:do:", self::to_by_do.into_func(), true),
+        ("downTo:do:", self::down_to_do.into_func(), true),
+        ("downTo:by:do:", self::down_to_by_do.into_func(), true),
+        ("timesRepeat:", self::times_repeat.into_func(), true),
     ])
 });
 pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> =
@@ -626,6 +632,49 @@ fn shift_right(
     };
 
     Ok(value)
+}
+
+// Nota Bene: blocks for to:do: and friends get instrumented as a special case in the parser, so that they don't leave their "self" on the stack.
+fn to_do(interpreter: &mut Interpreter, universe: &mut Universe, start: i32, end: i32, blk: GCRef<Block>) -> Result<i32, Error> {
+    // calling rev() because it's a stack of frames: LIFO means we want to add the last one first, then the penultimate one, etc., til the first
+    for i in (start..=end).rev() {
+        interpreter.push_block_frame_with_args(blk, &[Value::Block(blk), Value::Integer(i)], &mut universe.gc_interface);
+    }
+
+    Ok(start)
+}
+
+fn to_by_do(interpreter: &mut Interpreter, universe: &mut Universe, start: i32, step: i32, end: i32, blk: GCRef<Block>) -> Result<i32, Error> {
+    for i in (start..=end).rev().step_by(step as usize) {
+        interpreter.push_block_frame_with_args(blk, &[Value::Block(blk), Value::Integer(i)], &mut universe.gc_interface);
+    }
+
+    Ok(start)
+}
+
+fn down_to_do(interpreter: &mut Interpreter, universe: &mut Universe, start: i32, end: i32, blk: GCRef<Block>) -> Result<i32, Error> {
+    for i in end..=start {
+        interpreter.push_block_frame_with_args(blk, &[Value::Block(blk), Value::Integer(i)], &mut universe.gc_interface);
+    }
+
+    Ok(start)
+}
+
+// NB: this guy isn't a speedup, it's never used in our benchmarks as far as I'm aware.
+fn down_to_by_do(interpreter: &mut Interpreter, universe: &mut Universe, start: i32, step: i32, end: i32, blk: GCRef<Block>) -> Result<i32, Error> {
+    for i in (start..=end).step_by(step as usize) {
+        interpreter.push_block_frame_with_args(blk, &[Value::Block(blk), Value::Integer(i)], &mut universe.gc_interface);
+    }
+
+    Ok(start)
+}
+
+// NB: also not a speedup, also unused.
+fn times_repeat(interpreter: &mut Interpreter, universe: &mut Universe, n: i32, blk: GCRef<Block>) -> Result<i32, Error> {
+    for _ in 1..=n {
+        interpreter.push_block_frame_with_args(blk, &[Value::Block(blk)], &mut universe.gc_interface); // NB: this doesn't take the index as an argument
+    }
+    Ok(n)
 }
 
 /// Search for an instance primitive matching the given signature.

@@ -1,10 +1,8 @@
 use som_core::bytecode::Bytecode;
 use som_core::bytecode::Bytecode::*;
-use som_interpreter_bc::block::{Block, BlockInfo};
-use std::cell::RefCell;
 use std::path::PathBuf;
 
-use som_core::gc::{GCInterface, GCRef};
+use som_core::gc::GCInterface;
 use som_interpreter_bc::compiler;
 use som_interpreter_bc::method::MethodKind;
 use som_interpreter_bc::universe::Universe;
@@ -285,104 +283,4 @@ fn inlining_pyramid() {
 
     expect_bytecode_sequence(&bytecodes, expected_bc);
     expect_bytecode_sequence(&bytecodes2, expected_bc);
-}
-
-/// Highly specific test! to:do: relies on blocks that have been modified to not have a return value on the stack.
-/// This checks that this works OK when ReturnNonLocal is involved. Code taken from the Queens benchmark.
-#[test]
-fn block_with_non_local_returns_for_to_do_block() {
-    let mut universe = setup_universe();
-    let block = Block {
-        frame: None,
-        blk_info: GCRef::<BlockInfo>::alloc(BlockInfo {
-            literals: vec![],
-            body: vec![
-                PushNonLocalArg(1,0),
-                PushArg(1),
-                PushNonLocalArg(1,1),
-                Send3(0),
-                JumpOnFalseTopNil(32),
-                PushField(3),
-                PushArg(1),
-                PushNonLocalArg(1,1),
-                Send3(1),
-                Pop,
-                PushNonLocalArg(1,0),
-                PushArg(1),
-                PushNonLocalArg(1,1),
-                PushGlobal(2),
-                SendN(3),
-                Pop,
-                PushNonLocalArg(1,1),
-                PushConstant(4),
-                Send2(5),
-                JumpOnFalseTopNil(3),
-                PushGlobal(6),
-                ReturnNonLocal(1),
-                Pop,
-                PushNonLocalArg(1,0),
-                PushNonLocalArg(1,1),
-                Inc,
-                Send2(7),
-                JumpOnFalseTopNil(3),
-                PushGlobal(6),
-                ReturnNonLocal(1),
-                Pop,
-                PushNonLocalArg(1,0),
-                PushArg(1),
-                PushNonLocalArg(1,1),
-                PushGlobal(6),
-                SendN(3),
-                ReturnLocal,
-            ],
-            nb_locals: 0,
-            nb_params: 0,
-            inline_cache: RefCell::new(vec![]),
-        }, &mut universe.gc_interface)
-    };
-
-    let new_blk_rc = block.make_equivalent_with_no_return(&mut universe.gc_interface);
-
-    assert_eq!(new_blk_rc.to_obj().blk_info.to_obj().body, vec![
-        PushNonLocalArg(1,0),
-        PushArg(1),
-        PushNonLocalArg(1,1),
-        Send3(0),
-        JumpOnFalseTopNil(34),
-        PushField(3),
-        PushArg(1),
-        PushNonLocalArg(1,1),
-        Send3(1),
-        Pop,
-        PushNonLocalArg(1,0),
-        PushArg(1),
-        PushNonLocalArg(1,1),
-        PushGlobal(2),
-        SendN(3),
-        Pop,
-        PushNonLocalArg(1,1),
-        PushConstant(4),
-        Send2(5),
-        JumpOnFalseTopNil(4),
-        PushGlobal(6),
-        Pop2,
-        ReturnNonLocal(1),
-        Pop,
-        PushNonLocalArg(1,0),
-        PushNonLocalArg(1,1),
-        Inc,
-        Send2(7),
-        JumpOnFalseTopNil(4),
-        PushGlobal(6),
-        Pop2,
-        ReturnNonLocal(1),
-        Pop,
-        PushNonLocalArg(1,0),
-        PushArg(1),
-        PushNonLocalArg(1,1),
-        PushGlobal(6),
-        SendN(3),
-        Pop,
-        ReturnLocal,
-    ]);
 }
