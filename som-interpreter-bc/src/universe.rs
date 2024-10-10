@@ -426,7 +426,7 @@ impl Universe {
     ) -> Option<()> {
         let method_name = self.intern_symbol("escapedBlock:");
         let method = value.lookup_method(self, method_name)?;
-        interpreter.push_method_frame(method, vec![value, Value::Block(block)], &mut self.gc_interface);
+        interpreter.push_method_frame_with_args(method, &[value, Value::Block(block)], &mut self.gc_interface);
         Some(())
     }
 
@@ -445,8 +445,8 @@ impl Universe {
         let method_name = self.intern_symbol("doesNotUnderstand:arguments:");
         let method = value.lookup_method(self, method_name)?;
 
-        interpreter.push_method_frame(method,
-                                      vec![value, Value::Symbol(symbol), Value::Array(GCRef::<Vec<Value>>::alloc(args, &mut self.gc_interface))],
+        interpreter.push_method_frame_with_args(method,
+                                      &[value, Value::Symbol(symbol), Value::Array(GCRef::<Vec<Value>>::alloc(args, &mut self.gc_interface))],
                                       &mut self.gc_interface);
 
         Some(())
@@ -463,7 +463,7 @@ impl Universe {
         let method = value.lookup_method(self, method_name)?;
 
         interpreter.current_frame.to_obj().bytecode_idx = interpreter.bytecode_idx;
-        interpreter.push_method_frame(method, vec![value, Value::Symbol(name)], &mut self.gc_interface);
+        interpreter.push_method_frame_with_args(method, &[value, Value::Symbol(name)], &mut self.gc_interface);
 
         Some(())
     }
@@ -475,7 +475,7 @@ impl Universe {
 
         let args_vec = GCRef::<Vec<Value>>::alloc(args, &mut self.gc_interface);
         let frame_ptr = Frame::alloc_from_method(method,
-                                                 vec![Value::SYSTEM, Value::Array(args_vec)],
+                                                 &[Value::SYSTEM, Value::Array(args_vec)],
                                                  GCRef::default(),
                                                  &mut self.gc_interface);
         let interpreter = Interpreter::new(frame_ptr);

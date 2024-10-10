@@ -28,9 +28,7 @@ pub mod block1 {
         universe: &mut Universe,
         receiver: GCRef<Block>,
     ) -> Result<(), Error> {
-        const _: &str = "Block1>>#value";
-
-        interpreter.push_block_frame(receiver, vec![Value::Block(receiver)], &mut universe.gc_interface);
+        interpreter.push_block_frame_with_args(receiver, &[Value::Block(receiver)], &mut universe.gc_interface);
 
         Ok(())
     }
@@ -40,8 +38,6 @@ pub mod block1 {
         _: &mut Universe,
         _: GCRef<Block>,
     ) -> Result<(), Error> {
-        const _: &str = "Block>>#restart";
-
         interpreter
             .current_frame
             .to_obj()
@@ -83,9 +79,7 @@ pub mod block2 {
         receiver: GCRef<Block>,
         argument: Value,
     ) -> Result<(), Error> {
-        const _: &str = "Block2>>#value:";
-
-        interpreter.push_block_frame(receiver, vec![Value::Block(receiver), argument], &mut universe.gc_interface);
+        interpreter.push_block_frame_with_args(receiver, &[Value::Block(receiver), argument], &mut universe.gc_interface);
 
         Ok(())
     }
@@ -126,7 +120,7 @@ pub mod block3 {
     ) -> Result<(), Error> {
         const _: &str = "Block3>>#value:with:";
 
-        interpreter.push_block_frame(receiver, vec![Value::Block(receiver), argument1, argument2], &mut universe.gc_interface);
+        interpreter.push_block_frame_with_args(receiver, &[Value::Block(receiver), argument1, argument2], &mut universe.gc_interface);
 
         Ok(())
     }

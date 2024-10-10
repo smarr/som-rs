@@ -75,7 +75,11 @@ impl Interpreter {
         }
     }
 
-    pub fn push_method_frame(&mut self, method: GCRef<Method>, args: Vec<Value>, mutator: &mut GCInterface) -> GCRef<Frame> {
+    /// Creates and allocates a new frame corresponding to a method. 
+    /// nbr_args is the number of arguments, including the self value, which it takes from the previous frame.
+    pub fn push_method_frame(&mut self, method: GCRef<Method>, nbr_args: usize, mutator: &mut GCInterface) -> GCRef<Frame> {
+        let args = self.current_frame.stack_n_last_elements(nbr_args);
+        
         let frame_ptr = Frame::alloc_from_method(method, args, self.current_frame, mutator);
 
         self.bytecode_idx = 0;
@@ -84,7 +88,22 @@ impl Interpreter {
         frame_ptr
     }
 
-    pub fn push_block_frame(&mut self, block: GCRef<Block>, args: Vec<Value>, mutator: &mut GCInterface) -> GCRef<Frame> {
+    /// Creates and allocates a new frame corresponding to a method, with arguments provided.
+    /// Used in primitives and 
+    pub fn push_method_frame_with_args(&mut self, method: GCRef<Method>, args: &[Value], mutator: &mut GCInterface) -> GCRef<Frame> {
+        let frame_ptr = Frame::alloc_from_method(method, args, self.current_frame, mutator);
+
+        self.bytecode_idx = 0;
+        self.current_bytecodes = frame_ptr.to_obj().bytecodes;
+        self.current_frame = frame_ptr;
+        
+        frame_ptr
+    }
+
+    /// Creates and allocates a new frame corresponding to a method. 
+    /// Always passes arguments directly since we don't take them as a slice off the previous frame, like we do for methods.
+    /// ...which would likely be faster, actually. TODO.
+    pub fn push_block_frame_with_args(&mut self, block: GCRef<Block>, args: &[Value], mutator: &mut GCInterface) -> GCRef<Frame> {
         let current_method = self.current_frame.borrow().current_method;
         let frame_ptr = Frame::alloc_from_block(block, args, current_method, self.current_frame, mutator);
         self.bytecode_idx = 0;
@@ -460,8 +479,12 @@ impl Interpreter {
         ) {
             let Some(method) = method else {
                 let args = interpreter.current_frame.stack_n_last_elements(nb_params);
-                let self_value = interpreter.current_frame.stack_pop();
+                let self_value = interpreter.current_frame.clone().stack_pop();
 
+                // could be avoided by passing args slice directly...
+                // ...but A) DNU is a very rare path and B) i guess we allocate a new args arr in the DNU call anyway
+                let args = args.iter().map(|v| v.clone()).collect();
+                
                 universe.does_not_understand(interpreter, self_value, symbol, args)
                     .expect(
                         "A message cannot be handled and `doesNotUnderstand:arguments:` is not defined on receiver"
@@ -484,8 +507,7 @@ impl Interpreter {
                     //     eprintln!("Invoking {:?} (in {:?})", &method.to_obj().signature, &name);
                     // }
 
-                    let args = interpreter.current_frame.stack_n_last_elements(nb_params + 1);
-                    interpreter.push_method_frame(method, args, &mut universe.gc_interface);
+                    interpreter.push_method_frame(method, nb_params + 1, &mut universe.gc_interface);
                 }
                 MethodKind::Primitive(func) => {
                     // eprintln!("Invoking prim {:?} (in {:?})", &method.to_obj().signature, &method.to_obj().holder.borrow().name);

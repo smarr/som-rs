@@ -45,7 +45,7 @@ fn frame_basic_local_access() {
 
     let method_ref = get_method("foo = ( | a b c | ^ false )", "foo", &mut universe);
 
-    let mut frame = Frame::alloc_from_method(method_ref, vec![], GCRef::default(), &mut universe.gc_interface);
+    let mut frame = Frame::alloc_from_method(method_ref, &[], GCRef::default(), &mut universe.gc_interface);
 
     frame.assign_local(0, Value::Integer(42));
     assert_eq!(frame.lookup_local(0).as_integer(), Some(42));
@@ -70,7 +70,7 @@ fn frame_basic_arg_access() {
 
     let method_ref = get_method("foo: a and: b also: c = ( ^ false )", "foo:and:also:", &mut universe);
 
-    let mut frame = Frame::alloc_from_method(method_ref, vec![Value::NIL, Value::INTEGER_ZERO, Value::INTEGER_ONE], GCRef::default(), &mut universe.gc_interface);
+    let mut frame = Frame::alloc_from_method(method_ref, &[Value::NIL, Value::INTEGER_ZERO, Value::INTEGER_ONE], GCRef::default(), &mut universe.gc_interface);
 
     assert_eq!(frame.lookup_argument(0), &Value::NIL);
     assert_eq!(frame.lookup_argument(1), &Value::INTEGER_ZERO);
@@ -87,7 +87,7 @@ fn frame_mixed_local_and_arg_access() {
     let method_ref = get_method("foo: a and: b = ( | a b c | ^ false )", "foo:and:", &mut universe);
 
     let mut frame = Frame::alloc_from_method(method_ref,
-                                             vec![Value::Double(1000.0), Value::SYSTEM],
+                                             &[Value::Double(1000.0), Value::SYSTEM],
                                              GCRef::default(),
                                              &mut universe.gc_interface);
 
@@ -117,7 +117,7 @@ fn frame_stack_accesses() {
     let method_ref = get_method("foo: a and: b = ( | a b c | ^ false )", "foo:and:", &mut universe);
 
     let mut frame = Frame::alloc_from_method(method_ref,
-                                             vec![Value::Double(1000.0), Value::SYSTEM],
+                                             &[Value::Double(1000.0), Value::SYSTEM],
                                              GCRef::default(),
                                              &mut universe.gc_interface);
 
@@ -146,7 +146,7 @@ fn frame_stack_split_off() {
     let method_ref = get_method("foo: a and: b = ( | a b c | ^ false )", "foo:and:", &mut universe);
 
     let mut frame = Frame::alloc_from_method(method_ref,
-                                             vec![Value::Double(1000.0), Value::SYSTEM],
+                                             &[Value::Double(1000.0), Value::SYSTEM],
                                              GCRef::default(),
                                              &mut universe.gc_interface);
 

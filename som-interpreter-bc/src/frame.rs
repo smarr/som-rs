@@ -46,28 +46,23 @@ pub struct Frame {
 }
 
 impl Frame {
-    pub fn alloc_from_method(method: GCRef<Method>, mut args: Vec<Value>, prev_frame: GCRef<Frame>, mutator: &mut GCInterface) -> GCRef<Frame> {
-        let mut frame_ptr = Frame::alloc(Frame::from_method(method, args.len(), prev_frame), mutator);
+    pub fn alloc_from_method(method: GCRef<Method>, args: &[Value], prev_frame: GCRef<Frame>, mutator: &mut GCInterface) -> GCRef<Frame> {
+        let frame_ptr = Frame::alloc(Frame::from_method(method, args.len(), prev_frame), mutator);
 
-        // might be faster if we did that in the alloc method, but that means passing args as an argument to the trait method `alloc` somehow.
-        for i in (0..args.len()).rev() {
-            frame_ptr.assign_arg(i, args.pop().unwrap())
-        }
-
+        frame_ptr.get_value_arr_mut(args.len()).copy_from_slice(args);
+        
         frame_ptr
     }
 
     pub fn alloc_from_block(block: GCRef<Block>,
-                            mut args: Vec<Value>,
+                            args: &[Value],
                             current_method: *const Method,
                             prev_frame: GCRef<Frame>,
                             mutator: &mut GCInterface) -> GCRef<Frame> {
-        let mut frame_ptr = Frame::alloc(Frame::from_block(block, args.len(), current_method, prev_frame), mutator);
+        let frame_ptr = Frame::alloc(Frame::from_block(block, args.len(), current_method, prev_frame), mutator);
 
-        for i in (0..args.len()).rev() {
-            frame_ptr.assign_arg(i, args.pop().unwrap())
-        }
-
+        frame_ptr.get_value_arr_mut(args.len()).copy_from_slice(args);
+        
         frame_ptr
     }
 
@@ -183,7 +178,7 @@ pub trait FrameAccess {
     fn stack_nth_back(&self, n: usize) -> &Value;
     fn stack_len(&self) -> usize;
     fn get_stack(&self) -> &mut [Value];
-    fn stack_n_last_elements(&self, at_idx: usize) -> Vec<Value>;
+    fn stack_n_last_elements(&self, at_idx: usize) -> &[Value];
 }
 
 impl FrameAccess for GCRef<Frame> {
@@ -306,7 +301,7 @@ impl FrameAccess for GCRef<Frame> {
         &self.get_stack()[self.to_obj().stack_len - n - 1]
     }
 
-    fn stack_n_last_elements(&self, n: usize) -> Vec<Value> {
+    fn stack_n_last_elements(&self, n: usize) -> &[Value] {
         unsafe {
             let (nbr_args, nbr_locals) = {
                 let f = self.to_obj();
@@ -321,8 +316,7 @@ impl FrameAccess for GCRef<Frame> {
             
             self.to_obj().stack_len -= n;
             
-            let arr = std::slice::from_raw_parts_mut(ptr, n); // todo: we should return that.
-            arr.iter().map(|v| v.clone()).collect()
+            std::slice::from_raw_parts_mut(ptr, n)
         }
     }
 }

@@ -94,7 +94,7 @@ impl Invoke for GCRef<Method> {
             MethodKind::Defined(_) => {
                 let mut frame_args = vec![receiver];
                 frame_args.append(&mut args);
-                interpreter.push_method_frame(*self, frame_args, &mut universe.gc_interface);
+                interpreter.push_method_frame_with_args(*self, frame_args.as_slice(), &mut universe.gc_interface);
             }
             MethodKind::Primitive(func) => {
                 interpreter.current_frame.stack_push(receiver);
