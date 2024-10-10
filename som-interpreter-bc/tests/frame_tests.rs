@@ -1,6 +1,6 @@
 use som_core::gc::{GCInterface, GCRef};
 use som_interpreter_bc::compiler;
-use som_interpreter_bc::frame::{Frame, FrameAccess};
+use som_interpreter_bc::frame::Frame;
 use som_interpreter_bc::method::Method;
 use som_interpreter_bc::universe::Universe;
 use som_interpreter_bc::value::Value;
@@ -116,21 +116,22 @@ fn frame_stack_accesses() {
 
     let method_ref = get_method("foo: a and: b = ( | a b c | ^ false )", "foo:and:", &mut universe);
 
-    let mut frame = Frame::alloc_from_method(method_ref,
+    let frame_ptr = Frame::alloc_from_method(method_ref,
                                              &[Value::Double(1000.0), Value::SYSTEM],
                                              GCRef::default(),
                                              &mut universe.gc_interface);
-
-    assert_eq!(frame.stack_len(), 0);
+    let frame = frame_ptr.to_obj();
+    
+    assert_eq!(Frame::stack_len(frame_ptr), 0);
     frame.stack_push(Value::Boolean(true));
-    assert_eq!(frame.stack_len(), 1);
+    assert_eq!(Frame::stack_len(frame_ptr), 1);
     
     assert_eq!(frame.stack_pop().as_boolean(), Some(true));
-    assert_eq!(frame.stack_len(), 0);
+    assert_eq!(Frame::stack_len(frame_ptr), 0);
 
     frame.stack_push(Value::Integer(10000));
     frame.stack_push(Value::Double(424242.424242));
-    assert_eq!(frame.stack_len(), 2);
+    assert_eq!(Frame::stack_len(frame_ptr), 2);
     
     assert_eq!(frame.stack_last().as_double(), Some(424242.424242));
     assert_eq!(frame.stack_last_mut().as_double(), Some(424242.424242));
@@ -145,10 +146,11 @@ fn frame_stack_split_off() {
 
     let method_ref = get_method("foo: a and: b = ( | a b c | ^ false )", "foo:and:", &mut universe);
 
-    let mut frame = Frame::alloc_from_method(method_ref,
+    let frame_ptr = Frame::alloc_from_method(method_ref,
                                              &[Value::Double(1000.0), Value::SYSTEM],
                                              GCRef::default(),
                                              &mut universe.gc_interface);
+    let frame = frame_ptr.to_obj();
 
     frame.stack_push(Value::Integer(10000));
     frame.stack_push(Value::Double(424242.424242));
@@ -156,12 +158,12 @@ fn frame_stack_split_off() {
     frame.stack_push(Value::INTEGER_ONE);
     frame.stack_push(Value::Boolean(true));
 
-    assert_eq!(frame.stack_len(), 5);
+    assert_eq!(Frame::stack_len(frame_ptr), 5);
     
     let two_last = frame.stack_n_last_elements(2);
 
     assert_eq!(two_last, vec![Value::INTEGER_ONE, Value::Boolean(true)]);
 
-    assert_eq!(frame.stack_len(), 3);
+    assert_eq!(Frame::stack_len(frame_ptr), 3);
     assert_eq!(frame.stack_last(), &Value::NIL);
 }

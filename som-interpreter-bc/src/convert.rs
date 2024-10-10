@@ -8,7 +8,6 @@ use anyhow::{bail, Context, Error};
 
 use crate::block::Block;
 use crate::class::Class;
-use crate::frame::FrameAccess;
 use crate::instance::Instance;
 use crate::interpreter::Interpreter;
 use crate::method::Method;
@@ -45,6 +44,7 @@ impl FromArgs for Nil {
     ) -> Result<Self, Error> {
         let value = interpreter
             .current_frame
+            .to_obj()
             .stack_pop();
 
         Self::try_from(value)
@@ -73,6 +73,7 @@ impl FromArgs for System {
     ) -> Result<Self, Error> {
         let value = interpreter
             .current_frame
+            .to_obj()
             .stack_pop();
 
         Self::try_from(value)
@@ -104,6 +105,7 @@ impl FromArgs for StringLike {
     ) -> Result<Self, Error> {
         let value = interpreter
             .current_frame
+            .to_obj()
             .stack_pop();
 
         Self::try_from(value)
@@ -137,6 +139,7 @@ impl FromArgs for DoubleLike {
     ) -> Result<Self, Error> {
         let value = interpreter
             .current_frame
+            .to_obj()
             .stack_pop();
 
         Self::try_from(value)
@@ -168,6 +171,7 @@ impl FromArgs for IntegerLike {
     ) -> Result<Self, Error> {
         let value = interpreter
             .current_frame
+            .to_obj()
             .stack_pop();
 
         Self::try_from(value)
@@ -188,6 +192,7 @@ impl FromArgs for Value {
     ) -> Result<Self, Error> {
         Ok(interpreter
             .current_frame
+            .to_obj()
             .stack_pop())
     }
 }
@@ -199,6 +204,7 @@ impl FromArgs for bool {
     ) -> Result<Self, Error> {
         let arg = interpreter
             .current_frame
+            .to_obj()
             .stack_pop();
         arg.as_boolean()
             .context("could not resolve `Value` as `Boolean`")
@@ -212,6 +218,7 @@ impl FromArgs for i32 {
     ) -> Result<Self, Error> {
         let arg = interpreter
             .current_frame
+            .to_obj()
             .stack_pop();
         arg.as_integer()
             .context("could not resolve `Value` as `Integer`")
@@ -225,6 +232,7 @@ impl FromArgs for f64 {
     ) -> Result<Self, Error> {
         let arg = interpreter
             .current_frame
+            .to_obj()
             .stack_pop();
         arg.as_double()
             .context("could not resolve `Value` as `Double`")
@@ -238,6 +246,7 @@ impl FromArgs for Interned {
     ) -> Result<Self, Error> {
         let arg = interpreter
             .current_frame
+            .to_obj()
             .stack_pop();
         arg.as_symbol()
             .context("could not resolve `Value` as `Symbol`")
@@ -251,6 +260,7 @@ impl FromArgs for GCRef<String> {
     ) -> Result<Self, Error> {
         let arg = interpreter
             .current_frame
+            .to_obj()
             .stack_pop();
         arg.as_string()
             .context("could not resolve `Value` as `String`")
@@ -264,6 +274,7 @@ impl FromArgs for GCRef<Vec<Value>> {
     ) -> Result<Self, Error> {
         let arg = interpreter
             .current_frame
+            .to_obj()
             .stack_pop();
         arg.as_array()
             .context("could not resolve `Value` as `Array`")
@@ -277,6 +288,7 @@ impl FromArgs for GCRef<Class> {
     ) -> Result<Self, Error> {
         let arg = interpreter
             .current_frame
+            .to_obj()
             .stack_pop();
         arg.as_class()
             .context("could not resolve `Value` as `Class`")
@@ -290,6 +302,7 @@ impl FromArgs for GCRef<Instance> {
     ) -> Result<Self, Error> {
         let arg = interpreter
             .current_frame
+            .to_obj()
             .stack_pop();
         arg.as_instance()
             .context("could not resolve `Value` as `Instance`")
@@ -303,6 +316,7 @@ impl FromArgs for GCRef<Block> {
     ) -> Result<Self, Error> {
         let arg = interpreter
             .current_frame
+            .to_obj()
             .stack_pop();
         arg.as_block()
             .context("could not resolve `Value` as `Block`")
@@ -316,6 +330,7 @@ impl FromArgs for GCRef<Method> {
     ) -> Result<Self, Error> {
         let arg = interpreter
             .current_frame
+            .to_obj()
             .stack_pop();
         arg.as_invokable()
             .context("could not resolve `Value` as `Method`")
@@ -467,7 +482,7 @@ macro_rules! derive_stuff {
 
 impl<T: IntoValue> IntoReturn for T {
     fn into_return(self, interpreter: &mut Interpreter, heap: &mut GCInterface) -> Result<(), Error> {
-        interpreter.current_frame.stack_push(self.into_value(heap));
+        interpreter.current_frame.to_obj().stack_push(self.into_value(heap));
         Ok(())
     }
 }
