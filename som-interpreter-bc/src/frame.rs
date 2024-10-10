@@ -49,16 +49,12 @@ pub struct Frame {
 }
 
 impl Frame {
-    pub fn alloc_from_method(method: GCRef<Method>, args: &[Value], prev_frame: GCRef<Frame>, mutator: &mut GCInterface) -> GCRef<Frame> {
+    pub fn alloc_from_method(method: GCRef<Method>, 
+                             args: &[Value], 
+                             prev_frame: GCRef<Frame>, 
+                             mutator: &mut GCInterface) -> GCRef<Frame> {
         let frame_ptr = Frame::alloc(Frame::from_method(method, args.len(), prev_frame), mutator);
-
-        unsafe {
-            frame_ptr.to_obj().args_ptr = frame_ptr.ptr.add(size_of::<Frame>()).as_mut_ref();
-            frame_ptr.to_obj().locals_ptr = frame_ptr.ptr.add(size_of::<Frame>()).add(frame_ptr.to_obj().nbr_args * size_of::<Value>()).as_mut_ref();
-        }
-
-        frame_ptr.get_value_arr_mut(args.len()).copy_from_slice(args);
-        
+        Frame::init_frame_post_alloc(frame_ptr, args);
         frame_ptr
     }
 
@@ -68,15 +64,26 @@ impl Frame {
                             prev_frame: GCRef<Frame>,
                             mutator: &mut GCInterface) -> GCRef<Frame> {
         let frame_ptr = Frame::alloc(Frame::from_block(block, args.len(), current_method, prev_frame), mutator);
-
-        unsafe {
-            frame_ptr.to_obj().args_ptr = frame_ptr.ptr.add(size_of::<Frame>()).as_mut_ref();
-            frame_ptr.to_obj().locals_ptr = frame_ptr.ptr.add(size_of::<Frame>()).add(frame_ptr.to_obj().nbr_args * size_of::<Value>()).as_mut_ref();
-        }
-
-        frame_ptr.get_value_arr_mut(args.len()).copy_from_slice(args);
-        
+        Frame::init_frame_post_alloc(frame_ptr, args);
         frame_ptr
+    }
+    
+    fn init_frame_post_alloc(frame_ptr: GCRef<Frame>, args: &[Value]) {
+        unsafe {
+            let frame = frame_ptr.to_obj();
+            
+            // setting up the self-referential pointers for args/locals accesses 
+            frame.args_ptr = frame_ptr.ptr.add(size_of::<Frame>()).as_mut_ref();
+            frame.locals_ptr = frame_ptr.ptr.add(size_of::<Frame>()).add(frame.nbr_args * size_of::<Value>()).as_mut_ref();
+
+            // initializing arguments from the args slice
+            std::slice::from_raw_parts_mut(frame.args_ptr, args.len()).copy_from_slice(args);
+
+            // setting all locals to NIL.
+            for idx in 0..frame.nbr_locals {
+                *frame.locals_ptr.add(idx) = Value::NIL;
+            }
+        }
     }
 
     // Creates a frame from a block. Meant to only be called by the alloc_from_block function
@@ -228,9 +235,6 @@ impl Frame {
 /// Currently defined on `GCRef<Frame>`, but those methods all used to be defined directly on `Frame`.
 /// TODO: `Frame` should also implement it for debug purposes, since operating on raw memory through the GC pointer doesn't rely on the Rust type system and makes debugging harder
 pub trait FrameAccess {
-    fn get_value_arr(&self, max_size: usize) -> &[Value];
-    fn get_value_arr_mut(&self, max_size: usize) -> &mut [Value];
-
     /// Stack operations
     fn stack_push(&mut self, value: Value);
     fn stack_pop(&mut self) -> Value;
@@ -243,35 +247,6 @@ pub trait FrameAccess {
 }
 
 impl FrameAccess for GCRef<Frame> {
-    #[inline(always)]
-    fn get_value_arr(&self, max_size: usize) -> &[Value] {
-        unsafe {
-            let ptr: *const Value = self.ptr.add(ARG_OFFSET).to_ptr();
-            std::slice::from_raw_parts(ptr, max_size)
-        }
-    }
-
-    #[inline(always)]
-    fn get_value_arr_mut(&self, max_size: usize) -> &mut [Value] {
-        unsafe {
-            let ptr: *mut Value = self.ptr.add(ARG_OFFSET).to_mut_ptr();
-            std::slice::from_raw_parts_mut(ptr, max_size)
-        }
-    }
-
-    #[inline(always)]
-    fn get_stack(&self) -> &mut [Value] {
-        unsafe {
-            let (nbr_args, nbr_locals) = {
-                let f = self.to_obj();
-                (f.nbr_args, f.nbr_locals)
-            };
-
-            let ptr: *mut Value = self.ptr.add(ARG_OFFSET).add((nbr_args + nbr_locals) * size_of::<Value>()).to_mut_ptr();
-            std::slice::from_raw_parts_mut(ptr, MAX_STACK_SIZE)
-        }
-    }
-
     #[inline(always)]
     fn stack_push(&mut self, value: Value) {
         let stack = self.get_stack();
@@ -298,13 +273,26 @@ impl FrameAccess for GCRef<Frame> {
         &mut self.get_stack()[self.to_obj().stack_len - 1]
     }
 
+    fn stack_nth_back(&self, n: usize) -> &Value {
+        &self.get_stack()[self.to_obj().stack_len - n - 1]
+    }
+
     #[inline(always)]
     fn stack_len(&self) -> usize {
         self.to_obj().stack_len
     }
 
-    fn stack_nth_back(&self, n: usize) -> &Value {
-        &self.get_stack()[self.to_obj().stack_len - n - 1]
+    #[inline(always)]
+    fn get_stack(&self) -> &mut [Value] {
+        unsafe {
+            let (nbr_args, nbr_locals) = {
+                let f = self.to_obj();
+                (f.nbr_args, f.nbr_locals)
+            };
+
+            let ptr: *mut Value = self.ptr.add(ARG_OFFSET).add((nbr_args + nbr_locals) * size_of::<Value>()).to_mut_ptr();
+            std::slice::from_raw_parts_mut(ptr, MAX_STACK_SIZE)
+        }
     }
 
     fn stack_n_last_elements(&self, n: usize) -> &[Value] {
@@ -334,16 +322,6 @@ impl CustomAlloc<Frame> for Frame {
         let max_stack_size = MAX_STACK_SIZE;
         let size = size_of::<Frame>() + ((nbr_args + nbr_locals + max_stack_size) * size_of::<Value>());
 
-        let frame_ptr = GCRef::<Frame>::alloc_with_size(frame, gc_interface, size);
-
-        unsafe {
-            let mut locals_addr = frame_ptr.ptr.add(ARG_OFFSET).add(nbr_args * size_of::<Value>());
-            for _ in 0..nbr_locals {
-                *locals_addr.as_mut_ref() = Value::NIL;
-                locals_addr = locals_addr.add(size_of::<Value>());
-            }
-        };
-
-        frame_ptr
+        GCRef::<Frame>::alloc_with_size(frame, gc_interface, size)
     }
 }
