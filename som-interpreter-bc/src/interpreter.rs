@@ -44,7 +44,7 @@ macro_rules! super_send {
         };
         let method = {
             // let method_with_holder = $frame.borrow().get_holding_method();
-            let holder = $frame.get_method_holder();
+            let holder = $frame.to_obj().get_method_holder();
             // dbg!(&holder);
             let super_class = holder.borrow().super_class().unwrap();
             // dbg!(&super_class);
@@ -152,7 +152,7 @@ impl Interpreter {
                     self.current_frame.stack_push(second_to_last)
                 }
                 Bytecode::NilLocal(idx) => {
-                    self.current_frame.assign_local(idx as usize, Value::NIL);
+                    self.current_frame.to_obj().assign_local(idx as usize, Value::NIL);
                 }
                 Bytecode::JumpIfGreater(offset) => {
                     let top = self.current_frame.stack_last();
@@ -206,29 +206,29 @@ impl Interpreter {
                     }
                 }
                 Bytecode::PushLocal(idx) => {
-                    let value = self.current_frame.lookup_local(idx as usize).clone();
+                    let value = self.current_frame.to_obj().lookup_local(idx as usize).clone();
                     self.current_frame.stack_push(value);
                 }
                 Bytecode::PushNonLocal(up_idx, idx) => {
                     debug_assert_ne!(up_idx, 0);
                     let from = Frame::nth_frame_back(&self.current_frame, up_idx);
-                    let value = from.lookup_local(idx as usize).clone();
+                    let value = from.to_obj().lookup_local(idx as usize).clone();
                     self.current_frame.stack_push(value);
                 }
                 Bytecode::PushArg(idx) => {
                     debug_assert_ne!(idx, 0); // that's a ReturnSelf case.
-                    let value = self.current_frame.lookup_argument(idx as usize);
+                    let value = self.current_frame.to_obj().lookup_argument(idx as usize);
                     self.current_frame.stack_push(value.clone());
                 }
                 Bytecode::PushNonLocalArg(up_idx, idx) => {
                     debug_assert_ne!(up_idx, 0);
                     debug_assert_ne!((up_idx, idx), (0, 0)); // that's a ReturnSelf case.
                     let from = Frame::nth_frame_back(&self.current_frame, up_idx);
-                    let value = from.lookup_argument(idx as usize);
+                    let value = from.to_obj().lookup_argument(idx as usize);
                     self.current_frame.stack_push(value.clone());
                 }
                 Bytecode::PushField(idx) => {
-                    let self_val = self.current_frame.get_self();
+                    let self_val = self.current_frame.to_obj().get_self();
                     let val = {
                         if let Some(instance) = self_val.as_instance() {
                             instance.lookup_local(idx as usize)
@@ -278,7 +278,7 @@ impl Interpreter {
                     if let Some(value) = universe.lookup_global(symbol) {
                         self.current_frame.stack_push(value);
                     } else {
-                        let self_value = self.current_frame.get_self();
+                        let self_value = self.current_frame.to_obj().get_self();
                         universe.unknown_global(self, self_value, symbol)?;
                     }
                 }
@@ -292,24 +292,24 @@ impl Interpreter {
                     self.current_frame.stack_push(Value::NIL);
                 }
                 Bytecode::PushSelf => {
-                    self.current_frame.stack_push(self.current_frame.lookup_argument(0).clone());
+                    self.current_frame.stack_push(self.current_frame.to_obj().lookup_argument(0).clone());
                 }
                 Bytecode::Pop => {
                     self.current_frame.stack_pop();
                 }
                 Bytecode::PopLocal(up_idx, idx) => {
                     let value = self.current_frame.stack_pop();
-                    let mut from = Frame::nth_frame_back(&self.current_frame, up_idx);
-                    from.assign_local(idx as usize, value);
+                    let from = Frame::nth_frame_back(&self.current_frame, up_idx);
+                    from.to_obj().assign_local(idx as usize, value);
                 }
                 Bytecode::PopArg(up_idx, idx) => {
                     let value = self.current_frame.stack_pop();
-                    let mut from = Frame::nth_frame_back(&self.current_frame, up_idx);
-                    from.assign_arg(idx as usize, value);
+                    let from = Frame::nth_frame_back(&self.current_frame, up_idx);
+                    from.to_obj().assign_arg(idx as usize, value);
                 }
                 Bytecode::PopField(idx) => {
                     let value = self.current_frame.stack_pop();
-                    let self_val = self.current_frame.get_self();
+                    let self_val = self.current_frame.to_obj().get_self();
                     if let Some(mut instance) = self_val.as_instance() {
                         instance.assign_local(idx as usize, value)
                     } else if let Some(cls) = self_val.as_class() {
@@ -343,7 +343,7 @@ impl Interpreter {
                     super_send! {self, universe, &self.current_frame, idx, None}
                 }
                 Bytecode::ReturnSelf => {
-                    let self_val = self.current_frame.lookup_argument(0).clone();
+                    let self_val = self.current_frame.to_obj().lookup_argument(0).clone();
                     self.pop_frame();
                     // if self.current_frame.is_empty() {
                     //     return Some(self.stack.pop().unwrap_or(Value::NIL));
@@ -395,8 +395,8 @@ impl Interpreter {
                         // NB: I did some changes there with the blockself bits and i'm not positive it works the same as before, but it should.
 
                         // Block has escaped its method frame.
-                        let instance = self.current_frame.get_self();
-                        let block = match self.current_frame.lookup_argument(0).as_block() {
+                        let instance = self.current_frame.to_obj().get_self();
+                        let block = match self.current_frame.to_obj().lookup_argument(0).as_block() {
                             Some(block) => block,
                             _ => {
                                 // Should never happen, because `universe.current_frame()` would

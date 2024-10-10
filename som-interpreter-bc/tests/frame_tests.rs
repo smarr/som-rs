@@ -45,23 +45,23 @@ fn frame_basic_local_access() {
 
     let method_ref = get_method("foo = ( | a b c | ^ false )", "foo", &mut universe);
 
-    let mut frame = Frame::alloc_from_method(method_ref, &[], GCRef::default(), &mut universe.gc_interface);
+    let frame = Frame::alloc_from_method(method_ref, &[], GCRef::default(), &mut universe.gc_interface);
 
-    frame.assign_local(0, Value::Integer(42));
-    assert_eq!(frame.lookup_local(0).as_integer(), Some(42));
+    frame.to_obj().assign_local(0, Value::Integer(42));
+    assert_eq!(frame.to_obj().lookup_local(0).as_integer(), Some(42));
 
-    frame.assign_local(0, Value::Integer(24));
-    assert_eq!(frame.lookup_local(0).as_integer(), Some(24));
+    frame.to_obj().assign_local(0, Value::Integer(24));
+    assert_eq!(frame.to_obj().lookup_local(0).as_integer(), Some(24));
 
-    frame.assign_local(0, Value::Double(400.004));
-    frame.assign_local(1, Value::NIL);
+    frame.to_obj().assign_local(0, Value::Double(400.004));
+    frame.to_obj().assign_local(1, Value::NIL);
 
     let str_ptr = GCRef::<String>::alloc(String::from("abcd"), &mut universe.gc_interface);
-    frame.assign_local(2, Value::String(str_ptr));
+    frame.to_obj().assign_local(2, Value::String(str_ptr));
 
-    assert_eq!(frame.lookup_local(0).as_double(), Some(400.004));
-    assert_eq!(frame.lookup_local(1), &Value::NIL);
-    assert_eq!(frame.lookup_local(2).as_string(), Some(str_ptr));
+    assert_eq!(frame.to_obj().lookup_local(0).as_double(), Some(400.004));
+    assert_eq!(frame.to_obj().lookup_local(1), &Value::NIL);
+    assert_eq!(frame.to_obj().lookup_local(2).as_string(), Some(str_ptr));
 }
 
 #[test]
@@ -70,14 +70,14 @@ fn frame_basic_arg_access() {
 
     let method_ref = get_method("foo: a and: b also: c = ( ^ false )", "foo:and:also:", &mut universe);
 
-    let mut frame = Frame::alloc_from_method(method_ref, &[Value::NIL, Value::INTEGER_ZERO, Value::INTEGER_ONE], GCRef::default(), &mut universe.gc_interface);
+    let frame = Frame::alloc_from_method(method_ref, &[Value::NIL, Value::INTEGER_ZERO, Value::INTEGER_ONE], GCRef::default(), &mut universe.gc_interface);
 
-    assert_eq!(frame.lookup_argument(0), &Value::NIL);
-    assert_eq!(frame.lookup_argument(1), &Value::INTEGER_ZERO);
-    assert_eq!(frame.lookup_argument(2), &Value::INTEGER_ONE);
+    assert_eq!(frame.to_obj().lookup_argument(0), &Value::NIL);
+    assert_eq!(frame.to_obj().lookup_argument(1), &Value::INTEGER_ZERO);
+    assert_eq!(frame.to_obj().lookup_argument(2), &Value::INTEGER_ONE);
 
-    frame.assign_arg(2, Value::Boolean(true));
-    assert_eq!(frame.lookup_argument(2).as_boolean(), Some(true));
+    frame.to_obj().assign_arg(2, Value::Boolean(true));
+    assert_eq!(frame.to_obj().lookup_argument(2).as_boolean(), Some(true));
 }
 
 #[test]
@@ -86,28 +86,28 @@ fn frame_mixed_local_and_arg_access() {
 
     let method_ref = get_method("foo: a and: b = ( | a b c | ^ false )", "foo:and:", &mut universe);
 
-    let mut frame = Frame::alloc_from_method(method_ref,
+    let frame = Frame::alloc_from_method(method_ref,
                                              &[Value::Double(1000.0), Value::SYSTEM],
                                              GCRef::default(),
                                              &mut universe.gc_interface);
 
-    assert_eq!(frame.lookup_argument(0), &Value::Double(1000.0));
-    assert_eq!(frame.lookup_argument(1), &Value::SYSTEM);
-    assert_eq!(frame.lookup_local(0), &Value::NIL);
-    assert_eq!(frame.lookup_local(1), &Value::NIL);
-    assert_eq!(frame.lookup_local(2), &Value::NIL);
+    assert_eq!(frame.to_obj().lookup_argument(0), &Value::Double(1000.0));
+    assert_eq!(frame.to_obj().lookup_argument(1), &Value::SYSTEM);
+    assert_eq!(frame.to_obj().lookup_local(0), &Value::NIL);
+    assert_eq!(frame.to_obj().lookup_local(1), &Value::NIL);
+    assert_eq!(frame.to_obj().lookup_local(2), &Value::NIL);
 
-    frame.assign_arg(0, Value::Boolean(true));
-    frame.assign_local(0, Value::Boolean(false));
+    frame.to_obj().assign_arg(0, Value::Boolean(true));
+    frame.to_obj().assign_local(0, Value::Boolean(false));
 
-    assert_eq!(frame.lookup_argument(0).as_boolean(), Some(true));
-    assert_eq!(frame.lookup_local(0).as_boolean(), Some(false));
+    assert_eq!(frame.to_obj().lookup_argument(0).as_boolean(), Some(true));
+    assert_eq!(frame.to_obj().lookup_local(0).as_boolean(), Some(false));
 
-    frame.assign_arg(1, Value::Integer(42));
-    frame.assign_local(2, Value::Double(42.42));
+    frame.to_obj().assign_arg(1, Value::Integer(42));
+    frame.to_obj().assign_local(2, Value::Double(42.42));
 
-    assert_eq!(frame.lookup_argument(1).as_integer(), Some(42));
-    assert_eq!(frame.lookup_local(2).as_double(), Some(42.42));
+    assert_eq!(frame.to_obj().lookup_argument(1).as_integer(), Some(42));
+    assert_eq!(frame.to_obj().lookup_local(2).as_double(), Some(42.42));
 }
 
 #[test]

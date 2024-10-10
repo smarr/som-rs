@@ -31,6 +31,9 @@ pub struct Frame {
     pub nbr_args: usize, // todo u8 instead?
     pub nbr_locals: usize,
 
+    pub args_ptr: *mut Value,
+    pub locals_ptr: *mut Value,
+
     pub stack_len: usize,
 
     /// markers. we don't use them directly. it's mostly a reminder that the struct looks different in memory... not the cleanest but not sure how else to go about it
@@ -49,6 +52,11 @@ impl Frame {
     pub fn alloc_from_method(method: GCRef<Method>, args: &[Value], prev_frame: GCRef<Frame>, mutator: &mut GCInterface) -> GCRef<Frame> {
         let frame_ptr = Frame::alloc(Frame::from_method(method, args.len(), prev_frame), mutator);
 
+        unsafe {
+            frame_ptr.to_obj().args_ptr = frame_ptr.ptr.add(size_of::<Frame>()).as_mut_ref();
+            frame_ptr.to_obj().locals_ptr = frame_ptr.ptr.add(size_of::<Frame>()).add(frame_ptr.to_obj().nbr_args * size_of::<Value>()).as_mut_ref();
+        }
+
         frame_ptr.get_value_arr_mut(args.len()).copy_from_slice(args);
         
         frame_ptr
@@ -60,6 +68,11 @@ impl Frame {
                             prev_frame: GCRef<Frame>,
                             mutator: &mut GCInterface) -> GCRef<Frame> {
         let frame_ptr = Frame::alloc(Frame::from_block(block, args.len(), current_method, prev_frame), mutator);
+
+        unsafe {
+            frame_ptr.to_obj().args_ptr = frame_ptr.ptr.add(size_of::<Frame>()).as_mut_ref();
+            frame_ptr.to_obj().locals_ptr = frame_ptr.ptr.add(size_of::<Frame>()).add(frame_ptr.to_obj().nbr_args * size_of::<Value>()).as_mut_ref();
+        }
 
         frame_ptr.get_value_arr_mut(args.len()).copy_from_slice(args);
         
@@ -79,6 +92,8 @@ impl Frame {
             bytecode_idx: 0,
             stack_len: 0,
             inline_cache: std::ptr::addr_of!(block_obj.blk_info.to_obj().inline_cache),
+            args_ptr: std::ptr::null_mut(),
+            locals_ptr: std::ptr::null_mut(),
             args_marker: PhantomData,
             locals_marker: PhantomData,
             stack_marker: PhantomData,
@@ -98,6 +113,8 @@ impl Frame {
                     current_method: method.as_ref(),
                     bytecode_idx: 0,
                     stack_len: 0,
+                    args_ptr: std::ptr::null_mut(),
+                    locals_ptr: std::ptr::null_mut(),
                     inline_cache: std::ptr::addr_of!(env.inline_cache),
                     args_marker: PhantomData,
                     locals_marker: PhantomData,
@@ -106,6 +123,56 @@ impl Frame {
             }
             _ => unreachable!()
         }
+    }
+
+    /// Get the self value for this frame.
+    pub(crate) fn get_self(&self) -> Value {
+        let self_arg = self.lookup_argument(0);
+        match self_arg.as_block() {
+            Some(b) => {
+                let block_frame = b.to_obj().frame.unwrap();
+                block_frame.to_obj().get_self()
+            }
+            None => self_arg.clone()
+        }
+    }
+
+    /// Get the holder for this current method.
+    pub(crate) fn get_method_holder(&self) -> GCRef<Class> {
+        match self.lookup_argument(0).as_block() {
+            Some(b) => {
+                let block_frame = b.to_obj().frame.as_ref().unwrap();
+                let x = block_frame.to_obj().get_method_holder();
+                x
+            },
+            None => {
+                unsafe { (*self.current_method).holder }
+            }
+        }
+    }
+
+    /// Search for a local binding.
+    #[inline(always)]
+    pub fn lookup_local(&self, idx: usize) -> &Value {
+        unsafe { self.locals_ptr.add(idx).as_ref().unwrap() }
+
+    }
+
+    /// Assign to a local binding.
+    #[inline(always)]
+    pub fn assign_local(&mut self, idx: usize, value: Value) {
+        unsafe { *self.locals_ptr.add(idx) = value }
+    }
+
+    #[inline(always)]
+    pub fn lookup_argument(&self, idx: usize) -> &Value {
+        unsafe { self.args_ptr.add(idx).as_ref().unwrap() }
+    }
+
+    /// Assign to an argument.
+    #[inline(always)]
+    pub fn assign_arg(&mut self, idx: usize, value: Value) {
+        unsafe { *self.args_ptr.add(idx) = value }
     }
 
     // Don't even need this function. We store a pointer to the bytecode in the interpreter directly.
@@ -126,14 +193,14 @@ impl Frame {
             return *current_frame;
         }
 
-        let mut target_frame: GCRef<Frame> = match current_frame.lookup_argument(0).as_block() {
+        let mut target_frame: GCRef<Frame> = match current_frame.to_obj().lookup_argument(0).as_block() {
             Some(block) => {
                 *block.to_obj().frame.as_ref().unwrap()
             }
             v => panic!("attempting to access a non local var/arg from a method instead of a block: self wasn't blockself but {:?}.", v)
         };
         for _ in 1..n {
-            target_frame = match &target_frame.lookup_argument(0).as_block() {
+            target_frame = match &target_frame.to_obj().lookup_argument(0).as_block() {
                 Some(block) => {
                     *block.to_obj().frame.as_ref().unwrap()
                 }
@@ -161,12 +228,6 @@ impl Frame {
 /// Currently defined on `GCRef<Frame>`, but those methods all used to be defined directly on `Frame`.
 /// TODO: `Frame` should also implement it for debug purposes, since operating on raw memory through the GC pointer doesn't rely on the Rust type system and makes debugging harder
 pub trait FrameAccess {
-    fn get_self(&self) -> Value;
-    fn get_method_holder(&self) -> GCRef<Class>;
-    fn lookup_argument(&self, idx: usize) -> &Value;
-    fn assign_arg(&mut self, idx: usize, value: Value);
-    fn lookup_local(&self, idx: usize) -> &Value;
-    fn assign_local(&mut self, idx: usize, value: Value);
     fn get_value_arr(&self, max_size: usize) -> &[Value];
     fn get_value_arr_mut(&self, max_size: usize) -> &mut [Value];
 
@@ -182,32 +243,6 @@ pub trait FrameAccess {
 }
 
 impl FrameAccess for GCRef<Frame> {
-    /// Get the self value for this frame.
-    fn get_self(&self) -> Value {
-        let self_arg = self.lookup_argument(0);
-        match self_arg.as_block() {
-            Some(b) => {
-                let block_frame = b.to_obj().frame.unwrap();
-                block_frame.get_self()
-            }
-            None => self_arg.clone()
-        }
-    }
-
-    /// Get the holder for this current method.
-    fn get_method_holder(&self) -> GCRef<Class> {
-        match self.lookup_argument(0).as_block() {
-            Some(b) => {
-                let block_frame = b.to_obj().frame.as_ref().unwrap();
-                let x = block_frame.get_method_holder();
-                x
-            },
-            None => {
-                unsafe { (*self.to_obj().current_method).holder }
-            }
-        }
-    }
-
     #[inline(always)]
     fn get_value_arr(&self, max_size: usize) -> &[Value] {
         unsafe {
@@ -235,35 +270,6 @@ impl FrameAccess for GCRef<Frame> {
             let ptr: *mut Value = self.ptr.add(ARG_OFFSET).add((nbr_args + nbr_locals) * size_of::<Value>()).to_mut_ptr();
             std::slice::from_raw_parts_mut(ptr, MAX_STACK_SIZE)
         }
-    }
-
-    #[inline(always)]
-    fn lookup_argument(&self, idx: usize) -> &Value {
-        let arr = self.get_value_arr(idx + 1); // we just say idx + 1 since that's enough. we don't need to actually know the total number of args.
-        &arr[idx]
-    }
-
-    /// Assign to an argument.
-    #[inline(always)]
-    fn assign_arg(&mut self, idx: usize, value: Value) {
-        let arr: &mut [Value] = self.get_value_arr_mut(idx + 1);
-        arr[idx] = value
-    }
-
-    /// Search for a local binding.
-    #[inline(always)]
-    fn lookup_local(&self, idx: usize) -> &Value {
-        let local_idx = self.to_obj().nbr_args + idx;
-        let arr: &[Value] = self.get_value_arr(local_idx + 1);
-        &arr[local_idx]
-    }
-
-    /// Assign to a local binding.
-    #[inline(always)]
-    fn assign_local(&mut self, idx: usize, value: Value) {
-        let local_idx = self.to_obj().nbr_args + idx;
-        let arr: &mut [Value] = self.get_value_arr_mut(local_idx + 1);
-        arr[local_idx] = value
     }
 
     #[inline(always)]

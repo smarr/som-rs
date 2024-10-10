@@ -4,7 +4,6 @@ use std::io::Write;
 
 use crate::class::Class;
 use crate::convert::{Nil, Primitive, StringLike, System};
-use crate::frame::FrameAccess;
 use crate::interpreter::Interpreter;
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
@@ -226,7 +225,7 @@ fn print_stack_trace(
 
     println!("Stack trace:");
     for (frame_idx, frame) in frame_stack.iter().enumerate() {
-        let class = frame.get_method_holder();
+        let class = frame.to_obj().get_method_holder();
         println!(
             "\t{}: {}>>#{} @bi: {}",
             frame_idx,
