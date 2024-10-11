@@ -256,10 +256,12 @@ impl Frame {
         unsafe { &mut *self.stack_ptr.sub(1) }
     }
 
+    #[inline(always)]
     pub fn stack_nth_back(&self, n: usize) -> &Value {
         unsafe { &(*self.stack_ptr.sub( n + 1)) }
     }
 
+    #[inline(always)]
     pub fn stack_n_last_elements(&mut self, n: usize) -> &[Value] {
         unsafe {
             let slice_ptr = self.stack_ptr.sub(n);
