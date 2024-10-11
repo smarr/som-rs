@@ -161,7 +161,7 @@ impl Frame {
     /// Search for a local binding.
     #[inline(always)]
     pub fn lookup_local(&self, idx: usize) -> &Value {
-        unsafe { self.locals_ptr.add(idx).as_ref().unwrap() }
+        unsafe { &*self.locals_ptr.add(idx) }
 
     }
 
@@ -173,7 +173,9 @@ impl Frame {
 
     #[inline(always)]
     pub fn lookup_argument(&self, idx: usize) -> &Value {
-        unsafe { self.args_ptr.add(idx).as_ref().unwrap() }
+        unsafe { 
+            &*self.args_ptr.add(idx)
+        }
     }
 
     /// Assign to an argument.
