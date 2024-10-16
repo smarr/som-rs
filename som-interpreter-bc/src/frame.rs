@@ -15,6 +15,10 @@ const MAX_STACK_SIZE: usize = 10;
 
 /// Represents a stack frame.
 pub struct Frame {
+    pub stack_ptr: *mut Value,
+    pub args_ptr: *mut Value,
+    pub locals_ptr: *mut Value,
+    
     /// The previous frame. Frames are handled as a linked list
     pub prev_frame: GCRef<Frame>,
     /// The method the execution context currently is in.
@@ -30,10 +34,6 @@ pub struct Frame {
 
     pub nbr_args: usize, // todo u8 instead?
     pub nbr_locals: usize,
-
-    pub stack_ptr: *mut Value,
-    pub args_ptr: *mut Value,
-    pub locals_ptr: *mut Value,
     
     /// markers. we don't use them directly. it's mostly a reminder that the struct looks different in memory... not the cleanest but not sure how else to go about it
     // pub stack_marker: PhantomData<[Value]>,
@@ -73,6 +73,7 @@ impl Frame {
             
             // setting up the self-referential pointers for args/locals accesses 
             frame.stack_ptr = frame_ptr.ptr.add(OFFSET_TO_STACK).as_mut_ref();
+
             frame.args_ptr = frame.stack_ptr.add(MAX_STACK_SIZE);
             frame.locals_ptr = frame.args_ptr.add(frame.nbr_args);
 
@@ -231,50 +232,76 @@ impl Frame {
         }
         target_frame
     }
+}
+
+/// Trait to directly access a frame from a Frame pointer. Aimed to speed up frequent operations. 
+pub trait FrameDirectAccess {
+    fn stack_push(&mut self, value: Value);
+    fn stack_pop(&mut self) -> Value;
+    fn stack_last(&self) -> &Value;
+    fn stack_last_mut(&mut self) -> &mut Value;
+    fn stack_nth_back(&self, n: usize) -> &Value;
+    fn stack_n_last_elements(&self, n: usize) -> &[Value];
+    fn stack_len(&self) -> usize;
+}
+
+impl FrameDirectAccess for GCRef<Frame> {
+    #[inline(always)]
+    fn stack_push(&mut self, value: Value) {
+        unsafe {
+            let stack_ptr: *mut *mut Value = self.ptr.as_mut_ref();
+            **stack_ptr = value;
+            *stack_ptr = (*stack_ptr).add(1);
+        }
+    }
+
+    #[inline(always)]
+    fn stack_pop(&mut self) -> Value {
+        unsafe {
+            let stack_ptr: *mut *mut Value = self.ptr.as_mut_ref();
+            *stack_ptr = (*stack_ptr).sub(1);
+            **stack_ptr
+        }
+    }
+
+    #[inline(always)]
+    fn stack_last(&self) -> &Value {
+        unsafe {
+            let stack_ptr: *mut *mut Value = self.ptr.as_mut_ref();
+            &(*(*stack_ptr).sub(1))
+        }
+    }
+
+    #[inline(always)]
+    fn stack_last_mut(&mut self) -> &mut Value {
+        unsafe {
+            let stack_ptr: *mut *mut Value = self.ptr.as_mut_ref();
+            &mut (*(*stack_ptr).sub(1))
+        }
+    }
+
+    #[inline(always)]
+    fn stack_nth_back(&self, n: usize) -> &Value {
+        unsafe {
+            let stack_ptr: *mut *mut Value = self.ptr.as_mut_ref();
+            &*((*stack_ptr).sub( n + 1)) 
+        }
+    }
     
     #[inline(always)]
-    pub fn stack_push(&mut self, value: Value) {
+    fn stack_n_last_elements(&self, n: usize) -> &[Value] {
+        // HACK: this should take self mutably, really, as it has an effect on the 
         unsafe {
-            *self.stack_ptr = value;
-            self.stack_ptr = self.stack_ptr.add(1);
-        }
-    }
-
-    #[inline(always)]
-    pub fn stack_pop(&mut self) -> Value {
-        unsafe {
-            self.stack_ptr = self.stack_ptr.sub(1);
-            *self.stack_ptr
-        }
-    }
-
-    #[inline(always)]
-    pub fn stack_last(&self) -> &Value {
-        unsafe { &*self.stack_ptr.sub(1) }
-    }
-
-    #[inline(always)]
-    pub fn stack_last_mut(&self) -> &mut Value {
-        unsafe { &mut *self.stack_ptr.sub(1) }
-    }
-
-    #[inline(always)]
-    pub fn stack_nth_back(&self, n: usize) -> &Value {
-        unsafe { &(*self.stack_ptr.sub( n + 1)) }
-    }
-
-    #[inline(always)]
-    pub fn stack_n_last_elements(&mut self, n: usize) -> &[Value] {
-        unsafe {
-            let slice_ptr = self.stack_ptr.sub(n);
-            self.stack_ptr = slice_ptr;
+            let stack_ptr: *mut *mut Value = self.ptr.as_mut_ref();
+            let slice_ptr = (*stack_ptr).sub(n);
+            *stack_ptr = slice_ptr;
             std::slice::from_raw_parts_mut(slice_ptr, n)
         }
     }
 
     /// Gets the total number of elements on the stack. Only used for debugging.
-    pub fn stack_len(frame_ptr: GCRef<Frame>) -> usize {
-        ((frame_ptr.to_obj().stack_ptr as usize) - (frame_ptr.ptr.as_usize() + OFFSET_TO_STACK)) / size_of::<Value>()
+    fn stack_len(&self) -> usize {
+        ((self.to_obj().stack_ptr as usize) - (self.ptr.as_usize() + OFFSET_TO_STACK)) / size_of::<Value>()
     }
 }
 
