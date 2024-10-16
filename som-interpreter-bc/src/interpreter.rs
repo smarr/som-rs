@@ -1,7 +1,7 @@
 use crate::block::Block;
 use crate::class::Class;
 use crate::compiler::Literal;
-use crate::frame::{Frame, FrameDirectAccess};
+use crate::frame::Frame;
 use crate::instance::InstanceAccess;
 use crate::method::{Method, MethodKind};
 use crate::universe::Universe;
@@ -24,7 +24,7 @@ macro_rules! send {
         };
         let method = {
             // dbg!($universe.lookup_symbol(symbol));
-            let receiver = $interp.current_frame.stack_nth_back(nb_params);
+            let receiver = $interp.current_frame.to_obj().stack_nth_back(nb_params);
             let receiver_class = receiver.class($universe);
             resolve_method($frame, &receiver_class, symbol, $interp.bytecode_idx)
         };
@@ -78,7 +78,7 @@ impl Interpreter {
     /// Creates and allocates a new frame corresponding to a method. 
     /// nbr_args is the number of arguments, including the self value, which it takes from the previous frame.
     pub fn push_method_frame(&mut self, method: GCRef<Method>, nbr_args: usize, mutator: &mut GCInterface) -> GCRef<Frame> {
-        let args = self.current_frame.stack_n_last_elements(nbr_args);
+        let args = self.current_frame.to_obj().stack_n_last_elements(nbr_args);
         
         let frame_ptr = Frame::alloc_from_method(method, args, self.current_frame, mutator);
 
@@ -148,15 +148,15 @@ impl Interpreter {
             
             match bytecode {
                 Bytecode::Dup2 => {
-                    let second_to_last = self.current_frame.stack_nth_back(1).clone();
-                    self.current_frame.stack_push(second_to_last)
+                    let second_to_last = self.current_frame.to_obj().stack_nth_back(1).clone();
+                    self.current_frame.to_obj().stack_push(second_to_last)
                 }
                 Bytecode::NilLocal(idx) => {
                     self.current_frame.to_obj().assign_local(idx as usize, Value::NIL);
                 }
                 Bytecode::JumpIfGreater(offset) => {
-                    let top = self.current_frame.stack_last();
-                    let top2 = self.current_frame.stack_nth_back(1);
+                    let top = self.current_frame.to_obj().stack_last();
+                    let top2 = self.current_frame.to_obj().stack_nth_back(1);
 
                     let is_greater = {
                         if let (Some(a), Some(b)) = (top.as_integer(), top2.as_integer()) {
@@ -169,8 +169,8 @@ impl Interpreter {
                     };
                     
                     if is_greater {
-                        self.current_frame.stack_pop();
-                        self.current_frame.stack_pop();
+                        self.current_frame.to_obj().stack_pop();
+                        self.current_frame.to_obj().stack_pop();
                         self.bytecode_idx += offset as usize - 1;
                     }
                 },
@@ -178,11 +178,11 @@ impl Interpreter {
                     return Some(Value::NIL);
                 }
                 Bytecode::Dup => {
-                    let value = self.current_frame.stack_last().clone();
-                    self.current_frame.stack_push(value);
+                    let value = self.current_frame.to_obj().stack_last().clone();
+                    self.current_frame.to_obj().stack_push(value);
                 }
                 Bytecode::Inc => {
-                    let last = self.current_frame.stack_last_mut();
+                    let last = self.current_frame.to_obj().stack_last_mut();
                     if let Some(int) = last.as_integer() {
                         *last = Value::new_integer(int + 1);
                     } else if let Some(double) = last.as_double() {
@@ -194,7 +194,7 @@ impl Interpreter {
                     }
                 }
                 Bytecode::Dec => {
-                    let last = self.current_frame.stack_last_mut();
+                    let last = self.current_frame.to_obj().stack_last_mut();
                     if let Some(int) = last.as_integer() {
                         *last = Value::new_integer(int - 1); // TODO: see Bytecode::Inc
                     } else if let Some(double) = last.as_double() {
@@ -207,25 +207,25 @@ impl Interpreter {
                 }
                 Bytecode::PushLocal(idx) => {
                     let value = self.current_frame.to_obj().lookup_local(idx as usize).clone();
-                    self.current_frame.stack_push(value);
+                    self.current_frame.to_obj().stack_push(value);
                 }
                 Bytecode::PushNonLocal(up_idx, idx) => {
                     debug_assert_ne!(up_idx, 0);
                     let from = Frame::nth_frame_back(&self.current_frame, up_idx);
                     let value = from.to_obj().lookup_local(idx as usize).clone();
-                    self.current_frame.stack_push(value);
+                    self.current_frame.to_obj().stack_push(value);
                 }
                 Bytecode::PushArg(idx) => {
                     debug_assert_ne!(idx, 0); // that's a ReturnSelf case.
                     let value = self.current_frame.to_obj().lookup_argument(idx as usize);
-                    self.current_frame.stack_push(value.clone());
+                    self.current_frame.to_obj().stack_push(value.clone());
                 }
                 Bytecode::PushNonLocalArg(up_idx, idx) => {
                     debug_assert_ne!(up_idx, 0);
                     debug_assert_ne!((up_idx, idx), (0, 0)); // that's a ReturnSelf case.
                     let from = Frame::nth_frame_back(&self.current_frame, up_idx);
                     let value = from.to_obj().lookup_argument(idx as usize);
-                    self.current_frame.stack_push(value.clone());
+                    self.current_frame.to_obj().stack_push(value.clone());
                 }
                 Bytecode::PushField(idx) => {
                     let self_val = self.current_frame.to_obj().get_self();
@@ -238,7 +238,7 @@ impl Interpreter {
                             panic!("trying to read a field from a {:?}?", &self_val)
                         }
                     };
-                    self.current_frame.stack_push(val);
+                    self.current_frame.to_obj().stack_push(val);
                 }
                 Bytecode::PushBlock(idx) => {
                     let literal = self.current_frame.to_obj().lookup_constant(idx as usize);
@@ -247,27 +247,27 @@ impl Interpreter {
                         _ => panic!("PushBlock expected a block, but got another invalid literal"),
                     };
                     block.to_obj().frame.replace(self.current_frame);
-                    self.current_frame.stack_push(Value::Block(block));
+                    self.current_frame.to_obj().stack_push(Value::Block(block));
                 }
                 Bytecode::PushConstant(idx) => {
                     let literal = self.current_frame.to_obj().lookup_constant(idx as usize);
                     let value = convert_literal(&self.current_frame, literal, &mut universe.gc_interface);
-                    self.current_frame.stack_push(value);
+                    self.current_frame.to_obj().stack_push(value);
                 }
                 Bytecode::PushConstant0 => {
                     let literal = self.current_frame.to_obj().lookup_constant(0);
                     let value = convert_literal(&self.current_frame, literal, &mut universe.gc_interface);
-                    self.current_frame.stack_push(value);
+                    self.current_frame.to_obj().stack_push(value);
                 }
                 Bytecode::PushConstant1 => {
                     let literal = self.current_frame.to_obj().lookup_constant(1);
                     let value = convert_literal(&self.current_frame, literal, &mut universe.gc_interface);
-                    self.current_frame.stack_push(value);
+                    self.current_frame.to_obj().stack_push(value);
                 }
                 Bytecode::PushConstant2 => {
                     let literal = self.current_frame.to_obj().lookup_constant(2);
                     let value = convert_literal(&self.current_frame, literal, &mut universe.gc_interface);
-                    self.current_frame.stack_push(value);
+                    self.current_frame.to_obj().stack_push(value);
                 }
                 Bytecode::PushGlobal(idx) => {
                     let literal = self.current_frame.to_obj().lookup_constant(idx as usize);
@@ -276,39 +276,39 @@ impl Interpreter {
                         _ => panic!("Global is not a symbol."),
                     };
                     if let Some(value) = universe.lookup_global(symbol) {
-                        self.current_frame.stack_push(value);
+                        self.current_frame.to_obj().stack_push(value);
                     } else {
                         let self_value = self.current_frame.to_obj().get_self();
                         universe.unknown_global(self, self_value, symbol)?;
                     }
                 }
                 Bytecode::Push0 => {
-                    self.current_frame.stack_push(Value::INTEGER_ZERO);
+                    self.current_frame.to_obj().stack_push(Value::INTEGER_ZERO);
                 }
                 Bytecode::Push1 => {
-                    self.current_frame.stack_push(Value::INTEGER_ONE);
+                    self.current_frame.to_obj().stack_push(Value::INTEGER_ONE);
                 }
                 Bytecode::PushNil => {
-                    self.current_frame.stack_push(Value::NIL);
+                    self.current_frame.to_obj().stack_push(Value::NIL);
                 }
                 Bytecode::PushSelf => {
-                    self.current_frame.stack_push(self.current_frame.to_obj().lookup_argument(0).clone());
+                    self.current_frame.to_obj().stack_push(self.current_frame.to_obj().lookup_argument(0).clone());
                 }
                 Bytecode::Pop => {
-                    self.current_frame.stack_pop();
+                    self.current_frame.to_obj().stack_pop();
                 }
                 Bytecode::PopLocal(up_idx, idx) => {
-                    let value = self.current_frame.stack_pop();
+                    let value = self.current_frame.to_obj().stack_pop();
                     let from = Frame::nth_frame_back(&self.current_frame, up_idx);
                     from.to_obj().assign_local(idx as usize, value);
                 }
                 Bytecode::PopArg(up_idx, idx) => {
-                    let value = self.current_frame.stack_pop();
+                    let value = self.current_frame.to_obj().stack_pop();
                     let from = Frame::nth_frame_back(&self.current_frame, up_idx);
                     from.to_obj().assign_arg(idx as usize, value);
                 }
                 Bytecode::PopField(idx) => {
-                    let value = self.current_frame.stack_pop();
+                    let value = self.current_frame.to_obj().stack_pop();
                     let self_val = self.current_frame.to_obj().get_self();
                     if let Some(mut instance) = self_val.as_instance() {
                         instance.assign_local(idx as usize, value)
@@ -348,15 +348,15 @@ impl Interpreter {
                     // if self.current_frame.is_empty() {
                     //     return Some(self.stack.pop().unwrap_or(Value::NIL));
                     // }
-                    self.current_frame.stack_push(self_val);
+                    self.current_frame.to_obj().stack_push(self_val);
                 }
                 Bytecode::ReturnLocal => {
-                    let val = self.current_frame.stack_pop();
+                    let val = self.current_frame.to_obj().stack_pop();
                     self.pop_frame();
                     if self.current_frame.is_empty() {
                         return Some(val);
                     }
-                    self.current_frame.stack_push(val);
+                    self.current_frame.to_obj().stack_push(val);
                 }
                 Bytecode::ReturnNonLocal(up_idx) => {
                     let method_frame = Frame::nth_frame_back(&self.current_frame, up_idx);
@@ -383,13 +383,13 @@ impl Interpreter {
                     };
 
                     if let Some(count) = escaped_frames {
-                        let val = self.current_frame.stack_pop();
+                        let val = self.current_frame.to_obj().stack_pop();
                         
                         self.pop_n_frames(count + 1);
                         // if self.current_frame.is_empty() {
                         //      return Some(self.stack.pop().unwrap_or(Value::NIL));
                         // }
-                        self.current_frame.stack_push(val);
+                        self.current_frame.to_obj().stack_push(val);
                         
                     } else {
                         // NB: I did some changes there with the blockself bits and i'm not positive it works the same as before, but it should.
@@ -417,31 +417,31 @@ impl Interpreter {
                     self.bytecode_idx -= offset as usize + 1;
                 }
                 Bytecode::JumpOnTrueTopNil(offset) => {
-                    let condition_result = self.current_frame.stack_last();
+                    let condition_result = self.current_frame.to_obj().stack_last();
 
                     if condition_result.is_boolean_true() {
                         self.bytecode_idx += offset as usize - 1;
-                        *self.current_frame.stack_last_mut() = Value::NIL;
+                        *self.current_frame.to_obj().stack_last_mut() = Value::NIL;
                     } else if condition_result.is_boolean_false() {
-                        self.current_frame.stack_pop();
+                        self.current_frame.to_obj().stack_pop();
                     } else {
                         panic!("JumpOnTrueTopNil condition did not evaluate to boolean (was {:?})", condition_result)
                     }
                 }
                 Bytecode::JumpOnFalseTopNil(offset) => {
-                    let condition_result = self.current_frame.stack_last();
+                    let condition_result = self.current_frame.to_obj().stack_last();
 
                     if condition_result.is_boolean_true() {
-                        self.current_frame.stack_pop();
+                        self.current_frame.to_obj().stack_pop();
                     } else if condition_result.is_boolean_false(){
                         self.bytecode_idx += offset as usize - 1;
-                        *self.current_frame.stack_last_mut() = Value::NIL;
+                        *self.current_frame.to_obj().stack_last_mut() = Value::NIL;
                     } else {
                         panic!("JumpOnFalseTopNil condition did not evaluate to boolean (was {:?})", condition_result)
                     }
                 }
                 Bytecode::JumpOnTruePop(offset) => {
-                    let condition_result = self.current_frame.stack_pop();
+                    let condition_result = self.current_frame.to_obj().stack_pop();
 
                     if condition_result.is_boolean_true() {
                         self.bytecode_idx += offset as usize - 1;
@@ -453,7 +453,7 @@ impl Interpreter {
                     }
                 }
                 Bytecode::JumpOnFalsePop(offset) => {
-                    let condition_result = self.current_frame.stack_pop();
+                    let condition_result = self.current_frame.to_obj().stack_pop();
 
                     if condition_result.is_boolean_false() {
                         self.bytecode_idx += offset as usize - 1;
@@ -475,8 +475,8 @@ impl Interpreter {
             nb_params: usize,
         ) {
             let Some(method) = method else {
-                let self_value = interpreter.current_frame.stack_nth_back(nb_params + 1).clone();
-                let args = interpreter.current_frame.stack_n_last_elements(nb_params);
+                let args = interpreter.current_frame.to_obj().stack_n_last_elements(nb_params);
+                let self_value = interpreter.current_frame.clone().to_obj().stack_pop();
 
                 // could be avoided by passing args slice directly...
                 // ...but A) DNU is a very rare path and B) i guess we allocate a new args arr in the DNU call anyway
@@ -511,7 +511,7 @@ impl Interpreter {
                     func(interpreter, universe).with_context(|| anyhow::anyhow!("error calling primitive `{}`", universe.lookup_symbol(symbol))).unwrap();
                 }
                 MethodKind::NotImplemented(err) => {
-                    let self_value = interpreter.current_frame.stack_nth_back(nb_params);
+                    let self_value = interpreter.current_frame.to_obj().stack_nth_back(nb_params);
                     println!(
                         "{}>>#{}",
                         self_value.class(&universe).to_obj().name(),

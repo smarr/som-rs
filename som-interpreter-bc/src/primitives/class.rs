@@ -1,6 +1,5 @@
 use crate::class::Class;
 use crate::convert::Primitive;
-use crate::frame::FrameDirectAccess;
 use crate::instance::Instance;
 use crate::interpreter::Interpreter;
 use crate::primitives::PrimitiveFn;
@@ -34,7 +33,7 @@ fn superclass(
 
     let super_class = receiver.borrow().super_class();
     let super_class = super_class.map_or(Value::NIL, |it| Value::Class(it));
-    interpreter.current_frame.stack_push(super_class);
+    interpreter.current_frame.to_obj().stack_push(super_class);
 
     Ok(())
 }
