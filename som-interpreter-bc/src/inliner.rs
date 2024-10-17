@@ -130,9 +130,6 @@ impl PrimMessageInliner for ast::Message {
             new_blk
         };
         
-        // dbg!(ctxt.get_nbr_locals());
-        // dbg!(ctxt.get_nbr_args());
-        // dbg!();
         // last is always ReturnLocal, so it gets ignored
         if let Some((_, body)) = block.body.split_last() {
             for block_bc in body {

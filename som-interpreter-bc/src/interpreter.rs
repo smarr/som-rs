@@ -471,6 +471,9 @@ impl Interpreter {
             symbol: Interned,
             nb_params: usize,
         ) {
+            // we store the current bytecode idx to be able to correctly restore the bytecode state when we pop frames
+            interpreter.current_frame.to_obj().bytecode_idx = interpreter.bytecode_idx;
+            
             let Some(method) = method else {
                 let args = interpreter.current_frame.to_obj().stack_n_last_elements(nb_params);
                 let self_value = interpreter.current_frame.clone().to_obj().stack_pop();
@@ -487,18 +490,18 @@ impl Interpreter {
                 return;
             };
 
-            // we store the current bytecode idx to be able to correctly restore the bytecode state when we pop frames
-            interpreter.current_frame.to_obj().bytecode_idx = interpreter.bytecode_idx;
-
             match method.to_obj().kind() {
                 MethodKind::Defined(_) => {
                     // let name = &method.to_obj().holder.borrow().name.clone();
+                    // eprintln!("Invoking {:?} (in {:?})", &method.to_obj().signature, &name);
+                    // if method.to_obj().signature == "initializeWith:selector:arguments:" {
+                    //     dbg!("wow");
+                    // }
                     // let filter_list = ["Integer", "Vector", "True", "Pair"];
                     // let filter_list = [];
 
                     // if !filter_list.contains(&name.as_str()) {
                     // if !SYSTEM_CLASS_NAMES.contains(&name.as_str()) {
-                    //     eprintln!("Invoking {:?} (in {:?})", &method.to_obj().signature, &name);
                     // }
 
                     interpreter.push_method_frame(method, nb_params + 1, &mut universe.gc_interface);
