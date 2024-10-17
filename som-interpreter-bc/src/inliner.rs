@@ -421,6 +421,7 @@ impl PrimMessageInliner for ast::Message {
         jump_type: JumpType,
         mutator: &mut GCInterface,
     ) -> Option<()> {
+        // TODO opt: we only inline when it's a block (see BooleanTest:testIfTrueWithValueBlock to see why), but we could easily only inline when it's any expression that's safe to be inlined. Most fall under that category
         if self.values.len() != 1|| !matches!(self.values.get(0)?, ast::Expression::Block(_)) {
             return None;
         }

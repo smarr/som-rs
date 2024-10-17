@@ -166,13 +166,11 @@ fn as_32bit_unsigned_value(
     universe: &mut Universe,
     receiver: IntegerLike,
 ) -> Result<IntegerLike, Error> {
-    const _: &str = "Integer>>#as32BitUnsignedValue";
-
     let value = match receiver {
         IntegerLike::Integer(value) => value as u32,
         IntegerLike::BigInteger(value) => {
             // We do this gymnastic to get the 4 lowest bytes from the two's-complement representation.
-            let mut values = value.to_obj().to_signed_bytes_le();
+            let mut values = value.as_ref().to_signed_bytes_le();
             values.resize(4, 0);
             u32::from_le_bytes(values.try_into().unwrap())
         }
@@ -181,8 +179,7 @@ fn as_32bit_unsigned_value(
     let value = match value.try_into() {
         Ok(value) => IntegerLike::Integer(value),
         Err(_) => {
-            let allocated = universe.gc_interface.allocate(BigInt::from(value as i32));
-            IntegerLike::BigInteger(allocated)
+            IntegerLike::BigInteger(GCRef::<BigInt>::alloc(BigInt::from(value), &mut universe.gc_interface))
         }
     };
 
@@ -544,7 +541,7 @@ fn eq(
 
     let value = match (a, b) {
         (DoubleLike::Integer(a), DoubleLike::Integer(b)) => a == b,
-        (DoubleLike::BigInteger(a), DoubleLike::BigInteger(b)) => a.as_ref() == b.as_ref(),
+        (DoubleLike::BigInteger(a), DoubleLike::BigInteger(b)) => a.to_obj() == b.to_obj(),
         (DoubleLike::Double(a), DoubleLike::Double(b)) => a == b,
         (DoubleLike::Integer(a), DoubleLike::Double(b)) => (a as f64) == b,
         (DoubleLike::Double(a), DoubleLike::Integer(b)) => a == (b as f64),
@@ -573,21 +570,18 @@ fn shift_left(
 
     let heap = &mut universe.gc_interface;
 
-    let value = match a {
+    match a {
         IntegerLike::Integer(a) => match (a as u64).checked_shl(b as u32) {
             Some(value) => match value.try_into() {
-                Ok(value) => Value::Integer(value),
+                Ok(value) => Ok(Value::Integer(value)),
                 Err(_) => {
-                    let allocated = universe.gc_interface.allocate(BigInt::from(value as i32));
-                    Value::BigInteger(allocated)
+                    Ok(Value::BigInteger(GCRef::<BigInt>::alloc(BigInt::from(value as i64), heap)))
                 }
             },
-            None => demote!(heap, BigInt::from(a) << (b as u32)),
+            None => Ok(demote!(heap, BigInt::from(a) << (b as u32))),
         },
-        IntegerLike::BigInteger(a) => demote!(heap, a.as_ref() << (b as u32)),
-    };
-
-    Ok(value)
+        IntegerLike::BigInteger(a) => Ok(demote!(heap, a.as_ref() << (b as u32)))
+    }
 }
 
 fn shift_right(

@@ -130,7 +130,7 @@ fn as_32bit_signed_value(_: &mut Universe, receiver: IntegerLike)-> Result<Value
     Ok(Value::Integer(value))
 }
 
-fn as_32bit_unsigned_value(universe: &mut Universe, receiver: IntegerLike)-> Result<Value, Error> {
+fn as_32bit_unsigned_value(universe: &mut Universe, receiver: IntegerLike) -> Result<IntegerLike, Error> {
     let value = match receiver {
         IntegerLike::Integer(value) => value as u32,
         IntegerLike::BigInteger(value) => {
@@ -142,9 +142,9 @@ fn as_32bit_unsigned_value(universe: &mut Universe, receiver: IntegerLike)-> Res
     };
 
     let value = match value.try_into() {
-        Ok(value) => Value::Integer(value),
+        Ok(value) => IntegerLike::Integer(value),
         Err(_) => {
-            Value::BigInteger(GCRef::<BigInt>::alloc(BigInt::from(value), &mut universe.gc_interface))
+            IntegerLike::BigInteger(GCRef::<BigInt>::alloc(BigInt::from(value), &mut universe.gc_interface))
         }
     };
 

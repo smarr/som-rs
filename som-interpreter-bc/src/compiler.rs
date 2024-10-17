@@ -3,7 +3,7 @@
 //!
 use std::cell::RefCell;
 use std::hash::{Hash, Hasher};
-
+use std::str::FromStr;
 use indexmap::{IndexMap, IndexSet};
 use num_bigint::BigInt;
 
@@ -596,9 +596,12 @@ impl MethodCodegen for ast::Expression {
                         }
                         ast::Literal::Double(val) => Literal::Double(*val),
                         ast::Literal::Integer(val) => Literal::Integer(*val),
-                        ast::Literal::BigInteger(val) => {
-                            let bigint = val.parse().unwrap();
-                            Literal::BigInteger(GCRef::<BigInt>::alloc(bigint, mutator))
+                        ast::Literal::BigInteger(big_int_str) => {
+                            // this is to handle a weird corner case where "-2147483648" is considered to be a bigint by the lexer and then parser, when it's in fact just barely in i32 range
+                            match big_int_str.parse::<i32>() {
+                                Ok(x) => Literal::Integer(x),
+                                _ => Literal::BigInteger(GCRef::<BigInt>::alloc(BigInt::from_str(big_int_str).unwrap(), mutator))
+                            }
                         }
                         ast::Literal::Array(val) => {
                             let literals = val
