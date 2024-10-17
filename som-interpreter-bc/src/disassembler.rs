@@ -59,11 +59,6 @@ fn disassemble_body(
                     .and_then(|env| Some(env.resolve_local(idx)));
                 println!(" (`{0}`)", local_str.unwrap()); // code's kinda all over the place, it was a quick and easy refactor. could/should be cleaned
             }
-            Bytecode::NilLocal(idx) => {
-                print!(" {idx}");
-                let local_str = env.last().unwrap().resolve_local(idx);
-                println!(" (`{0}`)", local_str);
-            }
             Bytecode::PushField(idx) | Bytecode::PopField(idx) => {
                 print!(" {idx}");
                 let Some((name, _)) = class.locals.get_index(usize::from(idx)) else {

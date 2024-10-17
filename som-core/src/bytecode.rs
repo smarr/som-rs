@@ -44,7 +44,6 @@ pub enum Bytecode {
     JumpOnTruePop(u16),
     JumpOnFalsePop(u16),
     Dup2,
-    NilLocal(u8),
     JumpIfGreater(u16),
 }
 
@@ -96,7 +95,6 @@ impl Bytecode {
             Self::JumpOnTruePop(_)      => "JUMP_ON_TRUE_POP",
             Self::JumpOnFalsePop(_)     => "JUMP_ON_FALSE_POP",
             Self::Dup2                  => "DUP2",
-            Self::NilLocal(_)           => "NIL_LOCAL",
             Self::JumpIfGreater(_)      => "JUMP_IF_GREATER",
         }
     }
@@ -147,7 +145,6 @@ impl Bytecode {
             Self::JumpOnTruePop(_)      => "JUMP_ON_TRUE_POP       ",
             Self::JumpOnFalsePop(_)     => "JUMP_ON_FALSE_POP      ",
             Self::Dup2                  => "DUP2                   ",
-            Self::NilLocal(_)           => "NIL_LOCAL              ",
             Self::JumpIfGreater(_)      => "JUMP_IF_GREATER        ",
         }
     }
@@ -272,7 +269,6 @@ impl fmt::Display for Bytecode {
             Self::JumpOnTrueTopNil(idx) => write!(f, "JUMP_ON_TRUE_TOP_NIL {}", idx),
             Self::JumpOnTruePop(idx) => write!(f, "JUMP_ON_TRUE_POP {}", idx),
             Self::Dup2                  => write!(f, "DUP2"),
-            Self::NilLocal(idx)           => write!(f, "NIL_LOCAL {}", idx),
             Self::JumpIfGreater(idx)      => write!(f, "JUMP_IF_GREATER {}", idx),
         }
     }

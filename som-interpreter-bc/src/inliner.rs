@@ -117,11 +117,19 @@ impl PrimMessageInliner for ast::Message {
     }
 
     fn inline_compiled_block(&self, ctxt: &mut dyn InnerGenCtxt, block: &BlockInfo, mutator: &mut GCInterface) -> Option<()> {
-        let nbr_locals_pre_inlining = ctxt.get_nbr_locals();
-        let _nbr_args_pre_inlining = ctxt.get_nbr_args();
+        let nbr_locals_pre_inlining = ctxt.get_nbr_locals() as u8;
+        let nbr_args_pre_inlining = block.nb_params as u8;
 
-        ctxt.set_nbr_locals(nbr_locals_pre_inlining + block.nb_locals + block.nb_params);
+        ctxt.set_nbr_locals(nbr_locals_pre_inlining as usize + block.nb_locals + block.nb_params);
 
+        // all params in the block become local variables. not the prettiest way of going about it? works though
+        let block = &{
+            let mut new_blk = block.clone();
+            new_blk.nb_locals += new_blk.nb_params;
+            new_blk.nb_params = 0;
+            new_blk
+        };
+        
         // dbg!(ctxt.get_nbr_locals());
         // dbg!(ctxt.get_nbr_args());
         // dbg!();
@@ -129,7 +137,7 @@ impl PrimMessageInliner for ast::Message {
         if let Some((_, body)) = block.body.split_last() {
             for block_bc in body {
                 match block_bc {
-                    Bytecode::PushLocal(idx) => ctxt.push_instr(Bytecode::PushLocal(nbr_locals_pre_inlining as u8 + *idx)),
+                    Bytecode::PushLocal(idx) => ctxt.push_instr(Bytecode::PushLocal(nbr_locals_pre_inlining + nbr_args_pre_inlining + *idx)),
                     Bytecode::PushNonLocal(up_idx, idx) => {
                         match *up_idx - 1 {
                             0 => ctxt.push_instr(Bytecode::PushLocal(*idx)),
@@ -137,17 +145,15 @@ impl PrimMessageInliner for ast::Message {
                         }
                     }
                     Bytecode::PopLocal(up_idx, idx) => match up_idx {
-                        0 => ctxt.push_instr(Bytecode::PopLocal(
+                        0 => {
+                            ctxt.push_instr(Bytecode::PopLocal(
                             *up_idx,
-                            nbr_locals_pre_inlining as u8 + *idx,
-                        )),
+                            nbr_locals_pre_inlining + nbr_args_pre_inlining + *idx,
+                        ))},
                         1.. => ctxt.push_instr(Bytecode::PopLocal(*up_idx - 1, *idx)),
                     },
-                    Bytecode::NilLocal(idx) => {
-                        ctxt.push_instr(Bytecode::NilLocal(nbr_locals_pre_inlining as u8 + *idx))
-                    }
                     Bytecode::PushArg(idx) => {
-                        ctxt.push_instr(Bytecode::PushLocal(*idx + nbr_locals_pre_inlining as u8 - 1))
+                        ctxt.push_instr(Bytecode::PushLocal(nbr_locals_pre_inlining + *idx - 1)) // -1 because of the self arg
                     }
                     Bytecode::PushNonLocalArg(up_idx, idx) => {
                         match *up_idx - 1 {
@@ -547,7 +553,6 @@ impl PrimMessageInliner for ast::Message {
         let idx_loop_accumulator = ctxt.get_nbr_locals() as u8; // not sure that's correct
 
         ctxt.push_instr(Bytecode::Dup2);
-        // ctxt.push_instr(Bytecode::NilLocal(idx_loop_accumulator));
 
         let jump_if_greater_idx = ctxt.get_cur_instr_idx();
         ctxt.push_instr(Bytecode::JumpIfGreater(0));
@@ -555,26 +560,10 @@ impl PrimMessageInliner for ast::Message {
         ctxt.push_instr(Bytecode::Dup);
         ctxt.push_instr(Bytecode::PopLocal(0, idx_loop_accumulator));
 
-        // we turn the argument of the block into a local.
-        // TODO: for generalization/flexibility with our inlining logic, this should ideally be handled for every block that we inline, so this code should be in the main inline_expression function.
-        let new_blk_expr = {
-            let blk = self.values.get(1)?;
-            let mut new_blk_expr = blk.clone();
-            match new_blk_expr {
-                ast::Expression::Block(ref mut b) => {
-                    b.nbr_locals += b.nbr_params;
-                    b.nbr_params = 0;
-                }
-                _ => unreachable!("we've previously ensured this was a block.")
-            };
-            new_blk_expr
-        };
-
-        self.inline_expression(ctxt, &new_blk_expr, mutator); // inline the block
+        self.inline_expression(ctxt, self.values.get(1)?, mutator); // inline the block
 
         ctxt.push_instr(Bytecode::Pop);
         ctxt.push_instr(Bytecode::Inc);
-        // ctxt.push_instr(Bytecode::NilLocal(idx_loop_accumulator));
         ctxt.push_instr(Bytecode::JumpBackward((ctxt.get_cur_instr_idx() - jump_if_greater_idx) as u16));
 
         ctxt.backpatch_jump_to_current(jump_if_greater_idx);

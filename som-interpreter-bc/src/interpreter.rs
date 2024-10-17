@@ -151,9 +151,6 @@ impl Interpreter {
                     let second_to_last = self.current_frame.to_obj().stack_nth_back(1).clone();
                     self.current_frame.to_obj().stack_push(second_to_last)
                 }
-                Bytecode::NilLocal(idx) => {
-                    self.current_frame.to_obj().assign_local(idx as usize, Value::NIL);
-                }
                 Bytecode::JumpIfGreater(offset) => {
                     let top = self.current_frame.to_obj().stack_last();
                     let top2 = self.current_frame.to_obj().stack_nth_back(1);

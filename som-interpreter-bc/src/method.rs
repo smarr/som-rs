@@ -170,9 +170,6 @@ impl fmt::Display for Method {
                         Bytecode::PopLocal(up_idx, idx) => {
                             write!(f, "local: {}, context: {}", idx, up_idx)?;
                         }
-                        Bytecode::NilLocal(idx) => {
-                            write!(f, "local: {}", idx)?;
-                        }
                         Bytecode::PopArg(up_idx, idx) => {
                             write!(f, "argument: {}, context: {}", idx, up_idx)?;
                         }

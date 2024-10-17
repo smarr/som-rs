@@ -871,6 +871,8 @@ fn compile_block(outer: &mut dyn GenCtxt, defn: &ast::Block, mutator: &mut GCInt
     Some(block)
 }
 
+/// Calculates the maximum stack size possible. For each frame, this allows us to allocate a stack of precisely the maximum possible size it needs.
+/// TODO opt: it's possible our estimate is overly conservative. Reducing the max stack size reduces time spent allocating, and could maybe be a worthwhile optimization.
 fn get_max_stack_size(body: &Vec<Bytecode>) -> u8 {
     let mut abstract_stack_size = 0;
     let mut max_stack_size_observed = 0;
@@ -923,7 +925,6 @@ fn get_max_stack_size(body: &Vec<Bytecode>) -> u8 {
             Bytecode::JumpBackward(_) => {}
             Bytecode::JumpOnTrueTopNil(_) => {}
             Bytecode::JumpOnFalseTopNil(_) => {}
-            Bytecode::NilLocal(_) => {}
             Bytecode::JumpIfGreater(_) => {}
         }
     }
