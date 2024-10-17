@@ -402,6 +402,9 @@ impl Interpreter {
                             }
                         };
 
+                        // we store the current bytecode idx to be able to correctly restore the bytecode state when we pop frames
+                        self.current_frame.to_obj().bytecode_idx = self.bytecode_idx;
+                        
                         universe.escaped_block(self, instance, block).expect(
                             "A block has escaped and `escapedBlock:` is not defined on receiver",
                         );
