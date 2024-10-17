@@ -373,7 +373,7 @@ impl PrimMessageInliner for ast::Message {
             .collect();
 
         let new_max_stack_size = 10;
-        
+
         // can't just clone the inner_block then modify the body/literals because the body is behind an Rc (not Rc<RefCell<>>), so immutable
         // though if we ever want to do some runtime bytecode rewriting, it'll have to be an Rc<RefCell<>> and this code will be refactorable (not so many individual calls to .clone())
         // TODO: we now pass a mutable pointer to a Block actually, so this is all avoidable!

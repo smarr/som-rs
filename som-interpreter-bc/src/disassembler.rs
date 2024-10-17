@@ -51,8 +51,8 @@ fn disassemble_body(
             Bytecode::PushLocal(idx) => {
                 print!(" {idx}");
                 let local_str = env.last().unwrap().resolve_local(idx);
-                println!(" (`{0}`)", local_str); 
-            },
+                println!(" (`{0}`)", local_str);
+            }
             Bytecode::PushNonLocal(up_idx, idx) | Bytecode::PopLocal(up_idx, idx) => {
                 print!(" {up_idx}, {idx}");
                 let local_str = env.iter().rev().nth(usize::from(up_idx))
@@ -84,11 +84,12 @@ fn disassemble_body(
                 println!(" (`{0}`)", arg_str.unwrap());
             }
             Bytecode::PushBlock(idx) => {
-                println!(" {idx}");
+                print!(" {idx}");
                 let Some(Literal::Block(blk)) = current.resolve_literal(idx) else {
-                    println!("{padding}  | (invalid block)");
+                    println!("({padding}  | (invalid block)");
                     continue;
                 };
+                println!(" - (max stack size: {})", blk.to_obj().blk_info.to_obj().max_stack_size);
                 env.push(blk.to_obj());
                 disassemble_body(universe, class, level + 1, env);
                 env.pop();
@@ -189,7 +190,6 @@ impl FrameEnv for MethodEnv {
     fn get_body(&self) -> &[Bytecode] {
         &self.body
     }
-
     #[cfg(feature = "frame-debug-info")]
     fn resolve_local(&self, idx: u8) -> String {
         match self.block_debug_info.locals.get(usize::from(idx)) {
@@ -200,7 +200,7 @@ impl FrameEnv for MethodEnv {
 
     #[cfg(not(feature = "frame-debug-info"))]
     fn resolve_local(&self, _idx: u8) -> String {
-        return String::from("(unknown local - no debug info)")
+        return String::from("(unknown local - no debug info)");
     }
 
     fn resolve_literal(&self, idx: u8) -> Option<&Literal> {
@@ -217,7 +217,7 @@ impl FrameEnv for MethodEnv {
 
     #[cfg(not(feature = "frame-debug-info"))]
     fn resolve_argument(&self, _idx: u8) -> String {
-        return String::from("(unknown argument - no debug info)")
+        return String::from("(unknown argument - no debug info)");
     }
 }
 
@@ -225,7 +225,6 @@ impl FrameEnv for Block {
     fn get_body(&self) -> &[Bytecode] {
         &self.blk_info.to_obj().body
     }
-
     #[cfg(feature = "frame-debug-info")]
     fn resolve_local(&self, idx: u8) -> String {
         match self.blk_info.to_obj().block_debug_info.locals.get(usize::from(idx)) {
@@ -236,7 +235,7 @@ impl FrameEnv for Block {
 
     #[cfg(not(feature = "frame-debug-info"))]
     fn resolve_local(&self, _idx: u8) -> String {
-        return String::from("(unknown local)")
+        return String::from("(unknown local)");
     }
 
     fn resolve_literal(&self, idx: u8) -> Option<&Literal> {
@@ -253,6 +252,6 @@ impl FrameEnv for Block {
 
     #[cfg(not(feature = "frame-debug-info"))]
     fn resolve_argument(&self, _idx: u8) -> String {
-        return String::from("(unknown argument - no debug info)")
+        return String::from("(unknown argument - no debug info)");
     }
 }

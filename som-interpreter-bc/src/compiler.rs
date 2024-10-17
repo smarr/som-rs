@@ -782,9 +782,9 @@ fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::MethodDef, mutator: &mut 
                 let inline_cache = RefCell::new(vec![None; body.len()]);
                 #[cfg(feature = "frame-debug-info")]
                 let dbg_info = ctxt.inner.debug_info;
-    
+
                 let max_stack_size = get_max_stack_size(&body);
-                
+
                 MethodKind::Defined(MethodEnv {
                     body,
                     nbr_locals,
@@ -871,8 +871,65 @@ fn compile_block(outer: &mut dyn GenCtxt, defn: &ast::Block, mutator: &mut GCInt
     Some(block)
 }
 
-fn get_max_stack_size(_body: &Vec<Bytecode>) -> u8 {
-    10
+fn get_max_stack_size(body: &Vec<Bytecode>) -> u8 {
+    let mut abstract_stack_size = 0;
+    let mut max_stack_size_observed = 0;
+
+    for bc in body {
+        match bc {
+            Bytecode::Dup
+            | Bytecode::Dup2
+            | Bytecode::PushLocal(..)
+            | Bytecode::PushNonLocal(..)
+            | Bytecode::PushArg(..)
+            | Bytecode::PushNonLocalArg(..)
+            | Bytecode::PushField(..)
+            | Bytecode::PushBlock(..)
+            | Bytecode::PushConstant(..)
+            | Bytecode::PushConstant0
+            | Bytecode::PushConstant1
+            | Bytecode::PushConstant2
+            | Bytecode::PushGlobal(..)
+            | Bytecode::Push0
+            | Bytecode::Push1
+            | Bytecode::PushNil
+            | Bytecode::PushSelf
+            => {
+                abstract_stack_size += 1;
+                if abstract_stack_size > max_stack_size_observed {
+                    max_stack_size_observed = abstract_stack_size
+                }
+            },
+            Bytecode::Pop
+            | Bytecode::PopLocal(..)
+            | Bytecode::PopArg(..)
+            | Bytecode::PopField(..)
+            | Bytecode::JumpOnTruePop(..)
+            | Bytecode::JumpOnFalsePop(..)
+            => {
+                abstract_stack_size -= 1
+            },
+            Bytecode::Send1(_) | Bytecode::SuperSend1(_) => {}
+            Bytecode::Send2(_) | Bytecode::SuperSend2(_) => { abstract_stack_size -= 1 } // number of arguments (they all get popped) + 1 for the result
+            Bytecode::Send3(_) | Bytecode::SuperSend3(_) => { abstract_stack_size -= 2 }
+            Bytecode::SendN(_idx) | Bytecode::SuperSendN(_idx) => { abstract_stack_size -= 3 } // TODO it can be more than 3. need to look up the signature from the index, which needs access to literals + interner.
+            Bytecode::Halt => {}
+            Bytecode::Inc => {}
+            Bytecode::Dec => {}
+            Bytecode::ReturnSelf => {}
+            Bytecode::ReturnLocal => {}
+            Bytecode::ReturnNonLocal(_) => {}
+            Bytecode::Jump(_) => {}
+            Bytecode::JumpBackward(_) => {}
+            Bytecode::JumpOnTrueTopNil(_) => {}
+            Bytecode::JumpOnFalseTopNil(_) => {}
+            Bytecode::NilLocal(_) => {}
+            Bytecode::JumpIfGreater(_) => {}
+        }
+    }
+
+    // NB: Stefan does a global +2 to account for DNU?
+    max_stack_size_observed + 2
 }
 
 pub fn compile_class(
