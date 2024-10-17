@@ -82,7 +82,7 @@ impl PrimMessageInliner for ast::Message {
             "whileFalse:" => self.inline_while(ctxt, JumpOnTrue, mutator),
             "or:" | "||" => self.inline_or_and(ctxt, Or, mutator),
             "and:" | "&&" => self.inline_or_and(ctxt, And, mutator),
-            // "to:do:" => self.inline_to_do(ctxt, mutator),
+            "to:do:" => self.inline_to_do(ctxt, mutator),
             // to:by:do, downTo:do:, perhaps?
             _ => None,
         }
@@ -122,6 +122,9 @@ impl PrimMessageInliner for ast::Message {
 
         ctxt.set_nbr_locals(nbr_locals_pre_inlining + block.nb_locals + block.nb_params);
 
+        // dbg!(ctxt.get_nbr_locals());
+        // dbg!(ctxt.get_nbr_args());
+        // dbg!();
         // last is always ReturnLocal, so it gets ignored
         if let Some((_, body)) = block.body.split_last() {
             for block_bc in body {
@@ -549,7 +552,22 @@ impl PrimMessageInliner for ast::Message {
         ctxt.push_instr(Bytecode::Dup);
         ctxt.push_instr(Bytecode::PopLocal(0, idx_loop_accumulator));
 
-        self.inline_expression(ctxt, self.values.get(1)?, mutator); // inline the block
+        // we turn the argument of the block into a local.
+        // TODO: for flexibility with inlining, this should ideally be handled for every block that we inline, so this logic should be in the main inline_expression function.
+        let new_blk_expr = {
+            let blk = self.values.get(1)?;
+            let mut new_blk_expr = blk.clone();
+            match new_blk_expr {
+                ast::Expression::Block(ref mut b) => {
+                    b.nbr_locals += b.nbr_params;
+                    b.nbr_params = 0;
+                },
+                _ => unreachable!("we've previously ensured this was a block")
+            };
+            new_blk_expr
+        };
+        
+        self.inline_expression(ctxt, &new_blk_expr, mutator); // inline the block
 
         ctxt.push_instr(Bytecode::Pop);
         ctxt.push_instr(Bytecode::Inc);
@@ -559,7 +577,7 @@ impl PrimMessageInliner for ast::Message {
         ctxt.backpatch_jump_to_current(jump_if_greater_idx);
 
         // println!("--- Inlined to:do:.");
-
+        
         Some(())
     }
 }
