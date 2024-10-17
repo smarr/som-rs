@@ -5,13 +5,11 @@ use crate::method::{Method, MethodKind};
 use crate::value::Value;
 use core::mem::size_of;
 use som_core::bytecode::Bytecode;
-use som_core::gc::{CustomAlloc, GCInterface, GCRef};
+use som_core::gc::{GCInterface, GCRef};
 use std::cell::RefCell;
 use std::marker::PhantomData;
 
 const OFFSET_TO_STACK: usize = size_of::<Frame>();
-
-const MAX_STACK_SIZE: usize = 10;
 
 /// Represents a stack frame.
 pub struct Frame {
@@ -34,7 +32,7 @@ pub struct Frame {
     pub stack_ptr: *mut Value,
     pub args_ptr: *mut Value,
     pub locals_ptr: *mut Value,
-    
+
     /// markers. we don't use them directly. it's mostly a reminder that the struct looks different in memory... not the cleanest but not sure how else to go about it
     // pub stack_marker: PhantomData<[Value]>,
     pub args_marker: PhantomData<[Value]>,
@@ -48,12 +46,21 @@ pub struct Frame {
 }
 
 impl Frame {
-    pub fn alloc_from_method(method: GCRef<Method>, 
-                             args: &[Value], 
-                             prev_frame: GCRef<Frame>, 
+    pub fn alloc_from_method(method: GCRef<Method>,
+                             args: &[Value],
+                             prev_frame: GCRef<Frame>,
                              mutator: &mut GCInterface) -> GCRef<Frame> {
-        let frame_ptr = Frame::alloc(Frame::from_method(method, args.len(), prev_frame), mutator);
-        Frame::init_frame_post_alloc(frame_ptr, args);
+        let frame = Frame::from_method(method, args.len(), prev_frame);
+        let max_stack_size = match &method.to_obj().kind {
+            MethodKind::Defined(m_env) => m_env.max_stack_size as usize,
+            _ => unreachable!("if we're allocating a method frame, it has to be defined.")
+        };
+        
+        // TODO: be nice to wrap this size calculation bit + allocation into its own alloc trait somehow, like CustomAlloc. since the block logic is very similar
+        let size = size_of::<Frame>() + ((max_stack_size + frame.nbr_args + frame.nbr_locals) * size_of::<Value>());
+
+        let frame_ptr = GCRef::<Frame>::alloc_with_size(frame, mutator, size);
+        Frame::init_frame_post_alloc(frame_ptr, args, max_stack_size);
         frame_ptr
     }
 
@@ -62,18 +69,23 @@ impl Frame {
                             current_method: *const Method,
                             prev_frame: GCRef<Frame>,
                             mutator: &mut GCInterface) -> GCRef<Frame> {
-        let frame_ptr = Frame::alloc(Frame::from_block(block, args.len(), current_method, prev_frame), mutator);
-        Frame::init_frame_post_alloc(frame_ptr, args);
+        let frame = Frame::from_block(block, args.len(), current_method, prev_frame);
+        let max_stack_size = block.to_obj().blk_info.to_obj().max_stack_size as usize;
+        let size = size_of::<Frame>() + ((max_stack_size + frame.nbr_args + frame.nbr_locals) * size_of::<Value>());
+
+        let frame_ptr = GCRef::<Frame>::alloc_with_size(frame, mutator, size);
+        Frame::init_frame_post_alloc(frame_ptr, args, max_stack_size);
         frame_ptr
+
     }
-    
-    fn init_frame_post_alloc(frame_ptr: GCRef<Frame>, args: &[Value]) {
+
+    fn init_frame_post_alloc(frame_ptr: GCRef<Frame>, args: &[Value], stack_size: usize) {
         unsafe {
             let frame = frame_ptr.to_obj();
-            
+
             // setting up the self-referential pointers for args/locals accesses 
             frame.stack_ptr = frame_ptr.ptr.add(OFFSET_TO_STACK).as_mut_ref();
-            frame.args_ptr = frame.stack_ptr.add(MAX_STACK_SIZE);
+            frame.args_ptr = frame.stack_ptr.add(stack_size);
             frame.locals_ptr = frame.args_ptr.add(frame.nbr_args);
 
             // initializing arguments from the args slice
@@ -151,7 +163,7 @@ impl Frame {
                 let block_frame = b.to_obj().frame.as_ref().unwrap();
                 let x = block_frame.to_obj().get_method_holder();
                 x
-            },
+            }
             None => {
                 unsafe { (*self.current_method).holder }
             }
@@ -162,7 +174,6 @@ impl Frame {
     #[inline(always)]
     pub fn lookup_local(&self, idx: usize) -> &Value {
         unsafe { &*self.locals_ptr.add(idx) }
-
     }
 
     /// Assign to a local binding.
@@ -173,7 +184,7 @@ impl Frame {
 
     #[inline(always)]
     pub fn lookup_argument(&self, idx: usize) -> &Value {
-        unsafe { 
+        unsafe {
             &*self.args_ptr.add(idx)
         }
     }
@@ -231,7 +242,7 @@ impl Frame {
         }
         target_frame
     }
-    
+
     #[inline(always)]
     pub fn stack_push(&mut self, value: Value) {
         unsafe {
@@ -260,7 +271,7 @@ impl Frame {
 
     #[inline(always)]
     pub fn stack_nth_back(&self, n: usize) -> &Value {
-        unsafe { &(*self.stack_ptr.sub( n + 1)) }
+        unsafe { &(*self.stack_ptr.sub(n + 1)) }
     }
 
     #[inline(always)]
@@ -275,16 +286,5 @@ impl Frame {
     /// Gets the total number of elements on the stack. Only used for debugging.
     pub fn stack_len(frame_ptr: GCRef<Frame>) -> usize {
         ((frame_ptr.to_obj().stack_ptr as usize) - (frame_ptr.ptr.as_usize() + OFFSET_TO_STACK)) / size_of::<Value>()
-    }
-}
-
-impl CustomAlloc<Frame> for Frame {
-    fn alloc(frame: Frame, gc_interface: &mut GCInterface) -> GCRef<Frame> {
-        let nbr_locals = frame.nbr_locals;
-        let nbr_args = frame.nbr_args;
-        let max_stack_size = MAX_STACK_SIZE;
-        let size = size_of::<Frame>() + ((max_stack_size + nbr_args + nbr_locals) * size_of::<Value>());
-
-        GCRef::<Frame>::alloc_with_size(frame, gc_interface, size)
     }
 }

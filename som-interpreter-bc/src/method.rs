@@ -20,6 +20,7 @@ pub struct MethodEnv {
     pub body: Vec<Bytecode>,
     pub inline_cache: RefCell<Vec<Option<(*const Class, GCRef<Method>)>>>,
     pub nbr_locals: usize,
+    pub max_stack_size: u8,
     #[cfg(feature = "frame-debug-info")]
     pub block_debug_info: BlockDebugInfo,
 }
