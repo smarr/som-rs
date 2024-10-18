@@ -16,7 +16,7 @@ build-and-test-interpreters:
   script:
     # Setup
     - git clone https://github.com/mmtk/mmtk-core
-    - cd mmtk-core && git checkout v0.27.0 && cd ..
+    - cd mmtk-core && git checkout v0.28.0 && cd ..
 
     - cargo +$CARGO_VERSION clean
     - cargo +$CARGO_VERSION build --release
