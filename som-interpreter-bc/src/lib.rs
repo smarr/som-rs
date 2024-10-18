@@ -3,6 +3,7 @@
 //!
 
 use crate::gc::gc_interface::GCInterface;
+use crate::interpreter::Interpreter;
 
 /// Facilities for manipulating blocks.
 pub mod block;
@@ -45,3 +46,5 @@ mod convert;
 // pub type SOMWeakRef<T> = Weak<RefCell<T>>;
 
 pub static mut MMTK_TO_VM_INTERFACE: *mut GCInterface = std::ptr::null_mut();
+// pub static mut UNIVERSE_RAW_PTR: *mut Universe = std::ptr::null_mut();
+pub static mut INTERPRETER_RAW_PTR: *mut Interpreter = std::ptr::null_mut();

@@ -38,7 +38,7 @@ impl Collection<SOMVM> for VMCollection {
             
             match ctx {
                 GCThreadContext::Worker(w) => {
-                    mmtk::memory_manager::start_worker(MMTK_SINGLETON.get().unwrap(), worker_tls, w)
+                    mmtk::memory_manager::start_worker::<SOMVM>(MMTK_SINGLETON.get().unwrap(), worker_tls, w)
                 }
             }
         });

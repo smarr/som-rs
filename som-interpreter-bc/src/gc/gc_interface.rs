@@ -1,5 +1,5 @@
 use crate::gc::api::{mmtk_alloc, mmtk_bind_mutator, mmtk_create_builder, mmtk_destroy_mutator, mmtk_handle_user_collection_request, mmtk_init, mmtk_initialize_collection};
-use crate::gc::{MMTK_SINGLETON, SOMVM};
+use crate::gc::{SOMSlot, MMTK_SINGLETON, SOMVM};
 use core::mem::size_of;
 use log::info;
 use mmtk::util::alloc::{Allocator, BumpAllocator};
@@ -8,6 +8,8 @@ use mmtk::util::{Address, OpaquePointer, VMMutatorThread, VMThread};
 use mmtk::{memory_manager, AllocationSemantics, Mutator};
 use std::collections::VecDeque;
 use std::marker::PhantomData;
+use mmtk::vm::RootsWorkFactory;
+use crate::INTERPRETER_RAW_PTR;
 
 static GC_OFFSET: usize = 0;
 static GC_ALIGN: usize = 8;
@@ -46,8 +48,8 @@ impl GCInterface {
             // let heap_success = mmtk_set_fixed_heap_size(&mut builder, 1048576);
             // assert!(heap_success, "Couldn't set MMTk fixed heap size");
 
-            let gc_success = builder.set_option("plan", "NoGC");
-            // let gc_success = builder.set_option("plan", "SemiSpace");
+            // let gc_success = builder.set_option("plan", "NoGC");
+            let gc_success = builder.set_option("plan", "SemiSpace");
             assert!(gc_success, "Couldn't set GC plan");
 
             // let ok = builder.set_option("stress_factor", DEFAULT_STRESS_FACTOR.to_string().as_str());
@@ -135,7 +137,7 @@ impl GCInterface {
         debug_assert!(self.mutator_thread == _tls); // not even sure that's correct
         self.mutator.as_mut()
     }
-    pub(crate) fn get_all_mutators(&mut self) -> Box<dyn Iterator<Item = &mut Mutator<SOMVM>> + '_> {
+    pub fn get_all_mutators(&mut self) -> Box<dyn Iterator<Item = &mut Mutator<SOMVM>> + '_> {
         info!("calling get_all_mutators");
         // frankly not sure how to implement that one
         // Box::new(vec![self.mutator.as_mut()].iter())
@@ -151,6 +153,21 @@ impl GCInterface {
         Box::new(iterator)
         
         // unsafe { Box::from_raw(std::ptr::null_mut())}
+    }
+
+    pub fn scan_vm_specific_roots(&self, mut factory: impl RootsWorkFactory<SOMSlot> + Sized) {
+        info!("calling scan_vm_specific_roots");
+        
+        unsafe {
+            let frame_to_scan = (*INTERPRETER_RAW_PTR).current_frame;
+            let to_process: Vec<SOMSlot> = vec![SOMSlot::from_address(frame_to_scan.ptr)];
+            dbg!(&to_process);
+            factory.create_process_roots_work(to_process)
+        }
+    }
+
+    pub fn scan_roots_in_mutator_thread(&self, _mutator: &mut Mutator<SOMVM>, _factory: impl RootsWorkFactory<SOMSlot> + Sized) {
+        info!("calling scan_roots_in_mutator_thread (DOES NOTHING AT THE MOMENT");
     }
 }
 

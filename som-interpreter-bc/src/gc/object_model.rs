@@ -1,7 +1,9 @@
+use log::info;
 use crate::gc::SOMVM;
 use mmtk::util::copy::{CopySemantics, GCWorkerCopyContext};
 use mmtk::util::{Address, ObjectReference};
 use mmtk::vm::*;
+use crate::frame::Frame;
 
 pub struct VMObjectModel {}
 
@@ -42,11 +44,39 @@ impl ObjectModel<SOMVM> for VMObjectModel {
     const OBJECT_REF_OFFSET_LOWER_BOUND: isize = OBJECT_REF_OFFSET as isize;
 
     fn copy(
-        _from: ObjectReference,
-        _semantics: CopySemantics,
-        _copy_context: &mut GCWorkerCopyContext<SOMVM>,
+        from: ObjectReference,
+        semantics: CopySemantics,
+        copy_context: &mut GCWorkerCopyContext<SOMVM>,
     ) -> ObjectReference {
-        unimplemented!()
+        info!("invoking copy");
+
+        dbg!(&from);
+        
+        let bytes = size_of::<Frame>(); // we only ever handle frames with GC at the moment!..
+        let align = SOMVM::MIN_ALIGNMENT; // todo is that correct?
+        let offset = 8; // is that correct also?
+
+        let from_addr = from.to_raw_address();
+        let from_start = Self::ref_to_object_start(from);
+        let header_offset = from_addr - from_start;
+        
+        let dst = copy_context.alloc_copy(from, bytes, align, offset, semantics);
+        debug_assert!(!dst.is_zero());
+        
+        // dbg!(&dst);
+        // unsafe {
+        //     let frame: &mut Frame = dst.as_mut_ref();
+        //     dbg!(&(*(frame.current_method)).signature);
+        //     dbg!(&(*(frame.current_method)).signature);
+        // }
+
+        let to_obj = unsafe { ObjectReference::from_raw_address_unchecked(dst + header_offset) };
+
+        copy_context.post_copy(to_obj, bytes, semantics);
+
+        info!("Copied object {} into {}", from, to_obj);
+        
+        to_obj
     }
 
     fn copy_to(_from: ObjectReference, _to: ObjectReference, _region: Address) -> Address {

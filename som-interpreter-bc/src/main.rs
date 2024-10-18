@@ -16,7 +16,7 @@ mod shell;
 use som_interpreter_bc::gc::gc_interface::{GCInterface, GCRef};
 use som_interpreter_bc::disassembler::disassemble_method_body;
 use som_interpreter_bc::method::{Method, MethodKind};
-use som_interpreter_bc::MMTK_TO_VM_INTERFACE;
+use som_interpreter_bc::{INTERPRETER_RAW_PTR, MMTK_TO_VM_INTERFACE};
 use som_interpreter_bc::universe::Universe;
 use som_interpreter_bc::value::Value;
 
@@ -87,6 +87,9 @@ fn run() -> anyhow::Result<()> {
     unsafe { MMTK_TO_VM_INTERFACE = &mut gc_interface; }
 
     let mut universe = Universe::with_classpath(classpath, gc_interface)?;
+
+    // unsafe { UNIVERSE_RAW_PTR = &mut universe; }
+    
     
     let args = std::iter::once(String::from(file_stem))
         .chain(opts.args.iter().cloned())
@@ -97,6 +100,9 @@ fn run() -> anyhow::Result<()> {
         .initialize(args)
         .expect("issue running program");
 
+    unsafe { INTERPRETER_RAW_PTR = &mut interpreter; }
+    
+    
     interpreter.run(&mut universe);
 
     // let class = universe.load_class_from_path(file)?;
