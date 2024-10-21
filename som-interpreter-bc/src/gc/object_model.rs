@@ -1,16 +1,16 @@
-use log::info;
+use crate::frame::Frame;
 use crate::gc::SOMVM;
+use log::info;
 use mmtk::util::copy::{CopySemantics, GCWorkerCopyContext};
 use mmtk::util::{Address, ObjectReference};
 use mmtk::vm::*;
-use crate::frame::Frame;
 
 pub struct VMObjectModel {}
 
 /// This is the offset from the allocation result to the object reference for the object.
 /// For bindings that this offset is not a constant, you can implement the calculation in the method `ref_to_object_start``, and
 /// remove this constant.
-pub const OBJECT_REF_OFFSET: usize = 0;
+pub const OBJECT_REF_OFFSET: usize = 8; // TODO: 8 bytes is overkill. I have alignment issues at the moment with less. likely a simple fix?
 
 /// This is the offset from the object reference to an in-object address. The binding needs
 /// to guarantee the in-object address is inside the storage associated with the object.
@@ -20,6 +20,15 @@ pub const IN_OBJECT_ADDRESS_OFFSET: isize = 0;
 // This is the offset from the object reference to the object header.
 // This value is used in `ref_to_header` where MMTk loads header metadata from.
 pub const OBJECT_HEADER_OFFSET: usize = 0;
+
+// Mine. to put in GC headers
+pub const GC_MAGIC_NBR_FRAME: u32 = 100;
+pub const GC_MAGIC_NBR_CLASS: u8 = 101;
+pub const GC_MAGIC_NBR_INSTANCE: u8 = 102;
+pub const GC_MAGIC_NBR_BLOCKINFO: u8 = 103;
+pub const GC_MAGIC_NBR_METHOD: u8 = 104;
+pub const GC_MAGIC_NBR_UNKNOWN: u8 = 111;
+
 
 // Documentation: https://docs.mmtk.io/api/mmtk/vm/object_model/trait.ObjectModel.html
 impl ObjectModel<SOMVM> for VMObjectModel {
@@ -51,7 +60,8 @@ impl ObjectModel<SOMVM> for VMObjectModel {
         info!("invoking copy");
 
         dbg!(&from);
-        
+        //let _from_ptr: *mut usize = unsafe { from.to_raw_address().as_mut_ref() };
+
         let bytes = size_of::<Frame>(); // we only ever handle frames with GC at the moment!..
         let align = SOMVM::MIN_ALIGNMENT; // todo is that correct?
         let offset = 8; // is that correct also?
@@ -59,7 +69,9 @@ impl ObjectModel<SOMVM> for VMObjectModel {
         let from_addr = from.to_raw_address();
         let from_start = Self::ref_to_object_start(from);
         let header_offset = from_addr - from_start;
-        
+
+        //dbg!(header_offset);
+
         let dst = copy_context.alloc_copy(from, bytes, align, offset, semantics);
         debug_assert!(!dst.is_zero());
         

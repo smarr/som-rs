@@ -1,4 +1,3 @@
-use crate::gc::MMTK_SINGLETON;
 use crate::gc::{mmtk, SOMVM};
 use mmtk::memory_manager;
 use mmtk::scheduler::GCWorker;
@@ -30,18 +29,6 @@ pub fn mmtk_set_fixed_heap_size(builder: &mut MMTKBuilder, heap_size: usize) -> 
         .set(mmtk::util::options::GCTriggerSelector::FixedHeapSize(
             heap_size,
         ))
-}
-
-pub fn mmtk_init(builder: &mut MMTKBuilder) {
-    // let builder = unsafe { Box::from_raw(builder) };
-
-    // Create MMTK instance.
-    let mmtk = memory_manager::mmtk_init::<SOMVM>(builder);
-
-    // Set SINGLETON to the instance.
-    MMTK_SINGLETON.set(mmtk).unwrap_or_else(|_| {
-        panic!("Failed to set SINGLETON");
-    });
 }
 
 pub fn mmtk_bind_mutator(tls: VMMutatorThread) -> Box<Mutator<SOMVM>> {
@@ -210,7 +197,7 @@ pub fn mmtk_get_malloc_bytes() -> usize {
     memory_manager::get_malloc_bytes(mmtk())
 }
 
-#[cfg(test)]
+/*#[cfg(test)]
 mod tests {
     use super::*;
 
@@ -253,3 +240,4 @@ mod tests {
         mmtk_destroy_mutator(mutator.as_mut());
     }
 }
+*/

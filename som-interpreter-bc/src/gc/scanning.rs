@@ -1,14 +1,13 @@
-use log::info;
 use crate::gc::SOMSlot;
 use crate::gc::SOMVM;
+use crate::MMTK_TO_VM_INTERFACE;
+use log::info;
 use mmtk::util::opaque_pointer::*;
 use mmtk::util::ObjectReference;
-use mmtk::vm::Scanning;
 use mmtk::vm::SlotVisitor;
+use mmtk::vm::{ObjectModel, Scanning};
 use mmtk::vm::{ObjectTracer, RootsWorkFactory};
 use mmtk::Mutator;
-use crate::frame::Frame;
-use crate::MMTK_TO_VM_INTERFACE;
 
 pub struct VMScanning {}
 
@@ -17,15 +16,15 @@ impl Scanning<SOMVM> for VMScanning {
     fn scan_object<SV: SlotVisitor<SOMSlot>>(
         _tls: VMWorkerThread,
         object: ObjectReference,
-        slot_visitor: &mut SV,
+        _slot_visitor: &mut SV,
     ) {
         info!("entering scan_object");
 
         unsafe {
             dbg!(&object);
-            let frame: &mut Frame = object.to_raw_address().as_mut_ref();
-            dbg!(&(*(frame.current_method)).signature);
-            slot_visitor.visit_slot(SOMSlot::from_address(frame.prev_frame.ptr))   
+            let gc_id: &u8 = crate::gc::object_model::VMObjectModel::ref_to_header(object).as_ref();
+            dbg!(gc_id);
+            // slot_visitor.visit_slot(SOMSlot::from_address(frame.prev_frame.ptr))   
         }
     }
 

@@ -1,10 +1,10 @@
 extern crate libc;
 extern crate mmtk;
 
-use std::sync::OnceLock;
-
 use mmtk::vm::VMBinding;
-use mmtk::MMTK;
+use mmtk::{MMTKBuilder, MMTK};
+use std::sync::Mutex;
+use structopt::lazy_static::lazy_static;
 
 pub mod active_plan;
 pub mod api;
@@ -56,8 +56,32 @@ impl SOMVM {
     }
 }
 
-pub static MMTK_SINGLETON: OnceLock<Box<MMTK<SOMVM>>> = OnceLock::new();
+lazy_static! {
+    pub static ref BUILDER: Mutex<MMTKBuilder> = Mutex::new(MMTKBuilder::new());
+    pub static ref MMTK_SINGLETON: MMTK<SOMVM> = {
+        let mut builder = BUILDER.lock().unwrap();
+
+        // let heap_success = mmtk_set_fixed_heap_size(&mut builder, 1048576);
+        // assert!(heap_success, "Couldn't set MMTk fixed heap size");
+
+        let gc_success = builder.set_option("plan", "NoGC");
+        // let gc_success = builder.set_option("plan", "SemiSpace");
+        assert!(gc_success, "Couldn't set GC plan");
+
+        // let ok = builder.set_option("stress_factor", DEFAULT_STRESS_FACTOR.to_string().as_str());
+        // assert!(ok);
+        // let ok = builder.set_option("analysis_factor", DEFAULT_STRESS_FACTOR.to_string().as_str());
+        // assert!(ok);
+
+        let ret = mmtk::memory_manager::mmtk_init::<SOMVM>(&builder);
+
+        // --- the examples do this, but this breaks things (at least when used in conjunction with lazy_static)
+        // mmtk_initialize_collection(VMThread(OpaquePointer::UNINITIALIZED));
+
+        *ret
+    };
+}
 
 fn mmtk() -> &'static MMTK<SOMVM> {
-    MMTK_SINGLETON.get().unwrap()
+    &MMTK_SINGLETON
 }

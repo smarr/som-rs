@@ -1,15 +1,16 @@
-use crate::gc::api::{mmtk_alloc, mmtk_bind_mutator, mmtk_create_builder, mmtk_destroy_mutator, mmtk_handle_user_collection_request, mmtk_init, mmtk_initialize_collection};
+use crate::gc::api::{mmtk_alloc, mmtk_bind_mutator, mmtk_destroy_mutator, mmtk_handle_user_collection_request};
 use crate::gc::{SOMSlot, MMTK_SINGLETON, SOMVM};
+use crate::INTERPRETER_RAW_PTR;
 use core::mem::size_of;
 use log::info;
 use mmtk::util::alloc::{Allocator, BumpAllocator};
 use mmtk::util::constants::MIN_OBJECT_SIZE;
 use mmtk::util::{Address, OpaquePointer, VMMutatorThread, VMThread};
+use mmtk::vm::RootsWorkFactory;
 use mmtk::{memory_manager, AllocationSemantics, Mutator};
 use std::collections::VecDeque;
 use std::marker::PhantomData;
-use mmtk::vm::RootsWorkFactory;
-use crate::INTERPRETER_RAW_PTR;
+use structopt::lazy_static;
 
 static GC_OFFSET: usize = 0;
 static GC_ALIGN: usize = 8;
@@ -42,7 +43,7 @@ impl GCInterface {
 
     fn init_mmtk() -> (VMMutatorThread, Box<Mutator<SOMVM>>, *mut BumpAllocator<SOMVM>) {
         // pub fn init_gc() -> (VMMutatorThread, Box<Mutator<SOMVM>>) {
-        if MMTK_SINGLETON.get().is_none() {
+/*        if MMTK_SINGLETON.get().is_none() {
             let mut builder = mmtk_create_builder();
 
             // let heap_success = mmtk_set_fixed_heap_size(&mut builder, 1048576);
@@ -57,16 +58,17 @@ impl GCInterface {
             // let ok = builder.set_option("analysis_factor", DEFAULT_STRESS_FACTOR.to_string().as_str());
             // assert!(ok);
 
-            mmtk_init(&mut builder);
             // let worked_thread = VMWorkerThread(VMThread(OpaquePointer::UNINITIALIZED));
             mmtk_initialize_collection(VMThread(OpaquePointer::UNINITIALIZED));
-        }
+        }*/
+
+        lazy_static::initialize(&MMTK_SINGLETON);
 
         let tls = VMMutatorThread(VMThread(OpaquePointer::UNINITIALIZED)); // TODO: do I need a thread pointer here?
         let mutator = mmtk_bind_mutator(tls);
 
         let selector = memory_manager::get_allocator_mapping(
-            MMTK_SINGLETON.get().unwrap(),
+            &MMTK_SINGLETON,
             AllocationSemantics::Default,
         );
         let default_allocator_offset = Mutator::<SOMVM>::get_allocator_base_offset(selector);
@@ -305,7 +307,12 @@ impl<T> GCRef<T> {
         allocator.get_space().initialize_object_metadata(SOMVM::object_start_to_ref(addr), true);
 
         unsafe {
+            //*(addr.sub(1).as_mut_ref()) = 424242;
             *addr.as_mut_ref() = obj;
+            
+            // let header_ref: *mut usize = addr.as_mut_ref();
+            // *header_ref = 42424242; // set the header value? TODO: are we doing this right?
+            // *(SOMVM::object_start_to_ref(addr).to_raw_address().as_mut_ref()) = obj;
         }
 
         GCRef {
