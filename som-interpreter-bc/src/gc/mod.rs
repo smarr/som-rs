@@ -3,6 +3,7 @@ extern crate mmtk;
 
 use mmtk::vm::VMBinding;
 use mmtk::{MMTKBuilder, MMTK};
+use std::sync::atomic::AtomicBool;
 use std::sync::Mutex;
 use structopt::lazy_static::lazy_static;
 
@@ -56,9 +57,9 @@ impl SOMVM {
     }
 }
 
-// pub static _MMTK_HAS_RAN_INIT_COLLECTION: Mutex<AtomicBool> = AtomicBool::new(false);
 
 lazy_static! {
+    pub static ref MMTK_HAS_RAN_INIT_COLLECTION: AtomicBool = AtomicBool::new(false);
     pub static ref BUILDER: Mutex<MMTKBuilder> = Mutex::new(MMTKBuilder::new());
     pub static ref MMTK_SINGLETON: MMTK<SOMVM> = {
         let mut builder = BUILDER.lock().unwrap();

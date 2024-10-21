@@ -26,7 +26,7 @@ pub struct BlockInfo {
 }
 
 impl HasTypeInfoForGC for BlockInfo {
-    fn get_magic_gc_id(&self) -> u8 {
+    fn get_magic_gc_id() -> u8 {
         GC_MAGIC_BLOCKINFO
     }
 }
@@ -40,7 +40,7 @@ pub struct Block {
 }
 
 impl HasTypeInfoForGC for Block {
-    fn get_magic_gc_id(&self) -> u8 {
+    fn get_magic_gc_id() -> u8 {
         GC_MAGIC_BLOCK
     }
 }

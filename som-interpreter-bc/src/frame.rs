@@ -17,7 +17,7 @@ pub struct Frame {
     /// The previous frame. Frames are handled as a linked list
     pub prev_frame: GCRef<Frame>,
     /// The method the execution context currently is in.
-    pub current_method: *const Method,
+    pub current_method: GCRef<Method>,
     /// The bytecodes associated with the frame.
     pub bytecodes: *const Vec<Bytecode>,
     /// Literals/constants associated with the frame.
@@ -47,7 +47,7 @@ pub struct Frame {
 }
 
 impl HasTypeInfoForGC for Frame {
-    fn get_magic_gc_id(&self) -> u8 {
+    fn get_magic_gc_id() -> u8 {
         GC_MAGIC_FRAME
     }
 }
@@ -73,7 +73,7 @@ impl Frame {
 
     pub fn alloc_from_block(block: GCRef<Block>,
                             args: &[Value],
-                            current_method: *const Method,
+                            current_method: GCRef<Method>,
                             prev_frame: GCRef<Frame>,
                             mutator: &mut GCInterface) -> GCRef<Frame> {
         let frame = Frame::from_block(block, args.len(), current_method, prev_frame);
@@ -106,7 +106,7 @@ impl Frame {
     }
 
     // Creates a frame from a block. Meant to only be called by the alloc_from_block function
-    fn from_block(block: GCRef<Block>, nbr_args: usize, current_method: *const Method, prev_frame: GCRef<Frame>) -> Self {
+    fn from_block(block: GCRef<Block>, nbr_args: usize, current_method: GCRef<Method>, prev_frame: GCRef<Frame>) -> Self {
         let block_obj = block.to_obj();
         Self {
             prev_frame,
@@ -136,7 +136,7 @@ impl Frame {
                     nbr_args,
                     literals: &env.literals,
                     bytecodes: &env.body,
-                    current_method: method.as_ref(),
+                    current_method: method,
                     bytecode_idx: 0,
                     stack_ptr: std::ptr::null_mut(),
                     args_ptr: std::ptr::null_mut(),
@@ -172,7 +172,7 @@ impl Frame {
                 x
             }
             None => {
-                unsafe { (*self.current_method).holder }
+                self.current_method.to_obj().holder
             }
         }
     }

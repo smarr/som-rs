@@ -4,13 +4,13 @@ use std::io::Write;
 
 use crate::class::Class;
 use crate::convert::{Nil, Primitive, StringLike, System};
+use crate::gc::gc_interface::GCRef;
 use crate::interpreter::Interpreter;
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
 use crate::value::Value;
 use anyhow::{Context, Error};
 use once_cell::sync::Lazy;
-use crate::gc::gc_interface::GCRef;
 use som_core::interner::Interned;
 
 pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| {
@@ -230,7 +230,7 @@ fn print_stack_trace(
             "\t{}: {}>>#{} @bi: {}",
             frame_idx,
             class.borrow().name(),
-            unsafe { (*frame.to_obj().current_method).signature() },
+            (*frame.to_obj().current_method.to_obj()).signature(),
             frame.to_obj().bytecode_idx
         );
     }

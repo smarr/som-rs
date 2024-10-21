@@ -1,6 +1,6 @@
 use crate::gc::api::{mmtk_alloc, mmtk_bind_mutator, mmtk_destroy_mutator, mmtk_handle_user_collection_request, mmtk_initialize_collection};
 use crate::gc::object_model::{GC_MAGIC_ARRAY_U8, GC_MAGIC_ARRAY_VAL, GC_MAGIC_BIGINT, GC_MAGIC_STRING, OBJECT_REF_OFFSET};
-use crate::gc::{SOMSlot, MMTK_SINGLETON, SOMVM};
+use crate::gc::{SOMSlot, MMTK_HAS_RAN_INIT_COLLECTION, MMTK_SINGLETON, SOMVM};
 use crate::value::Value;
 use crate::INTERPRETER_RAW_PTR;
 use core::mem::size_of;
@@ -13,6 +13,7 @@ use mmtk::{memory_manager, AllocationSemantics, Mutator};
 use num_bigint::BigInt;
 use std::collections::VecDeque;
 use std::marker::PhantomData;
+use std::sync::atomic::Ordering;
 use structopt::lazy_static;
 
 static GC_OFFSET: usize = 0;
@@ -47,10 +48,10 @@ impl GCInterface {
     fn init_mmtk() -> (VMMutatorThread, Box<Mutator<SOMVM>>, *mut BumpAllocator<SOMVM>) {
         lazy_static::initialize(&MMTK_SINGLETON);
 
-        // if !_MMTK_HAS_RAN_INIT_COLLECTION.load(Ordering::Acquire) {
+        if !MMTK_HAS_RAN_INIT_COLLECTION.load(Ordering::Acquire) {
             mmtk_initialize_collection(VMThread(OpaquePointer::UNINITIALIZED));
-            // _MMTK_HAS_RAN_INIT_COLLECTION.store(true, Ordering::Release);
-        // }
+            MMTK_HAS_RAN_INIT_COLLECTION.store(true, Ordering::Release);
+        }
 
         let tls = VMMutatorThread(VMThread(OpaquePointer::UNINITIALIZED)); // TODO: do I need a thread pointer here?
         let mutator = mmtk_bind_mutator(tls);
@@ -263,13 +264,12 @@ impl<T: HasTypeInfoForGC> GCRef<T> {
         debug_assert!(size >= MIN_OBJECT_SIZE);
         let mutator = gc_interface.mutator.as_mut();
 
-
         // TODO: not sure that's correct? adding VM header size (type info) to amount we allocate.
         let size = size + OBJECT_REF_OFFSET;
         
-        let addr = mmtk_alloc(mutator, size, GC_ALIGN, GC_OFFSET, GC_SEMANTICS);
-        debug_assert!(!addr.is_zero());
-        let obj_addr = SOMVM::object_start_to_ref(addr);
+        let header_addr = mmtk_alloc(mutator, size, GC_ALIGN, GC_OFFSET, GC_SEMANTICS);
+        debug_assert!(!header_addr.is_zero());
+        let obj_addr = SOMVM::object_start_to_ref(header_addr);
 
 
         // let obj = SOMVM::object_start_to_ref(addr);
@@ -285,9 +285,11 @@ impl<T: HasTypeInfoForGC> GCRef<T> {
         unsafe {
             // *addr.as_mut_ref() = obj;
 
-            let header_ref: *mut usize = addr.as_mut_ref();
+            // let header_ref: *mut usize = addr.as_mut_ref();
+            // *header_ref = HasTypeInfoForGC::get_magic_gc_id(&obj) as usize;
             // *header_ref = 4774451407313061000; // 4242424242424242. ish
-            *header_ref = HasTypeInfoForGC::get_magic_gc_id(&obj) as usize;
+
+            *header_addr.as_mut_ref() = T::get_magic_gc_id() as usize;
 
             *(obj_addr.to_raw_address().as_mut_ref()) = obj;
             // obj_addr.to_header()
@@ -361,29 +363,29 @@ impl GCRef<String> {
 }
 
 pub trait HasTypeInfoForGC {
-    fn get_magic_gc_id(&self) -> u8;
+    fn get_magic_gc_id() -> u8;
 }
 
 impl HasTypeInfoForGC for String {
-    fn get_magic_gc_id(&self) -> u8 {
+    fn get_magic_gc_id() -> u8 {
         GC_MAGIC_STRING
     }
 }
 
 impl HasTypeInfoForGC for BigInt {
-    fn get_magic_gc_id(&self) -> u8 {
+    fn get_magic_gc_id() -> u8 {
         GC_MAGIC_BIGINT
     }
 }
 
 impl HasTypeInfoForGC for Vec<u8> {
-    fn get_magic_gc_id(&self) -> u8 {
+    fn get_magic_gc_id() -> u8 {
         GC_MAGIC_ARRAY_U8
     }
 }
 
 impl HasTypeInfoForGC for Vec<Value> {
-    fn get_magic_gc_id(&self) -> u8 {
+    fn get_magic_gc_id() -> u8 {
         GC_MAGIC_ARRAY_VAL
     }
 }

@@ -18,7 +18,7 @@ pub struct Instance {
 }
 
 impl HasTypeInfoForGC for Instance {
-    fn get_magic_gc_id(&self) -> u8 {
+    fn get_magic_gc_id() -> u8 {
         GC_MAGIC_INSTANCE
     }
 }

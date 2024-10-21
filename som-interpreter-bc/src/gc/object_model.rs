@@ -33,8 +33,6 @@ pub const GC_MAGIC_ARRAY_VAL: u8 = 107;
 pub const GC_MAGIC_ARRAY_U8: u8 = 108;
 pub const GC_MAGIC_BIGINT: u8 = 109;
 
-pub const GC_MAGIC_NBR_UNKNOWN: usize = 111;
-
 
 // Documentation: https://docs.mmtk.io/api/mmtk/vm/object_model/trait.ObjectModel.html
 impl ObjectModel<SOMVM> for VMObjectModel {
