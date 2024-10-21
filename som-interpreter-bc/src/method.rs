@@ -10,9 +10,10 @@ use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
 use crate::value::Value;
 
+use crate::gc::gc_interface::{GCRef, HasTypeInfoForGC};
+use crate::gc::object_model::GC_MAGIC_METHOD;
 #[cfg(feature = "frame-debug-info")]
 use som_core::ast::BlockDebugInfo;
-use crate::gc::gc_interface::GCRef;
 
 #[derive(Clone)]
 pub struct MethodEnv {
@@ -49,6 +50,12 @@ pub struct Method {
     pub kind: MethodKind,
     pub holder: GCRef<Class>,
     pub signature: String,
+}
+
+impl HasTypeInfoForGC for Method {
+    fn get_magic_gc_id(&self) -> u8 {
+        GC_MAGIC_METHOD
+    }
 }
 
 impl Method {

@@ -56,6 +56,8 @@ impl SOMVM {
     }
 }
 
+// pub static _MMTK_HAS_RAN_INIT_COLLECTION: Mutex<AtomicBool> = AtomicBool::new(false);
+
 lazy_static! {
     pub static ref BUILDER: Mutex<MMTKBuilder> = Mutex::new(MMTKBuilder::new());
     pub static ref MMTK_SINGLETON: MMTK<SOMVM> = {
@@ -64,8 +66,9 @@ lazy_static! {
         // let heap_success = mmtk_set_fixed_heap_size(&mut builder, 1048576);
         // assert!(heap_success, "Couldn't set MMTk fixed heap size");
 
-        let gc_success = builder.set_option("plan", "NoGC");
+        // let gc_success = builder.set_option("plan", "NoGC");
         // let gc_success = builder.set_option("plan", "SemiSpace");
+        let gc_success = builder.set_option("plan", "MarkSweep");
         assert!(gc_success, "Couldn't set GC plan");
 
         // let ok = builder.set_option("stress_factor", DEFAULT_STRESS_FACTOR.to_string().as_str());
@@ -74,10 +77,6 @@ lazy_static! {
         // assert!(ok);
 
         let ret = mmtk::memory_manager::mmtk_init::<SOMVM>(&builder);
-
-        // --- the examples do this, but this breaks things (at least when used in conjunction with lazy_static)
-        // mmtk_initialize_collection(VMThread(OpaquePointer::UNINITIALIZED));
-
         *ret
     };
 }

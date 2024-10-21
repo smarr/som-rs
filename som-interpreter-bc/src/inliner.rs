@@ -1,11 +1,11 @@
 use crate::block::{Block, BlockInfo};
 use crate::compiler::MethodCodegen;
 use crate::compiler::{InnerGenCtxt, Literal};
+use crate::gc::gc_interface::{GCInterface, GCRef};
 use crate::inliner::JumpType::{JumpOnFalse, JumpOnTrue};
 use crate::inliner::OrAndChoice::{And, Or};
 use som_core::ast;
 use som_core::bytecode::Bytecode;
-use crate::gc::gc_interface::{GCInterface, GCRef};
 
 pub enum JumpType {
     JumpOnFalse,
@@ -548,7 +548,7 @@ impl PrimMessageInliner for ast::Message {
 
         self.inline_expression(ctxt, self.values.first()?, mutator);
 
-        let idx_loop_accumulator = ctxt.get_nbr_locals() as u8; // not sure that's correct
+        let idx_loop_accumulator = ctxt.get_nbr_locals() as u8;
 
         ctxt.push_instr(Bytecode::Dup2);
 

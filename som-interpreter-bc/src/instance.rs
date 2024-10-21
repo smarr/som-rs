@@ -1,9 +1,10 @@
-use std::fmt;
-use std::marker::PhantomData;
 use crate::class::Class;
+use crate::gc::gc_interface::{CustomAlloc, GCInterface, GCRef, HasTypeInfoForGC};
+use crate::gc::object_model::GC_MAGIC_INSTANCE;
 use crate::value::Value;
 use core::mem::size_of;
-use crate::gc::gc_interface::{CustomAlloc, GCInterface, GCRef};
+use std::fmt;
+use std::marker::PhantomData;
 
 /// Represents a generic (non-primitive) class instance.
 #[derive(Clone, PartialEq)]
@@ -14,6 +15,12 @@ pub struct Instance {
     pub nbr_fields: usize,
     /// This instance's locals. Contiguous "Value" instances in memory
     pub locals_marker: PhantomData<Vec<Value>>
+}
+
+impl HasTypeInfoForGC for Instance {
+    fn get_magic_gc_id(&self) -> u8 {
+        GC_MAGIC_INSTANCE
+    }
 }
 
 impl Instance {

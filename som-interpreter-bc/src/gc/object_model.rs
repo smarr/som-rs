@@ -19,15 +19,21 @@ pub const IN_OBJECT_ADDRESS_OFFSET: isize = 0;
 
 // This is the offset from the object reference to the object header.
 // This value is used in `ref_to_header` where MMTk loads header metadata from.
-pub const OBJECT_HEADER_OFFSET: usize = 0;
+pub const OBJECT_HEADER_OFFSET: usize = 8;
 
 // Mine. to put in GC headers
-pub const GC_MAGIC_NBR_FRAME: u32 = 100;
-pub const GC_MAGIC_NBR_CLASS: u8 = 101;
-pub const GC_MAGIC_NBR_INSTANCE: u8 = 102;
-pub const GC_MAGIC_NBR_BLOCKINFO: u8 = 103;
-pub const GC_MAGIC_NBR_METHOD: u8 = 104;
-pub const GC_MAGIC_NBR_UNKNOWN: u8 = 111;
+pub const GC_MAGIC_FRAME: u8 = 100;
+pub const GC_MAGIC_BLOCKINFO: u8 = 101;
+pub const GC_MAGIC_BLOCK: u8 = 102;
+pub const GC_MAGIC_CLASS: u8 = 103;
+pub const GC_MAGIC_INSTANCE: u8 = 104;
+pub const GC_MAGIC_METHOD: u8 = 105;
+pub const GC_MAGIC_STRING: u8 = 106;
+pub const GC_MAGIC_ARRAY_VAL: u8 = 107;
+pub const GC_MAGIC_ARRAY_U8: u8 = 108;
+pub const GC_MAGIC_BIGINT: u8 = 109;
+
+pub const GC_MAGIC_NBR_UNKNOWN: usize = 111;
 
 
 // Documentation: https://docs.mmtk.io/api/mmtk/vm/object_model/trait.ObjectModel.html
@@ -57,22 +63,24 @@ impl ObjectModel<SOMVM> for VMObjectModel {
         semantics: CopySemantics,
         copy_context: &mut GCWorkerCopyContext<SOMVM>,
     ) -> ObjectReference {
-        info!("invoking copy");
+        info!("invoking copy (unfinished...)");
 
         dbg!(&from);
-        //let _from_ptr: *mut usize = unsafe { from.to_raw_address().as_mut_ref() };
+        let _from_ptr: *mut usize = unsafe { from.to_raw_address().as_mut_ref() };
 
         let bytes = size_of::<Frame>(); // we only ever handle frames with GC at the moment!..
-        let align = SOMVM::MIN_ALIGNMENT; // todo is that correct?
-        let offset = 8; // is that correct also?
+        let align = 8; // todo is that correct?
+        let offset = 0;
 
         let from_addr = from.to_raw_address();
         let from_start = Self::ref_to_object_start(from);
-        let header_offset = from_addr - from_start;
+        let _header_offset = from_addr - from_start;
 
+        let _lol: *mut usize = unsafe { from_start.as_mut_ref() };
+        let from_and_header = unsafe {ObjectReference::from_raw_address_unchecked(from_start)};
         //dbg!(header_offset);
 
-        let dst = copy_context.alloc_copy(from, bytes, align, offset, semantics);
+        let dst = copy_context.alloc_copy(from_and_header, bytes, align, offset, semantics);
         debug_assert!(!dst.is_zero());
         
         // dbg!(&dst);
@@ -82,7 +90,10 @@ impl ObjectModel<SOMVM> for VMObjectModel {
         //     dbg!(&(*(frame.current_method)).signature);
         // }
 
-        let to_obj = unsafe { ObjectReference::from_raw_address_unchecked(dst + header_offset) };
+        // let to_obj = unsafe { ObjectReference::from_raw_address_unchecked(dst + header_offset) };
+        let to_obj = unsafe { ObjectReference::from_raw_address_unchecked(dst) };
+        
+        let _dst_addr: *mut usize = unsafe { dst.as_mut_ref() };
 
         copy_context.post_copy(to_obj, bytes, semantics);
 

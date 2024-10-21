@@ -1,7 +1,8 @@
 use crate::block::Block;
 use crate::class::Class;
 use crate::compiler::Literal;
-use crate::gc::gc_interface::{GCInterface, GCRef};
+use crate::gc::gc_interface::{GCInterface, GCRef, HasTypeInfoForGC};
+use crate::gc::object_model::GC_MAGIC_FRAME;
 use crate::method::{Method, MethodKind};
 use crate::value::Value;
 use core::mem::size_of;
@@ -43,6 +44,12 @@ pub struct Frame {
     // pub args: Vec<Value>,
     // /// The bindings within this frame.
     // pub locals: Vec<Value>,
+}
+
+impl HasTypeInfoForGC for Frame {
+    fn get_magic_gc_id(&self) -> u8 {
+        GC_MAGIC_FRAME
+    }
 }
 
 impl Frame {

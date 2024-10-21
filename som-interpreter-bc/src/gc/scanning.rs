@@ -1,3 +1,5 @@
+use crate::frame::Frame;
+use crate::gc::object_model::GC_MAGIC_FRAME;
 use crate::gc::SOMSlot;
 use crate::gc::SOMVM;
 use crate::MMTK_TO_VM_INTERFACE;
@@ -16,15 +18,30 @@ impl Scanning<SOMVM> for VMScanning {
     fn scan_object<SV: SlotVisitor<SOMSlot>>(
         _tls: VMWorkerThread,
         object: ObjectReference,
-        _slot_visitor: &mut SV,
+        slot_visitor: &mut SV,
     ) {
         info!("entering scan_object");
 
         unsafe {
             dbg!(&object);
-            let gc_id: &u8 = crate::gc::object_model::VMObjectModel::ref_to_header(object).as_ref();
-            dbg!(gc_id);
-            // slot_visitor.visit_slot(SOMSlot::from_address(frame.prev_frame.ptr))   
+            let obj_addr = crate::gc::object_model::VMObjectModel::ref_to_header(object);
+            // let _ptr: *mut usize = unsafe { obj_addr.as_mut_ref() };
+            let gc_id: &usize = obj_addr.as_ref();
+            
+            if *gc_id == GC_MAGIC_FRAME.into() {
+                info!("scan_object: frame type");
+                let frame: &mut Frame = object.to_raw_address().as_mut_ref();
+                debug_assert!(!(*(frame.current_method)).signature.is_empty()); // rough way of checking with reasonable certainty that the cast to a frame succeeded
+                if !frame.prev_frame.is_empty() {
+                    slot_visitor.visit_slot(SOMSlot::from_address(frame.prev_frame.ptr))
+
+                    // TODO
+                    // slot_visitor.visit_slot(SOMSlot::from_address(frame.current_method))
+                }
+            } else {
+                info!("scanning something that isn't a frame?")
+            }
+             
         }
     }
 
