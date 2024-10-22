@@ -1,9 +1,11 @@
+use crate::block::{Block, BlockInfo};
 use crate::class::Class;
+use crate::compiler::Literal;
 use crate::frame::Frame;
-use crate::gc::object_model::{VMObjectModel, GC_MAGIC_CLASS, GC_MAGIC_FRAME, GC_MAGIC_METHOD};
+use crate::gc::object_model::{GCMagicId, VMObjectModel};
 use crate::gc::SOMSlot;
 use crate::gc::SOMVM;
-use crate::method::Method;
+use crate::method::{Method, MethodKind};
 use crate::MMTK_TO_VM_INTERFACE;
 use log::info;
 use mmtk::util::opaque_pointer::*;
@@ -26,12 +28,12 @@ impl Scanning<SOMVM> for VMScanning {
 
         unsafe {
             // let _ptr: *mut usize = unsafe { obj_addr.as_mut_ref() };
-            let gc_id: &usize = VMObjectModel::ref_to_header(object).as_ref();
+            let gc_id: &GCMagicId = VMObjectModel::ref_to_header(object).as_ref();
             
-            if *gc_id == GC_MAGIC_FRAME.into() {
+            if *gc_id == GCMagicId::Frame {
                 info!("scan_object: frame type");
                 let frame: &mut Frame = object.to_raw_address().as_mut_ref();
-                info!("frame is: {}", &frame.current_method.to_obj().signature);
+                info!("(frame method is: {})", &frame.current_method.to_obj().signature);
 
                 debug_assert!(!frame.current_method.to_obj().signature.is_empty()); // rough way of checking with reasonable certainty that the cast to a frame succeeded
                 if !frame.prev_frame.is_empty() {
@@ -42,32 +44,50 @@ impl Scanning<SOMVM> for VMScanning {
                 let method_slot_addr = Address::from_ref(&frame.current_method);
                 slot_visitor.visit_slot(SOMSlot::from_address(method_slot_addr))
 
-            } else if *gc_id == GC_MAGIC_METHOD.into() {
+            } else if *gc_id == GCMagicId::Method {
                 info!("scan_object: method type");
                 let method: &mut Method = object.to_raw_address().as_mut_ref();
 
                 // kind doesn't contain GCRefs, nothing to do.
-                match method.kind { _ => {} }
+                match &method.kind {
+                    MethodKind::Defined(method_env) => {
+                        for x in &method_env.literals {
+                            match x {
+                                Literal::Block(blk) => slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(blk))),
+                                // Literal::String(..) | Literal::BigInteger(..) | Literal::Array(..) => {todo!("literal with GCRef - needs walking")}
+                                _ => {}
+                            }
+                        }
+                    },
+                    _ => {},
+                }
 
                 let holder_slot_addr = Address::from_ref(&method.holder);
                 slot_visitor.visit_slot(SOMSlot::from_address(holder_slot_addr))
             }
-            else if *gc_id == GC_MAGIC_CLASS.into() {
+            else if *gc_id == GCMagicId::Class {
                 info!("scan_object: class type");
                 let class: &mut Class = object.to_raw_address().as_mut_ref();
 
                 slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(&class.class)));
 
-                // if let Some(super_cls) = class.super_class {
-                //     slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(&class.super_class)));
-                // }
+                if let Some(_) = class.super_class {
+                    slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(class.super_class.as_ref().unwrap())));
+                }
 
-                // for (_, method_ref) in class.methods.iter() {
-                //     slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(&method_ref)))
-                // }
-
+                for (_, method_ref) in class.methods.iter() {
+                    slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(method_ref)))
+                }
             }
-            else {
+            else if *gc_id == GCMagicId::Block {
+                info!("scan_object: block type");
+                let block: &mut Block = object.to_raw_address().as_mut_ref();
+                slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(&block.blk_info)));
+            } else if *gc_id == GCMagicId::BlockInfo {
+                info!("scan_object: block infotype");
+                let _block_info: &mut BlockInfo = object.to_raw_address().as_mut_ref();
+
+            } else {
                 todo!("scanning something of an unhandled type?")
                 // info!("scanning something of an unhandled type?")
             }

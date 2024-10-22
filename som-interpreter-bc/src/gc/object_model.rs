@@ -22,17 +22,19 @@ pub const IN_OBJECT_ADDRESS_OFFSET: isize = 0;
 pub const OBJECT_HEADER_OFFSET: usize = 8;
 
 // Mine. to put in GC headers
-pub const GC_MAGIC_FRAME: u8 = 100;
-pub const GC_MAGIC_BLOCKINFO: u8 = 101;
-pub const GC_MAGIC_BLOCK: u8 = 102;
-pub const GC_MAGIC_CLASS: u8 = 103;
-pub const GC_MAGIC_INSTANCE: u8 = 104;
-pub const GC_MAGIC_METHOD: u8 = 105;
-pub const GC_MAGIC_STRING: u8 = 106;
-pub const GC_MAGIC_ARRAY_VAL: u8 = 107;
-pub const GC_MAGIC_ARRAY_U8: u8 = 108;
-pub const GC_MAGIC_BIGINT: u8 = 109;
-
+#[derive(Copy, Clone, PartialEq)]
+pub enum GCMagicId {
+    Frame = 100,
+    BlockInfo = 101,
+    Block = 102,
+    Class = 103,
+    Instance = 104,
+    Method = 105,
+    String = 106,
+    ArrayVal = 107,
+    ArrayU8 = 108,
+    BigInt = 109,
+}
 
 // Documentation: https://docs.mmtk.io/api/mmtk/vm/object_model/trait.ObjectModel.html
 impl ObjectModel<SOMVM> for VMObjectModel {
@@ -63,18 +65,17 @@ impl ObjectModel<SOMVM> for VMObjectModel {
     ) -> ObjectReference {
         info!("invoking copy (unfinished...)");
 
-        dbg!(&from);
-        let _from_ptr: *mut usize = unsafe { from.to_raw_address().as_mut_ref() };
+        // dbg!(&from);
+        // let _from_ptr: *mut usize = unsafe { from.to_raw_address().as_mut_ref() };
 
         let bytes = size_of::<Frame>(); // we only ever handle frames with GC at the moment!..
         let align = 8; // todo is that correct?
         let offset = 0;
 
-        let from_addr = from.to_raw_address();
+        // let from_addr = from.to_raw_address();
         let from_start = Self::ref_to_object_start(from);
-        let _header_offset = from_addr - from_start;
+        // let _header_offset = from_addr - from_start;
 
-        let _lol: *mut usize = unsafe { from_start.as_mut_ref() };
         let from_and_header = unsafe {ObjectReference::from_raw_address_unchecked(from_start)};
         //dbg!(header_offset);
 

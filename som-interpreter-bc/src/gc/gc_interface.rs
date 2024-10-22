@@ -2,7 +2,7 @@ use crate::block::{Block, BlockInfo};
 use crate::class::Class;
 use crate::frame::Frame;
 use crate::gc::api::{mmtk_alloc, mmtk_bind_mutator, mmtk_destroy_mutator, mmtk_handle_user_collection_request, mmtk_initialize_collection};
-use crate::gc::object_model::{GC_MAGIC_ARRAY_U8, GC_MAGIC_ARRAY_VAL, GC_MAGIC_BIGINT, GC_MAGIC_BLOCK, GC_MAGIC_BLOCKINFO, GC_MAGIC_CLASS, GC_MAGIC_FRAME, GC_MAGIC_INSTANCE, GC_MAGIC_METHOD, GC_MAGIC_STRING, OBJECT_REF_OFFSET};
+use crate::gc::object_model::{GCMagicId, OBJECT_REF_OFFSET};
 use crate::gc::{SOMSlot, MMTK_HAS_RAN_INIT_COLLECTION, MMTK_SINGLETON, SOMVM};
 use crate::instance::Instance;
 use crate::method::Method;
@@ -278,28 +278,13 @@ impl<T: HasTypeInfoForGC> GCRef<T> {
         debug_assert!(!header_addr.is_zero());
         let obj_addr = SOMVM::object_start_to_ref(header_addr);
 
-
-        // let obj = SOMVM::object_start_to_ref(addr);
-        // let space = allocator.get_space();
-        // debug_assert!(!obj.to_raw_address().is_zero());
-        // space.initialize_object_metadata(obj, true);
-        
-        // println!("{}", mmtk_free_bytes());
-
         // AFAIK, this is not needed.
         // mmtk_post_alloc(mutator, SOMVM::object_start_to_ref(addr), size, GC_SEMANTICS);
 
         unsafe {
             // *addr.as_mut_ref() = obj;
-
-            // let header_ref: *mut usize = addr.as_mut_ref();
-            // *header_ref = HasTypeInfoForGC::get_magic_gc_id(&obj) as usize;
-            // *header_ref = 4774451407313061000; // 4242424242424242. ish
-
-            *header_addr.as_mut_ref() = T::get_magic_gc_id() as usize;
-
+            *header_addr.as_mut_ref() = T::get_magic_gc_id();
             *(obj_addr.to_raw_address().as_mut_ref()) = obj;
-            // obj_addr.to_header()
         }
 
         GCRef {
@@ -370,65 +355,64 @@ impl GCRef<String> {
 }
 
 pub trait HasTypeInfoForGC {
-    fn get_magic_gc_id() -> u8;
+    fn get_magic_gc_id() -> GCMagicId;
 }
 
 impl HasTypeInfoForGC for String {
-    fn get_magic_gc_id() -> u8 {
-        GC_MAGIC_STRING
+    fn get_magic_gc_id() -> GCMagicId {
+        GCMagicId::String
     }
 }
-
 impl HasTypeInfoForGC for BigInt {
-    fn get_magic_gc_id() -> u8 {
-        GC_MAGIC_BIGINT
+    fn get_magic_gc_id() -> GCMagicId {
+        GCMagicId::BigInt
     }
 }
 
 impl HasTypeInfoForGC for Vec<u8> {
-    fn get_magic_gc_id() -> u8 {
-        GC_MAGIC_ARRAY_U8
+    fn get_magic_gc_id() -> GCMagicId {
+        GCMagicId::ArrayU8
     }
 }
 
 impl HasTypeInfoForGC for Vec<Value> {
-    fn get_magic_gc_id() -> u8 {
-        GC_MAGIC_ARRAY_VAL
+    fn get_magic_gc_id() -> GCMagicId {
+        GCMagicId::ArrayVal
     }
 }
 
 impl HasTypeInfoForGC for BlockInfo {
-    fn get_magic_gc_id() -> u8 {
-        GC_MAGIC_BLOCKINFO
+    fn get_magic_gc_id() -> GCMagicId {
+        GCMagicId::BlockInfo
     }
 }
 
 impl HasTypeInfoForGC for Instance {
-    fn get_magic_gc_id() -> u8 {
-        GC_MAGIC_INSTANCE
+    fn get_magic_gc_id() -> GCMagicId {
+        GCMagicId::Instance
     }
 }
 
 impl HasTypeInfoForGC for Method {
-    fn get_magic_gc_id() -> u8 {
-        GC_MAGIC_METHOD
+    fn get_magic_gc_id() -> GCMagicId {
+        GCMagicId::Method
     }
 }
 
 impl HasTypeInfoForGC for Block {
-    fn get_magic_gc_id() -> u8 {
-        GC_MAGIC_BLOCK
+    fn get_magic_gc_id() -> GCMagicId {
+        GCMagicId::Block
     }
 }
 
 impl HasTypeInfoForGC for Class {
-    fn get_magic_gc_id() -> u8 {
-        GC_MAGIC_CLASS
+    fn get_magic_gc_id() -> GCMagicId {
+        GCMagicId::Class
     }
 }
 
 impl HasTypeInfoForGC for Frame {
-    fn get_magic_gc_id() -> u8 {
-        GC_MAGIC_FRAME
+    fn get_magic_gc_id() -> GCMagicId {
+        GCMagicId::Frame
     }
 }
