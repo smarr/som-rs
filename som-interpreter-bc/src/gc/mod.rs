@@ -67,8 +67,8 @@ lazy_static! {
         // let heap_success = mmtk_set_fixed_heap_size(&mut builder, 1048576);
         // assert!(heap_success, "Couldn't set MMTk fixed heap size");
 
-        let gc_success = builder.set_option("plan", "NoGC");
-        // let gc_success = builder.set_option("plan", "MarkSweep");
+        // let gc_success = builder.set_option("plan", "NoGC");
+        let gc_success = builder.set_option("plan", "MarkSweep");
         // let gc_success = builder.set_option("plan", "SemiSpace");
         assert!(gc_success, "Couldn't set GC plan");
 

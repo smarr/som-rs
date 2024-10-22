@@ -1,6 +1,11 @@
+use crate::block::{Block, BlockInfo};
+use crate::class::Class;
+use crate::frame::Frame;
 use crate::gc::api::{mmtk_alloc, mmtk_bind_mutator, mmtk_destroy_mutator, mmtk_handle_user_collection_request, mmtk_initialize_collection};
 use crate::gc::object_model::{GC_MAGIC_ARRAY_U8, GC_MAGIC_ARRAY_VAL, GC_MAGIC_BIGINT, GC_MAGIC_BLOCK, GC_MAGIC_BLOCKINFO, GC_MAGIC_CLASS, GC_MAGIC_FRAME, GC_MAGIC_INSTANCE, GC_MAGIC_METHOD, GC_MAGIC_STRING, OBJECT_REF_OFFSET};
 use crate::gc::{SOMSlot, MMTK_HAS_RAN_INIT_COLLECTION, MMTK_SINGLETON, SOMVM};
+use crate::instance::Instance;
+use crate::method::Method;
 use crate::value::Value;
 use crate::INTERPRETER_RAW_PTR;
 use core::mem::size_of;
@@ -15,11 +20,6 @@ use std::collections::VecDeque;
 use std::marker::PhantomData;
 use std::sync::atomic::Ordering;
 use structopt::lazy_static;
-use crate::block::{Block, BlockInfo};
-use crate::class::Class;
-use crate::frame::Frame;
-use crate::instance::Instance;
-use crate::method::Method;
 
 static GC_OFFSET: usize = 0;
 static GC_ALIGN: usize = 8;
@@ -155,8 +155,9 @@ impl GCInterface {
         info!("calling scan_vm_specific_roots");
         
         unsafe {
-            let frame_to_scan = (*INTERPRETER_RAW_PTR).current_frame;
-            let to_process: Vec<SOMSlot> = vec![SOMSlot::from_address(frame_to_scan.ptr)];
+            let current_frame_addr = &(*INTERPRETER_RAW_PTR).current_frame;
+            info!("scanning root: current_frame (method: {})", current_frame_addr.to_obj().current_method.to_obj().signature);
+            let to_process: Vec<SOMSlot> = vec![SOMSlot::from_address(Address::from_ref(current_frame_addr))];
             // dbg!(&to_process);
             factory.create_process_roots_work(to_process)
         }
