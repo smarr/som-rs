@@ -206,8 +206,8 @@ impl<T> GCRef<T> {
     /// Turn a GC pointer back into the type itself (as a reference)
     pub fn to_obj(&self) -> &mut T {
         debug_assert!(!self.ptr.is_zero());
-        // unsafe { &mut *(self.ptr.as_mut_ref()) }
-        unsafe { &mut *(self.ptr.to_mut_ptr::<T>()) }
+        unsafe { &mut *(self.ptr.as_mut_ref()) }
+        // unsafe { &mut *(self.ptr.to_mut_ptr::<T>()) }
     }
 
     #[inline(always)]
