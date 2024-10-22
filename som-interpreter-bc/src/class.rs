@@ -1,7 +1,6 @@
 use std::fmt;
 
-use crate::gc::gc_interface::{GCRef, HasTypeInfoForGC};
-use crate::gc::object_model::GC_MAGIC_CLASS;
+use crate::gc::gc_interface::GCRef;
 use crate::method::Method;
 use crate::value::Value;
 use indexmap::IndexMap;
@@ -30,12 +29,6 @@ pub struct Class {
     pub methods: IndexMap<Interned, GCRef<Method>>,
     /// Is this class a static one ?
     pub is_static: bool,
-}
-
-impl HasTypeInfoForGC for Class {
-    fn get_magic_gc_id() -> u8 {
-        GC_MAGIC_CLASS
-    }
 }
 
 impl Class {

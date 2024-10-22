@@ -33,14 +33,14 @@ impl VMBinding for SOMVM {
 
     /// Allowed maximum alignment in bytes.
     // const MAX_ALIGNMENT: usize = 1 << 6;
-    
+
     const ALIGNMENT_VALUE: usize = 0xdead_beef;
     /// Allowed minimal alignment in bytes.
     const MIN_ALIGNMENT: usize = 1 << 2;
     /// Allowed maximum alignment in bytes.
     const MAX_ALIGNMENT: usize = 1 << 3;
     const USE_ALLOCATION_OFFSET: bool = true;
-    
+
     const ALLOC_END_ALIGNMENT: usize = 1;
 }
 
@@ -67,9 +67,9 @@ lazy_static! {
         // let heap_success = mmtk_set_fixed_heap_size(&mut builder, 1048576);
         // assert!(heap_success, "Couldn't set MMTk fixed heap size");
 
-        // let gc_success = builder.set_option("plan", "NoGC");
+        let gc_success = builder.set_option("plan", "NoGC");
+        // let gc_success = builder.set_option("plan", "MarkSweep");
         // let gc_success = builder.set_option("plan", "SemiSpace");
-        let gc_success = builder.set_option("plan", "MarkSweep");
         assert!(gc_success, "Couldn't set GC plan");
 
         // let ok = builder.set_option("stress_factor", DEFAULT_STRESS_FACTOR.to_string().as_str());

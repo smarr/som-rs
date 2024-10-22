@@ -1,6 +1,5 @@
 use crate::class::Class;
-use crate::gc::gc_interface::{CustomAlloc, GCInterface, GCRef, HasTypeInfoForGC};
-use crate::gc::object_model::GC_MAGIC_INSTANCE;
+use crate::gc::gc_interface::{CustomAlloc, GCInterface, GCRef};
 use crate::value::Value;
 use core::mem::size_of;
 use std::fmt;
@@ -15,12 +14,6 @@ pub struct Instance {
     pub nbr_fields: usize,
     /// This instance's locals. Contiguous "Value" instances in memory
     pub locals_marker: PhantomData<Vec<Value>>
-}
-
-impl HasTypeInfoForGC for Instance {
-    fn get_magic_gc_id() -> u8 {
-        GC_MAGIC_INSTANCE
-    }
 }
 
 impl Instance {

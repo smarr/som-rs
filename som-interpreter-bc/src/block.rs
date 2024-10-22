@@ -1,8 +1,7 @@
 use crate::class::Class;
 use crate::compiler::Literal;
 use crate::frame::Frame;
-use crate::gc::gc_interface::{GCRef, HasTypeInfoForGC};
-use crate::gc::object_model::{GC_MAGIC_BLOCK, GC_MAGIC_BLOCKINFO};
+use crate::gc::gc_interface::GCRef;
 // use crate::interner::Interned;
 use crate::method::Method;
 use crate::universe::Universe;
@@ -25,24 +24,12 @@ pub struct BlockInfo {
     pub block_debug_info: BlockDebugInfo,
 }
 
-impl HasTypeInfoForGC for BlockInfo {
-    fn get_magic_gc_id() -> u8 {
-        GC_MAGIC_BLOCKINFO
-    }
-}
-
 /// Represents an executable block.
 #[derive(Clone)]
 pub struct Block {
     /// Reference to the captured stack frame.
     pub frame: Option<GCRef<Frame>>,
     pub blk_info: GCRef<BlockInfo>,
-}
-
-impl HasTypeInfoForGC for Block {
-    fn get_magic_gc_id() -> u8 {
-        GC_MAGIC_BLOCK
-    }
 }
 
 impl Block {
