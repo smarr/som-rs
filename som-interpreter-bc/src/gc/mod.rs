@@ -44,6 +44,7 @@ impl VMBinding for SOMVM {
     const ALLOC_END_ALIGNMENT: usize = 1;
 }
 
+use crate::gc::api::mmtk_set_fixed_heap_size;
 use mmtk::util::{Address, ObjectReference};
 
 impl SOMVM {
@@ -64,8 +65,8 @@ lazy_static! {
     pub static ref MMTK_SINGLETON: MMTK<SOMVM> = {
         let mut builder = BUILDER.lock().unwrap();
 
-        // let heap_success = mmtk_set_fixed_heap_size(&mut builder, 1048576);
-        // assert!(heap_success, "Couldn't set MMTk fixed heap size");
+        let heap_success = mmtk_set_fixed_heap_size(&mut builder, 1048576);
+        assert!(heap_success, "Couldn't set MMTk fixed heap size");
 
         // let gc_success = builder.set_option("plan", "NoGC");
         let gc_success = builder.set_option("plan", "MarkSweep");

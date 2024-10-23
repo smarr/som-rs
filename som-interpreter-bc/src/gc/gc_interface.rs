@@ -3,13 +3,14 @@ use crate::class::Class;
 use crate::frame::Frame;
 use crate::gc::api::{mmtk_alloc, mmtk_bind_mutator, mmtk_destroy_mutator, mmtk_handle_user_collection_request, mmtk_initialize_collection};
 use crate::gc::object_model::{GCMagicId, OBJECT_REF_OFFSET};
+use crate::gc::scanning::{addr_to_slot, value_to_slot};
 use crate::gc::{SOMSlot, MMTK_HAS_RAN_INIT_COLLECTION, MMTK_SINGLETON, SOMVM};
 use crate::instance::Instance;
 use crate::method::Method;
 use crate::value::Value;
-use crate::INTERPRETER_RAW_PTR;
+use crate::{INTERPRETER_RAW_PTR, UNIVERSE_RAW_PTR};
 use core::mem::size_of;
-use log::info;
+use log::{info, trace};
 use mmtk::util::alloc::{Allocator, BumpAllocator};
 use mmtk::util::constants::MIN_OBJECT_SIZE;
 use mmtk::util::{Address, OpaquePointer, VMMutatorThread, VMThread};
@@ -155,9 +156,46 @@ impl GCInterface {
         info!("calling scan_vm_specific_roots");
         
         unsafe {
+            let mut to_process: Vec<SOMSlot> = vec![];
+
             let current_frame_addr = &(*INTERPRETER_RAW_PTR).current_frame;
-            info!("scanning root: current_frame (method: {})", current_frame_addr.to_obj().current_method.to_obj().signature);
-            let to_process: Vec<SOMSlot> = vec![SOMSlot::from_address(Address::from_ref(current_frame_addr))];
+            trace!("scanning root: current_frame (method: {})", current_frame_addr.to_obj().current_method.to_obj().signature);
+            to_process.push(addr_to_slot(Address::from_ref(current_frame_addr)));
+
+            for global in (*UNIVERSE_RAW_PTR).globals.values() {
+                match value_to_slot(global) {
+                    Some(slot) => to_process.push(slot),
+                    None => {}
+                }
+            }
+
+            {
+                let core = &(*UNIVERSE_RAW_PTR).core;
+
+                to_process.push(addr_to_slot(Address::from_ref(&core.object_class)));
+                to_process.push(addr_to_slot(Address::from_ref(&core.class_class)));
+                to_process.push(addr_to_slot(Address::from_ref(&core.metaclass_class)));
+
+                to_process.push(addr_to_slot(Address::from_ref(&core.nil_class)));
+                to_process.push(addr_to_slot(Address::from_ref(&core.integer_class)));
+                to_process.push(addr_to_slot(Address::from_ref(&core.double_class)));
+                to_process.push(addr_to_slot(Address::from_ref(&core.array_class)));
+                to_process.push(addr_to_slot(Address::from_ref(&core.method_class)));
+                to_process.push(addr_to_slot(Address::from_ref(&core.primitive_class)));
+                to_process.push(addr_to_slot(Address::from_ref(&core.symbol_class)));
+                to_process.push(addr_to_slot(Address::from_ref(&core.string_class)));
+                to_process.push(addr_to_slot(Address::from_ref(&core.system_class)));
+
+                to_process.push(addr_to_slot(Address::from_ref(&core.block_class)));
+                to_process.push(addr_to_slot(Address::from_ref(&core.block1_class)));
+                to_process.push(addr_to_slot(Address::from_ref(&core.block2_class)));
+                to_process.push(addr_to_slot(Address::from_ref(&core.block3_class)));
+
+                to_process.push(addr_to_slot(Address::from_ref(&core.boolean_class)));
+                to_process.push(addr_to_slot(Address::from_ref(&core.true_class)));
+                to_process.push(addr_to_slot(Address::from_ref(&core.false_class)));
+            }
+
             // dbg!(&to_process);
             factory.create_process_roots_work(to_process)
         }

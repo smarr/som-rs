@@ -13,12 +13,12 @@ use structopt::StructOpt;
 
 mod shell;
 
-use som_interpreter_bc::gc::gc_interface::{GCInterface, GCRef};
 use som_interpreter_bc::disassembler::disassemble_method_body;
+use som_interpreter_bc::gc::gc_interface::{GCInterface, GCRef};
 use som_interpreter_bc::method::{Method, MethodKind};
-use som_interpreter_bc::{INTERPRETER_RAW_PTR, MMTK_TO_VM_INTERFACE};
 use som_interpreter_bc::universe::Universe;
 use som_interpreter_bc::value::Value;
+use som_interpreter_bc::{INTERPRETER_RAW_PTR, MMTK_TO_VM_INTERFACE, UNIVERSE_RAW_PTR};
 
 #[cfg(feature = "profiler")]
 use som_interpreter_bc::profiler::Profiler;
@@ -100,7 +100,10 @@ fn run() -> anyhow::Result<()> {
         .initialize(args)
         .expect("issue running program");
 
-    unsafe { INTERPRETER_RAW_PTR = &mut interpreter; }
+    unsafe {
+        INTERPRETER_RAW_PTR = &mut interpreter;
+        UNIVERSE_RAW_PTR = &mut universe;
+    }
     
     
     interpreter.run(&mut universe);
