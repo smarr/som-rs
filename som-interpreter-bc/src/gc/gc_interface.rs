@@ -1,35 +1,34 @@
 use crate::block::{Block, BlockInfo};
 use crate::class::Class;
 use crate::frame::Frame;
-use crate::gc::api::{mmtk_alloc, mmtk_bind_mutator, mmtk_destroy_mutator, mmtk_handle_user_collection_request, mmtk_initialize_collection};
+use crate::gc::api::{mmtk_alloc, mmtk_bind_mutator, mmtk_destroy_mutator, mmtk_handle_user_collection_request, mmtk_initialize_collection, mmtk_set_fixed_heap_size};
 use crate::gc::object_model::{GCMagicId, OBJECT_REF_OFFSET};
-use crate::gc::scanning::{addr_to_slot, value_to_slot};
-use crate::gc::{SOMSlot, MMTK_HAS_RAN_INIT_COLLECTION, MMTK_SINGLETON, SOMVM};
+use crate::gc::{SOMSlot, MMTK_SINGLETON, SOMVM};
 use crate::instance::Instance;
 use crate::method::Method;
 use crate::value::Value;
 use crate::{INTERPRETER_RAW_PTR, UNIVERSE_RAW_PTR};
 use core::mem::size_of;
-use log::{info, trace};
-use mmtk::util::alloc::{Allocator, BumpAllocator};
+use log::debug;
+use mmtk::util::alloc::BumpAllocator;
 use mmtk::util::constants::MIN_OBJECT_SIZE;
 use mmtk::util::{Address, OpaquePointer, VMMutatorThread, VMThread};
 use mmtk::vm::RootsWorkFactory;
-use mmtk::{memory_manager, AllocationSemantics, Mutator};
+use mmtk::{memory_manager, AllocationSemantics, MMTKBuilder, Mutator};
 use num_bigint::BigInt;
-use std::collections::VecDeque;
 use std::marker::PhantomData;
-use std::sync::atomic::Ordering;
-use structopt::lazy_static;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 static GC_OFFSET: usize = 0;
 static GC_ALIGN: usize = 8;
 static GC_SEMANTICS: AllocationSemantics = AllocationSemantics::Default;
 
+pub static IS_WORLD_STOPPED: AtomicBool = AtomicBool::new(false);
+
 pub struct GCInterface {
     mutator: Box<Mutator<SOMVM>>,
     mutator_thread: VMMutatorThread,
-    default_allocator: *mut BumpAllocator<SOMVM>,
+    _default_allocator: *mut BumpAllocator<SOMVM>,
     start_the_world_count: usize
 }
 
@@ -41,29 +40,50 @@ impl Drop for GCInterface {
 
 impl GCInterface {
     /// Initialize the GCInterface. Internally inits MMTk and fetches everything needed to actually communicate with the GC.
-    pub fn init() -> Self {
-        let (mutator_thread, mutator, default_allocator) = Self::init_mmtk();
+    pub fn init(heap_size: usize) -> Self {
+        let (mutator_thread, mutator, default_allocator) = Self::init_mmtk(heap_size);
         Self {
             mutator_thread,
             mutator,
-            default_allocator,
+            _default_allocator: default_allocator,
             start_the_world_count: 0
         }
     }
 
-    fn init_mmtk() -> (VMMutatorThread, Box<Mutator<SOMVM>>, *mut BumpAllocator<SOMVM>) {
-        lazy_static::initialize(&MMTK_SINGLETON);
+    fn init_mmtk(heap_size: usize) -> (VMMutatorThread, Box<Mutator<SOMVM>>, *mut BumpAllocator<SOMVM>) {
+        let builder: MMTKBuilder = {
+            let mut builder = MMTKBuilder::new();
+            
+            let heap_success = mmtk_set_fixed_heap_size(&mut builder, heap_size);
+            assert!(heap_success, "Couldn't set MMTk fixed heap size");
 
-        if !MMTK_HAS_RAN_INIT_COLLECTION.load(Ordering::Acquire) {
+            // let gc_success = builder.set_option("plan", "NoGC");
+            let gc_success = builder.set_option("plan", "MarkSweep");
+            // let gc_success = builder.set_option("plan", "SemiSpace");
+            assert!(gc_success, "Couldn't set GC plan");
+
+            // let ok = builder.set_option("stress_factor", DEFAULT_STRESS_FACTOR.to_string().as_str());
+            // assert!(ok);
+            // let ok = builder.set_option("analysis_factor", DEFAULT_STRESS_FACTOR.to_string().as_str());
+            // assert!(ok);
+            
+            builder
+        };
+        
+        if MMTK_SINGLETON.get().is_none() {
+            MMTK_SINGLETON.set({
+                let mmtk = mmtk::memory_manager::mmtk_init::<SOMVM>(&builder);
+                *mmtk
+            }).unwrap_or_else(|_| panic!("couldn't set the MMTk singleton"));
+
             mmtk_initialize_collection(VMThread(OpaquePointer::UNINITIALIZED));
-            MMTK_HAS_RAN_INIT_COLLECTION.store(true, Ordering::Release);
         }
 
         let tls = VMMutatorThread(VMThread(OpaquePointer::UNINITIALIZED)); // TODO: do I need a thread pointer here?
         let mutator = mmtk_bind_mutator(tls);
 
         let selector = memory_manager::get_allocator_mapping(
-            &MMTK_SINGLETON,
+            &MMTK_SINGLETON.get().unwrap(),
             AllocationSemantics::Default,
         );
         let default_allocator_offset = Mutator::<SOMVM>::get_allocator_base_offset(selector);
@@ -84,7 +104,7 @@ impl GCInterface {
 
     /// Dispatches a manual collection request to MMTk.
     pub fn full_gc_request(&self) {
-        mmtk_handle_user_collection_request(self.mutator_thread)
+        mmtk_handle_user_collection_request(self.mutator_thread);
     }
 
     pub fn allocate<T: HasTypeInfoForGC>(&mut self, obj: T) -> GCRef<T> {
@@ -92,42 +112,31 @@ impl GCInterface {
     }
 }
 
-// copied off the openjdk implem? not sure what the point of this is really
-struct SOMMutatorIterator<'a> {
-    mutators: VecDeque<&'a mut Mutator<SOMVM>>,
-    phantom_data: PhantomData<&'a ()>,
-}
-
-impl<'a> Iterator for SOMMutatorIterator<'a> {
-    type Item = &'a mut Mutator<SOMVM>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.mutators.pop_front()
-    }
-}
-
 impl GCInterface {
-    pub fn block_for_gc(&mut self) {
-        info!("block for gc called");
-
-        let before_blocking_count = self.start_the_world_count;
-        while self.start_the_world_count <= before_blocking_count {
-            // ... wait
-        }
+    pub fn block_for_gc(&mut self, _tls: VMMutatorThread) {
+        AtomicBool::store(&IS_WORLD_STOPPED, true, Ordering::SeqCst);
+        debug!("block_for_gc: stopped the world!");
+        while AtomicBool::load(&IS_WORLD_STOPPED, Ordering::SeqCst) {}
+        debug!("block_for_gc: world no longer stopped.");
     }
 
-    pub fn resume_mutators(&mut self) {
-        info!("resume_mutators called");
+    pub unsafe fn resume_mutators(&mut self) {
+        debug!("resuming mutators.");
         self.start_the_world_count += 1;
+        AtomicBool::store(&IS_WORLD_STOPPED, false, Ordering::SeqCst);
     }
 
-    pub fn stop_all_mutators<F>(&mut self, _mutator_visitor: F)
+    pub fn stop_all_mutators<'a, F>(&'a mut self, mut mutator_visitor: F)
     where
-        F: FnMut(&'static mut Mutator<SOMVM>),
+        F: FnMut(&'a mut Mutator<SOMVM>),
     {
-        info!("stop_all_mutators called");
-        // mutator_visitor(self.mutator.as_mut());
-        // todo need to actually stop our mutator thread
+        debug!("stop_all_mutators called");
+
+        while !AtomicBool::load(&IS_WORLD_STOPPED, Ordering::SeqCst) {
+            // wait for world to be properly stopped
+        }
+
+        mutator_visitor(self.mutator.as_mut())
     }
 
     pub(crate) fn get_mutator(&mut self, _tls: VMMutatorThread) -> &mut Mutator<SOMVM> {
@@ -135,74 +144,36 @@ impl GCInterface {
         self.mutator.as_mut()
     }
     pub fn get_all_mutators(&mut self) -> Box<dyn Iterator<Item = &mut Mutator<SOMVM>> + '_> {
-        info!("calling get_all_mutators");
-        // frankly not sure how to implement that one
-        // Box::new(vec![self.mutator.as_mut()].iter())
-
-        let mut mutators = VecDeque::new();
-        mutators.push_back(self.mutator.as_mut()); 
-        
-        let iterator = SOMMutatorIterator {
-            mutators,
-            phantom_data: PhantomData,
-        };
-        
-        Box::new(iterator)
-        
-        // unsafe { Box::from_raw(std::ptr::null_mut())}
+        debug!("calling get_all_mutators");
+        Box::new(std::iter::once(self.mutator.as_mut()))
     }
 
-    pub fn scan_vm_specific_roots(&self, mut factory: impl RootsWorkFactory<SOMSlot> + Sized) {
-        info!("calling scan_vm_specific_roots");
-        
+    pub fn scan_vm_specific_roots(&self, _factory: impl RootsWorkFactory<SOMSlot> + Sized) {
+        debug!("calling scan_vm_specific_roots (unused)");
+    }
+
+    pub fn scan_roots_in_mutator_thread(&self, _mutator: &mut Mutator<SOMVM>, mut factory: impl RootsWorkFactory<SOMSlot> + Sized) {
+        debug!("calling scan_roots_in_mutator_thread");
+
         unsafe {
             let mut to_process: Vec<SOMSlot> = vec![];
 
+            // walk the frame list.
             let current_frame_addr = &(*INTERPRETER_RAW_PTR).current_frame;
-            trace!("scanning root: current_frame (method: {})", current_frame_addr.to_obj().current_method.to_obj().signature);
-            to_process.push(addr_to_slot(Address::from_ref(current_frame_addr)));
-
-            for global in (*UNIVERSE_RAW_PTR).globals.values() {
-                match value_to_slot(global) {
-                    Some(slot) => to_process.push(slot),
-                    None => {}
+            debug!("scanning root: current_frame (method: {})", current_frame_addr.to_obj().current_method.to_obj().signature);
+            to_process.push(SOMSlot::from_address(Address::from_ref(current_frame_addr)));
+            
+            // walk globals (includes core classes)
+            debug!("scanning roots: globals");
+            for (_name, val) in (*UNIVERSE_RAW_PTR).globals.iter() {
+                if val.is_ptr_type() {
+                    to_process.push(SOMSlot::from_value(*val));
                 }
             }
-
-            {
-                let core = &(*UNIVERSE_RAW_PTR).core;
-
-                to_process.push(addr_to_slot(Address::from_ref(&core.object_class)));
-                to_process.push(addr_to_slot(Address::from_ref(&core.class_class)));
-                to_process.push(addr_to_slot(Address::from_ref(&core.metaclass_class)));
-
-                to_process.push(addr_to_slot(Address::from_ref(&core.nil_class)));
-                to_process.push(addr_to_slot(Address::from_ref(&core.integer_class)));
-                to_process.push(addr_to_slot(Address::from_ref(&core.double_class)));
-                to_process.push(addr_to_slot(Address::from_ref(&core.array_class)));
-                to_process.push(addr_to_slot(Address::from_ref(&core.method_class)));
-                to_process.push(addr_to_slot(Address::from_ref(&core.primitive_class)));
-                to_process.push(addr_to_slot(Address::from_ref(&core.symbol_class)));
-                to_process.push(addr_to_slot(Address::from_ref(&core.string_class)));
-                to_process.push(addr_to_slot(Address::from_ref(&core.system_class)));
-
-                to_process.push(addr_to_slot(Address::from_ref(&core.block_class)));
-                to_process.push(addr_to_slot(Address::from_ref(&core.block1_class)));
-                to_process.push(addr_to_slot(Address::from_ref(&core.block2_class)));
-                to_process.push(addr_to_slot(Address::from_ref(&core.block3_class)));
-
-                to_process.push(addr_to_slot(Address::from_ref(&core.boolean_class)));
-                to_process.push(addr_to_slot(Address::from_ref(&core.true_class)));
-                to_process.push(addr_to_slot(Address::from_ref(&core.false_class)));
-            }
-
-            // dbg!(&to_process);
-            factory.create_process_roots_work(to_process)
+            
+            factory.create_process_roots_work(to_process);
+            debug!("scanning roots: finished");
         }
-    }
-
-    pub fn scan_roots_in_mutator_thread(&self, _mutator: &mut Mutator<SOMVM>, _factory: impl RootsWorkFactory<SOMSlot> + Sized) {
-        info!("calling scan_roots_in_mutator_thread (DOES NOTHING AT THE MOMENT");
     }
 }
 
@@ -210,6 +181,7 @@ impl GCInterface {
 
 /// A pointer to the heap for GC.
 #[derive(Debug)]
+#[repr(transparent)]
 pub struct GCRef<T> {
     pub ptr: Address,
     pub _phantom: PhantomData<T>,
@@ -293,6 +265,7 @@ impl<T> GCRef<T> {
 impl<T: HasTypeInfoForGC> GCRef<T> {
     // Allocates a type on the heap and returns a pointer to it.
     pub fn alloc(obj: T, gc_interface: &mut GCInterface) -> GCRef<T> {
+        debug_assert_eq!(IS_WORLD_STOPPED.load(Ordering::SeqCst), false);
         Self::alloc_with_size(obj, gc_interface, size_of::<T>())
     }
 
@@ -309,10 +282,11 @@ impl<T: HasTypeInfoForGC> GCRef<T> {
         debug_assert!(size >= MIN_OBJECT_SIZE);
         let mutator = gc_interface.mutator.as_mut();
 
-        // TODO: not sure that's correct? adding VM header size (type info) to amount we allocate.
+        // not sure that's correct? adding VM header size (type info) to amount we allocate.
         let size = size + OBJECT_REF_OFFSET;
         
         let header_addr = mmtk_alloc(mutator, size, GC_ALIGN, GC_OFFSET, GC_SEMANTICS);
+        
         debug_assert!(!header_addr.is_zero());
         let obj_addr = SOMVM::object_start_to_ref(header_addr);
 
@@ -335,44 +309,44 @@ impl<T: HasTypeInfoForGC> GCRef<T> {
     fn alloc_with_size_cached_allocator(obj: T, gc_interface: &mut GCInterface, size: usize) -> GCRef<T> {
         todo!("should not be ran before being adapted to match the cached version");
         
-        debug_assert!(size >= MIN_OBJECT_SIZE);
-        let allocator = unsafe {&mut (*gc_interface.default_allocator)};
-        
-        // TODO: not sure that's correct? adding VM header size (type info) to amount we allocate.
-        let size = size + OBJECT_REF_OFFSET;
-        
-        let addr = allocator.alloc(size, GC_ALIGN, GC_OFFSET);
-        debug_assert!(!addr.is_zero());
-        let obj_addr = SOMVM::object_start_to_ref(addr);
-
-
-        // let obj = SOMVM::object_start_to_ref(addr);
+        // debug_assert!(size >= MIN_OBJECT_SIZE);
+        // let allocator = unsafe {&mut (*gc_interface.default_allocator)};
+        // 
+        // // not sure that's correct? adding VM header size (type info) to amount we allocate.
+        // let size = size + OBJECT_REF_OFFSET;
+        // 
+        // let addr = allocator.alloc(size, GC_ALIGN, GC_OFFSET);
+        // debug_assert!(!addr.is_zero());
+        // let obj_addr = SOMVM::object_start_to_ref(addr);
+        // 
+        // 
+        // // let obj = SOMVM::object_start_to_ref(addr);
+        // // let space = allocator.get_space();
+        // // debug_assert!(!obj.to_raw_address().is_zero());
+        // // space.initialize_object_metadata(obj, true);
+        // 
         // let space = allocator.get_space();
-        // debug_assert!(!obj.to_raw_address().is_zero());
-        // space.initialize_object_metadata(obj, true);
-        
-        let space = allocator.get_space();
-        dbg!(space.name());
-        space.initialize_object_metadata(obj_addr, true);
-
-        dbg!("wa");
-        unsafe {
-            // *addr.as_mut_ref() = obj;
-
-            // dbg!(addr);
-            // dbg!(obj_addr);
-            // dbg!();
-            let header_ref: *mut usize = addr.as_mut_ref();
-            *header_ref = 4774451407313061000; // 4242424242424242
-            
-            *(obj_addr.to_raw_address().as_mut_ref()) = obj;
-            // obj_addr.to_header()
-        }
-
-        GCRef {
-            ptr: obj_addr.to_raw_address(),
-            _phantom: PhantomData,
-        }
+        // dbg!(space.name());
+        // space.initialize_object_metadata(obj_addr, true);
+        // 
+        // dbg!("wa");
+        // unsafe {
+        //     // *addr.as_mut_ref() = obj;
+        // 
+        //     // dbg!(addr);
+        //     // dbg!(obj_addr);
+        //     // dbg!();
+        //     let header_ref: *mut usize = addr.as_mut_ref();
+        //     *header_ref = 4774451407313061000; // 4242424242424242
+        //     
+        //     *(obj_addr.to_raw_address().as_mut_ref()) = obj;
+        //     // obj_addr.to_header()
+        // }
+        // 
+        // GCRef {
+        //     ptr: obj_addr.to_raw_address(),
+        //     _phantom: PhantomData,
+        // }
     }
 }
 
@@ -392,6 +366,8 @@ impl GCRef<String> {
     }
 }
 
+/// Implements a per-type magic number.
+/// GC needs to access type info from raw ObjectReference types, so data that gets put on the GC heap has an associated type ID that gets put in a per-allocation header.
 pub trait HasTypeInfoForGC {
     fn get_magic_gc_id() -> GCMagicId;
 }

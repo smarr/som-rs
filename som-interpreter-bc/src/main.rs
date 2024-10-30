@@ -16,7 +16,7 @@ mod shell;
 use som_interpreter_bc::disassembler::disassemble_method_body;
 use som_interpreter_bc::gc::gc_interface::{GCInterface, GCRef};
 use som_interpreter_bc::method::{Method, MethodKind};
-use som_interpreter_bc::universe::Universe;
+use som_interpreter_bc::universe::{Universe, HEAP_SIZE};
 use som_interpreter_bc::value::Value;
 use som_interpreter_bc::{INTERPRETER_RAW_PTR, MMTK_TO_VM_INTERFACE, UNIVERSE_RAW_PTR};
 
@@ -82,7 +82,7 @@ fn run() -> anyhow::Result<()> {
         classpath.push(directory.to_path_buf());
     }
 
-    let mut gc_interface = GCInterface::init();
+    let mut gc_interface = GCInterface::init(HEAP_SIZE);
 
     unsafe { MMTK_TO_VM_INTERFACE = &mut gc_interface; }
 
@@ -139,8 +139,8 @@ fn disassemble_class(opts: Options) -> anyhow::Result<()> {
     if let Some(directory) = file.parent() {
         classpath.push(directory.to_path_buf());
     }
-    
-    let gc_interface = GCInterface::init();
+
+    let gc_interface = GCInterface::init(HEAP_SIZE);
     let mut universe = Universe::with_classpath(classpath.clone(), gc_interface)?;
 
     // "Object" special casing needed since `load_class` assumes the class has a superclass and Object doesn't, and I didn't want to change the class loading logic just for the disassembler (tho it's probably fine)

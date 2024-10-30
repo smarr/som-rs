@@ -4,11 +4,11 @@ use std::mem::size_of;
 
 use crate::block::Block;
 use crate::class::Class;
+use crate::gc::gc_interface::GCRef;
 use crate::instance::{Instance, InstanceAccess};
 use crate::method::Method;
 use crate::universe::Universe;
 use num_bigint::BigInt;
-use crate::gc::gc_interface::GCRef;
 use som_core::interner::Interned;
 
 static_assertions::const_assert_eq!(size_of::<f64>(), 8);
@@ -110,7 +110,7 @@ const TAG_SHIFT: u64 = 48;
 const TAG_EXTRACTION: u64 = 0xFFFF << TAG_SHIFT;
 
 /// Bit pattern used to quickly check if a given 64-bit value houses a pointer-type value.
-const IS_CELL_PATTERN: u64 = CELL_BASE_TAG << TAG_SHIFT;
+const IS_PTR_PATTERN: u64 = CELL_BASE_TAG << TAG_SHIFT;
 
 // Here is a nice diagram to summarize how our NaN-boxing works:
 // (s = sign bit, e = exponent bit, m = mantissa bit)
@@ -148,8 +148,8 @@ impl NaNBoxedVal {
 
     /// Returns whether this value is a pointer type value.
     #[inline(always)]
-    pub fn is_cell(self) -> bool {
-        (self.encoded & IS_CELL_PATTERN) == IS_CELL_PATTERN
+    pub fn is_ptr_type(self) -> bool {
+        (self.encoded & IS_PTR_PATTERN) == IS_PTR_PATTERN
     }
 
     // `is_*` methods for pointer types
@@ -435,7 +435,7 @@ impl NaNBoxedVal {
     // }
 
     #[inline(always)]
-    fn extract_gc_cell<T>(self) -> GCRef<T> {
+    pub fn extract_gc_cell<T>(self) -> GCRef<T> {
         let ptr = self.extract_pointer_bits();
         GCRef::from_u64(ptr) // i doubt the compiler isn't making this conversion free
     }
@@ -662,7 +662,9 @@ impl From<NaNBoxedVal> for ValueEnum {
         } else if let Some(value) = value.as_string() {
             Self::String(value)
         } else if let Some(_value) = value.as_array() {
-            unimplemented!("no impl for arr. would need mutator to be passed as an argument to create a new GCRef. not hard, but we'd ditch the From trait")
+            // to work, would need mutator to be passed as an argument to create a new GCRef. not hard, but we'd ditch the From trait
+            eprintln!("no From<NanBoxedVal> impl for arr. returning Nil.");
+            Self::NIL
         } else if let Some(value) = value.as_block() {
             Self::Block(value)
         } else if let Some(value) = value.as_instance() {
