@@ -1,23 +1,16 @@
-use crate::block::{Block, BlockInfo};
-use crate::class::Class;
-use crate::frame::Frame;
-use crate::gc::api::{mmtk_alloc, mmtk_bind_mutator, mmtk_destroy_mutator, mmtk_handle_user_collection_request, mmtk_initialize_collection, mmtk_set_fixed_heap_size};
-use crate::gc::object_model::{GCMagicId, OBJECT_REF_OFFSET};
-use crate::gc::{SOMSlot, MMTK_SINGLETON, SOMVM};
-use crate::instance::Instance;
-use crate::method::Method;
-use crate::value::Value;
-use crate::{INTERPRETER_RAW_PTR, UNIVERSE_RAW_PTR};
 use core::mem::size_of;
 use log::debug;
 use mmtk::util::alloc::BumpAllocator;
 use mmtk::util::constants::MIN_OBJECT_SIZE;
-use mmtk::util::{Address, OpaquePointer, VMMutatorThread, VMThread};
-use mmtk::vm::RootsWorkFactory;
+use mmtk::util::{Address, ObjectReference, OpaquePointer, VMMutatorThread, VMThread};
+use mmtk::vm::{RootsWorkFactory, SlotVisitor};
 use mmtk::{memory_manager, AllocationSemantics, MMTKBuilder, Mutator};
-use num_bigint::BigInt;
 use std::marker::PhantomData;
 use std::sync::atomic::{AtomicBool, Ordering};
+use num_bigint::BigInt;
+use crate::api::{mmtk_alloc, mmtk_bind_mutator, mmtk_destroy_mutator, mmtk_handle_user_collection_request, mmtk_initialize_collection, mmtk_set_fixed_heap_size};
+use crate::object_model::OBJECT_REF_OFFSET;
+use crate::{SOMSlot, MMTK_SINGLETON, SOMVM};
 
 static GC_OFFSET: usize = 0;
 static GC_ALIGN: usize = 8;
@@ -25,6 +18,34 @@ static GC_SEMANTICS: AllocationSemantics = AllocationSemantics::Default;
 
 pub static IS_WORLD_STOPPED: AtomicBool = AtomicBool::new(false);
 
+pub const STRING_MAGIC_ID: u8 = 10;
+pub const BIGINT_MAGIC_ID: u8 = 11;
+pub const VECU8_MAGIC_ID: u8 = 12;
+
+/// Implements a per-type magic number.
+/// GC needs to access type info from raw ObjectReference types, so data that gets put on the GC heap has an associated type ID that gets put in a per-allocation header.
+pub trait HasTypeInfoForGC {
+    fn get_magic_gc_id() -> u8;
+}
+
+impl HasTypeInfoForGC for String {
+    fn get_magic_gc_id() -> u8 {
+        STRING_MAGIC_ID
+    }
+}
+impl HasTypeInfoForGC for BigInt {
+    fn get_magic_gc_id() -> u8 {
+        BIGINT_MAGIC_ID
+    }
+}
+
+impl HasTypeInfoForGC for Vec<u8> {
+    fn get_magic_gc_id() -> u8 {
+        VECU8_MAGIC_ID
+    }
+}
+
+/// TODO rename, maybe MutatorWrapper
 pub struct GCInterface {
     mutator: Box<Mutator<SOMVM>>,
     mutator_thread: VMMutatorThread,
@@ -36,6 +57,26 @@ impl Drop for GCInterface {
     fn drop(&mut self) {
         mmtk_destroy_mutator(self.mutator.as_mut())
     }
+}
+
+/*pub trait GCInterface {
+    /// Requests to allocate some memory.
+    fn allocate<T: HasTypeInfoForGC>(&mut self, obj: T) -> GCRef<T>;
+    /// Dispatches a manual collection request to MMTk.
+    fn full_gc_request(&self);
+    /// Blocks the main thread while GC is in progress.
+    fn block_for_gc(&mut self, _tls: VMMutatorThread);
+    // /// Pause all mutators for GC to take place.
+    // fn stop_all_mutators<'a, F>(&'a mut self, mutator_visitor: F);
+    /// Resume mutators after having paused them for GC.
+    fn resume_mutators(&mut self);
+    fn get_mutator(&mut self, _tls: VMMutatorThread) -> &mut Mutator<SOMVM>;
+    fn get_all_mutators(&mut self) -> Box<dyn Iterator<Item = &mut Mutator<SOMVM>> + '_>;
+}*/
+
+pub struct MMTKtoVMCallbacks {
+    pub scan_object_fn: fn(ObjectReference, &mut dyn SlotVisitor<SOMSlot>),
+    pub get_roots_in_mutator_thread_fn: fn(_mutator: &mut Mutator<SOMVM>) -> Vec<SOMSlot>
 }
 
 impl GCInterface {
@@ -101,18 +142,18 @@ impl GCInterface {
         // (tls, mutator)
         (tls, mutator, default_allocator)
     }
+}
+
+impl GCInterface {
+    pub fn allocate<T: HasTypeInfoForGC>(&mut self, obj: T) -> GCRef<T> {
+        GCRef::<T>::alloc(obj, self)
+    }
 
     /// Dispatches a manual collection request to MMTk.
     pub fn full_gc_request(&self) {
         mmtk_handle_user_collection_request(self.mutator_thread);
     }
-
-    pub fn allocate<T: HasTypeInfoForGC>(&mut self, obj: T) -> GCRef<T> {
-        GCRef::<T>::alloc(obj, self)
-    }
-}
-
-impl GCInterface {
+    
     pub fn block_for_gc(&mut self, _tls: VMMutatorThread) {
         AtomicBool::store(&IS_WORLD_STOPPED, true, Ordering::SeqCst);
         debug!("block_for_gc: stopped the world!");
@@ -120,15 +161,9 @@ impl GCInterface {
         debug!("block_for_gc: world no longer stopped.");
     }
 
-    pub unsafe fn resume_mutators(&mut self) {
-        debug!("resuming mutators.");
-        self.start_the_world_count += 1;
-        AtomicBool::store(&IS_WORLD_STOPPED, false, Ordering::SeqCst);
-    }
-
-    pub fn stop_all_mutators<'a, F>(&'a mut self, mut mutator_visitor: F)
+    pub fn stop_all_mutators<F>(&'static mut self, mut mutator_visitor: F)
     where
-        F: FnMut(&'a mut Mutator<SOMVM>),
+        F: FnMut(&'static mut Mutator<SOMVM>),
     {
         debug!("stop_all_mutators called");
 
@@ -139,10 +174,17 @@ impl GCInterface {
         mutator_visitor(self.mutator.as_mut())
     }
 
-    pub(crate) fn get_mutator(&mut self, _tls: VMMutatorThread) -> &mut Mutator<SOMVM> {
+    pub fn resume_mutators(&mut self) {
+        debug!("resuming mutators.");
+        self.start_the_world_count += 1;
+        AtomicBool::store(&IS_WORLD_STOPPED, false, Ordering::SeqCst);
+    }
+
+    pub fn get_mutator(&mut self, _tls: VMMutatorThread) -> &mut Mutator<SOMVM> {
         debug_assert!(self.mutator_thread == _tls); // not even sure that's correct
         self.mutator.as_mut()
     }
+    
     pub fn get_all_mutators(&mut self) -> Box<dyn Iterator<Item = &mut Mutator<SOMVM>> + '_> {
         debug!("calling get_all_mutators");
         Box::new(std::iter::once(self.mutator.as_mut()))
@@ -150,30 +192,6 @@ impl GCInterface {
 
     pub fn scan_vm_specific_roots(&self, _factory: impl RootsWorkFactory<SOMSlot> + Sized) {
         debug!("calling scan_vm_specific_roots (unused)");
-    }
-
-    pub fn scan_roots_in_mutator_thread(&self, _mutator: &mut Mutator<SOMVM>, mut factory: impl RootsWorkFactory<SOMSlot> + Sized) {
-        debug!("calling scan_roots_in_mutator_thread");
-
-        unsafe {
-            let mut to_process: Vec<SOMSlot> = vec![];
-
-            // walk the frame list.
-            let current_frame_addr = &(*INTERPRETER_RAW_PTR).current_frame;
-            debug!("scanning root: current_frame (method: {})", current_frame_addr.to_obj().current_method.to_obj().signature);
-            to_process.push(SOMSlot::from_address(Address::from_ref(current_frame_addr)));
-            
-            // walk globals (includes core classes)
-            debug!("scanning roots: globals");
-            for (_name, val) in (*UNIVERSE_RAW_PTR).globals.iter() {
-                if val.is_ptr_type() {
-                    to_process.push(SOMSlot::from_value(*val));
-                }
-            }
-            
-            factory.create_process_roots_work(to_process);
-            debug!("scanning roots: finished");
-        }
     }
 }
 
@@ -363,70 +381,5 @@ pub trait CustomAlloc<T> {
 impl GCRef<String> {
     pub fn as_str(&self) -> &str {
         self.to_obj().as_str()
-    }
-}
-
-/// Implements a per-type magic number.
-/// GC needs to access type info from raw ObjectReference types, so data that gets put on the GC heap has an associated type ID that gets put in a per-allocation header.
-pub trait HasTypeInfoForGC {
-    fn get_magic_gc_id() -> GCMagicId;
-}
-
-impl HasTypeInfoForGC for String {
-    fn get_magic_gc_id() -> GCMagicId {
-        GCMagicId::String
-    }
-}
-impl HasTypeInfoForGC for BigInt {
-    fn get_magic_gc_id() -> GCMagicId {
-        GCMagicId::BigInt
-    }
-}
-
-impl HasTypeInfoForGC for Vec<u8> {
-    fn get_magic_gc_id() -> GCMagicId {
-        GCMagicId::ArrayU8
-    }
-}
-
-impl HasTypeInfoForGC for Vec<Value> {
-    fn get_magic_gc_id() -> GCMagicId {
-        GCMagicId::ArrayVal
-    }
-}
-
-impl HasTypeInfoForGC for BlockInfo {
-    fn get_magic_gc_id() -> GCMagicId {
-        GCMagicId::BlockInfo
-    }
-}
-
-impl HasTypeInfoForGC for Instance {
-    fn get_magic_gc_id() -> GCMagicId {
-        GCMagicId::Instance
-    }
-}
-
-impl HasTypeInfoForGC for Method {
-    fn get_magic_gc_id() -> GCMagicId {
-        GCMagicId::Method
-    }
-}
-
-impl HasTypeInfoForGC for Block {
-    fn get_magic_gc_id() -> GCMagicId {
-        GCMagicId::Block
-    }
-}
-
-impl HasTypeInfoForGC for Class {
-    fn get_magic_gc_id() -> GCMagicId {
-        GCMagicId::Class
-    }
-}
-
-impl HasTypeInfoForGC for Frame {
-    fn get_magic_gc_id() -> GCMagicId {
-        GCMagicId::Frame
     }
 }

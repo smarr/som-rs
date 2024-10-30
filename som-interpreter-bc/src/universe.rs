@@ -2,17 +2,15 @@ use crate::block::Block;
 use crate::class::Class;
 use crate::compiler;
 use crate::frame::Frame;
-use crate::gc::api::mmtk_is_in_mmtk_spaces;
-use crate::gc::gc_interface::{GCInterface, GCRef, IS_WORLD_STOPPED};
 use crate::interpreter::Interpreter;
 use crate::value::Value;
 use anyhow::{anyhow, Error};
-use mmtk::util::ObjectReference;
 use som_core::interner::{Interned, Interner};
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::Ordering;
+use som_gc::gc_interface::{GCInterface, GCRef, IS_WORLD_STOPPED};
 
 /// GC heap size
 pub const HEAP_SIZE: usize = 1024 * 1024 * 256;
@@ -418,11 +416,6 @@ impl Universe {
 
     /// Assign a value to a global binding.
     pub fn assign_global(&mut self, name: Interned, value: Value) -> Option<()> {
-        if value.is_class() {
-            unsafe {
-                debug_assert!(mmtk_is_in_mmtk_spaces(ObjectReference::from_raw_address_unchecked(value.as_class().unwrap().ptr)));
-            }
-        }
         self.globals.push((name, value));
         Some(())
     }

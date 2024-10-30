@@ -1,13 +1,13 @@
 use crate::block::Block;
 use crate::class::Class;
 use crate::compiler::Literal;
-use crate::gc::gc_interface::{GCInterface, GCRef};
 use crate::method::{Method, MethodKind};
 use crate::value::Value;
 use core::mem::size_of;
 use som_core::bytecode::Bytecode;
 use std::cell::RefCell;
 use std::marker::PhantomData;
+use som_gc::gc_interface::{GCRef, GCInterface};
 
 const OFFSET_TO_STACK: usize = size_of::<Frame>();
 

@@ -1,30 +1,28 @@
-use crate::{SINGLETON, SOMVM};
+use crate::{mmtk, MUTATOR_WRAPPER, SOMVM};
 use mmtk::util::opaque_pointer::*;
+use mmtk::util::Address;
+use mmtk::util::VMWorkerThread;
 use mmtk::vm::Collection;
 use mmtk::vm::GCThreadContext;
 use mmtk::Mutator;
-use log::info;
-use mmtk::util::Address;
 
 pub struct VMCollection {}
 
 // Documentation: https://docs.mmtk.io/api/mmtk/vm/collection/trait.Collection.html
 impl Collection<SOMVM> for VMCollection {
-    fn stop_all_mutators<F>(_tls: VMWorkerThread, _mutator_visitor: F)
+    fn stop_all_mutators<F>(_tls: VMWorkerThread, mutator_visitor: F)
     where
         F: FnMut(&'static mut Mutator<SOMVM>),
     {
-        unimplemented!()
+        unsafe { MUTATOR_WRAPPER.get_mut().unwrap().stop_all_mutators(mutator_visitor); }
     }
 
     fn resume_mutators(_tls: VMWorkerThread) {
-        unimplemented!()
+        unsafe { MUTATOR_WRAPPER.get_mut().unwrap().resume_mutators(); }
     }
 
-    fn block_for_gc(_tls: VMMutatorThread) {
-        info!("Calling block_for_gc");
-        // original code calls prepare_to_collect on the VM side. not sure what the implem is.
-        // unsafe { ((*UPCALLS).prepare_to_collect)() };
+    fn block_for_gc(tls: VMMutatorThread) {
+        unsafe { MUTATOR_WRAPPER.get_mut().unwrap().block_for_gc(tls); }
     }
 
     fn spawn_gc_thread(_tls: VMThread, ctx: GCThreadContext<SOMVM>) {
@@ -37,13 +35,12 @@ impl Collection<SOMVM> for VMCollection {
             })));
 
             // let worker_tls = VMWorkerThread(VMThread(OpaquePointer::UNINITIALIZED));
-            
+
             match ctx {
                 GCThreadContext::Worker(w) => {
-                    mmtk::memory_manager::start_worker(SINGLETON.get().unwrap(), worker_tls, w)
+                    mmtk::memory_manager::start_worker::<SOMVM>(mmtk(), worker_tls, w)
                 }
             }
         });
-
     }
 }

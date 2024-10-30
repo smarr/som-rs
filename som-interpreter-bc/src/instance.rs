@@ -1,9 +1,9 @@
 use crate::class::Class;
-use crate::gc::gc_interface::{CustomAlloc, GCInterface, GCRef};
 use crate::value::Value;
 use core::mem::size_of;
 use std::fmt;
 use std::marker::PhantomData;
+use som_gc::gc_interface::{CustomAlloc, GCInterface, GCRef};
 
 /// Represents a generic (non-primitive) class instance.
 #[derive(Clone, PartialEq)]

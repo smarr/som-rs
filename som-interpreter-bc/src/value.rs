@@ -4,7 +4,7 @@ use std::mem::size_of;
 
 use crate::block::Block;
 use crate::class::Class;
-use crate::gc::gc_interface::GCRef;
+use som_gc::gc_interface::GCRef;
 use crate::instance::{Instance, InstanceAccess};
 use crate::method::Method;
 use crate::universe::Universe;
@@ -135,6 +135,12 @@ impl Default for NaNBoxedVal {
 }
 
 impl NaNBoxedVal {
+    /// Return the value as its internal representation: a u64 type.
+    #[inline(always)]
+    pub fn as_u64(self) -> u64 {
+        self.encoded
+    }
+    
     /// Returns the tag bits of the value.
     #[inline(always)]
     pub fn tag(self) -> u64 {

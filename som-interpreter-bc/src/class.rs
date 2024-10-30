@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::gc::gc_interface::GCRef;
+use som_gc::gc_interface::GCRef;
 use crate::method::Method;
 use crate::value::Value;
 use indexmap::IndexMap;

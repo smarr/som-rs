@@ -1,5 +1,5 @@
 use crate::convert::{DoubleLike, Primitive};
-use crate::gc::gc_interface::GCRef;
+use som_gc::gc_interface::GCRef;
 use crate::interpreter::Interpreter;
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;

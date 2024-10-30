@@ -1,7 +1,6 @@
 use crate::class::Class;
 use crate::compiler::Literal;
 use crate::frame::Frame;
-use crate::gc::gc_interface::GCRef;
 // use crate::interner::Interned;
 use crate::method::Method;
 use crate::universe::Universe;
@@ -10,6 +9,7 @@ use som_core::ast::BlockDebugInfo;
 use som_core::bytecode::Bytecode;
 use std::cell::RefCell;
 use std::fmt;
+use som_gc::gc_interface::GCRef;
 
 #[derive(Clone)]
 pub struct BlockInfo {

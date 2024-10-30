@@ -12,7 +12,8 @@ use once_cell::sync::Lazy;
 use rand::distributions::Uniform;
 use rand::Rng;
 use crate::block::Block;
-use crate::gc::gc_interface::GCRef;
+use som_gc::gc_interface::GCRef;
+
 
 pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| {
     Box::new([

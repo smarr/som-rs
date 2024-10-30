@@ -2,7 +2,6 @@ use crate::block::Block;
 use crate::class::Class;
 use crate::compiler::Literal;
 use crate::frame::Frame;
-use crate::gc::gc_interface::{GCInterface, GCRef};
 use crate::instance::InstanceAccess;
 use crate::method::{Method, MethodKind};
 use crate::universe::Universe;
@@ -11,6 +10,7 @@ use anyhow::Context;
 use som_core::bytecode::Bytecode;
 use som_core::interner::Interned;
 use std::time::Instant;
+use som_gc::gc_interface::{GCInterface, GCRef};
 
 macro_rules! send {
     ($interp:expr, $universe:expr, $frame:expr, $lit_idx:expr, $nb_params:expr) => {{

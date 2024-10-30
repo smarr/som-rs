@@ -10,9 +10,9 @@ use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
 use crate::value::Value;
 
-use crate::gc::gc_interface::GCRef;
 #[cfg(feature = "frame-debug-info")]
 use som_core::ast::BlockDebugInfo;
+use som_gc::gc_interface::GCRef;
 
 #[derive(Clone)]
 pub struct MethodEnv {

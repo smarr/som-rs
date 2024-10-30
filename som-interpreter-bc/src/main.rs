@@ -8,6 +8,8 @@ use std::path::PathBuf;
 use anyhow::{bail, Context};
 #[cfg(feature = "jemalloc")]
 use jemallocator::Jemalloc;
+use som_gc::gc_interface::{GCInterface, GCRef, MMTKtoVMCallbacks};
+use som_gc::{MMTK_TO_VM_INTERFACE, MUTATOR_WRAPPER};
 use som_interpreter_bc::class::Class;
 use structopt::StructOpt;
 
@@ -19,7 +21,7 @@ use som_interpreter_bc::method::{Method, MethodKind};
 use som_interpreter_bc::universe::{Universe, HEAP_SIZE};
 use som_interpreter_bc::value::Value;
 use som_interpreter_bc::{INTERPRETER_RAW_PTR, MMTK_TO_VM_INTERFACE, UNIVERSE_RAW_PTR};
-
+use som_interpreter_bc::gc::get_callbacks_for_gc;
 #[cfg(feature = "profiler")]
 use som_interpreter_bc::profiler::Profiler;
 
@@ -58,7 +60,7 @@ fn main() -> anyhow::Result<()> {
 
 fn run() -> anyhow::Result<()> {
     let opts: Options = Options::from_args();
-    
+
     // dbg!(size_of::<Bytecode>()); std::process::exit(0);
 
     if opts.disassemble {
@@ -84,13 +86,15 @@ fn run() -> anyhow::Result<()> {
 
     let mut gc_interface = GCInterface::init(HEAP_SIZE);
 
-    unsafe { MMTK_TO_VM_INTERFACE = &mut gc_interface; }
+    unsafe {
+        MMTK_TO_VM_INTERFACE.set(get_callbacks_for_gc()).unwrap_or_else(|_| panic!("couldn't set mutator wrapper?"));
+        MUTATOR_WRAPPER.set(gc_interface).unwrap_or_else(|_| panic!("couldn't set mutator wrapper?"));
+    }
 
     let mut universe = Universe::with_classpath(classpath, gc_interface)?;
 
     // unsafe { UNIVERSE_RAW_PTR = &mut universe; }
-    
-    
+
     let args = std::iter::once(String::from(file_stem))
         .chain(opts.args.iter().cloned())
         .map(|arg| Value::String(GCRef::<String>::alloc(arg, &mut universe.gc_interface)))
@@ -104,8 +108,8 @@ fn run() -> anyhow::Result<()> {
         INTERPRETER_RAW_PTR = &mut interpreter;
         UNIVERSE_RAW_PTR = &mut universe;
     }
-    
-    
+
+
     interpreter.run(&mut universe);
 
     // let class = universe.load_class_from_path(file)?;

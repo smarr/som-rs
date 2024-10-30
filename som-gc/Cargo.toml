@@ -9,10 +9,17 @@ edition = "2021"
 #crate-type = ["cdylib"]
 
 [dependencies]
-mmtk = { path = "../mmtk-core", version = "0.27.0" }
+#mmtk = { path = "../mmtk-core", version = "0.28.0" }
+mmtk = "0.28.0"
+
+som-core = { path = "../som-core", version = "0.1.0" }
+
+
 libc = "0.2"
 atomic = "0.6"
 log = "0.4.21"
+
+num-bigint = "0.4.3"
 
 [features]
 #default = ["mmtk/extreme_assertions"]

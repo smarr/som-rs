@@ -11,8 +11,8 @@ use crate::universe::Universe;
 use crate::value::Value;
 use anyhow::{Context, Error};
 use once_cell::sync::Lazy;
-use crate::gc::gc_interface::GCRef;
 use som_core::interner::Interned;
+use som_gc::gc_interface::GCRef;
 
 pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| {
     Box::new([

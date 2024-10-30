@@ -2,7 +2,6 @@
 //! This is the interpreter for the Simple Object Machine.
 //!
 
-use crate::gc::gc_interface::GCInterface;
 use crate::interpreter::Interpreter;
 use crate::universe::Universe;
 
@@ -31,9 +30,6 @@ pub mod universe;
 /// Facilities for manipulating values.
 pub mod value;
 
-/// Everything GC
-pub mod gc;
-
 /// Inlining some calls to a select few builtin functions for sizeable perf gains.
 pub mod inliner;
 
@@ -41,11 +37,14 @@ pub mod inliner;
 #[cfg(feature = "profiler")]
 pub mod profiler;
 mod convert;
+
+/// Structs and info related to interacting with the GC
+pub mod gc;
+
 // /// A strong and owning reference to an object.
 // pub type SOMRef<T> = Rc<RefCell<T>>;
 // /// A weak reference to an object.
 // pub type SOMWeakRef<T> = Weak<RefCell<T>>;
 
-pub static mut MMTK_TO_VM_INTERFACE: *mut GCInterface = std::ptr::null_mut();
 pub static mut UNIVERSE_RAW_PTR: *mut Universe = std::ptr::null_mut();
 pub static mut INTERPRETER_RAW_PTR: *mut Interpreter = std::ptr::null_mut();

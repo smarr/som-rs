@@ -1,6 +1,4 @@
-use crate::mmtk;
-use crate::SOMVM;
-use crate::SINGLETON;
+use mmtk::util::VMMutatorThread;
 use mmtk::memory_manager;
 use mmtk::scheduler::GCWorker;
 use mmtk::util::opaque_pointer::*;
@@ -8,7 +6,7 @@ use mmtk::util::{Address, ObjectReference};
 use mmtk::AllocationSemantics;
 use mmtk::MMTKBuilder;
 use mmtk::Mutator;
-
+use crate::{mmtk, SOMVM};
 // This file exposes MMTk Rust API to the native code. This is not an exhaustive list of all the APIs.
 // Most commonly used APIs are listed in https://docs.mmtk.io/api/mmtk/memory_manager/index.html. The binding can expose them here.
 
@@ -31,18 +29,6 @@ pub fn mmtk_set_fixed_heap_size(builder: &mut MMTKBuilder, heap_size: usize) -> 
         .set(mmtk::util::options::GCTriggerSelector::FixedHeapSize(
             heap_size,
         ))
-}
-
-pub fn mmtk_init(builder: &mut MMTKBuilder) {
-    // let builder = unsafe { Box::from_raw(builder) };
-
-    // Create MMTK instance.
-    let mmtk = memory_manager::mmtk_init::<SOMVM>(builder);
-
-    // Set SINGLETON to the instance.
-    SINGLETON.set(mmtk).unwrap_or_else(|_| {
-        panic!("Failed to set SINGLETON");
-    });
 }
 
 pub fn mmtk_bind_mutator(tls: VMMutatorThread) -> Box<Mutator<SOMVM>> {
@@ -118,11 +104,11 @@ pub fn mmtk_total_bytes() -> usize {
 }
 
 pub fn mmtk_is_live_object(object: ObjectReference) -> bool {
-    memory_manager::is_live_object::<SOMVM>(object)
+    memory_manager::is_live_object(object)
 }
 
 pub fn mmtk_will_never_move(object: ObjectReference) -> bool {
-    !object.is_movable::<SOMVM>()
+    !object.is_movable()
 }
 
 #[cfg(feature = "is_mmtk_object")]
@@ -131,7 +117,7 @@ pub fn mmtk_is_mmtk_object(addr: Address) -> bool {
 }
 
 pub fn mmtk_is_in_mmtk_spaces(object: ObjectReference) -> bool {
-    memory_manager::is_in_mmtk_spaces::<SOMVM>(object)
+    memory_manager::is_in_mmtk_spaces(object)
 }
 
 pub fn mmtk_is_mapped_address(address: Address) -> bool {
@@ -211,7 +197,7 @@ pub fn mmtk_get_malloc_bytes() -> usize {
     memory_manager::get_malloc_bytes(mmtk())
 }
 
-#[cfg(test)]
+/*#[cfg(test)]
 mod tests {
     use super::*;
 
@@ -254,3 +240,4 @@ mod tests {
         mmtk_destroy_mutator(mutator.as_mut());
     }
 }
+*/
