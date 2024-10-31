@@ -50,7 +50,7 @@ impl Frame {
         method: GCRef<Method>,
         args: &[Value],
         prev_frame: GCRef<Frame>,
-        mutator: &mut GCInterface,
+        gc_interface: &mut GCInterface,
     ) -> GCRef<Frame> {
         let frame = Frame::from_method(method, args.len(), prev_frame);
         let max_stack_size = match &method.kind {
@@ -62,7 +62,7 @@ impl Frame {
         let size = size_of::<Frame>()
             + ((max_stack_size + frame.nbr_args + frame.nbr_locals) * size_of::<Value>());
 
-        let frame_ptr = GCRef::<Frame>::alloc_with_size(frame, mutator, size);
+        let frame_ptr = gc_interface.alloc_with_size(frame, size);
         Frame::init_frame_post_alloc(frame_ptr, args, max_stack_size);
         frame_ptr
     }
@@ -72,14 +72,14 @@ impl Frame {
         args: &[Value],
         current_method: GCRef<Method>,
         prev_frame: GCRef<Frame>,
-        mutator: &mut GCInterface,
+        gc_interface: &mut GCInterface,
     ) -> GCRef<Frame> {
         let frame = Frame::from_block(block, args.len(), current_method, prev_frame);
         let max_stack_size = block.blk_info.max_stack_size as usize;
         let size = size_of::<Frame>()
             + ((max_stack_size + frame.nbr_args + frame.nbr_locals) * size_of::<Value>());
 
-        let frame_ptr = GCRef::<Frame>::alloc_with_size(frame, mutator, size);
+        let frame_ptr = gc_interface.alloc_with_size(frame, size);
         Frame::init_frame_post_alloc(frame_ptr, args, max_stack_size);
         frame_ptr
     }

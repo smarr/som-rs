@@ -9,7 +9,6 @@ use crate::convert::{DoubleLike, IntegerLike, Primitive, StringLike};
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
 use crate::value::Value;
-use som_gc::gcref::GCRef;
 
 pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| {
     Box::new([
@@ -47,11 +46,11 @@ pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> =
     Lazy::new(|| Box::new([("fromString:", self::from_string.into_func(), true)]));
 
 macro_rules! demote {
-    ($heap:expr, $expr:expr) => {{
+    ($gc_interface:expr, $expr:expr) => {{
         let value = $expr;
         match value.to_i32() {
             Some(value) => Ok(Value::Integer(value)),
-            None => Ok(Value::BigInteger(GCRef::<BigInt>::alloc(value, $heap))),
+            None => Ok(Value::BigInteger($gc_interface.alloc(value))),
         }
     }};
 }
@@ -65,10 +64,7 @@ fn from_string(universe: &mut Universe, _: Value, string: StringLike) -> Result<
     match value.parse::<i32>() {
         Ok(a) => Ok(Value::Integer(a)),
         Err(_) => match value.parse::<BigInt>() {
-            Ok(b) => Ok(Value::BigInteger(GCRef::<BigInt>::alloc(
-                b,
-                &mut universe.gc_interface,
-            ))),
+            Ok(b) => Ok(Value::BigInteger(universe.gc_interface.alloc(b))),
             _ => panic!("couldn't turn an int/bigint into a string"),
         },
     }
@@ -80,10 +76,7 @@ fn as_string(universe: &mut Universe, receiver: IntegerLike) -> Result<Value, Er
         IntegerLike::BigInteger(value) => value.to_string(),
     };
 
-    Ok(Value::String(GCRef::<String>::alloc(
-        value,
-        &mut universe.gc_interface,
-    )))
+    Ok(Value::String(universe.gc_interface.alloc(value)))
 }
 
 fn as_double(_: &mut Universe, receiver: IntegerLike) -> Result<Value, Error> {
@@ -149,10 +142,7 @@ fn as_32bit_unsigned_value(
 
     let value = match value.try_into() {
         Ok(value) => IntegerLike::Integer(value),
-        Err(_) => IntegerLike::BigInteger(GCRef::<BigInt>::alloc(
-            BigInt::from(value),
-            &mut universe.gc_interface,
-        )),
+        Err(_) => IntegerLike::BigInteger(universe.gc_interface.alloc(BigInt::from(value))),
     };
 
     Ok(value)
@@ -424,10 +414,9 @@ fn shift_left(universe: &mut Universe, a: IntegerLike, b: i32) -> Result<Value, 
         IntegerLike::Integer(a) => match (a as u64).checked_shl(b as u32) {
             Some(value) => match value.try_into() {
                 Ok(value) => Ok(Value::Integer(value)),
-                Err(_) => Ok(Value::BigInteger(GCRef::<BigInt>::alloc(
-                    BigInt::from(value as i64),
-                    heap,
-                ))),
+                Err(_) => Ok(Value::BigInteger(
+                    universe.gc_interface.alloc(BigInt::from(value as i64)),
+                )),
             },
             None => demote!(heap, BigInt::from(a) << (b as u32)),
         },
@@ -445,27 +434,30 @@ fn shift_right(universe: &mut Universe, a: IntegerLike, b: i32) -> Result<Value,
     //     _ => bail!(format!("'{}': wrong types", SIGNATURE)),
     // }
 
-    let heap = &mut universe.gc_interface;
+    let gc_interface = &mut universe.gc_interface;
 
     match a {
         IntegerLike::Integer(a) => match (a as u64).checked_shr(b as u32) {
             Some(value) => match value.try_into() {
                 Ok(value) => Ok(Value::Integer(value)),
-                Err(_) => Ok(Value::BigInteger(GCRef::<BigInt>::alloc(
-                    BigInt::from(value),
-                    heap,
-                ))),
+                Err(_) => Ok(Value::BigInteger(gc_interface.alloc(BigInt::from(value)))),
             },
             None => {
                 let uint = BigUint::from_bytes_le(&a.to_bigint().unwrap().to_signed_bytes_le());
                 let result = uint >> (b as u32);
-                demote!(heap, BigInt::from_signed_bytes_le(&result.to_bytes_le()))
+                demote!(
+                    gc_interface,
+                    BigInt::from_signed_bytes_le(&result.to_bytes_le())
+                )
             }
         },
         IntegerLike::BigInteger(a) => {
             let uint = BigUint::from_bytes_le(&a.to_signed_bytes_le());
             let result = uint >> (b as u32);
-            demote!(heap, BigInt::from_signed_bytes_le(&result.to_bytes_le()))
+            demote!(
+                gc_interface,
+                BigInt::from_signed_bytes_le(&result.to_bytes_le())
+            )
         }
     }
 }

@@ -5,7 +5,6 @@ use crate::value::Value;
 use anyhow::{bail, Context, Error};
 use once_cell::sync::Lazy;
 use som_core::interner::Interned;
-use som_gc::gcref::GCRef;
 use std::convert::TryFrom;
 use std::fs;
 
@@ -37,10 +36,7 @@ fn load_file(universe: &mut Universe, _: Value, path: StringLike) -> Result<Valu
     };
 
     match fs::read_to_string(path) {
-        Ok(value) => Ok(Value::String(GCRef::<String>::alloc(
-            value,
-            &mut universe.gc_interface,
-        ))),
+        Ok(value) => Ok(Value::String(universe.gc_interface.alloc(value))),
         Err(_) => Ok(Value::NIL),
     }
 }

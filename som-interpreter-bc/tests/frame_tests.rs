@@ -69,7 +69,7 @@ fn frame_basic_local_access() {
     frame.assign_local(0, Value::Double(400.004));
     frame.assign_local(1, Value::NIL);
 
-    let str_ptr = GCRef::<String>::alloc(String::from("abcd"), &mut universe.gc_interface);
+    let str_ptr = universe.gc_interface.alloc(String::from("abcd"));
     frame.assign_local(2, Value::String(str_ptr));
 
     assert_eq!(frame.lookup_local(0).as_double(), Some(400.004));

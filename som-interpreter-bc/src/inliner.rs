@@ -150,7 +150,7 @@ impl PrimMessageInliner for ast::Message {
         &self,
         ctxt: &mut dyn InnerGenCtxt,
         block: &BlockInfo,
-        mutator: &mut GCInterface,
+        gc_interface: &mut GCInterface,
     ) -> Option<()> {
         let nbr_locals_pre_inlining = ctxt.get_nbr_locals() as u8;
         let nbr_args_pre_inlining = block.nb_params as u8;
@@ -232,11 +232,10 @@ impl PrimMessageInliner for ast::Message {
                                     ctxt,
                                     *inner_block,
                                     1,
-                                    mutator,
+                                    gc_interface,
                                 );
-                                let idx = ctxt.push_literal(Literal::Block(GCRef::<Block>::alloc(
-                                    new_block, mutator,
-                                )));
+                                let idx = ctxt
+                                    .push_literal(Literal::Block(gc_interface.alloc(new_block)));
                                 ctxt.push_instr(Bytecode::PushBlock(idx as u8));
                             }
                             _ => panic!("PushBlock not actually pushing a block somehow"),
@@ -326,7 +325,7 @@ impl PrimMessageInliner for ast::Message {
         ctxt: &mut dyn InnerGenCtxt,
         orig_block: GCRef<Block>,
         adjust_scope_by: usize,
-        mutator: &mut GCInterface,
+        gc_interface: &mut GCInterface,
     ) -> Block {
         let orig_block = orig_block;
 
@@ -388,11 +387,10 @@ impl PrimMessageInliner for ast::Message {
                         ctxt,
                         *inner_block,
                         adjust_scope_by,
-                        mutator,
+                        gc_interface,
                     );
 
-                    block_literals_to_patch
-                        .push((block_idx, GCRef::<Block>::alloc(new_block, mutator)));
+                    block_literals_to_patch.push((block_idx, gc_interface.alloc(new_block)));
 
                     Bytecode::PushBlock(*block_idx)
                 }
@@ -407,36 +405,32 @@ impl PrimMessageInliner for ast::Message {
         // TODO: we now pass a mutable pointer to a Block actually, so this is all avoidable!
         Block {
             frame: orig_block.frame.clone(),
-            blk_info: GCRef::<BlockInfo>::alloc(
-                BlockInfo {
-                    nb_locals: orig_block.blk_info.nb_locals,
-                    literals: orig_block
-                        .blk_info
-                        .literals
-                        .iter()
-                        .enumerate()
-                        .map(|(idx, l)| {
-                            let block_ptr =
-                                block_literals_to_patch.iter().find_map(|(block_idx, blk)| {
-                                    (**block_idx == idx as u8).then(|| blk)
-                                });
+            blk_info: gc_interface.alloc(BlockInfo {
+                nb_locals: orig_block.blk_info.nb_locals,
+                literals: orig_block
+                    .blk_info
+                    .literals
+                    .iter()
+                    .enumerate()
+                    .map(|(idx, l)| {
+                        let block_ptr = block_literals_to_patch
+                            .iter()
+                            .find_map(|(block_idx, blk)| (**block_idx == idx as u8).then(|| blk));
 
-                            if block_ptr.is_some() {
-                                Literal::Block(*block_ptr.unwrap())
-                            } else {
-                                l.clone()
-                            }
-                        })
-                        .collect(),
-                    body: new_body,
-                    nb_params: orig_block.blk_info.nb_params,
-                    max_stack_size: new_max_stack_size,
-                    inline_cache: orig_block.blk_info.inline_cache.clone(),
-                    #[cfg(feature = "frame-debug-info")]
-                    block_debug_info: orig_block.blk_info.block_debug_info.clone(),
-                },
-                mutator,
-            ),
+                        if block_ptr.is_some() {
+                            Literal::Block(*block_ptr.unwrap())
+                        } else {
+                            l.clone()
+                        }
+                    })
+                    .collect(),
+                body: new_body,
+                nb_params: orig_block.blk_info.nb_params,
+                max_stack_size: new_max_stack_size,
+                inline_cache: orig_block.blk_info.inline_cache.clone(),
+                #[cfg(feature = "frame-debug-info")]
+                block_debug_info: orig_block.blk_info.block_debug_info.clone(),
+            }),
         }
     }
 

@@ -264,9 +264,7 @@ impl Interpreter {
                 Bytecode::PushBlock(idx) => {
                     let literal = self.current_frame.lookup_constant(idx as usize);
                     let mut block = match literal {
-                        Literal::Block(blk) => {
-                            GCRef::<Block>::alloc((*blk).clone(), &mut universe.gc_interface)
-                        }
+                        Literal::Block(blk) => universe.gc_interface.alloc((*blk).clone()),
                         _ => panic!("PushBlock expected a block, but got another invalid literal"),
                     };
                     block.frame.replace(self.current_frame);
@@ -622,7 +620,7 @@ impl Interpreter {
                             convert_literal(frame, lit, gc_interface)
                         })
                         .collect::<Vec<_>>();
-                    Value::Array(GCRef::<VecValue>::alloc(VecValue(arr), gc_interface))
+                    Value::Array(gc_interface.alloc(VecValue(arr)))
                 }
                 Literal::Block(val) => Value::Block(val),
             };

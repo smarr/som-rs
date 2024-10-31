@@ -10,8 +10,8 @@ use crate::value::Value;
 use anyhow::Error;
 use num_bigint::BigInt;
 use once_cell::sync::Lazy;
-use som_gc::gcref::GCRef;
 use som_core::interner::Interned;
+use som_gc::gcref::GCRef;
 
 pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| {
     Box::new([
@@ -49,9 +49,7 @@ fn length(
     let length = string.chars().count();
     let value = match length.try_into() {
         Ok(value) => Value::Integer(value),
-        Err(_) => {
-            Value::BigInteger(GCRef::<BigInt>::alloc(BigInt::from(length), &mut universe.gc_interface))
-        }
+        Err(_) => Value::BigInteger(universe.gc_interface.alloc(BigInt::from(length))),
     };
 
     Ok(value)
@@ -139,7 +137,7 @@ fn concatenate(
         StringLike::Symbol(sym) => universe.lookup_symbol(sym),
     };
 
-    Ok(universe.gc_interface.allocate(format!("{s1}{s2}")))
+    Ok(universe.gc_interface.alloc(format!("{s1}{s2}")))
 }
 
 fn as_symbol(
@@ -157,12 +155,7 @@ fn as_symbol(
     Ok(symbol)
 }
 
-fn eq(
-    _: &mut Interpreter,
-    universe: &mut Universe,
-    a: Value,
-    b: Value,
-) -> Result<bool, Error> {
+fn eq(_: &mut Interpreter, universe: &mut Universe, a: Value, b: Value) -> Result<bool, Error> {
     const _: &str = "String>>#=";
 
     let Ok(a) = StringLike::try_from(a) else {
@@ -203,7 +196,9 @@ fn prim_substring_from_to(
         StringLike::Symbol(sym) => universe.lookup_symbol(sym),
     };
 
-    Ok(universe.gc_interface.allocate(string.chars().skip(from).take(to - from).collect()))
+    Ok(universe
+        .gc_interface
+        .alloc(string.chars().skip(from).take(to - from).collect()))
 }
 
 fn char_at(
@@ -218,9 +213,10 @@ fn char_at(
     };
 
     // TODO opt: just return a pointer to the char in question, right?
-    Ok(GCRef::<String>::alloc(String::from(string.chars().nth((idx - 1) as usize).unwrap()), &mut universe.gc_interface))
+    Ok(universe.gc_interface.alloc(String::from(
+        string.chars().nth((idx - 1) as usize).unwrap(),
+    )))
 }
-
 
 /// Search for an instance primitive matching the given signature.
 pub fn get_instance_primitive(signature: &str) -> Option<&'static PrimitiveFn> {

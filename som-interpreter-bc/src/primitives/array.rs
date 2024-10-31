@@ -56,13 +56,9 @@ fn at_put(
     Ok(receiver)
 }
 
-fn length(
-    _: &mut Interpreter,
-    _: &mut Universe,
-    receiver: GCRef<VecValue>,
-) -> Result<i32, Error> {
+fn length(_: &mut Interpreter, _: &mut Universe, receiver: GCRef<VecValue>) -> Result<i32, Error> {
     const _: &str = "Array>>#length";
-    
+
     receiver
         .0
         .len()
@@ -79,7 +75,9 @@ fn new(
     const _: &str = "Array>>#new:";
 
     let count = usize::try_from(count)?;
-    let allocated = universe.gc_interface.allocate(VecValue(vec![Value::NIL; count]));
+    let allocated = universe
+        .gc_interface
+        .alloc(VecValue(vec![Value::NIL; count]));
 
     Ok(allocated)
 }

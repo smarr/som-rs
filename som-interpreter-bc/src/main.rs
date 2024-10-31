@@ -87,7 +87,7 @@ fn run() -> anyhow::Result<()> {
 
     let args = std::iter::once(String::from(file_stem))
         .chain(opts.args.iter().cloned())
-        .map(|arg| Value::String(GCRef::<String>::alloc(arg, &mut universe.gc_interface)))
+        .map(|arg| Value::String(universe.gc_interface.alloc(arg)))
         .collect();
 
     let mut interpreter = universe.initialize(args).expect("issue running program");

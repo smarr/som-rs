@@ -70,7 +70,7 @@ impl CustomAlloc<Instance> for Instance {
 
         let nbr_fields = instance.nbr_fields;
 
-        let instance_ref = GCRef::<Instance>::alloc_with_size(instance, gc_interface, size);
+        let instance_ref = gc_interface.alloc_with_size(instance, size);
 
         unsafe {
             let mut values_addr = instance_ref.ptr.add(size_of::<Instance>());

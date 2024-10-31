@@ -76,7 +76,7 @@ fn as_string(
 
     let receiver = promote!(SIGNATURE, receiver);
 
-    Ok(universe.gc_interface.allocate(receiver.to_string()))
+    Ok(universe.gc_interface.alloc(receiver.to_string()))
 }
 
 fn as_integer(_: &mut Interpreter, _: &mut Universe, receiver: f64) -> Result<i32, Error> {

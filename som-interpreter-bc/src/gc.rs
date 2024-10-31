@@ -112,12 +112,12 @@ pub fn scan_object<'a>(
 
                 for i in 0..frame.nbr_locals {
                     let val: &Value = frame.lookup_local(i);
-                    visit_value(&val, slot_visitor)
+                    visit_value(val, slot_visitor)
                 }
 
                 for i in 0..frame.nbr_args {
                     let val: &Value = frame.lookup_argument(i);
-                    visit_value(&val, slot_visitor)
+                    visit_value(val, slot_visitor)
                 }
 
                 // this should all really be done in the frame as a custom method. return an iter or something
@@ -133,23 +133,20 @@ pub fn scan_object<'a>(
             BCObjMagicId::Method => {
                 let method: &mut Method = object.to_raw_address().as_mut_ref();
 
-                match &method.kind {
-                    MethodKind::Defined(method_env) => {
-                        for x in &method_env.literals {
-                            match x {
-                                Literal::Block(blk) => slot_visitor
-                                    .visit_slot(SOMSlot::from_address(Address::from_ref(blk))),
-                                Literal::String(str) => slot_visitor
-                                    .visit_slot(SOMSlot::from_address(Address::from_ref(str))),
-                                Literal::BigInteger(bigint) => slot_visitor
-                                    .visit_slot(SOMSlot::from_address(Address::from_ref(bigint))),
-                                Literal::Array(arr) => slot_visitor
-                                    .visit_slot(SOMSlot::from_address(Address::from_ref(arr))),
-                                _ => {}
-                            }
+                if let MethodKind::Defined(method_env) = &method.kind {
+                    for x in &method_env.literals {
+                        match x {
+                            Literal::Block(blk) => slot_visitor
+                                .visit_slot(SOMSlot::from_address(Address::from_ref(blk))),
+                            Literal::String(str) => slot_visitor
+                                .visit_slot(SOMSlot::from_address(Address::from_ref(str))),
+                            Literal::BigInteger(bigint) => slot_visitor
+                                .visit_slot(SOMSlot::from_address(Address::from_ref(bigint))),
+                            Literal::Array(arr) => slot_visitor
+                                .visit_slot(SOMSlot::from_address(Address::from_ref(arr))),
+                            _ => {}
                         }
                     }
-                    _ => {}
                 }
 
                 let holder_slot_addr = Address::from_ref(&method.holder);
@@ -160,7 +157,7 @@ pub fn scan_object<'a>(
 
                 slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(&class.class)));
 
-                if let Some(_) = class.super_class {
+                if class.super_class.is_some() {
                     slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(
                         class.super_class.as_ref().unwrap(),
                     )));

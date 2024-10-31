@@ -58,7 +58,7 @@ macro_rules! demote {
         let value = $expr;
         match value.to_i32() {
             Some(value) => Value::Integer((value)),
-            None => Value::BigInteger($heap.allocate(value)),
+            None => Value::BigInteger($heap.alloc(value)),
         }
     }};
 }
@@ -80,10 +80,7 @@ fn from_string(
     match string.parse::<i32>() {
         Ok(a) => Ok(Value::Integer(a)),
         Err(_) => match string.parse::<BigInt>() {
-            Ok(b) => Ok(Value::BigInteger(GCRef::<BigInt>::alloc(
-                b,
-                &mut universe.gc_interface,
-            ))),
+            Ok(b) => Ok(Value::BigInteger(universe.gc_interface.alloc(b))),
             _ => panic!("couldn't turn an int/bigint into a string"),
         },
     }
@@ -101,7 +98,7 @@ fn as_string(
         IntegerLike::BigInteger(value) => value.to_string(),
     };
 
-    Ok(universe.gc_interface.allocate(receiver))
+    Ok(universe.gc_interface.alloc(receiver))
 }
 
 fn as_double(_: &mut Interpreter, _: &mut Universe, receiver: IntegerLike) -> Result<f64, Error> {
@@ -171,10 +168,7 @@ fn as_32bit_unsigned_value(
 
     let value = match value.try_into() {
         Ok(value) => IntegerLike::Integer(value),
-        Err(_) => IntegerLike::BigInteger(GCRef::<BigInt>::alloc(
-            BigInt::from(value),
-            &mut universe.gc_interface,
-        )),
+        Err(_) => IntegerLike::BigInteger(universe.gc_interface.alloc(BigInt::from(value))),
     };
 
     Ok(value)
@@ -543,20 +537,19 @@ fn shift_left(
     // - perform the logical bit-shift (bitshifts on unsigned types are logical shifts in Rust)
     // - attempt to demote it back to `i64`, otherwise we store it as a `BigInt`
 
-    let heap = &mut universe.gc_interface;
+    let gc_interface = &mut universe.gc_interface;
 
     match a {
         IntegerLike::Integer(a) => match (a as u64).checked_shl(b as u32) {
             Some(value) => match value.try_into() {
                 Ok(value) => Ok(Value::Integer(value)),
-                Err(_) => Ok(Value::BigInteger(GCRef::<BigInt>::alloc(
-                    BigInt::from(value as i64),
-                    heap,
-                ))),
+                Err(_) => Ok(Value::BigInteger(
+                    gc_interface.alloc(BigInt::from(value as i64)),
+                )),
             },
-            None => Ok(demote!(heap, BigInt::from(a) << (b as u32))),
+            None => Ok(demote!(gc_interface, BigInt::from(a) << (b as u32))),
         },
-        IntegerLike::BigInteger(a) => Ok(demote!(heap, &*a << (b as u32))),
+        IntegerLike::BigInteger(a) => Ok(demote!(gc_interface, &*a << (b as u32))),
     }
 }
 
@@ -584,7 +577,7 @@ fn shift_right(
             Some(value) => match value.try_into() {
                 Ok(value) => Value::Integer(value),
                 Err(_) => {
-                    let allocated = universe.gc_interface.allocate(BigInt::from(value as i32));
+                    let allocated = universe.gc_interface.alloc(BigInt::from(value as i32));
                     Value::BigInteger(allocated)
                 }
             },

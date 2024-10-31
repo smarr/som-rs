@@ -98,7 +98,7 @@ impl Class {
             is_static: true,
         };
 
-        let mut static_class_gc_ptr = GCRef::<Class>::alloc(static_class, gc_interface);
+        let mut static_class_gc_ptr = gc_interface.alloc(static_class);
 
         let instance_class = Self {
             name: defn.name.clone(),
@@ -110,7 +110,7 @@ impl Class {
             is_static: false,
         };
 
-        let mut instance_class_gc_ptr = GCRef::<Class>::alloc(instance_class, gc_interface);
+        let mut instance_class_gc_ptr = gc_interface.alloc(instance_class);
 
         let mut static_methods: IndexMap<String, GCRef<Method>> = defn
             .static_methods
@@ -127,7 +127,7 @@ impl Class {
                     signature: signature.clone(),
                     holder: static_class_gc_ptr,
                 };
-                (signature, GCRef::<Method>::alloc(method, gc_interface))
+                (signature, gc_interface.alloc(method))
             })
             .collect();
 
@@ -145,10 +145,7 @@ impl Class {
                     signature: signature.to_string(),
                     holder: static_class_gc_ptr,
                 };
-                static_methods.insert(
-                    signature.to_string(),
-                    GCRef::<Method>::alloc(method, gc_interface),
-                );
+                static_methods.insert(signature.to_string(), gc_interface.alloc(method));
             }
         }
 
@@ -167,7 +164,7 @@ impl Class {
                     signature: signature.clone(),
                     holder: instance_class_gc_ptr,
                 };
-                (signature, GCRef::<Method>::alloc(method, gc_interface))
+                (signature, gc_interface.alloc(method))
             })
             .collect();
 
@@ -185,10 +182,7 @@ impl Class {
                     signature: signature.to_string(),
                     holder: instance_class_gc_ptr,
                 };
-                instance_methods.insert(
-                    signature.to_string(),
-                    GCRef::<Method>::alloc(method, gc_interface),
-                );
+                instance_methods.insert(signature.to_string(), gc_interface.alloc(method));
             }
         }
 

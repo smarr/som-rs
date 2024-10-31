@@ -1,12 +1,12 @@
+use crate::slot::SOMSlot;
 use crate::{MMTK_TO_VM_INTERFACE, SOMVM};
 use log::debug;
 use mmtk::util::opaque_pointer::*;
 use mmtk::util::ObjectReference;
-use mmtk::vm::SlotVisitor;
 use mmtk::vm::Scanning;
+use mmtk::vm::SlotVisitor;
 use mmtk::vm::{ObjectTracer, RootsWorkFactory};
 use mmtk::Mutator;
-use crate::slot::SOMSlot;
 
 pub struct VMScanning {}
 
@@ -21,8 +21,12 @@ impl Scanning<SOMVM> for VMScanning {
         (vm_callbacks.scan_object_fn)(object, slot_visitor)
     }
 
-    fn scan_object_and_trace_edges<OT: ObjectTracer>(_tls: VMWorkerThread, _object: ObjectReference, _object_tracer: &mut OT) {
-        todo!()
+    fn scan_object_and_trace_edges<OT: ObjectTracer>(
+        _tls: VMWorkerThread,
+        _object: ObjectReference,
+        _object_tracer: &mut OT,
+    ) {
+        unimplemented!()
     }
 
     fn notify_initial_thread_scan_complete(_partial_scan: bool, _tls: VMWorkerThread) {
@@ -34,15 +38,17 @@ impl Scanning<SOMVM> for VMScanning {
         mutator: &'static mut Mutator<SOMVM>,
         mut factory: impl RootsWorkFactory<SOMSlot>,
     ) {
-        unsafe { 
-            let callback = MMTK_TO_VM_INTERFACE.get().unwrap().get_roots_in_mutator_thread_fn;
+        unsafe {
+            let callback = MMTK_TO_VM_INTERFACE
+                .get()
+                .unwrap()
+                .get_roots_in_mutator_thread_fn;
             let slots = callback(mutator);
             factory.create_process_roots_work(slots);
         }
     }
     fn scan_vm_specific_roots(_tls: VMWorkerThread, _factory: impl RootsWorkFactory<SOMSlot>) {
         debug!("scan_vm_specific_roots (unimplemented)");
-        // unsafe { (*MMTK_TO_VM_INTERFACE).scan_vm_specific_roots(factory) }
     }
     fn supports_return_barrier() -> bool {
         unimplemented!()

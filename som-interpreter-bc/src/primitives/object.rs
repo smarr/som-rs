@@ -49,8 +49,6 @@ fn class(
     universe: &mut Universe,
     receiver: Value,
 ) -> Result<GCRef<Class>, Error> {
-    const _: &'static str = "Object>>#class";
-
     Ok(receiver.class(universe))
 }
 
@@ -63,18 +61,13 @@ fn object_size(_: &mut Interpreter, _: &mut Universe, receiver: Value) -> Result
 }
 
 fn hashcode(_: &mut Interpreter, _: &mut Universe, receiver: Value) -> Result<i32, Error> {
-    const _: &'static str = "Object>>#hashcode";
-
     let mut hasher = DefaultHasher::new();
     receiver.hash(&mut hasher);
     let hash = (hasher.finish() as i32).abs();
-
     Ok(hash)
 }
 
 fn eq(_: &mut Interpreter, _: &mut Universe, receiver: Value, other: Value) -> Result<bool, Error> {
-    const _: &'static str = "Object>>#==";
-
     Ok(receiver == other)
 }
 
@@ -84,7 +77,7 @@ fn perform(
     receiver: Value,
     signature: Interned,
 ) -> Result<(), Error> {
-    const SIGNATURE: &'static str = "Object>>#perform:";
+    const SIGNATURE: &str = "Object>>#perform:";
 
     let Some(invokable) = receiver.lookup_method(universe, signature) else {
         let signature_str = universe.lookup_symbol(signature).to_owned();

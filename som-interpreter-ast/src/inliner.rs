@@ -7,7 +7,6 @@ use crate::specialized::inlined::or_inlined_node::OrInlinedNode;
 use crate::specialized::inlined::while_inlined_node::WhileInlinedNode;
 use som_core::ast;
 use som_core::ast::{Block, Expression};
-use som_gc::gcref::GCRef;
 
 pub trait PrimMessageInliner {
     fn inline_if_possible(&mut self, msg: &ast::Message) -> Option<InlinedNode>;
@@ -55,7 +54,7 @@ impl PrimMessageInliner for AstMethodCompilerCtxt<'_> {
         let expr = match expression {
             Expression::Block(blk) => {
                 let new_blk = self.adapt_block_after_outer_inlined(blk);
-                let new_blk_ptr = GCRef::<AstBlock>::alloc(new_blk, self.gc_interface); // could we just adapt the old block instead of allocating?
+                let new_blk_ptr = self.gc_interface.alloc(new_blk); // could we just adapt the old block instead of allocating?
                 AstExpression::Block(new_blk_ptr)
             }
             Expression::LocalVarRead(idx)

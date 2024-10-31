@@ -51,7 +51,7 @@ fn load_file(
         return Ok(None);
     };
 
-    Ok(Some(universe.gc_interface.allocate(value)))
+    Ok(Some(universe.gc_interface.alloc(value)))
 }
 
 fn print_string(

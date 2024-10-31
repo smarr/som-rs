@@ -347,14 +347,14 @@ macro_rules! reverse {
 macro_rules! derive_stuff {
     ($($ty:ident),* $(,)?) => {
         impl <$($ty: $crate::convert::IntoValue),*> $crate::convert::IntoValue for ($($ty),*,) {
-            fn into_value(&self, heap: &mut GCInterface) -> $crate::value::Value {
+            fn into_value(&self, gc_interface: &mut GCInterface) -> $crate::value::Value {
                 #[allow(non_snake_case)]
                 let ($($ty),*,) = self;
                 let mut values = Vec::default();
                 $(
-                    values.push($crate::convert::IntoValue::into_value($ty, heap));
+                    values.push($crate::convert::IntoValue::into_value($ty, gc_interface));
                 )*
-                let allocated = GCRef::<VecValue>::alloc(VecValue(values), heap);
+                let allocated = gc_interface.alloc(VecValue(values));
                 $crate::value::Value::Array(allocated)
             }
         }

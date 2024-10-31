@@ -237,7 +237,7 @@ impl CustomAlloc<Frame> for Frame {
         let nbr_args = frame.nbr_args;
         let size = size_of::<Frame>() + ((nbr_args + nbr_locals) as usize * size_of::<Value>());
 
-        let frame_ptr = GCRef::<Frame>::alloc_with_size(frame, gc_interface, size);
+        let frame_ptr = gc_interface.alloc_with_size(frame, size);
 
         unsafe {
             let mut locals_addr = frame_ptr

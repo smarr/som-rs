@@ -573,7 +573,7 @@ impl MethodCodegen for ast::Expression {
                 fn convert_literal(
                     ctxt: &mut dyn InnerGenCtxt,
                     literal: &ast::Literal,
-                    mutator: &mut GCInterface,
+                    gc_interface: &mut GCInterface,
                 ) -> Literal {
                     match literal {
                         ast::Literal::Symbol(val) => {
@@ -588,12 +588,7 @@ impl MethodCodegen for ast::Expression {
                             loop {
                                 let lit = ctxt.get_literal(i);
                                 match lit {
-                                    None => {
-                                        break Literal::String(GCRef::<String>::alloc(
-                                            val.clone(),
-                                            mutator,
-                                        ))
-                                    } // reached end of literals and no duplicate, we alloc
+                                    None => break Literal::String(gc_interface.alloc(val.clone())), // reached end of literals and no duplicate, we alloc
                                     Some(str_lit @ Literal::String(str_ptr))
                                         if **str_ptr == *val =>
                                     {
@@ -610,21 +605,20 @@ impl MethodCodegen for ast::Expression {
                             // this is to handle a weird corner case where "-2147483648" is considered to be a bigint by the lexer and then parser, when it's in fact just barely in i32 range
                             match big_int_str.parse::<i32>() {
                                 Ok(x) => Literal::Integer(x),
-                                _ => Literal::BigInteger(GCRef::<BigInt>::alloc(
-                                    BigInt::from_str(big_int_str).unwrap(),
-                                    mutator,
-                                )),
+                                _ => Literal::BigInteger(
+                                    gc_interface.alloc(BigInt::from_str(big_int_str).unwrap()),
+                                ),
                             }
                         }
                         ast::Literal::Array(val) => {
                             let literals = val
                                 .iter()
                                 .map(|val| {
-                                    let literal = convert_literal(ctxt, val, mutator);
+                                    let literal = convert_literal(ctxt, val, gc_interface);
                                     ctxt.push_literal(literal) as u8
                                 })
                                 .collect();
-                            let literal_ptr = GCRef::<Vec<u8>>::alloc(literals, mutator);
+                            let literal_ptr = gc_interface.alloc(literals);
                             Literal::Array(literal_ptr)
                         }
                     }
@@ -650,7 +644,7 @@ impl MethodCodegen for ast::Expression {
             }
             ast::Expression::Block(val) => {
                 let block = compile_block(ctxt.as_gen_ctxt(), val, mutator)?;
-                let block = Literal::Block(GCRef::<Block>::alloc(block, mutator));
+                let block = Literal::Block(mutator.alloc(block));
                 let idx = ctxt.push_literal(block);
                 ctxt.push_instr(Bytecode::PushBlock(idx as u8));
                 Some(())
@@ -836,7 +830,7 @@ fn compile_method(
 fn compile_block(
     outer: &mut dyn GenCtxt,
     defn: &ast::Block,
-    mutator: &mut GCInterface,
+    gc_interface: &mut GCInterface,
 ) -> Option<Block> {
     // println!("(system) compiling block ...");
 
@@ -854,10 +848,10 @@ fn compile_block(
     let splitted = defn.body.exprs.split_last();
     if let Some((last, rest)) = splitted {
         for expr in rest {
-            expr.codegen(&mut ctxt, mutator)?;
+            expr.codegen(&mut ctxt, gc_interface)?;
             ctxt.push_instr(Bytecode::Pop);
         }
-        last.codegen(&mut ctxt, mutator)?;
+        last.codegen(&mut ctxt, gc_interface)?;
         ctxt.push_instr(Bytecode::ReturnLocal);
     }
     ctxt.remove_dup_popx_pop_sequences();
@@ -884,20 +878,17 @@ fn compile_block(
 
     let block = Block {
         frame,
-        blk_info: GCRef::<BlockInfo>::alloc(
-            BlockInfo {
-                // locals,
-                nb_locals,
-                literals,
-                body,
-                nb_params,
-                inline_cache,
-                max_stack_size,
-                #[cfg(feature = "frame-debug-info")]
-                block_debug_info: ctxt.debug_info,
-            },
-            mutator,
-        ),
+        blk_info: gc_interface.alloc(BlockInfo {
+            // locals,
+            nb_locals,
+            literals,
+            body,
+            nb_params,
+            inline_cache,
+            max_stack_size,
+            #[cfg(feature = "frame-debug-info")]
+            block_debug_info: ctxt.debug_info,
+        }),
     };
 
     // println!("(system) compiled block !");
@@ -967,7 +958,7 @@ pub fn compile_class(
     interner: &mut Interner,
     defn: &ast::ClassDef,
     super_class: Option<&GCRef<Class>>,
-    mutator: &mut GCInterface,
+    gc_interface: &mut GCInterface,
 ) -> Option<GCRef<Class>> {
     let mut locals = IndexSet::new();
 
@@ -1008,15 +999,15 @@ pub fn compile_class(
         is_static: true,
     };
 
-    let static_class_gc_ptr = GCRef::<Class>::alloc(static_class, mutator);
+    let static_class_gc_ptr = gc_interface.alloc(static_class);
 
     for method in &defn.static_methods {
         let signature = static_class_ctxt.interner.intern(method.signature.as_str());
-        let mut method = compile_method(&mut static_class_ctxt, method, mutator)?;
+        let mut method = compile_method(&mut static_class_ctxt, method, gc_interface)?;
         method.holder = static_class_gc_ptr;
         static_class_ctxt
             .methods
-            .insert(signature, GCRef::<Method>::alloc(method, mutator));
+            .insert(signature, gc_interface.alloc(method));
     }
 
     if let Some(primitives) = primitives::get_class_primitives(&defn.name) {
@@ -1037,7 +1028,7 @@ pub fn compile_class(
             let signature = static_class_ctxt.interner.intern(signature);
             static_class_ctxt
                 .methods
-                .insert(signature, GCRef::<Method>::alloc(method, mutator));
+                .insert(signature, gc_interface.alloc(method));
         }
     }
 
@@ -1093,17 +1084,17 @@ pub fn compile_class(
         is_static: false,
     };
 
-    let instance_class_gc_ptr = GCRef::<Class>::alloc(instance_class, mutator);
+    let instance_class_gc_ptr = gc_interface.alloc(instance_class);
 
     for method in &defn.instance_methods {
         let signature = instance_class_ctxt
             .interner
             .intern(method.signature.as_str());
-        let mut method = compile_method(&mut instance_class_ctxt, method, mutator)?;
+        let mut method = compile_method(&mut instance_class_ctxt, method, gc_interface)?;
         method.holder = instance_class_gc_ptr;
         instance_class_ctxt
             .methods
-            .insert(signature, GCRef::<Method>::alloc(method, mutator));
+            .insert(signature, gc_interface.alloc(method));
     }
 
     if let Some(primitives) = primitives::get_instance_primitives(&defn.name) {
@@ -1124,7 +1115,7 @@ pub fn compile_class(
             let signature = instance_class_ctxt.interner.intern(signature);
             instance_class_ctxt
                 .methods
-                .insert(signature, GCRef::<Method>::alloc(method, mutator));
+                .insert(signature, gc_interface.alloc(method));
         }
     }
 

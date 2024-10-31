@@ -625,10 +625,7 @@ impl Universe {
         let mut initialize = value.lookup_method(self, "doesNotUnderstand:arguments:")?;
         let sym = self.intern_symbol(symbol.as_ref());
         let sym = Value::Symbol(sym);
-        let args = Value::Array(GCRef::<VecValue>::alloc(
-            VecValue(args),
-            &mut self.gc_interface,
-        ));
+        let args = Value::Array(self.gc_interface.alloc(VecValue(args)));
 
         // eprintln!("Couldn't invoke {}; exiting.", symbol.as_ref()); std::process::exit(1);
 
@@ -657,10 +654,7 @@ impl Universe {
     /// Call `System>>#initialize:` with the given name, if it is defined.
     pub fn initialize(&mut self, args: Vec<Value>) -> Option<Return> {
         let mut initialize = Value::SYSTEM.lookup_method(self, "initialize:")?;
-        let args = Value::Array(GCRef::<VecValue>::alloc(
-            VecValue(args),
-            &mut self.gc_interface,
-        ));
+        let args = Value::Array(self.gc_interface.alloc(VecValue(args)));
 
         let program_result = initialize.invoke(self, vec![Value::SYSTEM, args]);
         Some(program_result)

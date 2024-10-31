@@ -12,11 +12,11 @@ members = [
 resolver = "2"
 
 [profile.dev]
-# On panic, kill every thread. Likely a temporary fix: MMTk introduces new threads and we're relatively unstable at the moment.
+# On panic, kill every thread. MMTk introduces new threads and if they crash because of us, the process could hang.
+# They shouldn't crash anymore, we're relatively stable, but I'm keeping this around for now. Ditto for the release build.
 panic = 'abort'
 
 [profile.release]
-# On panic, kill every thread. Likely a temporary fix: MMTk introduces new threads and we're relatively unstable at the moment.
 panic = 'abort'
 
 # Enable link-time optimization, eliminates more code and inlines across crate boundaries.

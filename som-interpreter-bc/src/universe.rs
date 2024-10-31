@@ -565,10 +565,7 @@ impl Universe {
             &[
                 value,
                 Value::Symbol(symbol),
-                Value::Array(GCRef::<VecValue>::alloc(
-                    VecValue(args),
-                    &mut self.gc_interface,
-                )),
+                Value::Array(self.gc_interface.alloc(VecValue(args))),
             ],
             &mut self.gc_interface,
         );
@@ -601,7 +598,7 @@ impl Universe {
         let method_name = self.interner.intern("initialize:");
         let method = Value::SYSTEM.lookup_method(self, method_name)?;
 
-        let args_vec = GCRef::<VecValue>::alloc(VecValue(args), &mut self.gc_interface);
+        let args_vec = self.gc_interface.alloc(VecValue(args));
         let frame_ptr = Frame::alloc_from_method(
             method,
             &[Value::SYSTEM, Value::Array(args_vec)],

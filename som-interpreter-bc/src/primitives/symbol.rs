@@ -1,6 +1,6 @@
-use som_gc::gcref::GCRef;
 use anyhow::Error;
 use once_cell::sync::Lazy;
+use som_gc::gcref::GCRef;
 
 use crate::convert::Primitive;
 use crate::interpreter::Interpreter;
@@ -20,7 +20,9 @@ fn as_string(
 ) -> Result<GCRef<String>, Error> {
     const _: &str = "Symbol>>#asString";
 
-    Ok(universe.gc_interface.allocate(universe.lookup_symbol(symbol).to_owned()))
+    Ok(universe
+        .gc_interface
+        .alloc(universe.lookup_symbol(symbol).to_owned()))
 }
 
 /// Search for an instance primitive matching the given signature.

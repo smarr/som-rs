@@ -8,7 +8,6 @@ use std::path::PathBuf;
 use anyhow::anyhow;
 #[cfg(feature = "jemalloc")]
 use jemallocator::Jemalloc;
-use som_gc::gcref::GCRef;
 use structopt::StructOpt;
 
 mod shell;
@@ -70,7 +69,7 @@ fn main() -> anyhow::Result<()> {
 
             let args = std::iter::once(String::from(file_stem))
                 .chain(opts.args.iter().cloned())
-                .map(|str| Value::String(GCRef::<String>::alloc(str, &mut universe.gc_interface)))
+                .map(|str| Value::String(universe.gc_interface.alloc(str)))
                 .collect();
 
             let output = universe.initialize(args).unwrap_or_else(|| {

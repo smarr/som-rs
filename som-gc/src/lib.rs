@@ -1,9 +1,9 @@
 extern crate libc;
 extern crate mmtk;
 
-use std::cell::OnceCell;
 use mmtk::vm::VMBinding;
 use mmtk::MMTK;
+use std::cell::OnceCell;
 use std::sync::OnceLock;
 
 pub mod active_plan;
@@ -43,17 +43,15 @@ impl VMBinding for SOMVM {
     const ALLOC_END_ALIGNMENT: usize = 1;
 }
 
-use mmtk::util::{Address, ObjectReference};
-use crate::gc_interface::{MMTKtoVMCallbacks, GCInterface};
+use crate::gc_interface::{GCInterface, MMTKtoVMCallbacks};
 use crate::slot::SOMSlot;
+use mmtk::util::{Address, ObjectReference};
 
 impl SOMVM {
     pub fn object_start_to_ref(start: Address) -> ObjectReference {
         // Safety: start is the allocation result, and it should not be zero with an offset.
         unsafe {
-            ObjectReference::from_raw_address_unchecked(
-                start + object_model::OBJECT_REF_OFFSET,
-            )
+            ObjectReference::from_raw_address_unchecked(start + object_model::OBJECT_REF_OFFSET)
         }
     }
 }
@@ -61,7 +59,7 @@ impl SOMVM {
 pub static MMTK_SINGLETON: OnceLock<MMTK<SOMVM>> = OnceLock::new();
 
 fn mmtk() -> &'static MMTK<SOMVM> {
-    &MMTK_SINGLETON.get().unwrap()
+    MMTK_SINGLETON.get().unwrap()
 }
 
 pub(crate) static mut MUTATOR_WRAPPER: OnceCell<*mut GCInterface> = OnceCell::new();

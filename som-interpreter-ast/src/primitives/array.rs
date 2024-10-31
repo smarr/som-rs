@@ -16,8 +16,8 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> 
     ])
 });
 
-pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| Box::new([("new:", self::new.into_func(), true)]));
-
+pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> =
+    Lazy::new(|| Box::new([("new:", self::new.into_func(), true)]));
 
 fn at(_: &mut Universe, values: GCRef<VecValue>, index: i32) -> Result<Value, Error> {
     const SIGNATURE: &str = "Array>>#at:";
@@ -31,7 +31,12 @@ fn at(_: &mut Universe, values: GCRef<VecValue>, index: i32) -> Result<Value, Er
     Ok(value)
 }
 
-fn at_put(_: &mut Universe, mut values: GCRef<VecValue>, index: i32, value: Value) -> Result<Value, Error> {
+fn at_put(
+    _: &mut Universe,
+    mut values: GCRef<VecValue>,
+    index: i32,
+    value: Value,
+) -> Result<Value, Error> {
     const SIGNATURE: &str = "Array>>#at:put:";
 
     let index = match usize::try_from(index - 1) {
@@ -44,7 +49,7 @@ fn at_put(_: &mut Universe, mut values: GCRef<VecValue>, index: i32, value: Valu
     Ok(Value::Array(values))
 }
 
-fn length(_: &mut Universe, values: GCRef<VecValue>)-> Result<Value, Error> {
+fn length(_: &mut Universe, values: GCRef<VecValue>) -> Result<Value, Error> {
     const SIGNATURE: &str = "Array>>#length";
 
     let length = values.len();
@@ -54,14 +59,15 @@ fn length(_: &mut Universe, values: GCRef<VecValue>)-> Result<Value, Error> {
     }
 }
 
-fn new(universe: &mut Universe, _: Value, count: i32)-> Result<Value, Error> {
+fn new(universe: &mut Universe, _: Value, count: i32) -> Result<Value, Error> {
     const SIGNATURE: &str = "Array>>#new:";
-    
+
     match usize::try_from(count) {
-        Ok(length) => Ok(Value::Array(GCRef::<VecValue>::alloc(VecValue(vec![
-            Value::NIL;
-            length
-        ]), &mut universe.gc_interface))),
+        Ok(length) => Ok(Value::Array(
+            universe
+                .gc_interface
+                .alloc(VecValue(vec![Value::NIL; length])),
+        )),
         Err(err) => bail!(format!("'{}': {}", SIGNATURE, err)),
     }
 }

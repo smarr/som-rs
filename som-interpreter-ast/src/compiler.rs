@@ -15,7 +15,6 @@ use crate::specialized::trivial_methods::{
     TrivialGetterMethod, TrivialGlobalMethod, TrivialLiteralMethod, TrivialSetterMethod,
 };
 use crate::specialized::while_node::WhileNode;
-use num_bigint::BigInt;
 use som_core::ast;
 use som_core::ast::{Expression, Literal, MethodBody};
 use som_gc::gc_interface::GCInterface;
@@ -227,10 +226,10 @@ impl<'a> AstMethodCompilerCtxt<'a> {
                     _ => AstExpression::Literal(self.parse_literal(&a)),
                 }
             }
-            Expression::Block(a) => AstExpression::Block(GCRef::<AstBlock>::alloc(
-                self.parse_block(&a),
-                self.gc_interface,
-            )),
+            Expression::Block(a) => {
+                let ast_block = self.parse_block(&a);
+                AstExpression::Block(self.gc_interface.alloc(ast_block))
+            }
         }
     }
 
@@ -368,23 +367,22 @@ impl<'a> AstMethodCompilerCtxt<'a> {
     pub fn parse_literal(&mut self, lit: &ast::Literal) -> AstLiteral {
         match lit {
             Literal::String(str) => {
-                let str_ptr = GCRef::<String>::alloc(str.clone(), self.gc_interface);
+                let str_ptr = self.gc_interface.alloc(str.clone());
                 AstLiteral::String(str_ptr)
             }
             Literal::Symbol(str) => {
-                let str_ptr = GCRef::<String>::alloc(str.clone(), self.gc_interface);
+                let str_ptr = self.gc_interface.alloc(str.clone());
                 AstLiteral::Symbol(str_ptr)
             }
             Literal::Double(double) => AstLiteral::Double(*double),
             Literal::Integer(int) => AstLiteral::Integer(*int),
             Literal::BigInteger(bigint_str) => {
-                let bigint_ptr =
-                    GCRef::<BigInt>::alloc(bigint_str.parse().unwrap(), self.gc_interface);
+                let bigint_ptr = self.gc_interface.alloc(bigint_str.parse().unwrap());
                 AstLiteral::BigInteger(bigint_ptr)
             }
             Literal::Array(arr) => {
                 let arr = arr.iter().map(|lit| self.parse_literal(lit)).collect();
-                let arr_ptr = GCRef::<VecAstLiteral>::alloc(VecAstLiteral(arr), self.gc_interface);
+                let arr_ptr = self.gc_interface.alloc(VecAstLiteral(arr));
                 AstLiteral::Array(arr_ptr)
             }
         }

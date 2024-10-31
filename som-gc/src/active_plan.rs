@@ -10,7 +10,7 @@ pub struct VMActivePlan {}
 // Documentation: https://docs.mmtk.io/api/mmtk/vm/active_plan/trait.ActivePlan.html
 impl ActivePlan<SOMVM> for VMActivePlan {
     fn is_mutator(_tls: VMThread) -> bool {
-        // TODO: Properly check if the thread is a mutator
+        // I should properly check that the thread is a mutator, but we never use those thread identifier variables at the moment anyway, so
         true
     }
 
@@ -25,8 +25,7 @@ impl ActivePlan<SOMVM> for VMActivePlan {
     }
 
     fn number_of_mutators() -> usize {
-        1 // TODO: is it always 1 right now though?
-        // unimplemented!()
+        1
     }
 
     #[allow(unused)]
@@ -35,9 +34,12 @@ impl ActivePlan<SOMVM> for VMActivePlan {
         object: ObjectReference,
         _worker: &mut GCWorker<SOMVM>,
     ) -> ObjectReference {
-        // I've had MMTk sometimes panic here. thus i reimplemented this one on our side, but only for debug purposes. 
+        // I've had MMTk sometimes panic here. thus i reimplemented this one on our side, but only for debug purposes.
         // this should never be invoked.
-        
-        panic!("entering vm_trace_object for some reason: object {:?} not in mmtk space?", object)
+
+        panic!(
+            "entering vm_trace_object for some reason: object {:?} not in mmtk space?",
+            object
+        )
     }
 }

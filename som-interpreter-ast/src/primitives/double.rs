@@ -5,7 +5,6 @@ use crate::value::Value;
 use anyhow::{bail, Error};
 use num_traits::ToPrimitive;
 use once_cell::sync::Lazy;
-use som_gc::gcref::GCRef;
 
 pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| {
     Box::new([
@@ -72,10 +71,9 @@ fn as_string(universe: &mut Universe, receiver: DoubleLike) -> Result<Value, Err
 
     let value = promote!(SIGNATURE, receiver);
 
-    Ok(Value::String(GCRef::<String>::alloc(
-        value.to_string(),
-        &mut universe.gc_interface,
-    )))
+    Ok(Value::String(
+        universe.gc_interface.alloc(value.to_string()),
+    ))
 }
 
 fn as_integer(_: &mut Universe, receiver: f64) -> Result<Value, Error> {

@@ -75,7 +75,7 @@ fn methods(
         .map(Value::Invokable)
         .collect();
 
-    Ok(universe.gc_interface.allocate(VecValue(methods)))
+    Ok(universe.gc_interface.alloc(VecValue(methods)))
 }
 
 fn fields(
@@ -87,7 +87,7 @@ fn fields(
 
     let fields = receiver.locals.keys().copied().map(Value::Symbol).collect();
 
-    Ok(universe.gc_interface.allocate(VecValue(fields)))
+    Ok(universe.gc_interface.alloc(VecValue(fields)))
 }
 
 /// Search for an instance primitive matching the given signature.

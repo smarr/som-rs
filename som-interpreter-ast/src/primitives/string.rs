@@ -4,7 +4,6 @@ use crate::universe::Universe;
 use crate::value::Value;
 use anyhow::{bail, Error};
 use once_cell::sync::Lazy;
-use som_gc::gcref::GCRef;
 use std::collections::hash_map::DefaultHasher;
 use std::convert::TryFrom;
 use std::hash::Hasher;
@@ -30,12 +29,12 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> 
 pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> =
     Lazy::new(|| Box::new([]));
 
-fn length(universe: &mut Universe, value: StringLike)-> Result<Value, Error> {
+fn length(universe: &mut Universe, value: StringLike) -> Result<Value, Error> {
     const SIGNATURE: &str = "String>>#length";
 
     let value = match value {
         StringLike::String(ref value) => value.as_str(),
-        StringLike::Symbol(sym) => universe.lookup_symbol(sym)
+        StringLike::Symbol(sym) => universe.lookup_symbol(sym),
     };
 
     match i32::try_from(value.chars().count()) {
@@ -44,7 +43,7 @@ fn length(universe: &mut Universe, value: StringLike)-> Result<Value, Error> {
     }
 }
 
-fn hashcode(universe: &mut Universe, value: StringLike)-> Result<Value, Error> {
+fn hashcode(universe: &mut Universe, value: StringLike) -> Result<Value, Error> {
     let value = match value {
         StringLike::String(ref value) => value.as_str(),
         StringLike::Symbol(sym) => universe.lookup_symbol(sym),
@@ -62,7 +61,7 @@ fn hashcode(universe: &mut Universe, value: StringLike)-> Result<Value, Error> {
     Ok(Value::Integer((hasher.finish() as i32).abs()))
 }
 
-fn is_letters(universe: &mut Universe, value: StringLike)-> Result<Value, Error> {
+fn is_letters(universe: &mut Universe, value: StringLike) -> Result<Value, Error> {
     let value = match value {
         StringLike::String(ref value) => value.as_str(),
         StringLike::Symbol(sym) => universe.lookup_symbol(sym),
@@ -73,7 +72,7 @@ fn is_letters(universe: &mut Universe, value: StringLike)-> Result<Value, Error>
     ))
 }
 
-fn is_digits(universe: &mut Universe, value: StringLike)-> Result<Value, Error> {
+fn is_digits(universe: &mut Universe, value: StringLike) -> Result<Value, Error> {
     let value = match value {
         StringLike::String(ref value) => value.as_str(),
         StringLike::Symbol(sym) => universe.lookup_symbol(sym),
@@ -84,7 +83,7 @@ fn is_digits(universe: &mut Universe, value: StringLike)-> Result<Value, Error> 
     ))
 }
 
-fn is_whitespace(universe: &mut Universe, value: StringLike)-> Result<Value, Error> {
+fn is_whitespace(universe: &mut Universe, value: StringLike) -> Result<Value, Error> {
     let value = match value {
         StringLike::String(ref value) => value.as_str(),
         StringLike::Symbol(sym) => universe.lookup_symbol(sym),
@@ -95,7 +94,11 @@ fn is_whitespace(universe: &mut Universe, value: StringLike)-> Result<Value, Err
     ))
 }
 
-fn concatenate(universe: &mut Universe, receiver: StringLike, other: StringLike)-> Result<Value, Error> {
+fn concatenate(
+    universe: &mut Universe,
+    receiver: StringLike,
+    other: StringLike,
+) -> Result<Value, Error> {
     let s1 = match receiver {
         StringLike::String(ref value) => value.as_str(),
         StringLike::Symbol(sym) => universe.lookup_symbol(sym),
@@ -106,28 +109,30 @@ fn concatenate(universe: &mut Universe, receiver: StringLike, other: StringLike)
         StringLike::Symbol(sym) => universe.lookup_symbol(sym),
     };
 
-    Ok(Value::String(GCRef::<String>::alloc(format!("{}{}", s1, s2), &mut universe.gc_interface)))
+    Ok(Value::String(
+        universe.gc_interface.alloc(format!("{}{}", s1, s2)),
+    ))
 }
 
-fn as_symbol(universe: &mut Universe, value: StringLike)-> Result<Value, Error> {
+fn as_symbol(universe: &mut Universe, value: StringLike) -> Result<Value, Error> {
     match value {
-        StringLike::String(ref value) => {
-            Ok(Value::Symbol(universe.intern_symbol(value.as_str())))
-        }
+        StringLike::String(ref value) => Ok(Value::Symbol(universe.intern_symbol(value.as_str()))),
         StringLike::Symbol(sym) => Ok(Value::Symbol(sym)),
     }
 }
 
-fn char_at(universe: &mut Universe, receiver: StringLike, idx: i32)-> Result<Value, Error> {
+fn char_at(universe: &mut Universe, receiver: StringLike, idx: i32) -> Result<Value, Error> {
     let string = match receiver {
         StringLike::String(ref value) => value.as_str(),
         StringLike::Symbol(sym) => universe.lookup_symbol(sym),
     };
 
-    Ok(Value::String(GCRef::<String>::alloc(String::from(string.chars().nth((idx - 1) as usize).unwrap()), &mut universe.gc_interface)))
+    Ok(Value::String(universe.gc_interface.alloc(String::from(
+        string.chars().nth((idx - 1) as usize).unwrap(),
+    ))))
 }
 
-fn eq(universe: &mut Universe, a: Value, b: Value)-> Result<bool, Error> {
+fn eq(universe: &mut Universe, a: Value, b: Value) -> Result<bool, Error> {
     let Ok(a) = StringLike::try_from(a) else {
         return Ok(false);
     };
@@ -149,7 +154,12 @@ fn eq(universe: &mut Universe, a: Value, b: Value)-> Result<bool, Error> {
     Ok(a == b)
 }
 
-fn prim_substring_from_to(universe: &mut Universe, receiver: StringLike, from: i32, to: i32)-> Result<Value, Error> {
+fn prim_substring_from_to(
+    universe: &mut Universe,
+    receiver: StringLike,
+    from: i32,
+    to: i32,
+) -> Result<Value, Error> {
     let from = usize::try_from(from - 1).unwrap();
     let to = usize::try_from(to).unwrap();
 
@@ -158,7 +168,9 @@ fn prim_substring_from_to(universe: &mut Universe, receiver: StringLike, from: i
         StringLike::Symbol(sym) => universe.lookup_symbol(sym),
     };
 
-    let s = universe.gc_interface.allocate(string.chars().skip(from).take(to - from).collect());
+    let s = universe
+        .gc_interface
+        .alloc(string.chars().skip(from).take(to - from).collect());
 
     Ok(Value::String(s))
 }
