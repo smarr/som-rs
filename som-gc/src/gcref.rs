@@ -8,6 +8,7 @@ use mmtk::AllocationSemantics;
 use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
 use std::sync::atomic::Ordering;
+use std::mem::size_of;
 
 static GC_OFFSET: usize = 0;
 static GC_ALIGN: usize = 8;
