@@ -12,6 +12,7 @@ use som_core::interner::Interned;
 use std::time::Instant;
 use som_gc::gc_interface::GCInterface;
 use som_gc::gcref::GCRef;
+use crate::gc::VecValue;
 
 macro_rules! send {
     ($interp:expr, $universe:expr, $frame:expr, $lit_idx:expr, $nb_params:expr) => {{
@@ -574,7 +575,7 @@ impl Interpreter {
                             convert_literal(frame, lit, gc_interface)
                         })
                         .collect::<Vec<_>>();
-                    Value::Array(GCRef::<Vec<Value>>::alloc(arr, gc_interface))
+                    Value::Array(GCRef::<VecValue>::alloc(VecValue(arr), gc_interface))
                 }
                 Literal::Block(val) => Value::Block(val),
             };

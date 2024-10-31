@@ -18,6 +18,7 @@ use crate::universe::Universe;
 use crate::value::Value;
 use num_bigint::BigInt;
 use som_core::interner::Interned;
+use crate::gc::VecValue;
 
 pub trait IntoValue {
     fn into_value(&self, gc_interface: &mut GCInterface) -> Value;
@@ -268,7 +269,7 @@ impl FromArgs for GCRef<String> {
     }
 }
 
-impl FromArgs for GCRef<Vec<Value>> {
+impl FromArgs for GCRef<VecValue> {
     fn from_args(
         interpreter: &mut Interpreter,
         _: &mut Universe,
@@ -374,7 +375,7 @@ impl IntoValue for GCRef<BigInt> {
     }
 }
 
-impl IntoValue for GCRef<Vec<Value>> {
+impl IntoValue for GCRef<VecValue> {
     fn into_value(&self, _: &mut GCInterface) -> Value {
         Value::Array(*self)
     }
@@ -450,7 +451,7 @@ macro_rules! derive_stuff {
                 $(
                     values.push($crate::convert::IntoValue::into_value($ty, heap));
                 )*
-                let allocated = GCRef::<Vec<Value>>::alloc(values, heap);
+                let allocated = GCRef::<VecValue>::alloc(VecValue(values), heap);
                 $crate::value::Value::Array(allocated)
             }
         }

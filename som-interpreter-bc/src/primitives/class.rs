@@ -9,7 +9,7 @@ use anyhow::Error;
 use once_cell::sync::Lazy;
 use som_core::interner::Interned;
 use som_gc::gcref::GCRef;
-
+use crate::gc::VecValue;
 
 pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| {
     Box::new({
@@ -65,7 +65,7 @@ fn methods(
     _: &mut Interpreter,
     universe: &mut Universe,
     receiver: GCRef<Class>,
-) -> Result<GCRef<Vec<Value>>, Error> {
+) -> Result<GCRef<VecValue>, Error> {
     const _: &str = "Class>>#methods";
 
     let methods = receiver
@@ -76,14 +76,14 @@ fn methods(
         .map(Value::Invokable)
         .collect();
 
-    Ok(universe.gc_interface.allocate(methods))
+    Ok(universe.gc_interface.allocate(VecValue(methods)))
 }
 
 fn fields(
     _: &mut Interpreter,
     universe: &mut Universe,
     receiver: GCRef<Class>,
-) -> Result<GCRef<Vec<Value>>, Error> {
+) -> Result<GCRef<VecValue>, Error> {
     const _: &str = "Class>>#fields";
 
     let fields = receiver
@@ -94,7 +94,7 @@ fn fields(
         .map(Value::Symbol)
         .collect();
 
-    Ok(universe.gc_interface.allocate(fields))
+    Ok(universe.gc_interface.allocate(VecValue(fields)))
 }
 
 /// Search for an instance primitive matching the given signature.

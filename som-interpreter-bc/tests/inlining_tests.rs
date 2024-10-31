@@ -3,7 +3,7 @@ use som_core::bytecode::Bytecode::*;
 use std::path::PathBuf;
 
 use som_interpreter_bc::compiler;
-use som_interpreter_bc::gc::gc_interface::GCInterface;
+use som_gc::gc_interface::GCInterface;
 use som_interpreter_bc::method::MethodKind;
 use som_interpreter_bc::universe::{Universe, HEAP_SIZE};
 use som_lexer::{Lexer, Token};

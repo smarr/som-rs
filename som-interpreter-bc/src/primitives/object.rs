@@ -13,6 +13,7 @@ use anyhow::{Context, Error};
 use once_cell::sync::Lazy;
 use som_core::interner::Interned;
 use som_gc::gcref::GCRef;
+use crate::gc::VecValue;
 
 pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| {
     Box::new([
@@ -120,13 +121,13 @@ fn perform_with_arguments(
     universe: &mut Universe,
     receiver: Value,
     signature: Interned,
-    arguments: GCRef<Vec<Value>>,
+    arguments: GCRef<VecValue>,
 ) -> Result<(), Error> {
     const SIGNATURE: &'static str = "Object>>#perform:withArguments:";
 
     let Some(invokable) = receiver.lookup_method(universe, signature) else {
         let signature_str = universe.lookup_symbol(signature).to_owned();
-        let args = std::iter::once(receiver.clone()).chain(arguments.to_obj().clone()).collect(); // lame clone
+        let args = std::iter::once(receiver.clone()).chain(arguments.to_obj().0.clone()).collect(); // lame clone
         return universe
             .does_not_understand(interpreter, receiver.clone(), signature, args)
             .with_context(|| {
@@ -137,7 +138,7 @@ fn perform_with_arguments(
             });
     };
 
-    invokable.invoke(interpreter, universe, receiver, arguments.to_obj().clone());
+    invokable.invoke(interpreter, universe, receiver, arguments.to_obj().0.clone());
     Ok(())
 }
 
@@ -172,7 +173,7 @@ fn perform_with_arguments_in_super_class(
     universe: &mut Universe,
     receiver: Value,
     signature: Interned,
-    arguments: GCRef<Vec<Value>>,
+    arguments: GCRef<VecValue>,
     class: GCRef<Class>,
 ) -> Result<(), Error> {
     const SIGNATURE: &'static str = "Object>>#perform:withArguments:inSuperclass:";
@@ -181,7 +182,7 @@ fn perform_with_arguments_in_super_class(
 
     let Some(invokable) = method else {
         let signature_str = universe.lookup_symbol(signature).to_owned();
-        let args = std::iter::once(receiver.clone()).chain(arguments.to_obj().clone()).collect(); // lame to clone args, right?
+        let args = std::iter::once(receiver.clone()).chain(arguments.to_obj().0.clone()).collect(); // lame to clone args, right?
         return universe
             .does_not_understand(interpreter, Value::Class(class), signature, args)
             .with_context(|| {
@@ -192,7 +193,7 @@ fn perform_with_arguments_in_super_class(
             });
     };
 
-    invokable.invoke(interpreter, universe, receiver, arguments.to_obj().clone());
+    invokable.invoke(interpreter, universe, receiver, arguments.to_obj().0.clone());
     Ok(())
 }
 

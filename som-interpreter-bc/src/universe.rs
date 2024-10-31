@@ -12,6 +12,7 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::Ordering;
 use som_gc::gc_interface::{GCInterface, IS_WORLD_STOPPED};
 use som_gc::gcref::GCRef;
+use crate::gc::VecValue;
 
 /// GC heap size
 pub const HEAP_SIZE: usize = 1024 * 1024 * 256;
@@ -458,7 +459,7 @@ impl Universe {
         // }
         
         interpreter.push_method_frame_with_args(method,
-                                      &[value, Value::Symbol(symbol), Value::Array(GCRef::<Vec<Value>>::alloc(args, &mut self.gc_interface))],
+                                      &[value, Value::Symbol(symbol), Value::Array(GCRef::<VecValue>::alloc(VecValue(args), &mut self.gc_interface))],
                                       &mut self.gc_interface);
 
         Some(())
@@ -485,7 +486,7 @@ impl Universe {
         let method_name = self.interner.intern("initialize:");
         let method = Value::SYSTEM.lookup_method(self, method_name)?;
 
-        let args_vec = GCRef::<Vec<Value>>::alloc(args, &mut self.gc_interface);
+        let args_vec = GCRef::<VecValue>::alloc(VecValue(args), &mut self.gc_interface);
         let frame_ptr = Frame::alloc_from_method(method,
                                                  &[Value::SYSTEM, Value::Array(args_vec)],
                                                  GCRef::default(),

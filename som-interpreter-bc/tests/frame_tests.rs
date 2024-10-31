@@ -6,7 +6,8 @@ use som_interpreter_bc::value::Value;
 use som_lexer::{Lexer, Token};
 use som_parser::lang;
 use std::path::PathBuf;
-use som_interpreter_bc::gc::gc_interface::{GCInterface, GCRef};
+use som_gc::gc_interface::GCInterface;
+use som_gc::gcref::GCRef;
 
 fn setup_universe() -> Universe {
     let classpath = vec![

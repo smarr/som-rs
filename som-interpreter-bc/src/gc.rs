@@ -31,6 +31,7 @@ pub enum BCObjMagicId {
     ArrayVal = 106,
 }
 
+// TODO: HACK. this is to be able to define a magic id for it. what we REALLY need is a GCSlice<T> type.
 pub struct VecValue(pub Vec<Value>);
 
 impl HasTypeInfoForGC for VecValue {
@@ -77,16 +78,16 @@ impl HasTypeInfoForGC for Frame {
 
 // --- Scanning
 
-pub fn visit_value<SV: SlotVisitor<SOMSlot>>(val: &Value, slot_visitor: &mut SV) {
+pub fn visit_value<'a>(val: &Value, slot_visitor: &'a mut (dyn SlotVisitor<SOMSlot> + 'a)) {
     match val.is_ptr_type() {
         true => slot_visitor.visit_slot(SOMSlot::from_value(val.payload())),
         false => {}
     }
 }
 
-pub fn scan_object<SV: SlotVisitor<SOMSlot>>(
+pub fn scan_object<'a>(
     object: ObjectReference,
-    slot_visitor: &mut SV,
+    slot_visitor: &'a mut (dyn SlotVisitor<SOMSlot> + 'a)
 ) {
     unsafe {
         // let _ptr: *mut usize = unsafe { obj_addr.as_mut_ref() };

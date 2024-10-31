@@ -4,6 +4,7 @@ use anyhow::{Context, Error};
 use once_cell::sync::Lazy;
 use som_gc::gcref::GCRef;
 use crate::convert::Primitive;
+use crate::gc::VecValue;
 use crate::interpreter::Interpreter;
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
@@ -23,7 +24,7 @@ pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> =
 fn at(
     _: &mut Interpreter,
     _: &mut Universe,
-    receiver: GCRef<Vec<Value>>,
+    receiver: GCRef<VecValue>,
     index: i32,
 ) -> Result<Value, Error> {
     const _: &str = "Array>>#at:";
@@ -32,6 +33,7 @@ fn at(
 
     receiver
         .borrow()
+        .0
         .get(index)
         .cloned()
         .context("index out of bounds")
@@ -40,15 +42,15 @@ fn at(
 fn at_put(
     _: &mut Interpreter,
     _: &mut Universe,
-    receiver: GCRef<Vec<Value>>,
+    receiver: GCRef<VecValue>,
     index: i32,
     value: Value,
-) -> Result<GCRef<Vec<Value>>, Error> {
+) -> Result<GCRef<VecValue>, Error> {
     const _: &str = "Array>>#at:put:";
 
     let index = usize::try_from(index - 1)?;
 
-    if let Some(location) = receiver.borrow_mut().get_mut(index) {
+    if let Some(location) = receiver.borrow_mut().0.get_mut(index) {
         *location = value;
     }
 
@@ -58,12 +60,13 @@ fn at_put(
 fn length(
     _: &mut Interpreter,
     _: &mut Universe,
-    receiver: GCRef<Vec<Value>>,
+    receiver: GCRef<VecValue>,
 ) -> Result<i32, Error> {
     const _: &str = "Array>>#length";
     
     receiver
         .borrow()
+        .0
         .len()
         .try_into()
         .context("could not convert `usize` to `i32`")
@@ -74,11 +77,11 @@ fn new(
     universe: &mut Universe,
     _: Value,
     count: i32,
-) -> Result<GCRef<Vec<Value>>, Error> {
+) -> Result<GCRef<VecValue>, Error> {
     const _: &str = "Array>>#new:";
 
     let count = usize::try_from(count)?;
-    let allocated = universe.gc_interface.allocate(vec![Value::NIL; count]);
+    let allocated = universe.gc_interface.allocate(VecValue(vec![Value::NIL; count]));
 
     Ok(allocated)
 }

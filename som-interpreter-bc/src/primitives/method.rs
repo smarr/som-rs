@@ -9,6 +9,7 @@ use anyhow::Error;
 use once_cell::sync::Lazy;
 use som_gc::gcref::GCRef;
 use som_core::interner::Interned;
+use crate::gc::VecValue;
 
 pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| {
     Box::new([
@@ -45,7 +46,7 @@ fn invoke_on_with(
     universe: &mut Universe,
     invokable: GCRef<Method>,
     receiver: Value,
-    arguments: GCRef<Vec<Value>>,
+    arguments: GCRef<VecValue>,
 ) -> Result<(), Error> {
     const _: &str = "Method>>#invokeOn:with:";
 
@@ -53,7 +54,7 @@ fn invoke_on_with(
         interpreter,
         universe,
         receiver,
-        arguments.to_obj().clone(), // todo lame to clone tbh
+        arguments.to_obj().0.clone(), // todo lame to clone tbh
     );
     Ok(())
 }

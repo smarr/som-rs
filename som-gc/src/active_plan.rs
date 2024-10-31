@@ -16,12 +16,12 @@ impl ActivePlan<SOMVM> for VMActivePlan {
 
     /// Return a Mutator reference for the thread.
     fn mutator(tls: VMMutatorThread) -> &'static mut Mutator<SOMVM> {
-        unsafe { (MUTATOR_WRAPPER.get_mut().unwrap()).get_mutator(tls) }
+        unsafe { (**(MUTATOR_WRAPPER.get_mut().unwrap())).get_mutator(tls) }
     }
 
     /// Return an iterator that includes all the mutators at the point of invocation.
     fn mutators<'a>() -> Box<dyn Iterator<Item = &'a mut Mutator<SOMVM>> + 'a> {
-        unsafe { (MUTATOR_WRAPPER.get_mut().unwrap()).get_all_mutators() }
+        unsafe { (**(MUTATOR_WRAPPER.get_mut().unwrap())).get_all_mutators() }
     }
 
     fn number_of_mutators() -> usize {

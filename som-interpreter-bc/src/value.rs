@@ -10,6 +10,7 @@ use crate::method::Method;
 use crate::universe::Universe;
 use num_bigint::BigInt;
 use som_core::interner::Interned;
+use crate::gc::VecValue;
 
 static_assertions::const_assert_eq!(size_of::<f64>(), 8);
 static_assertions::assert_eq_size!(f64, u64, *const ());
@@ -259,7 +260,7 @@ impl NaNBoxedVal {
     }
     /// Returns this value as an array, if such is its type.
     #[inline(always)]
-    pub fn as_array(self) -> Option<GCRef<Vec<NaNBoxedVal>>> {
+    pub fn as_array(self) -> Option<GCRef<VecValue>> {
         self.is_array().then(|| self.extract_gc_cell())
     }
     /// Returns this value as a block, if such is its type.
@@ -394,7 +395,7 @@ impl NaNBoxedVal {
     }
     /// Returns a new array value.
     #[inline(always)]
-    pub fn new_array(value: GCRef<Vec<Self>>) -> Self {
+    pub fn new_array(value: GCRef<VecValue>) -> Self {
         Self::new(
             ARRAY_TAG,
             value.ptr.as_usize().try_into().unwrap(),
@@ -548,6 +549,7 @@ impl NaNBoxedVal {
                     .as_array()
                     .unwrap()
                     .borrow()
+                    .0
                     .iter()
                     .map(|value| value.to_string(universe))
                     .collect();
@@ -618,7 +620,7 @@ impl NaNBoxedVal {
     }
 
     #[inline(always)]
-    pub fn Array(value: GCRef<Vec<Self>>) -> Self {
+    pub fn Array(value: GCRef<VecValue>) -> Self {
         NaNBoxedVal::new_array(value)
     }
 
