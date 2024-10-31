@@ -79,7 +79,7 @@ pub struct AstBlock {
     pub body: AstBody
 }
 
-pub type CacheEntry = (*const Class, GCRef<Method>);
+pub type CacheEntry = (GCRef<Class>, GCRef<Method>);
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct AstDispatchNode {

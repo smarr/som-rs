@@ -3,6 +3,7 @@ use core::mem::size_of;
 use som_gc::gc_interface::GCInterface;
 use som_gc::gcref::{CustomAlloc, GCRef};
 use std::marker::PhantomData;
+use crate::gc::FRAME_ARGS_PTR;
 
 /// The kind of a given frame.
 // #[cfg(feature = "frame-debug-info")]
@@ -60,9 +61,14 @@ impl Frame {
             locals_marker: PhantomData,
         };
 
-        // dbg!(&params);
+        unsafe {
+            FRAME_ARGS_PTR = Some(&params);
+        }
         let mut frame_ptr = Frame::alloc(frame, gc_interface);
-
+        unsafe {
+            FRAME_ARGS_PTR = None;
+        }
+        
         for i in (0..params.len()).rev() {
             frame_ptr.assign_arg(i as u8, params.pop().unwrap())
         }

@@ -13,7 +13,7 @@ use mmtk::Mutator;
 use som_gc::gc_interface::{HasTypeInfoForGC, MMTKtoVMCallbacks, BIGINT_MAGIC_ID, STRING_MAGIC_ID, VECU8_MAGIC_ID};
 use som_gc::gcref::GCRef;
 use som_gc::object_model::VMObjectModel;
-use som_gc::slot::SOMSlot;
+use som_gc::slot::{SOMSlot, ValueSlot};
 use som_gc::SOMVM;
 use std::ops::Deref;
 
@@ -97,6 +97,12 @@ impl HasTypeInfoForGC for Method {
 
 // --- Scanning
 
+// When GC triggers while we're allocating a frame, the arguments we want to add to that frame are being passed as an argument to the frame allocation function.
+// This means the GC does NOT know how to reach them, and we have to inform it ourselves... So whenever we allocate a frame, we store a pointer to its arguments before that.
+// It's possible this isn't just an issue when allocating frames, and that we need argument pointers to other values being initialized when we trigger GC. But I assume, and hope, not.
+// It's not very pretty. But I'm not sure how else to fix it at the moment.
+pub static mut FRAME_ARGS_PTR: Option<*const Vec<Value>> = None;
+
 fn get_roots_in_mutator_thread(_mutator: &mut Mutator<SOMVM>) -> Vec<SOMSlot> {
     debug!("calling scan_roots_in_mutator_thread");
     unsafe {
@@ -112,6 +118,15 @@ fn get_roots_in_mutator_thread(_mutator: &mut Mutator<SOMVM>) -> Vec<SOMSlot> {
         for (_name, val) in (*UNIVERSE_RAW_PTR).globals.iter() {
             if val.is_ptr_type() {
                 to_process.push(SOMSlot::from_value(val.as_u64()));
+            }
+        }
+        
+        if let Some(frame_args) = FRAME_ARGS_PTR {
+            debug!("scanning roots: frame arguments (frame allocation triggered a GC)");
+            for arg in &*frame_args {
+                if arg.is_ptr_type() {
+                    to_process.push(SOMSlot::Value(ValueSlot::from_value(arg.as_u64())))
+                }
             }
         }
 
@@ -306,19 +321,35 @@ fn visit_expr(expr: &AstExpression, slot_visitor: &mut dyn SlotVisitor<SOMSlot>)
             visit_expr(expr, slot_visitor)
         }
         AstExpression::UnaryDispatch(dispatch) => {
-            visit_expr(&dispatch.dispatch_node.receiver, slot_visitor)
+            visit_expr(&dispatch.dispatch_node.receiver, slot_visitor);
+            // if let Some(cache) = dispatch.dispatch_node.inline_cache {
+            //     slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(&cache.0)));
+            //     slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(&cache.1)));
+            // }
         }
         AstExpression::BinaryDispatch(dispatch) => {
             visit_expr(&dispatch.dispatch_node.receiver, slot_visitor);
+            // if let Some(cache) = dispatch.dispatch_node.inline_cache {
+            //     slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(&cache.0)));
+            //     slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(&cache.1)));
+            // }
             visit_expr(&dispatch.arg, slot_visitor)
         }
         AstExpression::TernaryDispatch(dispatch) => {
             visit_expr(&dispatch.dispatch_node.receiver, slot_visitor);
+            // if let Some(cache) = dispatch.dispatch_node.inline_cache {
+            //     slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(&cache.0)));
+            //     slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(&cache.1)));
+            // }
             visit_expr(&dispatch.arg1, slot_visitor);
             visit_expr(&dispatch.arg2, slot_visitor);
         }
         AstExpression::NAryDispatch(dispatch) => {
             visit_expr(&dispatch.dispatch_node.receiver, slot_visitor);
+            // if let Some(cache) = dispatch.dispatch_node.inline_cache {
+            //     slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(&cache.0)));
+            //     slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(&cache.1)));
+            // }
             for arg in &dispatch.values {
                 visit_expr(arg, slot_visitor);
             }

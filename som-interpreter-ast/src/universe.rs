@@ -16,8 +16,7 @@ use som_gc::gc_interface::GCInterface;
 use som_gc::gcref::GCRef;
 
 /// GC heap size
-// pub const HEAP_SIZE: usize = 1024 * 1024 * 256;
-pub const HEAP_SIZE: usize = 1024 * 1024 * 5; // TODO: revert. temporarily reducing the heap size to ensure collections are functional
+pub const HEAP_SIZE: usize = 1024 * 1024 * 256;
 
 /// The core classes of the SOM interpreter.
 ///

@@ -177,7 +177,7 @@ impl AstDispatchNode {
         let mut is_cache_hit = false;
         let invokable = match &self.inline_cache {
             Some((cached_rcvr_ptr, method)) => {
-                if std::ptr::eq(*cached_rcvr_ptr, receiver.class(universe).as_ptr()) {
+                if *cached_rcvr_ptr == receiver.class(universe) {
                     // dbg!("cache hit");
                     is_cache_hit = true;
                     Some(*method)
@@ -196,7 +196,6 @@ impl AstDispatchNode {
     fn dispatch_or_dnu(&mut self, invokable: Option<GCRef<Method>>, args: Vec<Value>, is_cache_hit: bool, universe: &mut Universe) -> Return {
         match invokable {
             Some(invokable) => {
-                
                 match is_cache_hit {
                     true => invokable.to_obj().invoke(universe, args),
                     false => {
@@ -204,8 +203,7 @@ impl AstDispatchNode {
                         let invoke_ret = invokable.to_obj().invoke(universe, args);
 
                         let class_ref = receiver.class(universe);
-                        let rcvr_ptr = class_ref.as_ptr(); // first arg is the receiver
-                        self.inline_cache = Some((rcvr_ptr, invokable));
+                        self.inline_cache = Some((class_ref, invokable));
 
                         invoke_ret
                     }
