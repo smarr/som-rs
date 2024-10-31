@@ -12,7 +12,7 @@ use crate::value::Value;
 
 #[cfg(feature = "frame-debug-info")]
 use som_core::ast::BlockDebugInfo;
-use som_gc::gc_interface::GCRef;
+use som_gc::gcref::GCRef;
 
 #[derive(Clone)]
 pub struct MethodEnv {

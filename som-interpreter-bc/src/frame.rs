@@ -7,7 +7,8 @@ use core::mem::size_of;
 use som_core::bytecode::Bytecode;
 use std::cell::RefCell;
 use std::marker::PhantomData;
-use som_gc::gc_interface::{GCRef, GCInterface};
+use som_gc::gc_interface::GCInterface;
+use som_gc::gcref::GCRef;
 
 const OFFSET_TO_STACK: usize = size_of::<Frame>();
 

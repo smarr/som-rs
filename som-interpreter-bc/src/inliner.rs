@@ -1,7 +1,8 @@
 use crate::block::{Block, BlockInfo};
 use crate::compiler::MethodCodegen;
 use crate::compiler::{InnerGenCtxt, Literal};
-use som_gc::gc_interface::{GCRef, GCInterface};
+use som_gc::gc_interface::GCInterface;
+use som_gc::gcref::GCRef;
 use crate::inliner::JumpType::{JumpOnFalse, JumpOnTrue};
 use crate::inliner::OrAndChoice::{And, Or};
 use som_core::ast;

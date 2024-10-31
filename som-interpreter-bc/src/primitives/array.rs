@@ -2,7 +2,7 @@ use std::convert::{TryFrom, TryInto};
 
 use anyhow::{Context, Error};
 use once_cell::sync::Lazy;
-use som_gc::gc_interface::GCRef;
+use som_gc::gcref::GCRef;
 use crate::convert::Primitive;
 use crate::interpreter::Interpreter;
 use crate::primitives::PrimitiveFn;

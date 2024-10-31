@@ -2,9 +2,11 @@ use log::debug;
 use mmtk::Mutator;
 use mmtk::util::{Address, ObjectReference};
 use mmtk::vm::{ObjectModel, SlotVisitor};
-use som_gc::gc_interface::{GCRef, HasTypeInfoForGC, MMTKtoVMCallbacks, BIGINT_MAGIC_ID, STRING_MAGIC_ID, VECU8_MAGIC_ID};
+use som_gc::gc_interface::{HasTypeInfoForGC, MMTKtoVMCallbacks, BIGINT_MAGIC_ID, STRING_MAGIC_ID, VECU8_MAGIC_ID};
 use som_gc::object_model::VMObjectModel;
-use som_gc::{SOMSlot, SOMVM};
+use som_gc::{SOMVM};
+use som_gc::gcref::GCRef;
+use som_gc::slot::SOMSlot;
 use crate::block::{Block, BlockInfo};
 use crate::class::Class;
 use crate::compiler::Literal;
@@ -29,12 +31,13 @@ pub enum BCObjMagicId {
     ArrayVal = 106,
 }
 
-// TODO: GCSlice<T> type
-// impl HasTypeInfoForGC for Vec<Value> {
-//     fn get_magic_gc_id() -> u8 {
-//         BCObjMagicId::ArrayVal as u8 
-//     }
-// }
+pub struct VecValue(pub Vec<Value>);
+
+impl HasTypeInfoForGC for VecValue {
+    fn get_magic_gc_id() -> u8 {
+        BCObjMagicId::ArrayVal as u8 
+    }
+}
 
 impl HasTypeInfoForGC for BlockInfo {
     fn get_magic_gc_id() -> u8 {

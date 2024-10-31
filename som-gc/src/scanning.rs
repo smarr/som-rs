@@ -1,4 +1,4 @@
-use crate::{SOMSlot, MMTK_TO_VM_INTERFACE, SOMVM};
+use crate::{MMTK_TO_VM_INTERFACE, SOMVM};
 use log::debug;
 use mmtk::util::opaque_pointer::*;
 use mmtk::util::ObjectReference;
@@ -6,6 +6,7 @@ use mmtk::vm::SlotVisitor;
 use mmtk::vm::Scanning;
 use mmtk::vm::{ObjectTracer, RootsWorkFactory};
 use mmtk::Mutator;
+use crate::slot::SOMSlot;
 
 pub struct VMScanning {}
 

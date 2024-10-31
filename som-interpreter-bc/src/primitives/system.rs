@@ -4,7 +4,7 @@ use std::io::Write;
 
 use crate::class::Class;
 use crate::convert::{Nil, Primitive, StringLike, System};
-use som_gc::gc_interface::GCRef;
+use som_gc::gcref::GCRef;
 use crate::interpreter::Interpreter;
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;

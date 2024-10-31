@@ -10,7 +10,7 @@ use crate::value::Value;
 use anyhow::Error;
 use num_bigint::BigInt;
 use once_cell::sync::Lazy;
-use som_gc::gc_interface::GCRef;
+use som_gc::gcref::GCRef;
 use som_core::interner::Interned;
 
 pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| {

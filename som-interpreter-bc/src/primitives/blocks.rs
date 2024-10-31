@@ -10,7 +10,7 @@ use crate::value::Value;
 
 /// Primitives for the **Block** and **Block1** class.
 pub mod block1 {
-    use som_gc::gc_interface::GCRef;
+    use som_gc::gcref::GCRef;
     use super::*;
 
     pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> =
@@ -65,7 +65,7 @@ pub mod block1 {
 
 /// Primitives for the **Block2** class.
 pub mod block2 {
-    use som_gc::gc_interface::GCRef;
+    use som_gc::gcref::GCRef;
     use super::*;
 
     pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> =
@@ -103,7 +103,7 @@ pub mod block2 {
 
 /// Primitives for the **Block3** class.
 pub mod block3 {
-    use som_gc::gc_interface::GCRef;
+    use som_gc::gcref::GCRef;
     use super::*;
 
     pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> =

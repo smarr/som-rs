@@ -10,7 +10,8 @@ use anyhow::Context;
 use som_core::bytecode::Bytecode;
 use som_core::interner::Interned;
 use std::time::Instant;
-use som_gc::gc_interface::{GCInterface, GCRef};
+use som_gc::gc_interface::GCInterface;
+use som_gc::gcref::GCRef;
 
 macro_rules! send {
     ($interp:expr, $universe:expr, $frame:expr, $lit_idx:expr, $nb_params:expr) => {{

@@ -10,7 +10,8 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::Ordering;
-use som_gc::gc_interface::{GCInterface, GCRef, IS_WORLD_STOPPED};
+use som_gc::gc_interface::{GCInterface, IS_WORLD_STOPPED};
+use som_gc::gcref::GCRef;
 
 /// GC heap size
 pub const HEAP_SIZE: usize = 1024 * 1024 * 256;

@@ -20,7 +20,8 @@ use som_core::ast::BlockDebugInfo;
 use som_core::ast::{Expression, MethodBody};
 use som_core::bytecode::Bytecode;
 use som_core::interner::{Interned, Interner};
-use som_gc::gc_interface::{GCRef, GCInterface};
+use som_gc::gc_interface::GCInterface;
+use som_gc::gcref::GCRef;
 
 #[derive(Debug, Clone)]
 pub enum Literal {

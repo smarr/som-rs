@@ -4,7 +4,7 @@ use std::mem::size_of;
 
 use crate::block::Block;
 use crate::class::Class;
-use som_gc::gc_interface::GCRef;
+use som_gc::gcref::GCRef;
 use crate::instance::{Instance, InstanceAccess};
 use crate::method::Method;
 use crate::universe::Universe;

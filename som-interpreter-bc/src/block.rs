@@ -9,7 +9,7 @@ use som_core::ast::BlockDebugInfo;
 use som_core::bytecode::Bytecode;
 use std::cell::RefCell;
 use std::fmt;
-use som_gc::gc_interface::GCRef;
+use som_gc::gcref::GCRef;
 
 #[derive(Clone)]
 pub struct BlockInfo {

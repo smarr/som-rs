@@ -8,7 +8,8 @@ use anyhow::{bail, Context, Error};
 
 use crate::block::Block;
 use crate::class::Class;
-use som_gc::gc_interface::{GCInterface, GCRef};
+use som_gc::gc_interface::GCInterface;
+use som_gc::gcref::GCRef;
 use crate::instance::Instance;
 use crate::interpreter::Interpreter;
 use crate::method::Method;
