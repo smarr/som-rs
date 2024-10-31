@@ -17,6 +17,7 @@ use som_gc::gcref::GCRef;
 use som_gc::object_model::VMObjectModel;
 use som_gc::slot::SOMSlot;
 use som_gc::SOMVM;
+use std::mem::size_of;
 
 // Mine. to put in GC headers
 #[derive(Debug, Copy, Clone, PartialEq)]
