@@ -1,12 +1,13 @@
-use std::marker::PhantomData;
-use std::sync::atomic::Ordering;
-use mmtk::AllocationSemantics;
-use mmtk::util::Address;
-use mmtk::util::constants::MIN_OBJECT_SIZE;
 use crate::api::mmtk_alloc;
 use crate::gc_interface::{GCInterface, HasTypeInfoForGC, IS_WORLD_STOPPED};
 use crate::object_model::OBJECT_REF_OFFSET;
 use crate::SOMVM;
+use mmtk::util::constants::MIN_OBJECT_SIZE;
+use mmtk::util::Address;
+use mmtk::AllocationSemantics;
+use std::marker::PhantomData;
+use std::ops::{Deref, DerefMut};
+use std::sync::atomic::Ordering;
 
 static GC_OFFSET: usize = 0;
 static GC_ALIGN: usize = 8;
@@ -44,6 +45,22 @@ impl<T> PartialEq for GCRef<T> {
     }
 }
 
+impl<T> Deref for GCRef<T> {
+    type Target = T;
+
+    fn deref(&self) -> &T {
+        debug_assert!(!self.ptr.is_zero());
+        unsafe { self.ptr.as_ref() }
+    }
+}
+
+impl<T> DerefMut for GCRef<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        debug_assert!(!self.ptr.is_zero());
+        unsafe { self.ptr.as_mut_ref() }
+    }
+}
+
 // -------------------------------------
 
 impl<T> GCRef<T> {
@@ -59,25 +76,7 @@ impl<T> GCRef<T> {
         debug_assert!(!self.ptr.is_zero());
         unsafe { self.ptr.as_ref() }
     }
-
-    /// Hacks for convenience, since I'm refactoring from Refcounts. TODO remove
-    #[inline(always)]
-    pub fn borrow(&self) -> &mut T {
-        Self::to_obj(self)
-    }
-
-    /// same deal
-    #[inline(always)]
-    pub fn borrow_mut(&self) -> &mut T {
-        Self::to_obj(self)
-    }
-
-    /// same dealll
-    #[inline(always)]
-    pub fn as_ptr(&self) -> &mut T {
-        Self::to_obj(self)
-    }
-
+    
     /// Does the address not point to any data?
     /// We use this to avoid using an Option type in interpreter frames. Not sure if it's worth it though.
     #[inline(always)]

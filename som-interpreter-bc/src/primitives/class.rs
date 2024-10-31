@@ -1,5 +1,6 @@
 use crate::class::Class;
 use crate::convert::Primitive;
+use crate::gc::VecValue;
 use crate::instance::Instance;
 use crate::interpreter::Interpreter;
 use crate::primitives::PrimitiveFn;
@@ -9,7 +10,6 @@ use anyhow::Error;
 use once_cell::sync::Lazy;
 use som_core::interner::Interned;
 use som_gc::gcref::GCRef;
-use crate::gc::VecValue;
 
 pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| {
     Box::new({
@@ -32,7 +32,7 @@ fn superclass(
 ) -> Result<(), Error> {
     const _: &str = "Class>>#superclass";
 
-    let super_class = receiver.borrow().super_class();
+    let super_class = receiver.super_class();
     let super_class = super_class.map_or(Value::NIL, |it| Value::Class(it));
     interpreter.current_frame.to_obj().stack_push(super_class);
 
@@ -58,7 +58,7 @@ fn name(
 ) -> Result<Interned, Error> {
     const _: &str = "Class>>#name";
 
-    Ok(universe.intern_symbol(receiver.borrow().name()))
+    Ok(universe.intern_symbol(receiver.name()))
 }
 
 fn methods(
@@ -69,7 +69,6 @@ fn methods(
     const _: &str = "Class>>#methods";
 
     let methods = receiver
-        .borrow()
         .methods
         .values()
         .copied()
@@ -87,7 +86,6 @@ fn fields(
     const _: &str = "Class>>#fields";
 
     let fields = receiver
-        .borrow()
         .locals
         .keys()
         .copied()

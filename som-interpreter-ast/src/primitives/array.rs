@@ -26,19 +26,19 @@ fn at(_: &mut Universe, values: GCRef<VecValue>, index: i32) -> Result<Value, Er
         Ok(index) => index,
         Err(err) => bail!(format!("'{}': {}", SIGNATURE, err)),
     };
-    let value = values.borrow().get(index).cloned().unwrap_or(Value::NIL);
+    let value = values.get(index).cloned().unwrap_or(Value::NIL);
 
     Ok(value)
 }
 
-fn at_put(_: &mut Universe, values: GCRef<VecValue>, index: i32, value: Value) -> Result<Value, Error> {
+fn at_put(_: &mut Universe, mut values: GCRef<VecValue>, index: i32, value: Value) -> Result<Value, Error> {
     const SIGNATURE: &str = "Array>>#at:put:";
 
     let index = match usize::try_from(index - 1) {
         Ok(index) => index,
         Err(err) => bail!(format!("'{}': {}", SIGNATURE, err)),
     };
-    if let Some(location) = values.borrow_mut().0.get_mut(index) {
+    if let Some(location) = values.0.get_mut(index) {
         *location = value;
     }
     Ok(Value::Array(values))
@@ -47,7 +47,7 @@ fn at_put(_: &mut Universe, values: GCRef<VecValue>, index: i32, value: Value) -
 fn length(_: &mut Universe, values: GCRef<VecValue>)-> Result<Value, Error> {
     const SIGNATURE: &str = "Array>>#length";
 
-    let length = values.borrow().len();
+    let length = values.len();
     match i32::try_from(length) {
         Ok(length) => Ok(Value::Integer(length)),
         Err(err) => bail!(format!("'{}': {}", SIGNATURE, err)),

@@ -15,7 +15,7 @@ pub struct Instance {
 impl Instance {
     /// Construct an instance for a given class.
     pub fn from_class(class: GCRef<Class>) -> Self {
-        let locals = class.borrow().fields.iter().map(|_| Value::NIL).collect();
+        let locals = class.fields.iter().map(|_| Value::NIL).collect();
 
         Self {
             class,
@@ -30,7 +30,7 @@ impl Instance {
 
     /// Get the superclass of this instance's class.
     pub fn super_class(&self) -> Option<GCRef<Class>> {
-        self.class.borrow().super_class()
+        self.class.super_class()
     }
 
     /// Search for a local binding.
@@ -51,9 +51,9 @@ impl Instance {
 impl fmt::Debug for Instance {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Instance")
-            .field("name", &self.class.borrow().name())
+            .field("name", &self.class.name())
             .field("fields", &self.locals.len())
-            .field("methods", &self.class().borrow().methods.len())
+            .field("methods", &self.class().methods.len())
             .finish()
     }
 }

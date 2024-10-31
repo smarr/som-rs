@@ -1,14 +1,14 @@
 use std::convert::{TryFrom, TryInto};
 
-use anyhow::{Context, Error};
-use once_cell::sync::Lazy;
-use som_gc::gcref::GCRef;
 use crate::convert::Primitive;
 use crate::gc::VecValue;
 use crate::interpreter::Interpreter;
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
 use crate::value::Value;
+use anyhow::{Context, Error};
+use once_cell::sync::Lazy;
+use som_gc::gcref::GCRef;
 
 pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| {
     Box::new([
@@ -32,7 +32,6 @@ fn at(
     let index = usize::try_from(index - 1)?;
 
     receiver
-        .borrow()
         .0
         .get(index)
         .cloned()
@@ -42,7 +41,7 @@ fn at(
 fn at_put(
     _: &mut Interpreter,
     _: &mut Universe,
-    receiver: GCRef<VecValue>,
+    mut receiver: GCRef<VecValue>,
     index: i32,
     value: Value,
 ) -> Result<GCRef<VecValue>, Error> {
@@ -50,7 +49,7 @@ fn at_put(
 
     let index = usize::try_from(index - 1)?;
 
-    if let Some(location) = receiver.borrow_mut().0.get_mut(index) {
+    if let Some(location) = receiver.0.get_mut(index) {
         *location = value;
     }
 
@@ -65,7 +64,6 @@ fn length(
     const _: &str = "Array>>#length";
     
     receiver
-        .borrow()
         .0
         .len()
         .try_into()

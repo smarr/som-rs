@@ -18,7 +18,7 @@ impl Invoke for WhileNode {
             _ => panic!("while[True|False] was not given two blocks as arguments")
         };
 
-        let nbr_locals = cond_block.borrow().block.borrow().nbr_locals;
+        let nbr_locals = cond_block.block.nbr_locals;
         
         loop {
             let cond_block_return = universe.with_frame(
@@ -40,7 +40,7 @@ impl Invoke for WhileNode {
             if bool_val != self.expected_bool {
                 return Return::Local(Value::NIL)
             } else {
-                let nbr_locals = body_block.borrow().block.borrow().nbr_locals;
+                let nbr_locals = body_block.block.nbr_locals;
                 
                 propagate!(universe.with_frame(
                     nbr_locals,

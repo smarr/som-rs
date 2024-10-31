@@ -97,72 +97,68 @@ impl Universe {
         let mut gc_interface = GCInterface::init(HEAP_SIZE, get_callbacks_for_gc());
         
         let object_class = Self::load_system_class(classpath.as_slice(), "Object", None, &mut gc_interface)?;
-        let class_class = Self::load_system_class(classpath.as_slice(), "Class", Some(object_class.clone()), &mut gc_interface)?;
+        let mut class_class = Self::load_system_class(classpath.as_slice(), "Class", Some(object_class.clone()), &mut gc_interface)?;
         let metaclass_class = Self::load_system_class(classpath.as_slice(), "Metaclass", Some(class_class.clone()), &mut gc_interface)?;
 
-        let nil_class = Self::load_system_class(classpath.as_slice(), "Nil", Some(object_class.clone()), &mut gc_interface)?;
-        let integer_class = Self::load_system_class(classpath.as_slice(), "Integer", Some(object_class.clone()), &mut gc_interface)?;
-        let array_class = Self::load_system_class(classpath.as_slice(), "Array", Some(object_class.clone()), &mut gc_interface)?;
-        let method_class = Self::load_system_class(classpath.as_slice(), "Method", Some(object_class.clone()), &mut gc_interface)?; // was array_class in original code?
-        let string_class = Self::load_system_class(classpath.as_slice(), "String", Some(object_class.clone()), &mut gc_interface)?;
-        let symbol_class = Self::load_system_class(classpath.as_slice(), "Symbol", Some(string_class.clone()), &mut gc_interface)?;
-        let primitive_class = Self::load_system_class(classpath.as_slice(), "Primitive", Some(object_class.clone()), &mut gc_interface)?;
-        let system_class = Self::load_system_class(classpath.as_slice(), "System", Some(object_class.clone()), &mut gc_interface)?;
-        let double_class = Self::load_system_class(classpath.as_slice(), "Double", Some(object_class.clone()), &mut gc_interface)?;
+        let mut nil_class = Self::load_system_class(classpath.as_slice(), "Nil", Some(object_class.clone()), &mut gc_interface)?;
+        let mut integer_class = Self::load_system_class(classpath.as_slice(), "Integer", Some(object_class.clone()), &mut gc_interface)?;
+        let mut array_class = Self::load_system_class(classpath.as_slice(), "Array", Some(object_class.clone()), &mut gc_interface)?;
+        let mut method_class = Self::load_system_class(classpath.as_slice(), "Method", Some(object_class.clone()), &mut gc_interface)?; // was array_class in original code?
+        let mut string_class = Self::load_system_class(classpath.as_slice(), "String", Some(object_class.clone()), &mut gc_interface)?;
+        let mut symbol_class = Self::load_system_class(classpath.as_slice(), "Symbol", Some(string_class.clone()), &mut gc_interface)?;
+        let mut primitive_class = Self::load_system_class(classpath.as_slice(), "Primitive", Some(object_class.clone()), &mut gc_interface)?;
+        let mut system_class = Self::load_system_class(classpath.as_slice(), "System", Some(object_class.clone()), &mut gc_interface)?;
+        let mut double_class = Self::load_system_class(classpath.as_slice(), "Double", Some(object_class.clone()), &mut gc_interface)?;
 
-        let block_class = Self::load_system_class(classpath.as_slice(), "Block", Some(object_class.clone()), &mut gc_interface)?;
-        let block1_class = Self::load_system_class(classpath.as_slice(), "Block1", Some(block_class.clone()), &mut gc_interface)?;
-        let block2_class = Self::load_system_class(classpath.as_slice(), "Block2", Some(block_class.clone()), &mut gc_interface)?;
-        let block3_class = Self::load_system_class(classpath.as_slice(), "Block3", Some(block_class.clone()), &mut gc_interface)?;
+        let mut block_class = Self::load_system_class(classpath.as_slice(), "Block", Some(object_class.clone()), &mut gc_interface)?;
+        let mut block1_class = Self::load_system_class(classpath.as_slice(), "Block1", Some(block_class.clone()), &mut gc_interface)?;
+        let mut block2_class = Self::load_system_class(classpath.as_slice(), "Block2", Some(block_class.clone()), &mut gc_interface)?;
+        let mut block3_class = Self::load_system_class(classpath.as_slice(), "Block3", Some(block_class.clone()), &mut gc_interface)?;
 
-        let boolean_class = Self::load_system_class(classpath.as_slice(), "Boolean", Some(object_class.clone()), &mut gc_interface)?;
-        let true_class = Self::load_system_class(classpath.as_slice(), "True", Some(boolean_class.clone()), &mut gc_interface)?;
-        let false_class = Self::load_system_class(classpath.as_slice(), "False", Some(boolean_class.clone()), &mut gc_interface)?;
+        let mut boolean_class = Self::load_system_class(classpath.as_slice(), "Boolean", Some(object_class.clone()), &mut gc_interface)?;
+        let mut true_class = Self::load_system_class(classpath.as_slice(), "True", Some(boolean_class.clone()), &mut gc_interface)?;
+        let mut false_class = Self::load_system_class(classpath.as_slice(), "False", Some(boolean_class.clone()), &mut gc_interface)?;
 
         // initializeSystemClass(objectClass, null, "Object");
         // set_super_class(&object_class, &nil_class, &metaclass_class);
         object_class
-            .borrow()
             .class()
-            .borrow_mut()
             .set_class(&metaclass_class);
         object_class
-            .borrow()
             .class()
-            .borrow_mut()
             .set_super_class(&class_class);
         
         // initializeSystemClass(classClass, objectClass, "Class");
-        set_super_class(&class_class, &object_class, &metaclass_class);
+        set_super_class(&mut class_class, &object_class, &metaclass_class);
         // initializeSystemClass(metaclassClass, classClass, "Metaclass");
-        set_super_class(&metaclass_class, &class_class, &metaclass_class);
+        set_super_class(&mut metaclass_class.clone(), &class_class, &metaclass_class);
         // initializeSystemClass(nilClass, objectClass, "Nil");
-        set_super_class(&nil_class, &object_class, &metaclass_class);
+        set_super_class(&mut nil_class, &object_class, &metaclass_class);
         // initializeSystemClass(arrayClass, objectClass, "Array");
-        set_super_class(&array_class, &object_class, &metaclass_class);
+        set_super_class(&mut array_class, &object_class, &metaclass_class);
         // initializeSystemClass(methodClass, arrayClass, "Method");
-        set_super_class(&method_class, &array_class, &metaclass_class);
+        set_super_class(&mut method_class, &array_class, &metaclass_class);
         // initializeSystemClass(stringClass, objectClass, "String");
-        set_super_class(&string_class, &object_class, &metaclass_class);
+        set_super_class(&mut string_class, &object_class, &metaclass_class);
         // initializeSystemClass(symbolClass, stringClass, "Symbol");
-        set_super_class(&symbol_class, &string_class, &metaclass_class);
+        set_super_class(&mut symbol_class, &string_class, &metaclass_class);
         // initializeSystemClass(integerClass, objectClass, "Integer");
-        set_super_class(&integer_class, &object_class, &metaclass_class);
+        set_super_class(&mut integer_class, &object_class, &metaclass_class);
         // initializeSystemClass(primitiveClass, objectClass, "Primitive");
-        set_super_class(&primitive_class, &object_class, &metaclass_class);
+        set_super_class(&mut primitive_class, &object_class, &metaclass_class);
         // initializeSystemClass(doubleClass, objectClass, "Double");
-        set_super_class(&double_class, &object_class, &metaclass_class);
+        set_super_class(&mut double_class, &object_class, &metaclass_class);
 
-        set_super_class(&system_class, &object_class, &metaclass_class);
+        set_super_class(&mut system_class, &object_class, &metaclass_class);
 
-        set_super_class(&block_class, &object_class, &metaclass_class);
-        set_super_class(&block1_class, &block_class, &metaclass_class);
-        set_super_class(&block2_class, &block_class, &metaclass_class);
-        set_super_class(&block3_class, &block_class, &metaclass_class);
+        set_super_class(&mut block_class, &object_class, &metaclass_class);
+        set_super_class(&mut block1_class, &block_class, &metaclass_class);
+        set_super_class(&mut block2_class, &block_class, &metaclass_class);
+        set_super_class(&mut block3_class, &block_class, &metaclass_class);
 
-        set_super_class(&boolean_class, &object_class, &metaclass_class);
-        set_super_class(&true_class, &boolean_class, &metaclass_class);
-        set_super_class(&false_class, &boolean_class, &metaclass_class);
+        set_super_class(&mut boolean_class, &object_class, &metaclass_class);
+        set_super_class(&mut true_class, &boolean_class, &metaclass_class);
+        set_super_class(&mut false_class, &boolean_class, &metaclass_class);
 
         globals.insert("Object".into(), Value::Class(object_class.clone()));
         globals.insert("Class".into(), Value::Class(class_class.clone()));
@@ -262,8 +258,8 @@ impl Universe {
                 self.core.object_class.clone()
             };
 
-            let class = Class::from_class_def(defn, Some(super_class), &mut self.gc_interface).map_err(Error::msg)?;
-            set_super_class(&class, &super_class, &self.core.metaclass_class);
+            let mut class = Class::from_class_def(defn, Some(super_class), &mut self.gc_interface).map_err(Error::msg)?;
+            set_super_class(&mut class, &super_class, &self.core.metaclass_class);
 
             /*fn has_duplicated_field(class: &SOMRef<Class>) -> Option<(String, (String, String))> {
                 let super_class_iterator = std::iter::successors(Some(class.clone()), |class| {
@@ -302,7 +298,7 @@ impl Universe {
             }*/
 
             self.globals.insert(
-                class.borrow().name().to_string(),
+                class.name().to_string(),
                 Value::Class(class.clone()),
             );
 
@@ -574,20 +570,16 @@ impl Universe {
 }
 
 fn set_super_class(
-    class: &GCRef<Class>,
+    class: &mut GCRef<Class>,
     super_class: &GCRef<Class>,
     metaclass_class: &GCRef<Class>,
 ) {
-    class.borrow_mut().set_super_class(super_class);
+    class.set_super_class(super_class);
 
     class
-        .borrow()
         .class()
-        .borrow_mut()
-        .set_super_class(&super_class.borrow().class());
+        .set_super_class(&super_class.class());
     class
-        .borrow()
         .class()
-        .borrow_mut()
         .set_class(metaclass_class);
 }

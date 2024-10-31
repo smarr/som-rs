@@ -24,7 +24,7 @@ pub mod block1 {
         Lazy::new(|| Box::new([]));
 
     fn value(universe: &mut Universe, mut block: GCRef<Block>) -> Result<Return, Error> {
-        let nbr_locals = block.borrow().block.borrow().nbr_locals;
+        let nbr_locals = block.block.nbr_locals;
         Ok(universe.with_frame(
             nbr_locals,
             vec![Value::Block(block)],
@@ -72,7 +72,7 @@ pub mod block2 {
              mut block: GCRef<Block>,
              argument: Value,
     ) -> Result<Return, Error> {
-        let nbr_locals = block.borrow().block.borrow().nbr_locals;
+        let nbr_locals = block.block.nbr_locals;
 
         Ok(universe.with_frame(
             nbr_locals,
@@ -116,7 +116,7 @@ pub mod block3 {
                   mut receiver: GCRef<Block>,
                   argument1: Value,
                   argument2: Value) -> Result<Return, Error> {
-        let nbr_locals = receiver.borrow().block.borrow().nbr_locals;
+        let nbr_locals = receiver.block.nbr_locals;
 
         Ok(universe.with_frame(
             nbr_locals,

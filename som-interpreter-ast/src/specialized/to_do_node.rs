@@ -26,7 +26,7 @@ impl Invoke for ToDoNode {
 
 impl ToDoNode {
     fn do_int_loop(start_int: i32, end_int: i32, mut body_block: GCRef<Block>, universe: &mut Universe) -> Return {
-        let nbr_locals = body_block.borrow().block.borrow().nbr_locals;
+        let nbr_locals = body_block.block.nbr_locals;
         
         for i in start_int..=end_int {
             propagate!(universe.with_frame(
@@ -39,7 +39,7 @@ impl ToDoNode {
     }
 
     fn do_double_loop(start_double: f64, end_double: f64, mut body_block: GCRef<Block>, universe: &mut Universe) -> Return {
-        let nbr_locals = body_block.borrow().block.borrow().nbr_locals;
+        let nbr_locals = body_block.block.nbr_locals;
         let mut i = start_double;
 
         while i <= end_double {

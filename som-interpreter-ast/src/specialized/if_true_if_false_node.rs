@@ -26,7 +26,7 @@ impl Invoke for IfTrueIfFalseNode {
 
         match block_to_evaluate.as_block() {
             Some(mut b) => {
-                let nbr_locals = b.borrow().block.borrow().nbr_locals;
+                let nbr_locals = b.block.nbr_locals;
                 universe.with_frame(
                     nbr_locals,
                     vec![Value::Block(b)],

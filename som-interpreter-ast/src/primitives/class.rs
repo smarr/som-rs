@@ -24,7 +24,7 @@ pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> =
     Lazy::new(|| Box::new([]));
 
 fn superclass(_: &mut Universe, receiver: GCRef<Class>)-> Result<Value, Error> {
-    let super_class = receiver.borrow().super_class();
+    let super_class = receiver.super_class();
     Ok(super_class.map(Value::Class).unwrap_or(Value::NIL))
 }
 
@@ -35,13 +35,12 @@ fn new(universe: &mut Universe, receiver: GCRef<Class>)-> Result<Value, Error> {
 }
 
 fn name(universe: &mut Universe, receiver: GCRef<Class>)-> Result<Value, Error> {
-    let sym = universe.intern_symbol(receiver.borrow().name());
+    let sym = universe.intern_symbol(receiver.name());
     Ok(Value::Symbol(sym))
 }
 
 fn methods(universe: &mut Universe, receiver: GCRef<Class>)-> Result<Value, Error> {
     let methods = receiver
-        .borrow()
         .methods
         .values()
         .map(|invokable| Value::Invokable(invokable.clone()))
@@ -51,7 +50,7 @@ fn methods(universe: &mut Universe, receiver: GCRef<Class>)-> Result<Value, Erro
 }
 
 fn fields(universe: &mut Universe, receiver: GCRef<Class>)-> Result<Value, Error> {
-    let fields = receiver.borrow().get_all_field_names().iter()
+    let fields = receiver.get_all_field_names().iter()
         .map(|field_name| Value::String(GCRef::<String>::alloc(field_name.clone(), &mut universe.gc_interface)))
         .collect();
 

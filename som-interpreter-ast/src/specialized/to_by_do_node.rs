@@ -21,7 +21,7 @@ impl Invoke for ToByDoNode {
 
         let mut i = start_int;
 
-        let nbr_locals = body_block.borrow().block.borrow().nbr_locals;
+        let nbr_locals = body_block.block.nbr_locals;
         while i <= end_int {
             propagate!(universe.with_frame(
                 nbr_locals,

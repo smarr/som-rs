@@ -79,7 +79,7 @@ impl Hash for Class {
 
 impl Hash for Instance {
     fn hash<H: Hasher>(&self, hasher: &mut H) {
-        self.class.borrow().hash(hasher);
+        self.class.hash(hasher);
         self.locals.hash(hasher)
     }
 }

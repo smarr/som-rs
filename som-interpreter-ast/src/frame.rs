@@ -1,9 +1,9 @@
+use crate::gc::FRAME_ARGS_PTR;
 use crate::value::Value;
 use core::mem::size_of;
 use som_gc::gc_interface::GCInterface;
 use som_gc::gcref::{CustomAlloc, GCRef};
 use std::marker::PhantomData;
-use crate::gc::FRAME_ARGS_PTR;
 
 /// The kind of a given frame.
 // #[cfg(feature = "frame-debug-info")]
@@ -151,7 +151,7 @@ impl FrameAccess for GCRef<Frame> {
     fn get_self(&self) -> Value {
         let maybe_self_arg = self.lookup_argument(0);
         match maybe_self_arg.as_block() {
-            Some(blk) => blk.borrow().frame.get_self(),
+            Some(blk) => blk.frame.get_self(),
             None => maybe_self_arg.clone() // it is self, we've reached the root
         }
     }
@@ -184,9 +184,9 @@ impl FrameAccess for GCRef<Frame> {
     fn lookup_field(&self, idx: u8) -> Value {
         let self_ = self.get_self();
         if let Some(instance) = self_.as_instance() {
-            instance.borrow_mut().lookup_local(idx)
+            instance.lookup_local(idx)
         } else if let Some(cls) = self_.as_class() {
-            cls.borrow().class().borrow_mut().lookup_field(idx)
+            cls.class().lookup_field(idx)
         } else {
             panic!("{:?}", &self_)
         }
@@ -194,10 +194,10 @@ impl FrameAccess for GCRef<Frame> {
 
     fn assign_field(&self, idx: u8, value: &Value) {
         let self_ = self.get_self();
-        if let Some(instance) = self_.as_instance() {
-            instance.borrow_mut().assign_local(idx, value.clone())
+        if let Some(mut instance) = self_.as_instance() {
+            instance.assign_local(idx, value.clone())
         } else if let Some(cls) = self_.as_class() {
-            cls.borrow().class().borrow_mut().assign_field(idx, value.clone())
+            cls.class().assign_field(idx, value.clone())
         } else {
             panic!("{:?}", &self_)
         }

@@ -1,9 +1,9 @@
+use crate::ast::AstLiteral;
 use crate::evaluate::Evaluate;
+use crate::frame::FrameAccess;
 use crate::invokable::{Invoke, Return};
 use crate::universe::Universe;
 use crate::value::Value;
-use crate::ast::AstLiteral;
-use crate::frame::FrameAccess;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct TrivialLiteralMethod {
@@ -40,9 +40,9 @@ impl Invoke for TrivialGetterMethod {
         let arg = args.first().unwrap();
         
         if let Some(cls) = arg.as_class() {
-            Return::Local(cls.borrow().class().borrow().lookup_field(self.field_idx))
+            Return::Local(cls.class().lookup_field(self.field_idx))
         } else if let Some(instance) = arg.as_instance() {
-            Return::Local(instance.borrow().lookup_local(self.field_idx))
+            Return::Local(instance.lookup_local(self.field_idx))
         } else {
             panic!("trivial getter not called on a class/instance?")
         }
@@ -61,10 +61,10 @@ impl Invoke for TrivialSetterMethod {
         let rcvr = args.first().unwrap();
         
         if let Some(cls) = rcvr.as_class() {
-            cls.borrow().class().borrow_mut().assign_field(self.field_idx, val.clone());
+            cls.class().assign_field(self.field_idx, val.clone());
             Return::Local(Value::Class(cls))
-        } else if let Some(instance) = rcvr.as_instance() {
-            instance.borrow_mut().assign_local(self.field_idx, val.clone());
+        } else if let Some(mut instance) = rcvr.as_instance() {
+            instance.assign_local(self.field_idx, val.clone());
             Return::Local(Value::Instance(instance))   
         } else {
             panic!("trivial getter not called on a class/instance?")

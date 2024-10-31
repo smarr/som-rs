@@ -134,7 +134,7 @@ fn perform_in_super_class(universe: &mut Universe, object: Value, sym: Interned,
     const SIGNATURE: &'static str = "Object>>#perform:inSuperclass:";
 
     let signature = universe.lookup_symbol(sym);
-    let method = class.borrow().lookup_method(signature);
+    let method = class.lookup_method(signature);
 
     match method {
         Some(invokable) => Ok(invokable.to_obj().invoke(universe, vec![object])),
@@ -159,7 +159,7 @@ fn perform_with_arguments_in_super_class(universe: &mut Universe, object: Value,
     const SIGNATURE: &'static str = "Object>>#perform:withArguments:inSuperclass:";
 
     let signature = universe.lookup_symbol(sym);
-    let method = class.borrow().lookup_method(signature);
+    let method = class.lookup_method(signature);
 
     match method {
         Some(invokable) => {
@@ -201,9 +201,9 @@ fn inst_var_at(_: &mut Universe, object: Value, index: i32)-> Result<Value, Erro
 
     let local = {
         if let Some(instance) = object.as_instance() {
-            instance.borrow().locals.get(index).cloned().unwrap_or(Value::NIL)
+            instance.locals.get(index).cloned().unwrap_or(Value::NIL)
         } else if let Some(cls) = object.as_class() {
-            cls.clone().borrow().fields.get(index).cloned().unwrap_or(Value::NIL)
+            cls.clone().fields.get(index).cloned().unwrap_or(Value::NIL)
         } else {
             unreachable!("instVarAt called not on an instance or a class")
         }
@@ -220,13 +220,13 @@ fn inst_var_at_put(_: &mut Universe, object: Value, index: i32, value: Value)-> 
         Err(err) => bail!(format!("'{}': {}", SIGNATURE, err)),
     };
     
-    if let Some(instance) = object.as_instance() {
-        if instance.borrow().locals.len() as u8 > index {
-            instance.borrow_mut().assign_local(index, value.clone())
+    if let Some(mut instance) = object.as_instance() {
+        if instance.locals.len() as u8 > index {
+            instance.assign_local(index, value.clone())
         }
-    } else if let Some(cls) = object.as_class() {
-        if cls.borrow().fields.len() as u8 > index {
-            cls.borrow_mut().assign_field(index, value.clone())
+    } else if let Some(mut cls) = object.as_class() {
+        if cls.fields.len() as u8 > index {
+            cls.assign_field(index, value.clone())
         }
     } else {
         unreachable!("instVarAtPut called not on an instance or a class")

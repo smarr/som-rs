@@ -201,7 +201,7 @@ impl Class {
         // for local_name in class.borrow().field_names.iter().rev() {
         //     self.field_names.insert(0, local_name.clone());
         // }
-        for local in class.borrow().fields.iter().rev() {
+        for local in class.fields.iter().rev() {
             self.fields.insert(0, local.clone());
         }
 
@@ -213,7 +213,6 @@ impl Class {
         let signature = signature.as_ref();
         self.methods.get(signature).cloned().or_else(|| {
             self.super_class.clone()?
-                .borrow()
                 .lookup_method(signature)
         })
     }
@@ -222,8 +221,7 @@ impl Class {
     pub fn lookup_field(&self, idx: u8) -> Value {
         self.fields.get(idx as usize).cloned().unwrap_or_else(|| {
             let super_class = self.super_class().unwrap();
-            let super_class_ref = super_class.borrow_mut();
-            super_class_ref.lookup_field(idx)
+            super_class.lookup_field(idx)
         })
     }
 
@@ -233,8 +231,8 @@ impl Class {
             *local = value;
             return;
         }
-        let super_class = self.super_class().unwrap();
-        super_class.borrow_mut().assign_field(idx, value);
+        let mut super_class = self.super_class().unwrap();
+        super_class.assign_field(idx, value);
     }
 
     /// Used during parsing, to generate a FieldRead or a FieldWrite.
@@ -246,7 +244,7 @@ impl Class {
             .or_else(||
                 match self.super_class() {
                     Some(super_class) => {
-                        super_class.borrow().get_field_offset_by_name(name)
+                        super_class.get_field_offset_by_name(name)
                     },
                     _ => None
                 }

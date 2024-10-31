@@ -236,7 +236,7 @@ impl Display for AstExpression {
             AstExpression::Literal(literal) => writeln!(f, "Literal({:?})", literal),
             AstExpression::Block(block) => {
                 writeln!(f, "Block:")?;
-                writeln!(indented(f), "{}", block.borrow())
+                writeln!(indented(f), "{}", **block)
             }
             AstExpression::InlinedCall(inlined_node) => match inlined_node.as_ref() {
                 InlinedNode::IfInlined(node) => writeln!(f, "{}", node),

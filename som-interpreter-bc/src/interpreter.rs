@@ -2,6 +2,7 @@ use crate::block::Block;
 use crate::class::Class;
 use crate::compiler::Literal;
 use crate::frame::Frame;
+use crate::gc::VecValue;
 use crate::instance::InstanceAccess;
 use crate::method::{Method, MethodKind};
 use crate::universe::Universe;
@@ -9,10 +10,9 @@ use crate::value::Value;
 use anyhow::Context;
 use som_core::bytecode::Bytecode;
 use som_core::interner::Interned;
-use std::time::Instant;
 use som_gc::gc_interface::GCInterface;
 use som_gc::gcref::GCRef;
-use crate::gc::VecValue;
+use std::time::Instant;
 
 macro_rules! send {
     ($interp:expr, $universe:expr, $frame:expr, $lit_idx:expr, $nb_params:expr) => {{
@@ -48,7 +48,7 @@ macro_rules! super_send {
             // let method_with_holder = $frame.borrow().get_holding_method();
             let holder = $frame.to_obj().get_method_holder();
             // dbg!(&holder);
-            let super_class = holder.borrow().super_class().unwrap();
+            let super_class = holder.super_class().unwrap();
             // dbg!(&super_class);
             resolve_method($frame, &super_class, symbol, $interp.bytecode_idx)
         };
@@ -106,7 +106,7 @@ impl Interpreter {
     /// Always passes arguments directly since we don't take them as a slice off the previous frame, like we do for methods.
     /// ...which would likely be faster, actually. TODO.
     pub fn push_block_frame_with_args(&mut self, block: GCRef<Block>, args: &[Value], mutator: &mut GCInterface) -> GCRef<Frame> {
-        let current_method = self.current_frame.borrow().current_method;
+        let current_method = self.current_frame.current_method;
         let frame_ptr = Frame::alloc_from_block(block, args, current_method, self.current_frame, mutator);
         self.bytecode_idx = 0;
         self.current_bytecodes = frame_ptr.to_obj().bytecodes;

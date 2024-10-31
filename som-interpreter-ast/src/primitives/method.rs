@@ -41,7 +41,7 @@ fn signature(universe: &mut Universe, invokable: GCRef<Method>)-> Result<Value, 
 
 fn invoke_on_with(universe: &mut Universe, invokable: GCRef<Method>, receiver: Value, arguments: GCRef<VecValue>)-> Result<Return, Error> {
     let args = std::iter::once(receiver.clone())
-        .chain(arguments.borrow().iter().cloned())
+        .chain(arguments.iter().cloned())
         .collect();
 
     Ok(invokable.to_obj().invoke(universe, args))

@@ -217,7 +217,7 @@ impl AstDispatchNode {
                     .unwrap_or_else(|| {
                         Return::Exception(format!(
                             "could not find method '{}>>#{}'",
-                            receiver.class(universe).borrow().name(),
+                            receiver.class(universe).name(),
                             self.signature
                         ))
                     })
@@ -302,7 +302,7 @@ impl Evaluate for AstSuperMessage {
                     .unwrap_or_else(|| {
                         Return::Exception(format!(
                             "could not find method '{}>>#{}'",
-                            receiver.class(universe).borrow().name(),
+                            receiver.class(universe).name(),
                             self.signature
                         ))
                         // Return::Local(Value::Nil)

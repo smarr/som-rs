@@ -4,6 +4,7 @@ use std::hash::{Hash, Hasher};
 
 use crate::class::Class;
 use crate::convert::Primitive;
+use crate::gc::VecValue;
 use crate::interpreter::Interpreter;
 use crate::method::Invoke;
 use crate::primitives::PrimitiveFn;
@@ -13,7 +14,6 @@ use anyhow::{Context, Error};
 use once_cell::sync::Lazy;
 use som_core::interner::Interned;
 use som_gc::gcref::GCRef;
-use crate::gc::VecValue;
 
 pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| {
     Box::new([
@@ -151,7 +151,7 @@ fn perform_in_super_class(
 ) -> Result<(), Error> {
     const SIGNATURE: &'static str = "Object>>#perform:inSuperclass:";
 
-    let Some(invokable) = class.borrow().lookup_method(signature) else {
+    let Some(invokable) = class.lookup_method(signature) else {
         let signature_str = universe.lookup_symbol(signature).to_owned();
         let args = vec![receiver.clone()];
         return universe
@@ -178,7 +178,7 @@ fn perform_with_arguments_in_super_class(
 ) -> Result<(), Error> {
     const SIGNATURE: &'static str = "Object>>#perform:withArguments:inSuperclass:";
 
-    let method = class.borrow().lookup_method(signature);
+    let method = class.lookup_method(signature);
 
     let Some(invokable) = method else {
         let signature_str = universe.lookup_symbol(signature).to_owned();

@@ -4,13 +4,13 @@ use std::mem::size_of;
 
 use crate::block::Block;
 use crate::class::Class;
-use som_gc::gcref::GCRef;
+use crate::gc::VecValue;
 use crate::instance::{Instance, InstanceAccess};
 use crate::method::Method;
 use crate::universe::Universe;
 use num_bigint::BigInt;
 use som_core::interner::Interned;
-use crate::gc::VecValue;
+use som_gc::gcref::GCRef;
 
 static_assertions::const_assert_eq!(size_of::<f64>(), 8);
 static_assertions::assert_eq_size!(f64, u64, *const ());
@@ -472,8 +472,8 @@ impl NaNBoxedVal {
             STRING_TAG => universe.string_class(),
             ARRAY_TAG => universe.array_class(),
             BLOCK_TAG => self.as_block().unwrap().to_obj().class(universe),
-            INSTANCE_TAG => self.as_instance().unwrap().borrow().class(),
-            CLASS_TAG => self.as_class().unwrap().borrow().class(),
+            INSTANCE_TAG => self.as_instance().unwrap().class(),
+            CLASS_TAG => self.as_class().unwrap().class(),
             INVOKABLE_TAG => self.as_invokable().unwrap().to_obj().class(universe),
             _ => {
                 if self.is_double() {
@@ -487,7 +487,7 @@ impl NaNBoxedVal {
 
     /// Search for a given method for this value.
     pub fn lookup_method(&self, universe: &Universe, signature: Interned) -> Option<GCRef<Method>> {
-        self.class(universe).borrow().lookup_method(signature)
+        self.class(universe).lookup_method(signature)
     }
 
     /// Search for a local binding within this value.
@@ -548,7 +548,6 @@ impl NaNBoxedVal {
                 let strings: Vec<String> = self
                     .as_array()
                     .unwrap()
-                    .borrow()
                     .0
                     .iter()
                     .map(|value| value.to_string(universe))
@@ -563,15 +562,15 @@ impl NaNBoxedVal {
                 let instance = self.as_instance().unwrap();
                 format!(
                     "instance of {} class",
-                    instance.borrow().class().borrow().name(),
+                    instance.class().name(),
                 )
             }
-            CLASS_TAG => self.as_class().unwrap().borrow().name().to_string(),
+            CLASS_TAG => self.as_class().unwrap().name().to_string(),
             INVOKABLE_TAG => {
                 let invokable = self.as_invokable().unwrap();
                 format!(
                     "{}>>#{}",
-                    invokable.to_obj().holder.borrow().name(),
+                    invokable.to_obj().holder.name(),
                     invokable.to_obj().signature(),
                 )
             }
