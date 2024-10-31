@@ -1,11 +1,11 @@
-use anyhow::{bail, Error};
 use crate::convert::{DoubleLike, Primitive, StringLike};
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
 use crate::value::Value;
+use anyhow::{bail, Error};
 use num_traits::ToPrimitive;
 use once_cell::sync::Lazy;
-use som_core::gc::GCRef;
+use som_gc::gcref::GCRef;
 
 pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| {
     Box::new([

@@ -17,13 +17,13 @@ use structopt::StructOpt;
 mod shell;
 
 use som_interpreter_bc::disassembler::disassemble_method_body;
+use som_interpreter_bc::gc::get_callbacks_for_gc;
 use som_interpreter_bc::method::{Method, MethodKind};
+#[cfg(feature = "profiler")]
+use som_interpreter_bc::profiler::Profiler;
 use som_interpreter_bc::universe::{Universe, HEAP_SIZE};
 use som_interpreter_bc::value::Value;
 use som_interpreter_bc::{INTERPRETER_RAW_PTR, UNIVERSE_RAW_PTR};
-use som_interpreter_bc::gc::get_callbacks_for_gc;
-#[cfg(feature = "profiler")]
-use som_interpreter_bc::profiler::Profiler;
 
 #[cfg(feature = "jemalloc")]
 #[global_allocator]
@@ -87,7 +87,7 @@ fn run() -> anyhow::Result<()> {
     let mut gc_interface = GCInterface::init(HEAP_SIZE);
 
     unsafe {
-        MMTK_TO_VM_INTERFACE.set(get_callbacks_for_gc()).unwrap_or_else(|_| panic!("couldn't set mutator wrapper?"));
+        MMTK_TO_VM_INTERFACE.set(get_callbacks_for_gc()).unwrap_or_else(|_| panic!("couldn't set callbacks to establish MMTk=>VM connection?"));
         MUTATOR_WRAPPER.set(&mut gc_interface).unwrap_or_else(|_| panic!("couldn't set mutator wrapper?"));
     }
 

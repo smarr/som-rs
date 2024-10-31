@@ -7,11 +7,17 @@ use std::time::Instant;
 use crate::block::Block;
 use crate::class::Class;
 use crate::frame::{Frame, FrameAccess};
+use crate::gc::VecValue;
 use crate::invokable::{Invoke, Return};
 use crate::value::Value;
 use anyhow::{anyhow, Error};
-use som_core::gc::{GCInterface, GCRef};
 use som_core::interner::{Interned, Interner};
+use som_gc::gc_interface::GCInterface;
+use som_gc::gcref::GCRef;
+
+/// GC heap size
+// pub const HEAP_SIZE: usize = 1024 * 1024 * 256;
+pub const HEAP_SIZE: usize = 1024 * 1024 * 5; // TODO: revert. temporarily reducing the heap size to ensure collections are functional
 
 /// The core classes of the SOM interpreter.
 ///
@@ -530,7 +536,7 @@ impl Universe {
         let initialize = value.lookup_method(self, "doesNotUnderstand:arguments:")?;
         let sym = self.intern_symbol(symbol.as_ref());
         let sym = Value::Symbol(sym);
-        let args = Value::Array(GCRef::<Vec<Value>>::alloc(args, &mut self.gc_interface));
+        let args = Value::Array(GCRef::<VecValue>::alloc(VecValue(args), &mut self.gc_interface));
 
        // eprintln!("Couldn't invoke {}; exiting.", symbol.as_ref()); std::process::exit(1);
         
@@ -559,7 +565,7 @@ impl Universe {
     /// Call `System>>#initialize:` with the given name, if it is defined.
     pub fn initialize(&mut self, args: Vec<Value>) -> Option<Return> {
         let initialize = Value::SYSTEM.lookup_method(self, "initialize:")?;
-        let args = Value::Array(GCRef::<Vec<Value>>::alloc(args, &mut self.gc_interface));
+        let args = Value::Array(GCRef::<VecValue>::alloc(VecValue(args), &mut self.gc_interface));
 
         let program_result = initialize.to_obj().invoke(self, vec![Value::SYSTEM, args]);
         Some(program_result)

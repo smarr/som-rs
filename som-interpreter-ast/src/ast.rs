@@ -1,15 +1,16 @@
-use std::fmt::{Debug, Display, Formatter};
-use indenter::indented;
-use std::fmt::Write;
-use num_bigint::BigInt;
-use som_core::gc::GCRef;
 use crate::class::Class;
+use crate::gc::VecAstLiteral;
 use crate::method::Method;
 use crate::specialized::inlined::and_inlined_node::AndInlinedNode;
 use crate::specialized::inlined::if_inlined_node::IfInlinedNode;
 use crate::specialized::inlined::if_true_if_false_inlined_node::IfTrueIfFalseInlinedNode;
 use crate::specialized::inlined::or_inlined_node::OrInlinedNode;
 use crate::specialized::inlined::while_inlined_node::WhileInlinedNode;
+use indenter::indented;
+use num_bigint::BigInt;
+use som_gc::gcref::GCRef;
+use std::fmt::Write;
+use std::fmt::{Debug, Display, Formatter};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum InlinedNode {
@@ -63,7 +64,7 @@ pub enum AstLiteral {
     /// Represents a big integer (bigger than a 64-bit signed integer can represent).
     BigInteger(GCRef<BigInt>),
     /// Represents an array literal (eg. `$(1 2 3)`)
-    Array(GCRef<Vec<AstLiteral>>),
+    Array(GCRef<VecAstLiteral>),
 }
 
 #[derive(Debug, Clone, PartialEq)]

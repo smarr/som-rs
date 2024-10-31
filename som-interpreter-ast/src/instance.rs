@@ -1,6 +1,6 @@
 use crate::class::Class;
 use crate::value::Value;
-use som_core::gc_interface::GCRef;
+use som_gc::gcref::GCRef;
 use std::fmt;
 
 /// Represents a generic (non-primitive) class instance.

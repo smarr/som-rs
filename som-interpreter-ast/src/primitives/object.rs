@@ -1,16 +1,17 @@
 use crate::class::Class;
 use crate::convert::Primitive;
+use crate::gc::VecValue;
 use crate::invokable::{Invoke, Return};
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
 use crate::value::Value;
+use anyhow::{bail, Error};
 use once_cell::sync::Lazy;
-use som_core::gc::GCRef;
 use som_core::interner::Interned;
+use som_gc::gcref::GCRef;
 use std::collections::hash_map::DefaultHasher;
 use std::convert::TryFrom;
 use std::hash::{Hash, Hasher};
-use anyhow::{bail, Error};
 
 pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| {
     Box::new([
@@ -94,7 +95,7 @@ fn perform(universe: &mut Universe, object: Value, sym: Interned)-> Result<Retur
     }
 }
 
-fn perform_with_arguments(universe: &mut Universe, object: Value, sym: Interned, arr: GCRef<Vec<Value>>)-> Result<Return, Error> {
+fn perform_with_arguments(universe: &mut Universe, object: Value, sym: Interned, arr: GCRef<VecValue>)-> Result<Return, Error> {
     const SIGNATURE: &'static str = "Object>>#perform:withArguments:";
 
     let signature = universe.lookup_symbol(sym);
@@ -154,7 +155,7 @@ fn perform_in_super_class(universe: &mut Universe, object: Value, sym: Interned,
     }
 }
 
-fn perform_with_arguments_in_super_class(universe: &mut Universe, object: Value, sym: Interned, arr: GCRef<Vec<Value>>, class: GCRef<Class>)-> Result<Return, Error> {
+fn perform_with_arguments_in_super_class(universe: &mut Universe, object: Value, sym: Interned, arr: GCRef<VecValue>, class: GCRef<Class>)-> Result<Return, Error> {
     const SIGNATURE: &'static str = "Object>>#perform:withArguments:inSuperclass:";
 
     let signature = universe.lookup_symbol(sym);

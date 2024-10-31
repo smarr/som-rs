@@ -416,6 +416,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "indenter"
+version = "0.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ce23b50ad8242c51a442f3ff322d56b02f08852c77e4c0b4d3fd684abc89c683"
+
+[[package]]
 name = "indexmap"
 version = "1.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -928,6 +934,28 @@ dependencies = [
  "mmtk",
  "num-bigint",
  "som-core",
+]
+
+[[package]]
+name = "som-interpreter-ast"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "indenter",
+ "indexmap",
+ "jemallocator",
+ "log",
+ "mmtk",
+ "num-bigint",
+ "num-traits",
+ "once_cell",
+ "rand",
+ "som-core",
+ "som-gc",
+ "som-lexer",
+ "som-parser-symbols",
+ "static_assertions",
+ "structopt",
 ]
 
 [[package]]

@@ -3,7 +3,7 @@ use crate::evaluate::Evaluate;
 use crate::invokable::{Invoke, Return};
 use crate::universe::Universe;
 use crate::value::Value;
-use som_core::gc_interface::GCRef;
+use som_gc::gcref::GCRef;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ToDoNode {}

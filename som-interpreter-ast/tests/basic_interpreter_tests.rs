@@ -1,12 +1,11 @@
-use som_core::gc_interface::GCInterface;
+use som_gc::gc_interface::GCInterface;
 use som_interpreter_ast::compiler::AstMethodCompilerCtxt;
-use std::path::PathBuf;
-
 use som_interpreter_ast::evaluate::Evaluate;
 use som_interpreter_ast::invokable::Return;
-use som_interpreter_ast::universe::Universe;
+use som_interpreter_ast::universe::{Universe, HEAP_SIZE};
 use som_interpreter_ast::value::Value;
 use som_lexer::{Lexer, Token};
+use std::path::PathBuf;
 
 use som_parser::lang;
 
@@ -15,7 +14,7 @@ fn setup_universe() -> Universe {
         PathBuf::from("../core-lib/Smalltalk"),
         PathBuf::from("../core-lib/TestSuite/BasicInterpreterTests"),
     ];
-    Universe::with_classpath(classpath, GCInterface::init()).expect("could not setup test universe")
+    Universe::with_classpath(classpath, GCInterface::init(HEAP_SIZE)).expect("could not setup test universe")
 }
 
 #[test]

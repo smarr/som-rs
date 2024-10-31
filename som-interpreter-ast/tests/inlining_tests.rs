@@ -1,9 +1,10 @@
-use som_core::gc_interface::GCInterface;
+use som_gc::gc_interface::GCInterface;
 use som_interpreter_ast::ast::AstExpression::*;
 use som_interpreter_ast::ast::InlinedNode::IfInlined;
 use som_interpreter_ast::ast::{AstBinaryDispatch, AstBody, AstDispatchNode, AstMethodDef};
 use som_interpreter_ast::compiler::AstMethodCompilerCtxt;
 use som_interpreter_ast::specialized::inlined::if_inlined_node::IfInlinedNode;
+use som_interpreter_ast::universe::HEAP_SIZE;
 use som_lexer::{Lexer, Token};
 use som_parser::lang;
 
@@ -16,7 +17,7 @@ fn get_ast(class_txt: &str) -> AstMethodDef {
 
     let method_def = som_parser::apply(lang::instance_method_def(), tokens.as_slice()).unwrap();
     
-    AstMethodCompilerCtxt::parse_method_def(&method_def, None, &mut GCInterface::init())
+    AstMethodCompilerCtxt::parse_method_def(&method_def, None, &mut GCInterface::init(HEAP_SIZE))
 }
 
 #[test]

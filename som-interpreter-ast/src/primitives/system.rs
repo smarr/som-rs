@@ -4,8 +4,8 @@ use crate::universe::Universe;
 use crate::value::Value;
 use anyhow::{bail, Context, Error};
 use once_cell::sync::Lazy;
-use som_core::gc::GCRef;
 use som_core::interner::Interned;
+use som_gc::gcref::GCRef;
 use std::convert::TryFrom;
 use std::fs;
 

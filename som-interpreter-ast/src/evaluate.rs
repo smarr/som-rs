@@ -1,11 +1,12 @@
 use crate::ast::{AstBinaryDispatch, AstBlock, AstBody, AstDispatchNode, AstExpression, AstLiteral, AstMethodDef, AstNAryDispatch, AstSuperMessage, AstTerm, AstTernaryDispatch, AstUnaryDispatch, InlinedNode};
 use crate::block::Block;
 use crate::frame::{Frame, FrameAccess};
+use crate::gc::VecValue;
 use crate::invokable::{Invoke, Return};
 use crate::method::Method;
 use crate::universe::Universe;
 use crate::value::Value;
-use som_core::gc::GCRef;
+use som_gc::gcref::GCRef;
 
 /// The trait for evaluating AST nodes.
 pub trait Evaluate {
@@ -137,12 +138,12 @@ impl Evaluate for AstLiteral {
     fn evaluate(&mut self, universe: &mut Universe) -> Return {
         match self {
             Self::Array(array) => { // todo: couldn't we precompute those astliterals, really?
-                let mut output = Vec::with_capacity(array.to_obj().len());
-                for literal in array.to_obj() {
+                let mut output = Vec::with_capacity(array.to_obj().0.len());
+                for literal in &mut array.to_obj().0 {
                     let value = propagate!(literal.evaluate(universe));
                     output.push(value);
                 }
-                Return::Local(Value::Array(GCRef::<Vec<Value>>::alloc(output, &mut universe.gc_interface)))
+                Return::Local(Value::Array(GCRef::<VecValue>::alloc(VecValue(output), &mut universe.gc_interface)))
             }
             Self::Integer(int) => Return::Local(Value::Integer(*int)),
             Self::BigInteger(bigint) => Return::Local(Value::BigInteger(*bigint)),

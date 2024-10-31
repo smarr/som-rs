@@ -8,6 +8,7 @@ use anyhow::{bail, Context, Error};
 
 use crate::block::Block;
 use crate::class::Class;
+use crate::gc::VecValue;
 use crate::instance::Instance;
 use crate::invokable::Return;
 use crate::method::Method;
@@ -15,8 +16,9 @@ use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
 use crate::value::Value;
 use num_bigint::BigInt;
-use som_core::gc::{GCInterface, GCRef};
 use som_core::interner::Interned;
+use som_gc::gc_interface::GCInterface;
+use som_gc::gcref::GCRef;
 
 pub trait IntoValue {
     fn into_value(&self, gc_interface: &mut GCInterface) -> Value;
@@ -214,7 +216,7 @@ impl FromArgs for GCRef<String> {
     }
 }
 
-impl FromArgs for GCRef<Vec<Value>> {
+impl FromArgs for GCRef<VecValue> {
     fn from_args(
         arg: Value,
         _: &mut Universe,
@@ -304,7 +306,7 @@ impl IntoValue for GCRef<BigInt> {
     }
 }
 
-impl IntoValue for GCRef<Vec<Value>> {
+impl IntoValue for GCRef<VecValue> {
     fn into_value(&self, _: &mut GCInterface) -> Value {
         Value::Array(*self)
     }

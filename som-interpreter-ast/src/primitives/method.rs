@@ -1,12 +1,13 @@
-use anyhow::Error;
+use crate::convert::Primitive;
+use crate::gc::VecValue;
 use crate::invokable::{Invoke, Return};
+use crate::method::Method;
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
 use crate::value::Value;
+use anyhow::Error;
 use once_cell::sync::Lazy;
-use som_core::gc::GCRef;
-use crate::convert::Primitive;
-use crate::method::Method;
+use som_gc::gcref::GCRef;
 
 pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| {
     Box::new([
@@ -38,7 +39,7 @@ fn signature(universe: &mut Universe, invokable: GCRef<Method>)-> Result<Value, 
     Ok(Value::Symbol(sym))
 }
 
-fn invoke_on_with(universe: &mut Universe, invokable: GCRef<Method>, receiver: Value, arguments: GCRef<Vec<Value>>)-> Result<Return, Error> {
+fn invoke_on_with(universe: &mut Universe, invokable: GCRef<Method>, receiver: Value, arguments: GCRef<VecValue>)-> Result<Return, Error> {
     let args = std::iter::once(receiver.clone())
         .chain(arguments.borrow().iter().cloned())
         .collect();

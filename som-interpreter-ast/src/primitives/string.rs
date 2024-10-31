@@ -2,12 +2,12 @@ use crate::convert::{Primitive, StringLike};
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
 use crate::value::Value;
+use anyhow::{bail, Error};
 use once_cell::sync::Lazy;
-use som_core::gc::GCRef;
+use som_gc::gcref::GCRef;
 use std::collections::hash_map::DefaultHasher;
 use std::convert::TryFrom;
 use std::hash::Hasher;
-use anyhow::{bail, Error};
 
 pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| {
     Box::new([

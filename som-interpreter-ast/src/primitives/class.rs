@@ -1,12 +1,13 @@
-use anyhow::Error;
-use once_cell::sync::Lazy;
+use crate::class::Class;
+use crate::convert::Primitive;
+use crate::gc::VecValue;
 use crate::instance::Instance;
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
 use crate::value::Value;
-use som_core::gc::GCRef;
-use crate::class::Class;
-use crate::convert::Primitive;
+use anyhow::Error;
+use once_cell::sync::Lazy;
+use som_gc::gcref::GCRef;
 
 pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| {
     Box::new({
@@ -46,7 +47,7 @@ fn methods(universe: &mut Universe, receiver: GCRef<Class>)-> Result<Value, Erro
         .map(|invokable| Value::Invokable(invokable.clone()))
         .collect();
 
-    Ok(Value::Array(GCRef::<Vec<Value>>::alloc(methods, &mut universe.gc_interface)))
+    Ok(Value::Array(GCRef::<VecValue>::alloc(VecValue(methods), &mut universe.gc_interface)))
 }
 
 fn fields(universe: &mut Universe, receiver: GCRef<Class>)-> Result<Value, Error> {
@@ -54,7 +55,7 @@ fn fields(universe: &mut Universe, receiver: GCRef<Class>)-> Result<Value, Error
         .map(|field_name| Value::String(GCRef::<String>::alloc(field_name.clone(), &mut universe.gc_interface)))
         .collect();
 
-    Ok(Value::Array(GCRef::<Vec<Value>>::alloc(fields, &mut universe.gc_interface)))
+    Ok(Value::Array(GCRef::<VecValue>::alloc(VecValue(fields), &mut universe.gc_interface)))
 }
 
 /// Search for an instance primitive matching the given signature.

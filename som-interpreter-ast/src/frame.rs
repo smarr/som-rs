@@ -1,6 +1,7 @@
 use crate::value::Value;
 use core::mem::size_of;
-use som_core::gc_interface::{CustomAlloc, GCInterface, GCRef};
+use som_gc::gc_interface::GCInterface;
+use som_gc::gcref::{CustomAlloc, GCRef};
 use std::marker::PhantomData;
 
 /// The kind of a given frame.

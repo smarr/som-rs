@@ -11,7 +11,7 @@ pub mod block1 {
     use crate::convert::Primitive;
     use crate::evaluate::Evaluate;
     use anyhow::Error;
-    use som_core::gc::GCRef;
+    use som_gc::gcref::GCRef;
 
     pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> =
         Lazy::new(|| {
@@ -61,7 +61,7 @@ pub mod block2 {
     use crate::convert::Primitive;
     use crate::evaluate::Evaluate;
     use anyhow::Error;
-    use som_core::gc::GCRef;
+    use som_gc::gcref::GCRef;
 
     pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> =
         Lazy::new(|| Box::new([("value:", self::value.into_func(), true)]));
@@ -105,7 +105,7 @@ pub mod block3 {
     use crate::convert::Primitive;
     use crate::evaluate::Evaluate;
     use anyhow::Error;
-    use som_core::gc::GCRef;
+    use som_gc::gcref::GCRef;
 
     pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> =
         Lazy::new(|| Box::new([("value:with:", self::value_with.into_func(), true)]));

@@ -1,5 +1,5 @@
 use crate::ast::AstBlock;
-use som_core::gc_interface::GCRef;
+use som_gc::gcref::GCRef;
 use std::fmt;
 
 use crate::class::Class;

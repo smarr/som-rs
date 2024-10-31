@@ -4,12 +4,13 @@ use std::mem::size_of;
 
 use crate::block::Block;
 use crate::class::Class;
+use crate::gc::VecValue;
 use crate::instance::Instance;
 use crate::method::Method;
 use crate::universe::Universe;
 use num_bigint::BigInt;
-use som_core::gc::GCRef;
 use som_core::interner::Interned;
+use som_gc::gcref::GCRef;
 
 static_assertions::const_assert_eq!(size_of::<f64>(), 8);
 static_assertions::assert_eq_size!(f64, u64, *const ());
@@ -106,7 +107,7 @@ const TAG_SHIFT: u64 = 48;
 const TAG_EXTRACTION: u64 = 0xFFFF << TAG_SHIFT;
 
 /// Bit pattern used to quickly check if a given 64-bit value houses a pointer-type value.
-const IS_CELL_PATTERN: u64 = CELL_BASE_TAG << TAG_SHIFT;
+const IS_PTR_PATTERN: u64 = CELL_BASE_TAG << TAG_SHIFT;
 
 // Here is a nice diagram to summarize how our NaN-boxing works:
 // (s = sign bit, e = exponent bit, m = mantissa bit)
@@ -134,6 +135,12 @@ impl Default for NaNBoxedVal {
 }
 
 impl NaNBoxedVal {
+    /// Returns the value as its internal u64 representation.
+    #[inline(always)]
+    pub fn as_u64(&self) -> u64 {
+        self.encoded
+    }
+
     /// Returns the tag bits of the value.
     #[inline(always)]
     pub fn tag(self) -> u64 {
@@ -147,8 +154,8 @@ impl NaNBoxedVal {
 
     /// Returns whether this value is a pointer type value.
     #[inline(always)]
-    pub fn is_cell(self) -> bool {
-        (self.encoded & IS_CELL_PATTERN) == IS_CELL_PATTERN
+    pub fn is_ptr_type(self) -> bool {
+        (self.encoded & IS_PTR_PATTERN) == IS_PTR_PATTERN
     }
 
     // `is_*` methods for pointer types
@@ -249,7 +256,7 @@ impl NaNBoxedVal {
     }
     /// Returns this value as an array, if such is its type.
     #[inline(always)]
-    pub fn as_array(self) -> Option<GCRef<Vec<NaNBoxedVal>>> {
+    pub fn as_array(self) -> Option<GCRef<VecValue>> {
         self.is_array().then(|| self.extract_gc_cell())
     }
     /// Returns this value as a block, if such is its type.
@@ -391,7 +398,7 @@ impl NaNBoxedVal {
     }
     /// Returns a new array value.
     #[inline(always)]
-    pub fn new_array(value: GCRef<Vec<Self>>) -> Self {
+    pub fn new_array(value: GCRef<VecValue>) -> Self {
         Self::new(
             ARRAY_TAG,
             value.ptr.as_usize().try_into().unwrap(),
@@ -602,7 +609,7 @@ impl NaNBoxedVal {
     }
 
     #[inline(always)]
-    pub fn Array(value: GCRef<Vec<Self>>) -> Self {
+    pub fn Array(value: GCRef<VecValue>) -> Self {
         NaNBoxedVal::new_array(value)
     }
 
@@ -651,8 +658,10 @@ impl From<NaNBoxedVal> for ValueEnum {
             Self::Symbol(value)
         } else if let Some(value) = value.as_string() {
             Self::String(value)
-        } else if let Some(value) = value.as_array() {
-            Self::Array(value)
+        } else if let Some(_value) = value.as_array() {
+            // Self::Array(value)
+            eprintln!("no From<NanBoxedVal> impl for arr. returning Nil.");
+            Self::Nil
         } else if let Some(value) = value.as_block() {
             Self::Block(value)
         } else if let Some(value) = value.as_instance() {
@@ -678,7 +687,8 @@ impl From<ValueEnum> for NaNBoxedVal {
             ValueEnum::Double(value) => Self::new_double(value),
             ValueEnum::Symbol(value) => Self::new_symbol(value),
             ValueEnum::String(value) => Self::new_string(value),
-            ValueEnum::Array(value) => Self::new_array(value),
+            // ValueEnum::Array(value) => Self::new_array(value),
+            ValueEnum::Array(_value) => unimplemented!("no impl for arr, same as BC"),
             ValueEnum::Block(value) => Self::new_block(value),
             ValueEnum::Instance(value) => Self::new_instance(value),
             ValueEnum::Class(value) => Self::new_class(value),

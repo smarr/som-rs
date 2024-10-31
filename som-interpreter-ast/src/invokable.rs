@@ -3,7 +3,7 @@ use crate::frame::Frame;
 use crate::method::{Method, MethodKind, MethodKindSpecialized};
 use crate::universe::Universe;
 use crate::value::Value;
-use som_core::gc_interface::GCRef;
+use som_gc::gcref::GCRef;
 
 /// Represents the kinds of possible returns from an invocation.
 #[derive(Debug)]

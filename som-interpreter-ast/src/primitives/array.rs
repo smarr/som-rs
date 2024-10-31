@@ -1,9 +1,11 @@
-use crate::expect_args;
-use crate::invokable::Return;
+use crate::convert::Primitive;
+use crate::gc::VecValue;
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
 use crate::value::Value;
-use som_core::gc_interface::GCRef;
+use anyhow::{bail, Error};
+use once_cell::sync::Lazy;
+use som_gc::gcref::GCRef;
 use std::convert::TryFrom;
 
 pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| {
@@ -17,7 +19,7 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> 
 pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| Box::new([("new:", self::new.into_func(), true)]));
 
 
-fn at(_: &mut Universe, values: GCRef<Vec<Value>>, index: i32) -> Result<Value, Error> {
+fn at(_: &mut Universe, values: GCRef<VecValue>, index: i32) -> Result<Value, Error> {
     const SIGNATURE: &str = "Array>>#at:";
 
     let index = match usize::try_from(index - 1) {
@@ -29,20 +31,20 @@ fn at(_: &mut Universe, values: GCRef<Vec<Value>>, index: i32) -> Result<Value, 
     Ok(value)
 }
 
-fn at_put(_: &mut Universe, values: GCRef<Vec<Value>>, index: i32, value: Value) -> Result<Value, Error> {
+fn at_put(_: &mut Universe, values: GCRef<VecValue>, index: i32, value: Value) -> Result<Value, Error> {
     const SIGNATURE: &str = "Array>>#at:put:";
 
     let index = match usize::try_from(index - 1) {
         Ok(index) => index,
         Err(err) => bail!(format!("'{}': {}", SIGNATURE, err)),
     };
-    if let Some(location) = values.borrow_mut().get_mut(index) {
+    if let Some(location) = values.borrow_mut().0.get_mut(index) {
         *location = value;
     }
     Ok(Value::Array(values))
 }
 
-fn length(_: &mut Universe, values: GCRef<Vec<Value>>)-> Result<Value, Error> {
+fn length(_: &mut Universe, values: GCRef<VecValue>)-> Result<Value, Error> {
     const SIGNATURE: &str = "Array>>#length";
 
     let length = values.borrow().len();
@@ -56,10 +58,10 @@ fn new(universe: &mut Universe, _: Value, count: i32)-> Result<Value, Error> {
     const SIGNATURE: &str = "Array>>#new:";
     
     match usize::try_from(count) {
-        Ok(length) => Ok(Value::Array(GCRef::<Vec<Value>>::alloc(vec![
+        Ok(length) => Ok(Value::Array(GCRef::<VecValue>::alloc(VecValue(vec![
             Value::NIL;
             length
-        ], &mut universe.gc_interface))),
+        ]), &mut universe.gc_interface))),
         Err(err) => bail!(format!("'{}': {}", SIGNATURE, err)),
     }
 }

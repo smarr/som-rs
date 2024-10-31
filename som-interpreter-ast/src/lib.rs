@@ -2,6 +2,8 @@
 //! This is the interpreter for the Simple Object Machine.
 //!
 
+use crate::universe::Universe;
+
 macro_rules! propagate {
     ($expr:expr) => {
         match $expr {
@@ -44,7 +46,7 @@ pub mod specialized;
 mod convert;
 /// Facilities for manipulating values.
 pub mod value;
-// /// A strong and owning reference to an object.
-// pub type SOMRef<T> = Rc<RefCell<T>>;
-// /// A weak reference to an object.
-// pub type SOMWeakRef<T> = Weak<RefCell<T>>;
+/// To interact with the GC.
+pub mod gc;
+
+pub static mut UNIVERSE_RAW_PTR: *mut Universe = std::ptr::null_mut();

@@ -1,16 +1,16 @@
-use std::fmt::{Debug, Formatter};
-use som_core::gc::GCRef;
+use crate::ast::AstMethodDef;
 use crate::class::Class;
 use crate::primitives::PrimitiveFn;
-use crate::universe::Universe;
-use crate::ast::AstMethodDef;
 use crate::specialized::down_to_do_node::DownToDoNode;
-use crate::specialized::while_node::WhileNode;
 use crate::specialized::if_node::IfNode;
 use crate::specialized::if_true_if_false_node::IfTrueIfFalseNode;
 use crate::specialized::to_by_do_node::ToByDoNode;
 use crate::specialized::to_do_node::ToDoNode;
 use crate::specialized::trivial_methods::{TrivialGetterMethod, TrivialGlobalMethod, TrivialLiteralMethod, TrivialSetterMethod};
+use crate::specialized::while_node::WhileNode;
+use crate::universe::Universe;
+use som_gc::gcref::GCRef;
+use std::fmt::{Debug, Formatter};
 
 /// The kind of a class method.
 // #[derive(Clone, Debug, PartialEq)]

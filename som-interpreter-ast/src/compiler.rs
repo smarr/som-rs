@@ -1,6 +1,6 @@
-use num_bigint::BigInt;
 use crate::ast::{AstBinaryDispatch, AstBlock, AstBody, AstDispatchNode, AstExpression, AstLiteral, AstMethodDef, AstNAryDispatch, AstSuperMessage, AstTernaryDispatch, AstUnaryDispatch};
 use crate::class::Class;
+use crate::gc::VecAstLiteral;
 use crate::inliner::PrimMessageInliner;
 use crate::method::{MethodKind, MethodKindSpecialized};
 use crate::specialized::down_to_do_node::DownToDoNode;
@@ -10,9 +10,11 @@ use crate::specialized::to_by_do_node::ToByDoNode;
 use crate::specialized::to_do_node::ToDoNode;
 use crate::specialized::trivial_methods::{TrivialGetterMethod, TrivialGlobalMethod, TrivialLiteralMethod, TrivialSetterMethod};
 use crate::specialized::while_node::WhileNode;
+use num_bigint::BigInt;
 use som_core::ast;
 use som_core::ast::{Expression, Literal, MethodBody};
-use som_core::gc::{GCInterface, GCRef};
+use som_gc::gc_interface::GCInterface;
+use som_gc::gcref::GCRef;
 
 pub struct AstMethodCompilerCtxt<'a> {
     /// The class in which context we're compiling. Needed for resolving field accesses. Should always be Some() outside of a testing context. 
@@ -316,7 +318,7 @@ impl<'a> AstMethodCompilerCtxt<'a> {
             }
             Literal::Array(arr) => {
                 let arr = arr.iter().map(|lit| self.parse_literal(lit)).collect();
-                let arr_ptr = GCRef::<Vec<AstLiteral>>::alloc(arr, self.gc_interface);
+                let arr_ptr = GCRef::<VecAstLiteral>::alloc(VecAstLiteral(arr), self.gc_interface);
                 AstLiteral::Array(arr_ptr)
             }
         }
