@@ -1,4 +1,4 @@
-use crate::ast::{AstBlock, AstExpression, AstLiteral};
+use crate::ast::{AstBlock, AstExpression, AstLiteral, InlinedNode};
 use crate::block::Block;
 use crate::class::Class;
 use crate::frame::{Frame, FrameAccess};
@@ -97,37 +97,26 @@ impl HasTypeInfoForGC for Method {
 
 // --- Scanning
 
-fn visit_value<'a>(val: &Value, slot_visitor: &'a mut (dyn SlotVisitor<SOMSlot> + 'a)) {
-    match val.is_ptr_type() {
-        true => slot_visitor.visit_slot(SOMSlot::from_value(val.payload())),
-        false => {}
-    }
-}
+fn get_roots_in_mutator_thread(_mutator: &mut Mutator<SOMVM>) -> Vec<SOMSlot> {
+    debug!("calling scan_roots_in_mutator_thread");
+    unsafe {
+        let mut to_process: Vec<SOMSlot> = vec![];
 
-fn visit_literal(literal: &AstLiteral, slot_visitor: &mut dyn SlotVisitor<SOMSlot>) {
-    match &literal {
-        AstLiteral::Symbol(s) | AstLiteral::String(s) => {
-            slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(s)))
-        }
-        AstLiteral::BigInteger(big_int) => {
-            slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(big_int)))
-        }
-        AstLiteral::Array(arr) => {
-            slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(arr)))
-        }
-        AstLiteral::Double(_) | AstLiteral::Integer(_) => {}
-    }
-}
+        // walk the frame list.
+        let current_frame_addr = &(*UNIVERSE_RAW_PTR).current_frame;
+        debug!("scanning root: current_frame");
+        to_process.push(SOMSlot::from_address(Address::from_ref(current_frame_addr)));
 
-fn visit_expr(expr: &AstExpression, slot_visitor: &mut dyn SlotVisitor<SOMSlot>) {
-    match expr {
-        AstExpression::Block(blk) => {
-            slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(blk)))
+        // walk globals (includes core classes)
+        debug!("scanning roots: globals");
+        for (_name, val) in (*UNIVERSE_RAW_PTR).globals.iter() {
+            if val.is_ptr_type() {
+                to_process.push(SOMSlot::from_value(val.as_u64()));
+            }
         }
-        AstExpression::Literal(lit) => {
-            visit_literal(lit, slot_visitor)
-        }
-        _ => {}
+
+        debug!("scanning roots: finished");
+        to_process
     }
 }
 
@@ -136,10 +125,9 @@ pub fn scan_object<'a>(
     slot_visitor: &'a mut (dyn SlotVisitor<SOMSlot> + 'a)
 ) {
     unsafe {
-        // let _ptr: *mut usize = unsafe { obj_addr.as_mut_ref() };
         let gc_id: &AstObjMagicId = VMObjectModel::ref_to_header(object).as_ref();
 
-        // debug!("entering scan_object (type: {:?})", gc_id); }
+        debug!("entering scan_object (type: {:?})", gc_id);
 
         match gc_id {
             AstObjMagicId::Frame => {
@@ -183,14 +171,16 @@ pub fn scan_object<'a>(
             AstObjMagicId::Method => {
                 let method: &mut Method = object.to_raw_address().as_mut_ref();
 
-                // we don't scan the holder. because we ASSUME that when we encounter a method, we did so through a class.
+                // TODO we shouldn't need to scan the holder. because we ASSUME that when we encounter a method, we did so through a class.
                 // I'm not sure in what case this isn't valid.
-                // slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(&method.holder)))
+                slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(&method.holder)));
 
                 match &method.kind {
                     MethodKind::Defined(_method_def) => {
                         // I -think- we don't need to visit expressions here?
-                        // method_def.body.exprs
+                        for expr in &_method_def.body.exprs {
+                            visit_expr(expr, slot_visitor)
+                        }
                     }
                     MethodKind::TrivialLiteral(trivial_lit) => {
                         visit_literal(&trivial_lit.literal, slot_visitor)
@@ -238,27 +228,112 @@ pub fn scan_object<'a>(
     }
 }
 
-fn get_roots_in_mutator_thread(_mutator: &mut Mutator<SOMVM>) -> Vec<SOMSlot> {
-    debug!("calling scan_roots_in_mutator_thread");
-    unsafe {
-        let mut to_process: Vec<SOMSlot> = vec![];
+fn visit_value<'a>(val: &Value, slot_visitor: &'a mut (dyn SlotVisitor<SOMSlot> + 'a)) {
+    match val.is_ptr_type() {
+        true => slot_visitor.visit_slot(SOMSlot::from_value(val.payload())),
+        false => {}
+    }
+}
 
-        // walk the frame list.
-        let current_frame_addr = &(*UNIVERSE_RAW_PTR).current_frame;
-        debug!("scanning root: current_frame");
-        to_process.push(SOMSlot::from_address(Address::from_ref(current_frame_addr)));
+fn visit_literal(literal: &AstLiteral, slot_visitor: &mut dyn SlotVisitor<SOMSlot>) {
+    match &literal {
+        AstLiteral::Symbol(s) | AstLiteral::String(s) => {
+            slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(s)))
+        }
+        AstLiteral::BigInteger(big_int) => {
+            slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(big_int)))
+        }
+        AstLiteral::Array(arr) => {
+            slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(arr)))
+        }
+        AstLiteral::Double(_) | AstLiteral::Integer(_) => {}
+    }
+}
 
-        // walk globals (includes core classes)
-        debug!("scanning roots: globals");
-        for (_name, val) in (*UNIVERSE_RAW_PTR).globals.iter() {
-            if val.is_ptr_type() {
-                // to_process.push(SOMSlot::from_value(*val));
-                to_process.push(SOMSlot::from_value(val.as_u64()));
+fn visit_expr(expr: &AstExpression, slot_visitor: &mut dyn SlotVisitor<SOMSlot>) {
+    match expr {
+        AstExpression::Block(blk) => {
+            slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(blk)))
+        }
+        AstExpression::Literal(lit) => {
+            visit_literal(lit, slot_visitor)
+        }
+        AstExpression::InlinedCall(inlined_node) => {
+            match inlined_node.as_ref() {
+                InlinedNode::IfInlined(if_inlined) => {
+                    visit_expr(&if_inlined.cond_expr, slot_visitor);
+                    for expr in &if_inlined.body_instrs.exprs {
+                        visit_expr(expr, slot_visitor)
+                    }
+                }
+                InlinedNode::IfTrueIfFalseInlined(if_true_if_false_inlined) => {
+                    visit_expr(&if_true_if_false_inlined.cond_expr, slot_visitor);
+                    for expr in &if_true_if_false_inlined.body_1_instrs.exprs {
+                        visit_expr(expr, slot_visitor)
+                    }
+                    for expr in &if_true_if_false_inlined.body_2_instrs.exprs {
+                        visit_expr(expr, slot_visitor)
+                    }
+                }
+                InlinedNode::WhileInlined(while_inlined) => {
+                    for expr in &while_inlined.cond_instrs.exprs {
+                        visit_expr(expr, slot_visitor)
+                    }
+                    for expr in &while_inlined.body_instrs.exprs {
+                        visit_expr(expr, slot_visitor)
+                    }
+                }
+                InlinedNode::OrInlined(or_inlined) => {
+                    visit_expr(&or_inlined.first, slot_visitor);
+                    for expr in &or_inlined.second.exprs {
+                        visit_expr(expr, slot_visitor)
+                    }
+                }
+                InlinedNode::AndInlined(and_inlined) => {
+                    visit_expr(&and_inlined.first, slot_visitor);
+                    for expr in &and_inlined.second.exprs {
+                        visit_expr(expr, slot_visitor)
+                    }
+                }
             }
         }
-
-        debug!("scanning roots: finished");
-        to_process
+        AstExpression::LocalExit(expr)
+        | AstExpression::NonLocalExit(expr, _)
+        | AstExpression::LocalVarWrite(_, expr)
+        | AstExpression::ArgWrite(_, _, expr)
+        | AstExpression::FieldWrite(_, expr)
+        | AstExpression::NonLocalVarWrite(_, _, expr) => {
+            visit_expr(expr, slot_visitor)
+        }
+        AstExpression::UnaryDispatch(dispatch) => {
+            visit_expr(&dispatch.dispatch_node.receiver, slot_visitor)
+        }
+        AstExpression::BinaryDispatch(dispatch) => {
+            visit_expr(&dispatch.dispatch_node.receiver, slot_visitor);
+            visit_expr(&dispatch.arg, slot_visitor)
+        }
+        AstExpression::TernaryDispatch(dispatch) => {
+            visit_expr(&dispatch.dispatch_node.receiver, slot_visitor);
+            visit_expr(&dispatch.arg1, slot_visitor);
+            visit_expr(&dispatch.arg2, slot_visitor);
+        }
+        AstExpression::NAryDispatch(dispatch) => {
+            visit_expr(&dispatch.dispatch_node.receiver, slot_visitor);
+            for arg in &dispatch.values {
+                visit_expr(arg, slot_visitor);
+            }
+        }
+        AstExpression::SuperMessage(super_message) => {
+            slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(&super_message.super_class)));
+            for arg in &super_message.values {
+                visit_expr(arg, slot_visitor);
+            }
+        }
+        AstExpression::GlobalRead(..)
+        | AstExpression::LocalVarRead(..)
+        | AstExpression::NonLocalVarRead(..)
+        | AstExpression::ArgRead(..)
+        | AstExpression::FieldRead(..) => {} // leaf nodes
     }
 }
 

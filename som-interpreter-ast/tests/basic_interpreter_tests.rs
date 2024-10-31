@@ -5,7 +5,7 @@ use som_interpreter_ast::universe::Universe;
 use som_interpreter_ast::value::Value;
 use som_lexer::{Lexer, Token};
 use std::path::PathBuf;
-
+use som_interpreter_ast::UNIVERSE_RAW_PTR;
 use som_parser::lang;
 
 fn setup_universe() -> Universe {
@@ -19,7 +19,10 @@ fn setup_universe() -> Universe {
 #[test]
 fn basic_interpreter_tests() {
     let mut universe = setup_universe();
-
+    unsafe {
+        UNIVERSE_RAW_PTR = &mut universe; // for gc
+    }
+    
     let return_class = Value::Class(universe.load_class("Return").unwrap());
     let compiler_simplification_class =
         Value::Class(universe.load_class("CompilerSimplification").unwrap());

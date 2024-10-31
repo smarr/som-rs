@@ -60,6 +60,7 @@ impl Frame {
             locals_marker: PhantomData,
         };
 
+        // dbg!(&params);
         let mut frame_ptr = Frame::alloc(frame, gc_interface);
 
         for i in (0..params.len()).rev() {
