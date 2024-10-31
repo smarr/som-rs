@@ -15,6 +15,7 @@ use mmtk::{memory_manager, AllocationSemantics, MMTKBuilder, Mutator};
 use num_bigint::BigInt;
 use std::marker::PhantomData;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::mem::size_of;
 
 pub static IS_WORLD_STOPPED: AtomicBool = AtomicBool::new(false);
 
