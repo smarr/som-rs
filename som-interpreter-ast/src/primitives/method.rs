@@ -19,9 +19,8 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> 
 pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> =
     Lazy::new(|| Box::new([]));
 
-fn holder(_: &mut Universe, invokable: GCRef<Method>)-> Result<Value, Error> {
-    
-    let holder = invokable.to_obj().holder();
+fn holder(_: &mut Universe, invokable: GCRef<Method>) -> Result<Value, Error> {
+    let holder = invokable.holder();
     Ok(Value::Class(*holder))
 
     // match maybe_holder {
@@ -33,18 +32,22 @@ fn holder(_: &mut Universe, invokable: GCRef<Method>)-> Result<Value, Error> {
     // }
 }
 
-fn signature(universe: &mut Universe, invokable: GCRef<Method>)-> Result<Value, Error> {
-    
-    let sym = universe.intern_symbol(invokable.to_obj().signature());
+fn signature(universe: &mut Universe, invokable: GCRef<Method>) -> Result<Value, Error> {
+    let sym = universe.intern_symbol(invokable.signature());
     Ok(Value::Symbol(sym))
 }
 
-fn invoke_on_with(universe: &mut Universe, invokable: GCRef<Method>, receiver: Value, arguments: GCRef<VecValue>)-> Result<Return, Error> {
+fn invoke_on_with(
+    universe: &mut Universe,
+    mut invokable: GCRef<Method>,
+    receiver: Value,
+    arguments: GCRef<VecValue>,
+) -> Result<Return, Error> {
     let args = std::iter::once(receiver.clone())
         .chain(arguments.iter().cloned())
         .collect();
 
-    Ok(invokable.to_obj().invoke(universe, args))
+    Ok(invokable.invoke(universe, args))
 }
 
 /// Search for an instance primitive matching the given signature.

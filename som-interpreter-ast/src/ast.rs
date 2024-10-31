@@ -18,7 +18,7 @@ pub enum InlinedNode {
     IfTrueIfFalseInlined(IfTrueIfFalseInlinedNode),
     WhileInlined(WhileInlinedNode),
     OrInlined(OrInlinedNode),
-    AndInlined(AndInlinedNode)
+    AndInlined(AndInlinedNode),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -76,7 +76,7 @@ pub struct AstTerm {
 pub struct AstBlock {
     pub nbr_params: u8,
     pub nbr_locals: u8,
-    pub body: AstBody
+    pub body: AstBody,
 }
 
 pub type CacheEntry = (GCRef<Class>, GCRef<Method>);
@@ -85,13 +85,13 @@ pub type CacheEntry = (GCRef<Class>, GCRef<Method>);
 pub struct AstDispatchNode {
     pub signature: String,
     pub receiver: AstExpression,
-    pub inline_cache: Option<CacheEntry>
+    pub inline_cache: Option<CacheEntry>,
 }
 
 // TODO: not positive it's better to have them all own a dispatch node, as opposed to making one "Dispatch" enum encapsulating them all. checking would be nice.
 #[derive(Debug, Clone, PartialEq)]
 pub struct AstUnaryDispatch {
-    pub dispatch_node: AstDispatchNode
+    pub dispatch_node: AstDispatchNode,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -135,7 +135,10 @@ pub struct AstMethodDef {
 
 impl Display for AstMethodDef {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!("Method {} ({} locals):", &self.signature, self.locals_nbr))?;
+        f.write_fmt(format_args!(
+            "Method {} ({} locals):",
+            &self.signature, self.locals_nbr
+        ))?;
         f.write_str(self.body.to_string().as_str())
     }
 }
@@ -152,7 +155,11 @@ impl Display for AstBody {
 
 impl Display for AstBlock {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "AstBlock({} params, {} locals):", self.nbr_params, self.nbr_locals)?;
+        writeln!(
+            f,
+            "AstBlock({} params, {} locals):",
+            self.nbr_params, self.nbr_locals
+        )?;
         for expr in &self.body.exprs {
             write!(indented(f), "{}", expr)?;
         }
@@ -166,7 +173,9 @@ impl Display for AstExpression {
         match self {
             AstExpression::GlobalRead(name) => writeln!(f, "GlobalRead({})", name),
             AstExpression::LocalVarRead(index) => writeln!(f, "LocalVarRead({})", index),
-            AstExpression::NonLocalVarRead(level, index) => writeln!(f, "NonLocalVarRead({}, {})", level, index),
+            AstExpression::NonLocalVarRead(level, index) => {
+                writeln!(f, "NonLocalVarRead({}, {})", level, index)
+            }
             AstExpression::ArgRead(level, index) => writeln!(f, "ArgRead({}, {})", level, index),
             AstExpression::FieldRead(index) => writeln!(f, "FieldRead({})", index),
             AstExpression::LocalVarWrite(index, expr) => {
@@ -210,7 +219,11 @@ impl Display for AstExpression {
                 writeln!(f, "N-AryDispatch \"{}\":", msg.dispatch_node.signature)?;
                 writeln!(indented(f), "Receiver:")?;
                 write!(indented(&mut indented(f)), "{}", msg.dispatch_node.receiver)?;
-                writeln!(indented(f), "Values: {}", if msg.values.is_empty() { "(none)" } else { "" })?;
+                writeln!(
+                    indented(f),
+                    "Values: {}",
+                    if msg.values.is_empty() { "(none)" } else { "" }
+                )?;
                 for value in &msg.values {
                     write!(indented(&mut indented(f)), "{}", value)?;
                 }
@@ -218,8 +231,12 @@ impl Display for AstExpression {
             }
             AstExpression::SuperMessage(msg) => {
                 writeln!(f, "SuperMessage \"{}\":", msg.signature)?;
-                writeln!(indented(f), "Receiver: {}", msg.super_class.to_obj().name)?;
-                writeln!(indented(f), "Values: {}", if msg.values.is_empty() { "(none)" } else { "" })?;
+                writeln!(indented(f), "Receiver: {}", msg.super_class.name)?;
+                writeln!(
+                    indented(f),
+                    "Values: {}",
+                    if msg.values.is_empty() { "(none)" } else { "" }
+                )?;
                 for value in &msg.values {
                     write!(indented(&mut indented(f)), "{}", value)?;
                 }

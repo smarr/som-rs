@@ -54,11 +54,7 @@ fn class(
     Ok(receiver.class(universe))
 }
 
-fn object_size(
-    _: &mut Interpreter,
-    _: &mut Universe,
-    receiver: Value,
-) -> Result<i32, Error> {
+fn object_size(_: &mut Interpreter, _: &mut Universe, receiver: Value) -> Result<i32, Error> {
     const SIGNATURE: &'static str = "Object>>#objectSize";
 
     std::mem::size_of_val(&receiver)
@@ -66,11 +62,7 @@ fn object_size(
         .with_context(|| format!("`{SIGNATURE}`: could not convert `usize` to `i32`"))
 }
 
-fn hashcode(
-    _: &mut Interpreter,
-    _: &mut Universe,
-    receiver: Value,
-) -> Result<i32, Error> {
+fn hashcode(_: &mut Interpreter, _: &mut Universe, receiver: Value) -> Result<i32, Error> {
     const _: &'static str = "Object>>#hashcode";
 
     let mut hasher = DefaultHasher::new();
@@ -80,12 +72,7 @@ fn hashcode(
     Ok(hash)
 }
 
-fn eq(
-    _: &mut Interpreter,
-    _: &mut Universe,
-    receiver: Value,
-    other: Value,
-) -> Result<bool, Error> {
+fn eq(_: &mut Interpreter, _: &mut Universe, receiver: Value, other: Value) -> Result<bool, Error> {
     const _: &'static str = "Object>>#==";
 
     Ok(receiver == other)
@@ -127,7 +114,9 @@ fn perform_with_arguments(
 
     let Some(invokable) = receiver.lookup_method(universe, signature) else {
         let signature_str = universe.lookup_symbol(signature).to_owned();
-        let args = std::iter::once(receiver.clone()).chain(arguments.to_obj().0.clone()).collect(); // lame clone
+        let args = std::iter::once(receiver.clone())
+            .chain(arguments.0.clone())
+            .collect(); // lame clone
         return universe
             .does_not_understand(interpreter, receiver.clone(), signature, args)
             .with_context(|| {
@@ -138,7 +127,7 @@ fn perform_with_arguments(
             });
     };
 
-    invokable.invoke(interpreter, universe, receiver, arguments.to_obj().0.clone());
+    invokable.invoke(interpreter, universe, receiver, arguments.0.clone());
     Ok(())
 }
 
@@ -182,7 +171,9 @@ fn perform_with_arguments_in_super_class(
 
     let Some(invokable) = method else {
         let signature_str = universe.lookup_symbol(signature).to_owned();
-        let args = std::iter::once(receiver.clone()).chain(arguments.to_obj().0.clone()).collect(); // lame to clone args, right?
+        let args = std::iter::once(receiver.clone())
+            .chain(arguments.0.clone())
+            .collect(); // lame to clone args, right?
         return universe
             .does_not_understand(interpreter, Value::Class(class), signature, args)
             .with_context(|| {
@@ -193,7 +184,7 @@ fn perform_with_arguments_in_super_class(
             });
     };
 
-    invokable.invoke(interpreter, universe, receiver, arguments.to_obj().0.clone());
+    invokable.invoke(interpreter, universe, receiver, arguments.0.clone());
     Ok(())
 }
 
@@ -203,7 +194,6 @@ fn inst_var_at(
     receiver: Value,
     index: i32,
 ) -> Result<Option<Value>, Error> {
-
     // expect_args!(SIGNATURE, interpreter, [
     //     object => object,
     //     Value::Integer(index) => index,

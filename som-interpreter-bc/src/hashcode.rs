@@ -23,7 +23,7 @@ impl Hash for Class {
 
 impl Hash for Instance {
     fn hash<H: Hasher>(&self, hasher: &mut H) {
-        self.class.to_obj().hash(hasher);
+        self.class.hash(hasher);
         self.nbr_fields.hash(hasher);
         // todo better hash that actually reads the values
         // self.locals.iter().for_each(|value| {
@@ -34,7 +34,7 @@ impl Hash for Instance {
 
 impl Hash for Block {
     fn hash<H: Hasher>(&self, hasher: &mut H) {
-        let blk_info = self.blk_info.to_obj();
+        let blk_info = self.blk_info;
         blk_info.literals.iter().for_each(|it| it.hash(hasher));
         blk_info.nb_locals.hash(hasher);
         // self.blk_info.locals.iter().for_each(|it| it.hash(hasher));
@@ -45,7 +45,7 @@ impl Hash for Block {
 
 impl Hash for Method {
     fn hash<H: Hasher>(&self, hasher: &mut H) {
-        self.holder.to_obj().hash(hasher);
+        self.holder.hash(hasher);
         hasher.write(b">>");
         self.signature.hash(hasher);
     }

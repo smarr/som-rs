@@ -32,16 +32,20 @@ fn get_bytecodes_from_method(class_txt: &str, method_name: &str) -> Vec<Bytecode
     let class_def = som_parser::apply(lang::class_def(), tokens.as_slice()).unwrap();
 
     let object_class = universe.object_class();
-    let class = compiler::compile_class(&mut universe.interner, &class_def, Some(&object_class), &mut universe.gc_interface);
+    let class = compiler::compile_class(
+        &mut universe.interner,
+        &class_def,
+        Some(&object_class),
+        &mut universe.gc_interface,
+    );
     assert!(class.is_some(), "could not compile test expression");
 
     let class = class.unwrap();
     let method = class
-        .to_obj()
         .lookup_method(method_name_interned)
         .expect("method not found ??");
 
-    match &method.to_obj().kind {
+    match &method.kind {
         MethodKind::Defined(m) => m.body.clone(),
         _ => unreachable!(),
     }
@@ -138,10 +142,7 @@ fn send_bytecodes() {
 
     expect_bytecode_sequence(&bytecodes, &[PushSelf, Push1, Push1, Send3(3)]);
 
-    expect_bytecode_sequence(
-        &bytecodes,
-        &[PushSelf, Push1, Push1, Push1, SendN(4)],
-    );
+    expect_bytecode_sequence(&bytecodes, &[PushSelf, Push1, Push1, Push1, SendN(4)]);
 }
 
 #[test]
@@ -162,15 +163,9 @@ fn super_send_bytecodes() {
 
     expect_bytecode_sequence(&bytecodes, &[PushSelf, Push1, SuperSend2(1)]);
 
-    expect_bytecode_sequence(
-        &bytecodes,
-        &[PushSelf, Push1, Push1, SuperSend3(2)],
-    );
+    expect_bytecode_sequence(&bytecodes, &[PushSelf, Push1, Push1, SuperSend3(2)]);
 
-    expect_bytecode_sequence(
-        &bytecodes,
-        &[PushSelf, Push1, Push1, Push1, SuperSendN(3)],
-    );
+    expect_bytecode_sequence(&bytecodes, &[PushSelf, Push1, Push1, Push1, SuperSendN(3)]);
 }
 
 #[test]
@@ -184,10 +179,7 @@ fn return_self_bytecode_implicit() {
 
     let bytecodes = get_bytecodes_from_method(class_txt_implicit_return, "run");
 
-    expect_bytecode_sequence(
-        &bytecodes,
-        &[PushConstant0, Pop, ReturnSelf],
-    );
+    expect_bytecode_sequence(&bytecodes, &[PushConstant0, Pop, ReturnSelf]);
 }
 
 #[test]
@@ -202,10 +194,7 @@ fn return_self_bytecode_explicit() {
     let bytecodes = get_bytecodes_from_method(class_txt_explicit_return, "run");
 
     assert_eq!(bytecodes.len(), 1);
-    expect_bytecode_sequence(
-        &bytecodes,
-        &[ReturnSelf],
-    );
+    expect_bytecode_sequence(&bytecodes, &[ReturnSelf]);
 }
 
 #[ignore]

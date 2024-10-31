@@ -10,8 +10,8 @@ use crate::value::Value;
 
 /// Primitives for the **Block** and **Block1** class.
 pub mod block1 {
-    use som_gc::gcref::GCRef;
     use super::*;
+    use som_gc::gcref::GCRef;
 
     pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> =
         Lazy::new(|| {
@@ -28,7 +28,11 @@ pub mod block1 {
         universe: &mut Universe,
         receiver: GCRef<Block>,
     ) -> Result<(), Error> {
-        interpreter.push_block_frame_with_args(receiver, &[Value::Block(receiver)], &mut universe.gc_interface);
+        interpreter.push_block_frame_with_args(
+            receiver,
+            &[Value::Block(receiver)],
+            &mut universe.gc_interface,
+        );
 
         Ok(())
     }
@@ -38,10 +42,7 @@ pub mod block1 {
         _: &mut Universe,
         _: GCRef<Block>,
     ) -> Result<(), Error> {
-        interpreter
-            .current_frame
-            .to_obj()
-            .bytecode_idx = 0;
+        interpreter.current_frame.bytecode_idx = 0;
 
         Ok(())
     }
@@ -65,8 +66,8 @@ pub mod block1 {
 
 /// Primitives for the **Block2** class.
 pub mod block2 {
-    use som_gc::gcref::GCRef;
     use super::*;
+    use som_gc::gcref::GCRef;
 
     pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> =
         Lazy::new(|| Box::new([("value:", self::value.into_func(), true)]));
@@ -79,7 +80,11 @@ pub mod block2 {
         receiver: GCRef<Block>,
         argument: Value,
     ) -> Result<(), Error> {
-        interpreter.push_block_frame_with_args(receiver, &[Value::Block(receiver), argument], &mut universe.gc_interface);
+        interpreter.push_block_frame_with_args(
+            receiver,
+            &[Value::Block(receiver), argument],
+            &mut universe.gc_interface,
+        );
 
         Ok(())
     }
@@ -103,8 +108,8 @@ pub mod block2 {
 
 /// Primitives for the **Block3** class.
 pub mod block3 {
-    use som_gc::gcref::GCRef;
     use super::*;
+    use som_gc::gcref::GCRef;
 
     pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> =
         Lazy::new(|| Box::new([("value:with:", self::value_with.into_func(), true)]));
@@ -120,7 +125,11 @@ pub mod block3 {
     ) -> Result<(), Error> {
         const _: &str = "Block3>>#value:with:";
 
-        interpreter.push_block_frame_with_args(receiver, &[Value::Block(receiver), argument1, argument2], &mut universe.gc_interface);
+        interpreter.push_block_frame_with_args(
+            receiver,
+            &[Value::Block(receiver), argument1, argument2],
+            &mut universe.gc_interface,
+        );
 
         Ok(())
     }

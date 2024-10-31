@@ -5,10 +5,10 @@ use crate::method::{Method, MethodKind};
 use crate::value::Value;
 use core::mem::size_of;
 use som_core::bytecode::Bytecode;
-use std::cell::RefCell;
-use std::marker::PhantomData;
 use som_gc::gc_interface::GCInterface;
 use som_gc::gcref::GCRef;
+use std::cell::RefCell;
+use std::marker::PhantomData;
 
 const OFFSET_TO_STACK: usize = size_of::<Frame>();
 
@@ -39,7 +39,6 @@ pub struct Frame {
     pub args_marker: PhantomData<[Value]>,
     pub locals_marker: PhantomData<[Value]>,
     pub stack_marker: PhantomData<[Value]>,
-
     // /// The arguments within this frame.
     // pub args: Vec<Value>,
     // /// The bindings within this frame.
@@ -47,50 +46,55 @@ pub struct Frame {
 }
 
 impl Frame {
-    pub fn alloc_from_method(method: GCRef<Method>,
-                             args: &[Value],
-                             prev_frame: GCRef<Frame>,
-                             mutator: &mut GCInterface) -> GCRef<Frame> {
+    pub fn alloc_from_method(
+        method: GCRef<Method>,
+        args: &[Value],
+        prev_frame: GCRef<Frame>,
+        mutator: &mut GCInterface,
+    ) -> GCRef<Frame> {
         let frame = Frame::from_method(method, args.len(), prev_frame);
-        let max_stack_size = match &method.to_obj().kind {
+        let max_stack_size = match &method.kind {
             MethodKind::Defined(m_env) => m_env.max_stack_size as usize,
-            _ => unreachable!("if we're allocating a method frame, it has to be defined.")
+            _ => unreachable!("if we're allocating a method frame, it has to be defined."),
         };
-        
+
         // TODO: be nice to wrap this size calculation bit + allocation into its own alloc trait somehow, like CustomAlloc. since the block logic is very similar
-        let size = size_of::<Frame>() + ((max_stack_size + frame.nbr_args + frame.nbr_locals) * size_of::<Value>());
+        let size = size_of::<Frame>()
+            + ((max_stack_size + frame.nbr_args + frame.nbr_locals) * size_of::<Value>());
 
         let frame_ptr = GCRef::<Frame>::alloc_with_size(frame, mutator, size);
         Frame::init_frame_post_alloc(frame_ptr, args, max_stack_size);
         frame_ptr
     }
 
-    pub fn alloc_from_block(block: GCRef<Block>,
-                            args: &[Value],
-                            current_method: GCRef<Method>,
-                            prev_frame: GCRef<Frame>,
-                            mutator: &mut GCInterface) -> GCRef<Frame> {
+    pub fn alloc_from_block(
+        block: GCRef<Block>,
+        args: &[Value],
+        current_method: GCRef<Method>,
+        prev_frame: GCRef<Frame>,
+        mutator: &mut GCInterface,
+    ) -> GCRef<Frame> {
         let frame = Frame::from_block(block, args.len(), current_method, prev_frame);
-        let max_stack_size = block.to_obj().blk_info.to_obj().max_stack_size as usize;
-        let size = size_of::<Frame>() + ((max_stack_size + frame.nbr_args + frame.nbr_locals) * size_of::<Value>());
+        let max_stack_size = block.blk_info.max_stack_size as usize;
+        let size = size_of::<Frame>()
+            + ((max_stack_size + frame.nbr_args + frame.nbr_locals) * size_of::<Value>());
 
         let frame_ptr = GCRef::<Frame>::alloc_with_size(frame, mutator, size);
         Frame::init_frame_post_alloc(frame_ptr, args, max_stack_size);
         frame_ptr
-
     }
 
     fn init_frame_post_alloc(frame_ptr: GCRef<Frame>, args: &[Value], stack_size: usize) {
         unsafe {
-            let frame = frame_ptr.to_obj();
+            let mut frame = frame_ptr;
 
             // setting up the self-referential pointers for args/locals accesses
             frame.stack_ptr = frame_ptr.ptr.add(OFFSET_TO_STACK).as_mut_ref();
-            
+
             // for idx in 0..stack_size {
             //     *frame.stack_ptr.add(idx) = Value::NIL;
             // }
-            
+
             frame.args_ptr = frame.stack_ptr.add(stack_size);
             frame.locals_ptr = frame.args_ptr.add(frame.nbr_args);
 
@@ -105,17 +109,22 @@ impl Frame {
     }
 
     // Creates a frame from a block. Meant to only be called by the alloc_from_block function
-    fn from_block(block: GCRef<Block>, nbr_args: usize, current_method: GCRef<Method>, prev_frame: GCRef<Frame>) -> Self {
-        let block_obj = block.to_obj();
+    fn from_block(
+        block: GCRef<Block>,
+        nbr_args: usize,
+        current_method: GCRef<Method>,
+        prev_frame: GCRef<Frame>,
+    ) -> Self {
+        let block_obj = block;
         Self {
             prev_frame,
             current_method,
-            nbr_locals: block_obj.blk_info.to_obj().nb_locals,
+            nbr_locals: block_obj.blk_info.nb_locals,
             nbr_args,
-            literals: &block_obj.blk_info.to_obj().literals,
-            bytecodes: &block_obj.blk_info.to_obj().body,
+            literals: &block_obj.blk_info.literals,
+            bytecodes: &block_obj.blk_info.body,
             bytecode_idx: 0,
-            inline_cache: std::ptr::addr_of!(block_obj.blk_info.to_obj().inline_cache),
+            inline_cache: std::ptr::addr_of!(block_obj.blk_info.inline_cache),
             stack_ptr: std::ptr::null_mut(),
             args_ptr: std::ptr::null_mut(),
             locals_ptr: std::ptr::null_mut(),
@@ -127,26 +136,24 @@ impl Frame {
 
     // Creates a frame from a block. Meant to only be called by the alloc_from_method function
     fn from_method(method: GCRef<Method>, nbr_args: usize, prev_frame: GCRef<Frame>) -> Self {
-        match method.to_obj().kind() {
-            MethodKind::Defined(env) => {
-                Self {
-                    prev_frame,
-                    nbr_locals: env.nbr_locals,
-                    nbr_args,
-                    literals: &env.literals,
-                    bytecodes: &env.body,
-                    current_method: method,
-                    bytecode_idx: 0,
-                    stack_ptr: std::ptr::null_mut(),
-                    args_ptr: std::ptr::null_mut(),
-                    locals_ptr: std::ptr::null_mut(),
-                    inline_cache: std::ptr::addr_of!(env.inline_cache),
-                    args_marker: PhantomData,
-                    locals_marker: PhantomData,
-                    stack_marker: PhantomData,
-                }
-            }
-            _ => unreachable!()
+        match method.kind() {
+            MethodKind::Defined(env) => Self {
+                prev_frame,
+                nbr_locals: env.nbr_locals,
+                nbr_args,
+                literals: &env.literals,
+                bytecodes: &env.body,
+                current_method: method,
+                bytecode_idx: 0,
+                stack_ptr: std::ptr::null_mut(),
+                args_ptr: std::ptr::null_mut(),
+                locals_ptr: std::ptr::null_mut(),
+                inline_cache: std::ptr::addr_of!(env.inline_cache),
+                args_marker: PhantomData,
+                locals_marker: PhantomData,
+                stack_marker: PhantomData,
+            },
+            _ => unreachable!(),
         }
     }
 
@@ -155,10 +162,10 @@ impl Frame {
         let self_arg = self.lookup_argument(0);
         match self_arg.as_block() {
             Some(b) => {
-                let block_frame = b.to_obj().frame.unwrap();
-                block_frame.to_obj().get_self()
+                let block_frame = b.frame.unwrap();
+                block_frame.get_self()
             }
-            None => self_arg.clone()
+            None => self_arg.clone(),
         }
     }
 
@@ -166,13 +173,11 @@ impl Frame {
     pub(crate) fn get_method_holder(&self) -> GCRef<Class> {
         match self.lookup_argument(0).as_block() {
             Some(b) => {
-                let block_frame = b.to_obj().frame.as_ref().unwrap();
-                let x = block_frame.to_obj().get_method_holder();
+                let block_frame = b.frame.as_ref().unwrap();
+                let x = block_frame.get_method_holder();
                 x
             }
-            None => {
-                self.current_method.to_obj().holder
-            }
+            None => self.current_method.holder,
         }
     }
 
@@ -190,9 +195,7 @@ impl Frame {
 
     #[inline(always)]
     pub fn lookup_argument(&self, idx: usize) -> &Value {
-        unsafe {
-            &*self.args_ptr.add(idx)
-        }
+        unsafe { &*self.args_ptr.add(idx) }
     }
 
     /// Assign to an argument.
@@ -210,7 +213,7 @@ impl Frame {
     pub fn lookup_constant(&self, idx: usize) -> Literal {
         match cfg!(debug_assertions) {
             true => unsafe { (*self.literals).get(idx).unwrap().clone() },
-            false => unsafe { (*self.literals).get_unchecked(idx).clone() }
+            false => unsafe { (*self.literals).get_unchecked(idx).clone() },
         }
     }
 
@@ -219,16 +222,16 @@ impl Frame {
             return *current_frame;
         }
 
-        let mut target_frame: GCRef<Frame> = match current_frame.to_obj().lookup_argument(0).as_block() {
+        let mut target_frame: GCRef<Frame> = match current_frame.lookup_argument(0).as_block() {
             Some(block) => {
-                *block.to_obj().frame.as_ref().unwrap()
+                *block.frame.as_ref().unwrap()
             }
             v => panic!("attempting to access a non local var/arg from a method instead of a block: self wasn't blockself but {:?}.", v)
         };
         for _ in 1..n {
-            target_frame = match &target_frame.to_obj().lookup_argument(0).as_block() {
+            target_frame = match &target_frame.lookup_argument(0).as_block() {
                 Some(block) => {
-                    *block.to_obj().frame.as_ref().unwrap()
+                    *block.frame.as_ref().unwrap()
                 }
                 v => panic!("attempting to access a non local var/arg from a method instead of a block (but the original frame we were in was a block): self wasn't blockself but {:?}.", v)
             };
@@ -241,7 +244,7 @@ impl Frame {
         debug_assert_ne!(n, 0);
         let mut target_frame = *current_frame;
         for _ in 1..n {
-            target_frame = target_frame.to_obj().prev_frame;
+            target_frame = target_frame.prev_frame;
             if target_frame.is_empty() {
                 panic!("empty target frame");
             }
@@ -291,6 +294,7 @@ impl Frame {
 
     /// Gets the total number of elements on the stack. Only used for debugging.
     pub fn stack_len(frame_ptr: GCRef<Frame>) -> usize {
-        ((frame_ptr.to_obj().stack_ptr as usize) - (frame_ptr.ptr.as_usize() + OFFSET_TO_STACK)) / size_of::<Value>()
+        ((frame_ptr.stack_ptr as usize) - (frame_ptr.ptr.as_usize() + OFFSET_TO_STACK))
+            / size_of::<Value>()
     }
 }

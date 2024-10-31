@@ -1,5 +1,4 @@
 use crate::convert::{DoubleLike, Primitive};
-use som_gc::gcref::GCRef;
 use crate::interpreter::Interpreter;
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
@@ -7,6 +6,7 @@ use crate::value::Value;
 use anyhow::{Context, Error};
 use num_traits::ToPrimitive;
 use once_cell::sync::Lazy;
+use som_gc::gcref::GCRef;
 
 pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| {
     Box::new([
@@ -41,7 +41,7 @@ macro_rules! promote {
         match $value {
             DoubleLike::Double(value) => value,
             DoubleLike::Integer(value) => value as f64,
-            DoubleLike::BigInteger(value) => match value.to_obj().to_f64() {
+            DoubleLike::BigInteger(value) => match value.to_f64() {
                 Some(value) => value,
                 None => {
                     panic!(
@@ -62,7 +62,7 @@ fn from_string(
 ) -> Result<f64, Error> {
     const SIGNATURE: &str = "Double>>#fromString:";
 
-    string.to_obj()
+    string
         .parse()
         .with_context(|| format!("`{SIGNATURE}`: could not parse `f64` from string"))
 }
@@ -79,21 +79,13 @@ fn as_string(
     Ok(universe.gc_interface.allocate(receiver.to_string()))
 }
 
-fn as_integer(
-    _: &mut Interpreter,
-    _: &mut Universe,
-    receiver: f64,
-) -> Result<i32, Error> {
+fn as_integer(_: &mut Interpreter, _: &mut Universe, receiver: f64) -> Result<i32, Error> {
     const _: &str = "Double>>#asInteger";
 
     Ok(receiver.trunc() as i32)
 }
 
-fn sqrt(
-    _: &mut Interpreter,
-    _: &mut Universe,
-    receiver: DoubleLike,
-) -> Result<f64, Error> {
+fn sqrt(_: &mut Interpreter, _: &mut Universe, receiver: DoubleLike) -> Result<f64, Error> {
     const SIGNATURE: &str = "Double>>#sqrt";
 
     let receiver = promote!(SIGNATURE, receiver);
@@ -101,11 +93,7 @@ fn sqrt(
     Ok(receiver.sqrt())
 }
 
-fn round(
-    _: &mut Interpreter,
-    _: &mut Universe,
-    receiver: DoubleLike,
-) -> Result<f64, Error> {
+fn round(_: &mut Interpreter, _: &mut Universe, receiver: DoubleLike) -> Result<f64, Error> {
     const SIGNATURE: &str = "Double>>#round";
 
     let receiver = promote!(SIGNATURE, receiver);
@@ -113,11 +101,7 @@ fn round(
     Ok(receiver.round())
 }
 
-fn cos(
-    _: &mut Interpreter,
-    _: &mut Universe,
-    receiver: DoubleLike,
-) -> Result<f64, Error> {
+fn cos(_: &mut Interpreter, _: &mut Universe, receiver: DoubleLike) -> Result<f64, Error> {
     const SIGNATURE: &str = "Double>>#cos";
 
     let receiver = promote!(SIGNATURE, receiver);
@@ -125,11 +109,7 @@ fn cos(
     Ok(receiver.cos())
 }
 
-fn sin(
-    _: &mut Interpreter,
-    _: &mut Universe,
-    receiver: DoubleLike,
-) -> Result<f64, Error> {
+fn sin(_: &mut Interpreter, _: &mut Universe, receiver: DoubleLike) -> Result<f64, Error> {
     const SIGNATURE: &str = "Double>>#sin";
 
     let receiver = promote!(SIGNATURE, receiver);
@@ -137,23 +117,13 @@ fn sin(
     Ok(receiver.sin())
 }
 
-fn eq(
-    _: &mut Interpreter,
-    _: &mut Universe,
-    a: Value,
-    b: Value,
-) -> Result<bool, Error> {
+fn eq(_: &mut Interpreter, _: &mut Universe, a: Value, b: Value) -> Result<bool, Error> {
     const _: &str = "Double>>#=";
 
     Ok(a == b)
 }
 
-fn lt(
-    _: &mut Interpreter,
-    _: &mut Universe,
-    a: DoubleLike,
-    b: DoubleLike,
-) -> Result<bool, Error> {
+fn lt(_: &mut Interpreter, _: &mut Universe, a: DoubleLike, b: DoubleLike) -> Result<bool, Error> {
     const SIGNATURE: &str = "Double>>#<";
 
     let a = promote!(SIGNATURE, a);
@@ -162,12 +132,7 @@ fn lt(
     Ok(a < b)
 }
 
-fn plus(
-    _: &mut Interpreter,
-    _: &mut Universe,
-    a: DoubleLike,
-    b: DoubleLike,
-) -> Result<f64, Error> {
+fn plus(_: &mut Interpreter, _: &mut Universe, a: DoubleLike, b: DoubleLike) -> Result<f64, Error> {
     const SIGNATURE: &str = "Double>>#+";
 
     let a = promote!(SIGNATURE, a);
@@ -232,11 +197,7 @@ fn modulo(
     Ok(a % b)
 }
 
-fn positive_infinity(
-    _: &mut Interpreter,
-    _: &mut Universe,
-    _: Value,
-) -> Result<f64, Error> {
+fn positive_infinity(_: &mut Interpreter, _: &mut Universe, _: Value) -> Result<f64, Error> {
     const _: &str = "Double>>#positiveInfinity";
 
     Ok(f64::INFINITY)

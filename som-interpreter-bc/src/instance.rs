@@ -1,10 +1,10 @@
 use crate::class::Class;
 use crate::value::Value;
 use core::mem::size_of;
-use std::fmt;
-use std::marker::PhantomData;
 use som_gc::gc_interface::GCInterface;
 use som_gc::gcref::{CustomAlloc, GCRef};
+use std::fmt;
+use std::marker::PhantomData;
 
 /// Represents a generic (non-primitive) class instance.
 #[derive(Clone, PartialEq)]
@@ -14,15 +14,15 @@ pub struct Instance {
     /// will be used for packed repr of locals
     pub nbr_fields: usize,
     /// This instance's locals. Contiguous "Value" instances in memory
-    pub locals_marker: PhantomData<Vec<Value>>
+    pub locals_marker: PhantomData<Vec<Value>>,
 }
 
 impl Instance {
     /// Construct an instance for a given class.
     pub fn from_class(class: GCRef<Class>, mutator: &mut GCInterface) -> GCRef<Instance> {
         fn get_nbr_fields(class: &GCRef<Class>) -> usize {
-            let mut nbr_locals = class.to_obj().locals.len();
-            if let Some(super_class) = class.to_obj().super_class() {
+            let mut nbr_locals = class.locals.len();
+            if let Some(super_class) = class.super_class() {
                 nbr_locals += get_nbr_fields(&super_class)
             }
             nbr_locals
@@ -30,7 +30,11 @@ impl Instance {
 
         let nbr_fields = get_nbr_fields(&class);
 
-        let instance = Self { class, nbr_fields, locals_marker: PhantomData };
+        let instance = Self {
+            class,
+            nbr_fields,
+            locals_marker: PhantomData,
+        };
         Instance::alloc(instance, mutator)
     }
 
@@ -41,7 +45,7 @@ impl Instance {
 
     /// Get the superclass of this instance's class.
     pub fn super_class(&self) -> Option<GCRef<Class>> {
-        self.class.to_obj().super_class()
+        self.class.super_class()
     }
 
     // /// Search for a local binding.
@@ -53,7 +57,7 @@ impl Instance {
     // pub fn assign_local(&mut self, idx: usize, value: Value) {
     //     unsafe { *self.locals.get_unchecked_mut(idx) = value; }
     // }
-    
+
     /// Checks whether there exists a local binding of a given index.
     pub fn has_local(&self, idx: usize) -> bool {
         idx < self.nbr_fields
@@ -63,11 +67,11 @@ impl Instance {
 impl CustomAlloc<Instance> for Instance {
     fn alloc(instance: Instance, gc_interface: &mut GCInterface) -> GCRef<Self> {
         let size = size_of::<Instance>() + (instance.nbr_fields * size_of::<Value>());
-        
+
         let nbr_fields = instance.nbr_fields;
-        
+
         let instance_ref = GCRef::<Instance>::alloc_with_size(instance, gc_interface, size);
-        
+
         unsafe {
             let mut values_addr = instance_ref.ptr.add(size_of::<Instance>());
             for _ in 0..nbr_fields {
@@ -91,13 +95,16 @@ pub trait InstanceAccess {
 
 impl InstanceAccess for GCRef<Instance> {
     fn get_field_addr(&self, idx: usize) -> usize {
-        self.ptr.add(size_of::<Instance>()).add(idx * size_of::<Value>()).as_usize()
+        self.ptr
+            .add(size_of::<Instance>())
+            .add(idx * size_of::<Value>())
+            .as_usize()
     }
 
     fn lookup_local(&self, idx: usize) -> Value {
-        unsafe { 
+        unsafe {
             let local_ref: &Value = &*(self.get_field_addr(idx) as *const Value);
-            local_ref.clone() 
+            local_ref.clone()
         }
     }
 
@@ -112,7 +119,7 @@ impl InstanceAccess for GCRef<Instance> {
 impl fmt::Debug for Instance {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Instance")
-            .field("name", &self.class.to_obj().name())
+            .field("name", &self.class.name())
             // .field("locals", &self.locals.keys())
             .finish()
     }

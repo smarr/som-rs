@@ -82,20 +82,19 @@ pub fn interactive(
             }
         };
         let metaclass_class = universe.metaclass_class();
-        class.to_obj().set_super_class(&object_class);
+        class.set_super_class(&object_class);
         class
-            .to_obj()
+
             .class()
-            .to_obj()
-            .set_super_class(&object_class.to_obj().class());
+
+            .set_super_class(&object_class.class());
         class
-            .to_obj()
+
             .class()
-            .to_obj()
+
             .set_class(&metaclass_class);
 
         let method = class
-            .to_obj()
             .lookup_method(method_name)
             .expect("method not found ??");
         let start = Instant::now();

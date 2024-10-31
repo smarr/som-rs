@@ -40,7 +40,11 @@ pub struct Class {
 // I don't test every field, but this should be good enough, AFAIK.
 impl PartialEq for Class {
     fn eq(&self, other: &Self) -> bool {
-        self.name == other.name && self.fields == other.fields && self.field_names == other.field_names && self.methods == other.methods && self.is_static == other.is_static
+        self.name == other.name
+            && self.fields == other.fields
+            && self.field_names == other.field_names
+            && self.methods == other.methods
+            && self.is_static == other.is_static
     }
 }
 
@@ -48,7 +52,11 @@ impl Class {
     /// Load up a class from its class definition from the AST.
     /// NB: super_class is only ever None for one class: the core Object class, which all other classes inherit from.
     /// NB: while it takes the super_class as argument, it's not in charge of hooking it up to the class itself. That's `set_super_class`. Might need changing for clarity.
-    pub fn from_class_def(defn: ClassDef, super_class: Option<GCRef<Class>>, gc_interface: &mut GCInterface) -> Result<GCRef<Class>, String> {
+    pub fn from_class_def(
+        defn: ClassDef,
+        super_class: Option<GCRef<Class>>,
+        gc_interface: &mut GCInterface,
+    ) -> Result<GCRef<Class>, String> {
         let static_locals = {
             let mut static_locals = IndexMap::new();
             for field in defn.static_locals.iter() {
@@ -76,10 +84,10 @@ impl Class {
         };
 
         let maybe_static_superclass = match super_class {
-            Some(cls) => Some(cls.to_obj().class),
-            None => None
+            Some(cls) => Some(cls.class),
+            None => None,
         };
-        
+
         let static_class = Self {
             name: format!("{} class", defn.name),
             class: GCRef::default(),
@@ -90,8 +98,8 @@ impl Class {
             is_static: true,
         };
 
-        let static_class_gc_ptr = GCRef::<Class>::alloc(static_class, gc_interface);
-        
+        let mut static_class_gc_ptr = GCRef::<Class>::alloc(static_class, gc_interface);
+
         let instance_class = Self {
             name: defn.name.clone(),
             class: static_class_gc_ptr,
@@ -102,14 +110,18 @@ impl Class {
             is_static: false,
         };
 
-        let instance_class_gc_ptr = GCRef::<Class>::alloc(instance_class, gc_interface);
+        let mut instance_class_gc_ptr = GCRef::<Class>::alloc(instance_class, gc_interface);
 
         let mut static_methods: IndexMap<String, GCRef<Method>> = defn
             .static_methods
             .iter()
             .map(|method| {
                 let signature = method.signature.clone();
-                let kind = AstMethodCompilerCtxt::get_method_kind(method, Some(static_class_gc_ptr), gc_interface);
+                let kind = AstMethodCompilerCtxt::get_method_kind(
+                    method,
+                    Some(static_class_gc_ptr),
+                    gc_interface,
+                );
                 let method = Method {
                     kind,
                     signature: signature.clone(),
@@ -133,7 +145,10 @@ impl Class {
                     signature: signature.to_string(),
                     holder: static_class_gc_ptr,
                 };
-                static_methods.insert(signature.to_string(), GCRef::<Method>::alloc(method, gc_interface));
+                static_methods.insert(
+                    signature.to_string(),
+                    GCRef::<Method>::alloc(method, gc_interface),
+                );
             }
         }
 
@@ -142,7 +157,11 @@ impl Class {
             .iter()
             .map(|method| {
                 let signature = method.signature.clone();
-                let kind = AstMethodCompilerCtxt::get_method_kind(method, Some(instance_class_gc_ptr), gc_interface);
+                let kind = AstMethodCompilerCtxt::get_method_kind(
+                    method,
+                    Some(instance_class_gc_ptr),
+                    gc_interface,
+                );
                 let method = Method {
                     kind,
                     signature: signature.clone(),
@@ -166,12 +185,15 @@ impl Class {
                     signature: signature.to_string(),
                     holder: instance_class_gc_ptr,
                 };
-                instance_methods.insert(signature.to_string(), GCRef::<Method>::alloc(method, gc_interface));
+                instance_methods.insert(
+                    signature.to_string(),
+                    GCRef::<Method>::alloc(method, gc_interface),
+                );
             }
         }
 
-        static_class_gc_ptr.to_obj().methods = static_methods;
-        instance_class_gc_ptr.to_obj().methods = instance_methods; // todo does this work? remove if runs ok
+        static_class_gc_ptr.methods = static_methods;
+        instance_class_gc_ptr.methods = instance_methods; // todo does this work? remove if runs ok
 
         Ok(instance_class_gc_ptr)
     }
@@ -211,10 +233,10 @@ impl Class {
     /// Search for a given method within this class.
     pub fn lookup_method(&self, signature: impl AsRef<str>) -> Option<GCRef<Method>> {
         let signature = signature.as_ref();
-        self.methods.get(signature).cloned().or_else(|| {
-            self.super_class.clone()?
-                .lookup_method(signature)
-        })
+        self.methods
+            .get(signature)
+            .cloned()
+            .or_else(|| self.super_class.clone()?.lookup_method(signature))
     }
 
     /// Search for a local binding.
@@ -238,36 +260,43 @@ impl Class {
     /// Used during parsing, to generate a FieldRead or a FieldWrite.
     /// Iterates through superclasses to find the index of the field in a given class when it's originally defined in a superclass.
     pub fn get_field_offset_by_name(&self, name: &str) -> Option<usize> {
-        self.field_names.iter()
+        self.field_names
+            .iter()
             .position(|field_name| field_name == name)
-            .and_then(|pos| Some(pos + self.super_class.map(|scls| scls.to_obj().get_total_field_nbr()).unwrap_or(0)))
-            .or_else(||
-                match self.super_class() {
-                    Some(super_class) => {
-                        super_class.get_field_offset_by_name(name)
-                    },
-                    _ => None
-                }
-            )
+            .and_then(|pos| {
+                Some(
+                    pos + self
+                        .super_class
+                        .map(|scls| scls.get_total_field_nbr())
+                        .unwrap_or(0),
+                )
+            })
+            .or_else(|| match self.super_class() {
+                Some(super_class) => super_class.get_field_offset_by_name(name),
+                _ => None,
+            })
     }
-    
+
     pub fn get_total_field_nbr(&self) -> usize {
         let scls_nbr_fields = match self.super_class {
-            Some(scls) => scls.to_obj().get_total_field_nbr(),
-            None => 0
+            Some(scls) => scls.get_total_field_nbr(),
+            None => 0,
         };
         self.field_names.len() + scls_nbr_fields
     }
 
     /// Used by the `fields` primitive. Could be made faster (strings get cloned, then put on the GC heap in the primitive), but it's also basically never used.
     pub fn get_all_field_names(&self) -> Vec<String> {
-        self.field_names.iter().cloned() 
-            .chain(self.super_class
-                       .as_ref()
-                       .map(|scls| scls.to_obj().get_all_field_names())
-                       .unwrap_or_else(|| Vec::new()) 
+        self.field_names
+            .iter()
+            .cloned()
+            .chain(
+                self.super_class
+                    .as_ref()
+                    .map(|scls| scls.get_all_field_names())
+                    .unwrap_or_else(|| Vec::new()),
             )
-            .collect() 
+            .collect()
     }
 }
 

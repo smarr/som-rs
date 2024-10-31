@@ -1,5 +1,6 @@
 use std::convert::{TryFrom, TryInto};
 
+use crate::block::Block;
 use crate::convert::{DoubleLike, IntegerLike, Primitive, StringLike};
 use crate::interpreter::Interpreter;
 use crate::primitives::PrimitiveFn;
@@ -11,9 +12,7 @@ use num_traits::{Signed, ToPrimitive};
 use once_cell::sync::Lazy;
 use rand::distributions::Uniform;
 use rand::Rng;
-use crate::block::Block;
 use som_gc::gcref::GCRef;
-
 
 pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| {
     Box::new([
@@ -80,12 +79,13 @@ fn from_string(
     // bad implem, can be improved
     match string.parse::<i32>() {
         Ok(a) => Ok(Value::Integer(a)),
-        Err(_) => {
-            match string.parse::<BigInt>() {
-                Ok(b) => Ok(Value::BigInteger(GCRef::<BigInt>::alloc(b, &mut universe.gc_interface))),
-                _ => panic!("couldn't turn an int/bigint into a string")
-            }
-        }
+        Err(_) => match string.parse::<BigInt>() {
+            Ok(b) => Ok(Value::BigInteger(GCRef::<BigInt>::alloc(
+                b,
+                &mut universe.gc_interface,
+            ))),
+            _ => panic!("couldn't turn an int/bigint into a string"),
+        },
     }
 }
 
@@ -98,22 +98,18 @@ fn as_string(
 
     let receiver = match receiver {
         IntegerLike::Integer(value) => value.to_string(),
-        IntegerLike::BigInteger(value) => value.to_obj().to_string(),
+        IntegerLike::BigInteger(value) => value.to_string(),
     };
 
     Ok(universe.gc_interface.allocate(receiver))
 }
 
-fn as_double(
-    _: &mut Interpreter,
-    _: &mut Universe,
-    receiver: IntegerLike,
-) -> Result<f64, Error> {
+fn as_double(_: &mut Interpreter, _: &mut Universe, receiver: IntegerLike) -> Result<f64, Error> {
     const _: &str = "Integer>>#asDouble";
 
     let value = match receiver {
         IntegerLike::Integer(value) => value as f64,
-        IntegerLike::BigInteger(value) => value.to_obj()
+        IntegerLike::BigInteger(value) => value
             .to_f64()
             .context("could not convert big integer to f64")?,
     };
@@ -121,11 +117,7 @@ fn as_double(
     Ok(value)
 }
 
-fn at_random(
-    _: &mut Interpreter,
-    _: &mut Universe,
-    receiver: IntegerLike,
-) -> Result<i32, Error> {
+fn at_random(_: &mut Interpreter, _: &mut Universe, receiver: IntegerLike) -> Result<i32, Error> {
     const SIGNATURE: &str = "Integer>>#atRandom";
 
     let chosen = match receiver {
@@ -153,7 +145,7 @@ fn as_32bit_signed_value(
         IntegerLike::Integer(value) => value,
         IntegerLike::BigInteger(value) => {
             // We do this gymnastic to get the 4 lowest bytes from the two's-complement representation.
-            let mut values = value.to_obj().to_signed_bytes_le();
+            let mut values = value.to_signed_bytes_le();
             values.resize(4, 0);
             i32::from_le_bytes(values.try_into().unwrap())
         }
@@ -179,9 +171,10 @@ fn as_32bit_unsigned_value(
 
     let value = match value.try_into() {
         Ok(value) => IntegerLike::Integer(value),
-        Err(_) => {
-            IntegerLike::BigInteger(GCRef::<BigInt>::alloc(BigInt::from(value), &mut universe.gc_interface))
-        }
+        Err(_) => IntegerLike::BigInteger(GCRef::<BigInt>::alloc(
+            BigInt::from(value),
+            &mut universe.gc_interface,
+        )),
     };
 
     Ok(value)
@@ -213,7 +206,7 @@ fn plus(
         (DoubleLike::Integer(a), DoubleLike::Double(b))
         | (DoubleLike::Double(b), DoubleLike::Integer(a)) => Value::Double((a as f64) + b),
         (DoubleLike::BigInteger(a), DoubleLike::Double(b))
-        | (DoubleLike::Double(b), DoubleLike::BigInteger(a)) => match a.to_obj().to_f64() {
+        | (DoubleLike::Double(b), DoubleLike::BigInteger(a)) => match a.to_f64() {
             Some(a) => Value::Double(a + b),
             None => panic!(
                 "'{}': `Integer` too big to be converted to `Double`",
@@ -251,13 +244,13 @@ fn minus(
         (DoubleLike::Double(a), DoubleLike::Double(b)) => Value::Double(a - b),
         (DoubleLike::Integer(a), DoubleLike::Double(b))
         | (DoubleLike::Double(b), DoubleLike::Integer(a)) => Value::Double((a as f64) - b),
-        (DoubleLike::BigInteger(a), DoubleLike::Double(b)) => match a.to_obj().to_f64() {
+        (DoubleLike::BigInteger(a), DoubleLike::Double(b)) => match a.to_f64() {
             Some(a) => Value::Double(a - b),
             None => {
                 bail!("'{SIGNATURE}': `Integer` too big to be converted to `Double`");
             }
         },
-        (DoubleLike::Double(a), DoubleLike::BigInteger(b)) => match b.to_obj().to_f64() {
+        (DoubleLike::Double(a), DoubleLike::BigInteger(b)) => match b.to_f64() {
             Some(b) => Value::Double(a - b),
             None => {
                 bail!("'{SIGNATURE}': `Integer` too big to be converted to `Double`");
@@ -294,7 +287,7 @@ fn times(
         (DoubleLike::Integer(a), DoubleLike::Double(b))
         | (DoubleLike::Double(b), DoubleLike::Integer(a)) => Value::Double((a as f64) * b),
         (DoubleLike::BigInteger(a), DoubleLike::Double(b))
-        | (DoubleLike::Double(b), DoubleLike::BigInteger(a)) => match a.to_obj().to_f64() {
+        | (DoubleLike::Double(b), DoubleLike::BigInteger(a)) => match a.to_f64() {
             Some(a) => Value::Double(a * b),
             None => {
                 bail!("'{SIGNATURE}': `Integer` too big to be converted to `Double`");
@@ -332,13 +325,13 @@ fn divide(
         (DoubleLike::Double(a), DoubleLike::Double(b)) => Value::Double(a / b),
         (DoubleLike::Integer(a), DoubleLike::Double(b))
         | (DoubleLike::Double(b), DoubleLike::Integer(a)) => Value::Double((a as f64) / b),
-        (DoubleLike::BigInteger(a), DoubleLike::Double(b)) => match a.to_obj().to_f64() {
+        (DoubleLike::BigInteger(a), DoubleLike::Double(b)) => match a.to_f64() {
             Some(a) => Value::Double(a / b),
             None => {
                 bail!("'{SIGNATURE}': `Integer` too big to be converted to `Double`");
             }
         },
-        (DoubleLike::Double(a), DoubleLike::BigInteger(b)) => match b.to_obj().to_f64() {
+        (DoubleLike::Double(a), DoubleLike::BigInteger(b)) => match b.to_f64() {
             Some(b) => Value::Double(a / b),
             None => {
                 bail!("'{SIGNATURE}': `Integer` too big to be converted to `Double`");
@@ -360,7 +353,7 @@ fn divide_float(
     let a = match a {
         DoubleLike::Double(a) => a,
         DoubleLike::Integer(a) => a as f64,
-        DoubleLike::BigInteger(a) => match a.to_obj().to_f64() {
+        DoubleLike::BigInteger(a) => match a.to_f64() {
             Some(a) => a,
             None => {
                 bail!("'{SIGNATURE}': `Integer` too big to be converted to `Double`");
@@ -371,7 +364,7 @@ fn divide_float(
     let b = match b {
         DoubleLike::Double(b) => b,
         DoubleLike::Integer(b) => b as f64,
-        DoubleLike::BigInteger(b) => match b.to_obj().to_f64() {
+        DoubleLike::BigInteger(b) => match b.to_f64() {
             Some(b) => b,
             None => {
                 bail!("'{SIGNATURE}': `Integer` too big to be converted to `Double`");
@@ -412,12 +405,7 @@ fn modulo(
     Ok(result)
 }
 
-fn remainder(
-    _: &mut Interpreter,
-    _: &mut Universe,
-    a: i32,
-    b: i32,
-) -> Result<i32, Error> {
+fn remainder(_: &mut Interpreter, _: &mut Universe, a: i32, b: i32) -> Result<i32, Error> {
     const _: &str = "Integer>>#rem:";
 
     let result = a % b;
@@ -428,11 +416,7 @@ fn remainder(
     }
 }
 
-fn sqrt(
-    _: &mut Interpreter,
-    universe: &mut Universe,
-    a: DoubleLike,
-) -> Result<Value, Error> {
+fn sqrt(_: &mut Interpreter, universe: &mut Universe, a: DoubleLike) -> Result<Value, Error> {
     const _: &str = "Integer>>#sqrt";
 
     let value = match a {
@@ -446,7 +430,7 @@ fn sqrt(
                 Value::Double(sqrt)
             }
         }
-        DoubleLike::BigInteger(a) => demote!(&mut universe.gc_interface, a.to_obj().sqrt()),
+        DoubleLike::BigInteger(a) => demote!(&mut universe.gc_interface, a.sqrt()),
     };
 
     Ok(value)
@@ -496,17 +480,14 @@ fn bitxor(
     Ok(value)
 }
 
-fn lt(
-    _: &mut Interpreter,
-    _: &mut Universe,
-    a: DoubleLike,
-    b: DoubleLike,
-) -> Result<Value, Error> {
+fn lt(_: &mut Interpreter, _: &mut Universe, a: DoubleLike, b: DoubleLike) -> Result<Value, Error> {
     const SIGNATURE: &str = "Integer>>#<";
 
     let value = match (a, b) {
         (DoubleLike::Integer(a), DoubleLike::Integer(b)) => Value::Boolean(a < b),
-        (DoubleLike::BigInteger(a), DoubleLike::BigInteger(b)) => Value::Boolean(a.as_ref() < b.as_ref()),
+        (DoubleLike::BigInteger(a), DoubleLike::BigInteger(b)) => {
+            Value::Boolean(a.as_ref() < b.as_ref())
+        }
         (DoubleLike::Double(a), DoubleLike::Double(b)) => Value::Boolean(a < b),
         (DoubleLike::Integer(a), DoubleLike::Double(b)) => Value::Boolean((a as f64) < b),
         (DoubleLike::Double(a), DoubleLike::Integer(b)) => Value::Boolean(a < (b as f64)),
@@ -524,12 +505,7 @@ fn lt(
     Ok(value)
 }
 
-fn eq(
-    _: &mut Interpreter,
-    _: &mut Universe,
-    a: Value,
-    b: Value,
-) -> Result<bool, Error> {
+fn eq(_: &mut Interpreter, _: &mut Universe, a: Value, b: Value) -> Result<bool, Error> {
     const _: &str = "Integer>>#=";
 
     let Ok(a) = DoubleLike::try_from(a) else {
@@ -542,7 +518,7 @@ fn eq(
 
     let value = match (a, b) {
         (DoubleLike::Integer(a), DoubleLike::Integer(b)) => a == b,
-        (DoubleLike::BigInteger(a), DoubleLike::BigInteger(b)) => a.to_obj() == b.to_obj(),
+        (DoubleLike::BigInteger(a), DoubleLike::BigInteger(b)) => *a == *b,
         (DoubleLike::Double(a), DoubleLike::Double(b)) => a == b,
         (DoubleLike::Integer(a), DoubleLike::Double(b)) => (a as f64) == b,
         (DoubleLike::Double(a), DoubleLike::Integer(b)) => a == (b as f64),
@@ -575,13 +551,14 @@ fn shift_left(
         IntegerLike::Integer(a) => match (a as u64).checked_shl(b as u32) {
             Some(value) => match value.try_into() {
                 Ok(value) => Ok(Value::Integer(value)),
-                Err(_) => {
-                    Ok(Value::BigInteger(GCRef::<BigInt>::alloc(BigInt::from(value as i64), heap)))
-                }
+                Err(_) => Ok(Value::BigInteger(GCRef::<BigInt>::alloc(
+                    BigInt::from(value as i64),
+                    heap,
+                ))),
             },
             None => Ok(demote!(heap, BigInt::from(a) << (b as u32))),
         },
-        IntegerLike::BigInteger(a) => Ok(demote!(heap, a.as_ref() << (b as u32)))
+        IntegerLike::BigInteger(a) => Ok(demote!(heap, a.as_ref() << (b as u32))),
     }
 }
 
@@ -620,7 +597,7 @@ fn shift_right(
             }
         },
         IntegerLike::BigInteger(a) => {
-            let uint = BigUint::from_bytes_le(&a.to_obj().to_signed_bytes_le());
+            let uint = BigUint::from_bytes_le(&a.to_signed_bytes_le());
             let result = uint >> (b as u32);
             demote!(heap, BigInt::from_signed_bytes_le(&result.to_bytes_le()))
         }
@@ -630,44 +607,95 @@ fn shift_right(
 }
 
 // Nota Bene: blocks for to:do: and friends get instrumented as a special case in the parser, so that they don't leave their "self" on the stack.
-fn to_do(interpreter: &mut Interpreter, universe: &mut Universe, start: i32, end: i32, blk: GCRef<Block>) -> Result<i32, Error> {
+fn to_do(
+    interpreter: &mut Interpreter,
+    universe: &mut Universe,
+    start: i32,
+    end: i32,
+    blk: GCRef<Block>,
+) -> Result<i32, Error> {
     // calling rev() because it's a stack of frames: LIFO means we want to add the last one first, then the penultimate one, etc., til the first
     for i in (start..=end).rev() {
-        interpreter.push_block_frame_with_args(blk, &[Value::Block(blk), Value::Integer(i)], &mut universe.gc_interface);
+        interpreter.push_block_frame_with_args(
+            blk,
+            &[Value::Block(blk), Value::Integer(i)],
+            &mut universe.gc_interface,
+        );
     }
 
     Ok(start)
 }
 
-fn to_by_do(interpreter: &mut Interpreter, universe: &mut Universe, start: i32, step: i32, end: i32, blk: GCRef<Block>) -> Result<i32, Error> {
+fn to_by_do(
+    interpreter: &mut Interpreter,
+    universe: &mut Universe,
+    start: i32,
+    step: i32,
+    end: i32,
+    blk: GCRef<Block>,
+) -> Result<i32, Error> {
     for i in (start..=end).rev().step_by(step as usize) {
-        interpreter.push_block_frame_with_args(blk, &[Value::Block(blk), Value::Integer(i)], &mut universe.gc_interface);
+        interpreter.push_block_frame_with_args(
+            blk,
+            &[Value::Block(blk), Value::Integer(i)],
+            &mut universe.gc_interface,
+        );
     }
 
     Ok(start)
 }
 
-fn down_to_do(interpreter: &mut Interpreter, universe: &mut Universe, start: i32, end: i32, blk: GCRef<Block>) -> Result<i32, Error> {
+fn down_to_do(
+    interpreter: &mut Interpreter,
+    universe: &mut Universe,
+    start: i32,
+    end: i32,
+    blk: GCRef<Block>,
+) -> Result<i32, Error> {
     for i in end..=start {
-        interpreter.push_block_frame_with_args(blk, &[Value::Block(blk), Value::Integer(i)], &mut universe.gc_interface);
+        interpreter.push_block_frame_with_args(
+            blk,
+            &[Value::Block(blk), Value::Integer(i)],
+            &mut universe.gc_interface,
+        );
     }
 
     Ok(start)
 }
 
 // NB: this guy isn't a speedup, it's never used in our benchmarks as far as I'm aware.
-fn down_to_by_do(interpreter: &mut Interpreter, universe: &mut Universe, start: i32, step: i32, end: i32, blk: GCRef<Block>) -> Result<i32, Error> {
+fn down_to_by_do(
+    interpreter: &mut Interpreter,
+    universe: &mut Universe,
+    start: i32,
+    step: i32,
+    end: i32,
+    blk: GCRef<Block>,
+) -> Result<i32, Error> {
     for i in (start..=end).step_by(step as usize) {
-        interpreter.push_block_frame_with_args(blk, &[Value::Block(blk), Value::Integer(i)], &mut universe.gc_interface);
+        interpreter.push_block_frame_with_args(
+            blk,
+            &[Value::Block(blk), Value::Integer(i)],
+            &mut universe.gc_interface,
+        );
     }
 
     Ok(start)
 }
 
 // NB: also not a speedup, also unused.
-fn times_repeat(interpreter: &mut Interpreter, universe: &mut Universe, n: i32, blk: GCRef<Block>) -> Result<i32, Error> {
+fn times_repeat(
+    interpreter: &mut Interpreter,
+    universe: &mut Universe,
+    n: i32,
+    blk: GCRef<Block>,
+) -> Result<i32, Error> {
     for _ in 1..=n {
-        interpreter.push_block_frame_with_args(blk, &[Value::Block(blk)], &mut universe.gc_interface); // NB: this doesn't take the index as an argument
+        interpreter.push_block_frame_with_args(
+            blk,
+            &[Value::Block(blk)],
+            &mut universe.gc_interface,
+        ); // NB: this doesn't take the index as an argument
     }
     Ok(n)
 }

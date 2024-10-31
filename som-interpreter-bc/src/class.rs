@@ -64,18 +64,17 @@ impl Class {
 
     /// Search for a given method within this class.
     pub fn lookup_method(&self, signature: Interned) -> Option<GCRef<Method>> {
-        self.methods.get(&signature).cloned().or_else(|| {
-            self.super_class.as_ref()?
-                .to_obj()
-                .lookup_method(signature)
-        })
+        self.methods
+            .get(&signature)
+            .cloned()
+            .or_else(|| self.super_class.as_ref()?.lookup_method(signature))
     }
 
     /// Search for a local binding.
     pub fn lookup_local(&self, idx: usize) -> Value {
         self.locals.values().nth(idx).cloned().unwrap_or_else(|| {
             let super_class = self.super_class().unwrap();
-            super_class.to_obj().lookup_local(idx)
+            super_class.lookup_local(idx)
         })
     }
 
@@ -84,10 +83,10 @@ impl Class {
         match self.locals.values_mut().nth(idx) {
             Some(local) => {
                 *local = value;
-            },
+            }
             None => {
-                let super_class = self.super_class().unwrap();
-                super_class.to_obj().assign_local(idx, value);
+                let mut super_class = self.super_class().unwrap();
+                super_class.assign_local(idx, value);
             }
         }
     }

@@ -22,7 +22,9 @@ pub struct GCRef<T> {
 }
 
 impl<T> Clone for GCRef<T> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl<T> Copy for GCRef<T> {}
@@ -64,23 +66,18 @@ impl<T> DerefMut for GCRef<T> {
 // -------------------------------------
 
 impl<T> GCRef<T> {
-    /// Turn a GC pointer back into the type itself (as a reference)
-    pub fn to_obj(&self) -> &mut T {
-        debug_assert!(!self.ptr.is_zero());
-        unsafe { &mut *(self.ptr.as_mut_ref()) }
-        // unsafe { &mut *(self.ptr.to_mut_ptr::<T>()) }
-    }
-
     #[inline(always)]
     pub fn as_ref(&self) -> &T {
         debug_assert!(!self.ptr.is_zero());
         unsafe { self.ptr.as_ref() }
     }
-    
+
     /// Does the address not point to any data?
     /// We use this to avoid using an Option type in interpreter frames. Not sure if it's worth it though.
     #[inline(always)]
-    pub fn is_empty(&self) -> bool { self.ptr.is_zero() }
+    pub fn is_empty(&self) -> bool {
+        self.ptr.is_zero()
+    }
 
     /// Convert a u64 into an address. Useful since we use NaN boxing, which returns values as 64 bits.
     #[inline(always)]
@@ -88,7 +85,7 @@ impl<T> GCRef<T> {
         unsafe {
             GCRef {
                 ptr: Address::from_usize(ptr as usize),
-                _phantom: PhantomData
+                _phantom: PhantomData,
             }
         }
     }
@@ -101,7 +98,7 @@ impl<T: HasTypeInfoForGC> GCRef<T> {
         Self::alloc_with_size(obj, gc_interface, size_of::<T>())
     }
 
-    // Allocates a type, but with a given size. Useful when an object needs more than what we tell Rust through defining a struct. 
+    // Allocates a type, but with a given size. Useful when an object needs more than what we tell Rust through defining a struct.
     // (e.g. Value arrays stored directly in the heap - see BC Frame)
     pub fn alloc_with_size(obj: T, gc_interface: &mut GCInterface, size: usize) -> GCRef<T> {
         // Self::alloc_with_size_cached_allocator(obj, gc_interface, size)
@@ -110,7 +107,11 @@ impl<T: HasTypeInfoForGC> GCRef<T> {
 
     #[inline(always)]
     // #[allow(dead_code, unused)]
-    fn alloc_with_size_allocator_uncached(obj: T, gc_interface: &mut GCInterface, size: usize) -> GCRef<T> {
+    fn alloc_with_size_allocator_uncached(
+        obj: T,
+        gc_interface: &mut GCInterface,
+        size: usize,
+    ) -> GCRef<T> {
         debug_assert!(size >= MIN_OBJECT_SIZE);
         let mutator = gc_interface.mutator.as_mut();
 
@@ -138,43 +139,47 @@ impl<T: HasTypeInfoForGC> GCRef<T> {
     }
 
     #[allow(dead_code, unused)]
-    fn alloc_with_size_cached_allocator(obj: T, gc_interface: &mut GCInterface, size: usize) -> GCRef<T> {
+    fn alloc_with_size_cached_allocator(
+        obj: T,
+        gc_interface: &mut GCInterface,
+        size: usize,
+    ) -> GCRef<T> {
         todo!("should not be ran before being adapted to match the cached version");
 
         // debug_assert!(size >= MIN_OBJECT_SIZE);
         // let allocator = unsafe {&mut (*gc_interface.default_allocator)};
-        // 
+        //
         // // not sure that's correct? adding VM header size (type info) to amount we allocate.
         // let size = size + OBJECT_REF_OFFSET;
-        // 
+        //
         // let addr = allocator.alloc(size, GC_ALIGN, GC_OFFSET);
         // debug_assert!(!addr.is_zero());
         // let obj_addr = SOMVM::object_start_to_ref(addr);
-        // 
-        // 
+        //
+        //
         // // let obj = SOMVM::object_start_to_ref(addr);
         // // let space = allocator.get_space();
         // // debug_assert!(!obj.to_raw_address().is_zero());
         // // space.initialize_object_metadata(obj, true);
-        // 
+        //
         // let space = allocator.get_space();
         // dbg!(space.name());
         // space.initialize_object_metadata(obj_addr, true);
-        // 
+        //
         // dbg!("wa");
         // unsafe {
         //     // *addr.as_mut_ref() = obj;
-        // 
+        //
         //     // dbg!(addr);
         //     // dbg!(obj_addr);
         //     // dbg!();
         //     let header_ref: *mut usize = addr.as_mut_ref();
         //     *header_ref = 4774451407313061000; // 4242424242424242
-        //     
+        //
         //     *(obj_addr.to_raw_address().as_mut_ref()) = obj;
         //     // obj_addr.to_header()
         // }
-        // 
+        //
         // GCRef {
         //     ptr: obj_addr.to_raw_address(),
         //     _phantom: PhantomData,
@@ -184,16 +189,9 @@ impl<T: HasTypeInfoForGC> GCRef<T> {
 
 /// Custom alloc function.
 ///
-/// Exists for that traits to be able to choose how to allocate their data. 
+/// Exists for that traits to be able to choose how to allocate their data.
 /// Must call GCRef::<T>::alloc(_with_size) internally to get a GCRef, but I can't strictly enforce that with Rust's type system.
-/// In practice, that's usually allowing for more memory than Rust might be able to infer from the struct size, and filling it with our own data. 
+/// In practice, that's usually allowing for more memory than Rust might be able to infer from the struct size, and filling it with our own data.
 pub trait CustomAlloc<T> {
     fn alloc(obj: T, mutator: &mut GCInterface) -> GCRef<T>;
-}
-
-// for convenience, but easily removable
-impl GCRef<String> {
-    pub fn as_str(&self) -> &str {
-        self.to_obj().as_str()
-    }
 }

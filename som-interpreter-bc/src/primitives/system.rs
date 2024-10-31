@@ -43,7 +43,7 @@ fn load_file(
     const _: &str = "System>>#loadFie:";
 
     let path = match path {
-        StringLike::String(ref string) => string.to_obj().as_str(),
+        StringLike::String(ref string) => string.as_str(),
         StringLike::Symbol(sym) => universe.lookup_symbol(sym),
     };
 
@@ -63,7 +63,7 @@ fn print_string(
     const _: &str = "System>>#printString:";
 
     let string = match string {
-        StringLike::String(ref string) => string.to_obj().as_str(),
+        StringLike::String(ref string) => string.as_str(),
         StringLike::Symbol(sym) => universe.lookup_symbol(sym),
     };
 
@@ -73,11 +73,7 @@ fn print_string(
     Ok(System)
 }
 
-fn print_newline(
-    _: &mut Interpreter,
-    _: &mut Universe,
-    _: Value,
-) -> Result<Nil, Error> {
+fn print_newline(_: &mut Interpreter, _: &mut Universe, _: Value) -> Result<Nil, Error> {
     const _: &'static str = "System>>#printNewline";
 
     println!();
@@ -94,7 +90,7 @@ fn error_print(
     const _: &str = "System>>#errorPrint:";
 
     let string = match string {
-        StringLike::String(ref string) => string.to_obj().as_str(),
+        StringLike::String(ref string) => string.as_str(),
         StringLike::Symbol(sym) => universe.lookup_symbol(sym),
     };
 
@@ -113,7 +109,7 @@ fn error_println(
     const _: &str = "System>>#errorPrintln:";
 
     let string = match string {
-        StringLike::String(ref string) => string.to_obj().as_str(),
+        StringLike::String(ref string) => string.as_str(),
         StringLike::Symbol(sym) => universe.lookup_symbol(sym),
     };
 
@@ -176,11 +172,7 @@ fn exit(_: &mut Interpreter, _: &mut Universe, status: i32) -> Result<(), Error>
     std::process::exit(status);
 }
 
-fn ticks(
-    interpreter: &mut Interpreter,
-    _: &mut Universe,
-    _: Value,
-) -> Result<i32, Error> {
+fn ticks(interpreter: &mut Interpreter, _: &mut Universe, _: Value) -> Result<i32, Error> {
     const SIGNATURE: &str = "System>>#ticks";
 
     interpreter
@@ -191,11 +183,7 @@ fn ticks(
         .with_context(|| format!("`{SIGNATURE}`: could not convert `i128` to `i32`"))
 }
 
-fn time(
-    interpreter: &mut Interpreter,
-    _: &mut Universe,
-    _: Value,
-) -> Result<i32, Error> {
+fn time(interpreter: &mut Interpreter, _: &mut Universe, _: Value) -> Result<i32, Error> {
     const SIGNATURE: &str = "System>>#time";
 
     interpreter
@@ -218,20 +206,20 @@ fn print_stack_trace(
         let mut current_frame = interpreter.current_frame;
         while !current_frame.is_empty() {
             frame_stack.push(current_frame);
-            current_frame = current_frame.to_obj().prev_frame;
+            current_frame = current_frame.prev_frame;
         }
         frame_stack
     };
 
     println!("Stack trace:");
     for (frame_idx, frame) in frame_stack.iter().enumerate() {
-        let class = frame.to_obj().get_method_holder();
+        let class = frame.get_method_holder();
         println!(
             "\t{}: {}>>#{} @bi: {}",
             frame_idx,
             class.name(),
-            (*frame.to_obj().current_method.to_obj()).signature(),
-            frame.to_obj().bytecode_idx
+            (*frame.current_method).signature(),
+            frame.bytecode_idx
         );
     }
     println!("----------------");
@@ -239,11 +227,7 @@ fn print_stack_trace(
     Ok(true)
 }
 
-fn full_gc(
-    _: &mut Interpreter,
-    universe: &mut Universe,
-    _: Value,
-) -> Result<bool, Error> {
+fn full_gc(_: &mut Interpreter, universe: &mut Universe, _: Value) -> Result<bool, Error> {
     const _: &str = "System>>#fullGC";
 
     universe.gc_interface.full_gc_request();

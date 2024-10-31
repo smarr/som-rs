@@ -383,58 +383,37 @@ impl NaNBoxedVal {
     /// Returns a new big integer value.
     #[inline(always)]
     pub fn new_big_integer(value: GCRef<BigInt>) -> Self {
-        Self::new(
-            BIG_INTEGER_TAG,
-            value.ptr.as_usize().try_into().unwrap(),
-        )
+        Self::new(BIG_INTEGER_TAG, value.ptr.as_usize().try_into().unwrap())
     }
     /// Returns a new string value.
     #[inline(always)]
     pub fn new_string(value: GCRef<String>) -> Self {
-        Self::new(
-            STRING_TAG,
-            value.ptr.as_usize().try_into().unwrap(),
-        )
+        Self::new(STRING_TAG, value.ptr.as_usize().try_into().unwrap())
     }
     /// Returns a new array value.
     #[inline(always)]
     pub fn new_array(value: GCRef<VecValue>) -> Self {
-        Self::new(
-            ARRAY_TAG,
-            value.ptr.as_usize().try_into().unwrap(),
-        )
+        Self::new(ARRAY_TAG, value.ptr.as_usize().try_into().unwrap())
     }
     /// Returns a new block value.
     #[inline(always)]
     pub fn new_block(value: GCRef<Block>) -> Self {
-        Self::new(
-            BLOCK_TAG,
-            value.ptr.as_usize().try_into().unwrap(),
-        )
+        Self::new(BLOCK_TAG, value.ptr.as_usize().try_into().unwrap())
     }
     /// Returns a new class value.
     #[inline(always)]
     pub fn new_class(value: GCRef<Class>) -> Self {
-        Self::new(
-            CLASS_TAG,
-            value.ptr.as_usize().try_into().unwrap(),
-        )
+        Self::new(CLASS_TAG, value.ptr.as_usize().try_into().unwrap())
     }
     /// Returns a new instance value.
     #[inline(always)]
     pub fn new_instance(value: GCRef<Instance>) -> Self {
-        Self::new(
-            INSTANCE_TAG,
-            value.ptr.as_usize().try_into().unwrap(),
-        )
+        Self::new(INSTANCE_TAG, value.ptr.as_usize().try_into().unwrap())
     }
     /// Returns a new invocable value.
     #[inline(always)]
     pub fn new_invokable(value: GCRef<Method>) -> Self {
-        Self::new(
-            INVOKABLE_TAG,
-            value.ptr.as_usize().try_into().unwrap(),
-        )
+        Self::new(INVOKABLE_TAG, value.ptr.as_usize().try_into().unwrap())
     }
 
     // #[inline(always)]
@@ -474,10 +453,10 @@ impl NaNBoxedVal {
             SYMBOL_TAG => universe.symbol_class(),
             STRING_TAG => universe.string_class(),
             ARRAY_TAG => universe.array_class(),
-            BLOCK_TAG => self.as_block().unwrap().to_obj().class(universe),
+            BLOCK_TAG => self.as_block().unwrap().class(universe),
             INSTANCE_TAG => self.as_instance().unwrap().class(),
             CLASS_TAG => self.as_class().unwrap().class(),
-            INVOKABLE_TAG => self.as_invokable().unwrap().to_obj().class(universe),
+            INVOKABLE_TAG => self.as_invokable().unwrap().class(universe),
             _ => {
                 if self.is_double() {
                     universe.double_class()
@@ -496,9 +475,9 @@ impl NaNBoxedVal {
     /// Search for a local binding within this value.
     pub fn lookup_local(&self, idx: u8) -> Self {
         if let Some(instance) = self.as_instance() {
-            instance.to_obj().lookup_local(idx)
+            instance.lookup_local(idx)
         } else if let Some(class) = self.as_class() {
-            class.to_obj().lookup_field(idx)
+            class.lookup_field(idx)
         } else {
             panic!("looking up a local not from an instance or a class")
         }
@@ -506,10 +485,10 @@ impl NaNBoxedVal {
 
     /// Assign a value to a local binding within this value.
     pub fn assign_local(&mut self, idx: u8, value: Self) -> Option<()> {
-        if let Some(instance) = self.as_instance() {
-            Some(instance.to_obj().assign_local(idx, value))
-        } else if let Some(class) = self.as_class() {
-            Some(class.to_obj().assign_field(idx, value))
+        if let Some(mut instance) = self.as_instance() {
+            Some(instance.assign_local(idx, value))
+        } else if let Some(mut class) = self.as_class() {
+            Some(class.assign_field(idx, value))
         } else {
             None
         }
@@ -522,7 +501,7 @@ impl NaNBoxedVal {
             SYSTEM_TAG => "system".to_string(),
             BOOLEAN_TAG => self.as_boolean().unwrap().to_string(),
             INTEGER_TAG => self.as_integer().unwrap().to_string(),
-            BIG_INTEGER_TAG => self.as_big_integer().unwrap().to_obj().to_string(),
+            BIG_INTEGER_TAG => self.as_big_integer().unwrap().to_string(),
             _ if self.is_double() => self.as_double().unwrap().to_string(),
             SYMBOL_TAG => {
                 let symbol = universe.lookup_symbol(self.as_symbol().unwrap());
@@ -532,13 +511,12 @@ impl NaNBoxedVal {
                     format!("#{}", symbol)
                 }
             }
-            STRING_TAG => self.as_string().unwrap().to_obj().to_string(),
+            STRING_TAG => self.as_string().unwrap().to_string(),
             ARRAY_TAG => {
                 // TODO: I think we can do better here (less allocations).
                 let strings: Vec<String> = self
                     .as_array()
                     .unwrap()
-                    
                     .iter()
                     .map(|value| value.to_string(universe))
                     .collect();
@@ -546,23 +524,16 @@ impl NaNBoxedVal {
             }
             BLOCK_TAG => {
                 let block = self.as_block().unwrap();
-                format!("instance of Block{}", block.to_obj().nb_parameters() + 1)
+                format!("instance of Block{}", block.nb_parameters() + 1)
             }
             INSTANCE_TAG => {
                 let instance = self.as_instance().unwrap();
-                format!(
-                    "instance of {} class",
-                    instance.class().name(),
-                )
+                format!("instance of {} class", instance.class().name(),)
             }
             CLASS_TAG => self.as_class().unwrap().name().to_string(),
             INVOKABLE_TAG => {
                 let invokable = self.as_invokable().unwrap();
-                format!(
-                    "{}>>#{}",
-                    invokable.to_obj().holder.name(),
-                    invokable.to_obj().signature(),
-                )
+                format!("{}>>#{}", invokable.holder.name(), invokable.signature(),)
             }
             _ => {
                 panic!("unknown tag")
@@ -748,25 +719,25 @@ impl ValueEnum {
             Self::Symbol(_) => universe.symbol_class(),
             Self::String(_) => universe.string_class(),
             Self::Array(_) => universe.array_class(),
-            Self::Block(block) => block.to_obj().class(universe),
-            Self::Instance(instance_ptr) => instance_ptr.to_obj().class(),
-            Self::Class(class) => class.to_obj().class(),
-            Self::Invokable(invokable) => invokable.to_obj().class(universe),
+            Self::Block(block) => block.class(universe),
+            Self::Instance(instance_ptr) => instance_ptr.class(),
+            Self::Class(class) => class.class(),
+            Self::Invokable(invokable) => invokable.class(universe),
         }
     }
 
     /// Search for a given method for this value.
     #[inline(always)]
     pub fn lookup_method(&self, universe: &Universe, signature: &str) -> Option<GCRef<Method>> {
-        self.class(universe).to_obj().lookup_method(signature)
+        self.class(universe).lookup_method(signature)
     }
 
     /// Search for a local binding within this value.
     #[inline(always)]
     pub fn lookup_local(&self, idx: u8) -> Option<Self> {
         match self {
-            Self::Instance(instance_ptr) => Some(instance_ptr.to_obj().lookup_local(idx).into()),
-            Self::Class(class) => Some(class.to_obj().lookup_field(idx).into()),
+            Self::Instance(instance_ptr) => Some(instance_ptr.lookup_local(idx).into()),
+            Self::Class(class) => Some(class.lookup_field(idx).into()),
             v => unreachable!("Attempting to look up a local in {:?}", v),
         }
     }
@@ -774,8 +745,8 @@ impl ValueEnum {
     /// Assign a value to a local binding within this value.
     pub fn assign_local(&mut self, idx: u8, value: Self) {
         match self {
-            Self::Instance(instance_ptr) => instance_ptr.to_obj().assign_local(idx, value.into()),
-            Self::Class(class) => class.to_obj().assign_field(idx, value.into()),
+            Self::Instance(instance_ptr) => instance_ptr.assign_local(idx, value.into()),
+            Self::Class(class) => class.assign_field(idx, value.into()),
             v => unreachable!("Attempting to assign a local in {:?}", v),
         }
     }
@@ -787,7 +758,7 @@ impl ValueEnum {
             Self::System => "system".to_string(),
             Self::Boolean(value) => value.to_string(),
             Self::Integer(value) => value.to_string(),
-            Self::BigInteger(value) => value.to_obj().to_string(),
+            Self::BigInteger(value) => value.to_string(),
             Self::Double(value) => value.to_string(),
             Self::Symbol(value) => {
                 let symbol = universe.lookup_symbol(*value);
@@ -801,20 +772,18 @@ impl ValueEnum {
             Self::Array(values) => {
                 // TODO (from nicolas): I think we can do better here (less allocations).
                 let strings: Vec<String> = values
-                    .to_obj()
                     .iter()
                     .map(|value| value.to_string(universe))
                     .collect();
                 format!("#({})", strings.join(" "))
             }
-            Self::Block(block) => format!("instance of Block{}", block.to_obj().nb_parameters() + 1),
-            Self::Instance(instance_ptr) => format!(
-                "instance of {} class",
-                instance_ptr.to_obj().class().to_obj().name(),
-            ),
-            Self::Class(class) => class.to_obj().name().to_string(),
+            Self::Block(block) => format!("instance of Block{}", block.nb_parameters() + 1),
+            Self::Instance(instance_ptr) => {
+                format!("instance of {} class", instance_ptr.class().name(),)
+            }
+            Self::Class(class) => class.name().to_string(),
             Self::Invokable(invokable) => {
-                format!("{}>>#{}", invokable.to_obj().holder().to_obj().name(), invokable.to_obj().signature())
+                format!("{}>>#{}", invokable.holder().name(), invokable.signature())
             }
         }
     }
@@ -836,7 +805,7 @@ impl PartialEq for ValueEnum {
                 a.as_ref().eq(&BigInt::from(*b)) // not sure that's entirely correct
             }
             (Self::Symbol(a), Self::Symbol(b)) => a.eq(b),
-            (Self::String(a), Self::String(b)) => a.to_obj() == b.to_obj(),
+            (Self::String(a), Self::String(b)) => a == b,
             (Self::Array(a), Self::Array(b)) => a == b,
             (Self::Instance(a), Self::Instance(b)) => a == b,
             (Self::Class(a), Self::Class(b)) => a == b,
@@ -858,12 +827,12 @@ impl fmt::Debug for ValueEnum {
             Self::Double(val) => f.debug_tuple("Double").field(val).finish(),
             Self::Symbol(val) => f.debug_tuple("Symbol").field(val).finish(),
             Self::String(val) => f.debug_tuple("String").field(val).finish(),
-            Self::Array(val) => f.debug_tuple("Array").field(&val.to_obj()).finish(),
+            Self::Array(val) => f.debug_tuple("Array").field(&val).finish(),
             Self::Block(val) => f.debug_tuple("Block").field(val).finish(),
-            Self::Instance(val) => f.debug_tuple("Instance").field(&val.to_obj()).finish(),
-            Self::Class(val) => f.debug_tuple("Class").field(&val.to_obj()).finish(),
+            Self::Instance(val) => f.debug_tuple("Instance").field(&val).finish(),
+            Self::Class(val) => f.debug_tuple("Class").field(&val).finish(),
             Self::Invokable(val) => {
-                let signature = format!("{}>>#{}", val.to_obj().holder.to_obj().name(), val.to_obj().signature());
+                let signature = format!("{}>>#{}", val.holder.name(), val.signature());
                 f.debug_tuple("Invokable").field(&signature).finish()
             }
         }

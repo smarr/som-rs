@@ -34,7 +34,7 @@ fn superclass(
 
     let super_class = receiver.super_class();
     let super_class = super_class.map_or(Value::NIL, |it| Value::Class(it));
-    interpreter.current_frame.to_obj().stack_push(super_class);
+    interpreter.current_frame.stack_push(super_class);
 
     Ok(())
 }
@@ -85,12 +85,7 @@ fn fields(
 ) -> Result<GCRef<VecValue>, Error> {
     const _: &str = "Class>>#fields";
 
-    let fields = receiver
-        .locals
-        .keys()
-        .copied()
-        .map(Value::Symbol)
-        .collect();
+    let fields = receiver.locals.keys().copied().map(Value::Symbol).collect();
 
     Ok(universe.gc_interface.allocate(VecValue(fields)))
 }

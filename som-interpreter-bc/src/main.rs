@@ -90,15 +90,12 @@ fn run() -> anyhow::Result<()> {
         .map(|arg| Value::String(GCRef::<String>::alloc(arg, &mut universe.gc_interface)))
         .collect();
 
-    let mut interpreter = universe
-        .initialize(args)
-        .expect("issue running program");
+    let mut interpreter = universe.initialize(args).expect("issue running program");
 
     unsafe {
         INTERPRETER_RAW_PTR = &mut interpreter;
         UNIVERSE_RAW_PTR = &mut universe;
     }
-
 
     interpreter.run(&mut universe);
 
@@ -138,26 +135,40 @@ fn disassemble_class(opts: Options) -> anyhow::Result<()> {
 
     // "Object" special casing needed since `load_class` assumes the class has a superclass and Object doesn't, and I didn't want to change the class loading logic just for the disassembler (tho it's probably fine)
     let class = match file_stem {
-        "Object" => Universe::load_system_class(&mut universe.interner, classpath.as_slice(), "Object", &mut universe.gc_interface)?,
-        _ => universe.load_class(file_stem)?
+        "Object" => Universe::load_system_class(
+            &mut universe.interner,
+            classpath.as_slice(),
+            "Object",
+            &mut universe.gc_interface,
+        )?,
+        _ => universe.load_class(file_stem)?,
     };
 
     dump_class_methods(class, &opts, file_stem, &mut universe);
     println!("-----------------------------------------");
-    dump_class_methods(class.to_obj().class, &opts, file_stem, &mut universe);
+    dump_class_methods(class.class, &opts, file_stem, &mut universe);
 
     Ok(())
 }
 
-fn dump_class_methods(class: GCRef<Class>, opts: &Options, file_stem: &str, universe: &mut Universe) {
+fn dump_class_methods(
+    class: GCRef<Class>,
+    opts: &Options,
+    file_stem: &str,
+    universe: &mut Universe,
+) {
     let methods: Vec<GCRef<Method>> = if opts.args.is_empty() {
-        class.to_obj().methods.values().cloned().collect::<Vec<GCRef<Method>>>()
+        class
+            .methods
+            .values()
+            .cloned()
+            .collect::<Vec<GCRef<Method>>>()
     } else {
         opts.args
             .iter()
             .filter_map(|signature| {
                 let symbol = universe.intern_symbol(signature);
-                let maybe_method = class.to_obj().methods.get(&symbol).cloned();
+                let maybe_method = class.methods.get(&symbol).cloned();
 
                 // if maybe_method.is_none() {
                 //     eprintln!("No method named `{signature}` found in class `{file_stem}`.");
@@ -169,7 +180,7 @@ fn dump_class_methods(class: GCRef<Class>, opts: &Options, file_stem: &str, univ
     };
 
     for method in methods {
-        let method = method.to_obj();
+        let method = method;
         match &method.kind {
             MethodKind::Defined(env) => {
                 println!(
@@ -181,7 +192,7 @@ fn dump_class_methods(class: GCRef<Class>, opts: &Options, file_stem: &str, univ
                     max_stack_size = env.max_stack_size,
                 );
 
-                disassemble_method_body(&universe, &class.to_obj(), env);
+                disassemble_method_body(&universe, &class, env);
             }
             MethodKind::Primitive(_) => {
                 println!(

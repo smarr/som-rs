@@ -42,8 +42,14 @@ fn basic_interpreter_tests() {
         ("Blocks testEmptyOneArg", Value::Integer(1)),
         ("Blocks testEmptyTwoArg", Value::Integer(1)),
         ("Return testReturnSelf", Value::Class(return_class_ptr)),
-        ("Return testReturnSelfImplicitly", Value::Class(return_class_ptr)),
-        ("Return testNoReturnReturnsSelf", Value::Class(return_class_ptr)),
+        (
+            "Return testReturnSelfImplicitly",
+            Value::Class(return_class_ptr),
+        ),
+        (
+            "Return testNoReturnReturnsSelf",
+            Value::Class(return_class_ptr),
+        ),
         (
             "Return testBlockReturnsImplicitlyLastValue",
             Value::Integer(4),
@@ -174,30 +180,30 @@ fn basic_interpreter_tests() {
         let class_def = som_parser::apply(lang::class_def(), tokens.as_slice()).unwrap();
 
         let object_class = universe.object_class();
-        let class =
-            compiler::compile_class(&mut universe.interner, &class_def, Some(&object_class), &mut universe.gc_interface);
+        let class = compiler::compile_class(
+            &mut universe.interner,
+            &class_def,
+            Some(&object_class),
+            &mut universe.gc_interface,
+        );
         assert!(class.is_some(), "could not compile test expression");
-        let class = class.unwrap();
+        let mut class = class.unwrap();
 
         let metaclass_class = universe.metaclass_class();
-        class.to_obj().set_super_class(&object_class);
-        class
-            .to_obj()
-            .class()
-            .to_obj()
-            .set_super_class(&object_class.to_obj().class());
-        class
-            .to_obj()
-            .class()
-            .to_obj()
-            .set_class(&metaclass_class);
+        class.set_super_class(&object_class);
+        class.class().set_super_class(&object_class.class());
+        class.class().set_class(&metaclass_class);
 
         let method = class
-            .to_obj()
             .lookup_method(method_name)
             .expect("method not found ??");
-        
-        let frame = Frame::alloc_from_method(method, &[Value::SYSTEM], GCRef::default(), &mut universe.gc_interface);
+
+        let frame = Frame::alloc_from_method(
+            method,
+            &[Value::SYSTEM],
+            GCRef::default(),
+            &mut universe.gc_interface,
+        );
         let mut interpreter = Interpreter::new(frame);
         if let Some(output) = interpreter.run(&mut universe) {
             assert_eq!(&output, expected, "unexpected test output value");

@@ -79,7 +79,13 @@ impl Method {
 }
 
 pub trait Invoke {
-    fn invoke(&self, interpreter: &mut Interpreter, universe: &mut Universe, receiver: Value, args: Vec<Value>);
+    fn invoke(
+        &self,
+        interpreter: &mut Interpreter,
+        universe: &mut Universe,
+        receiver: Value,
+        args: Vec<Value>,
+    );
 }
 
 impl Invoke for GCRef<Method> {
@@ -90,18 +96,23 @@ impl Invoke for GCRef<Method> {
         receiver: Value,
         mut args: Vec<Value>,
     ) {
-        match self.to_obj().kind() {
+        match self.kind() {
             MethodKind::Defined(_) => {
                 let mut frame_args = vec![receiver];
                 frame_args.append(&mut args);
-                interpreter.push_method_frame_with_args(*self, frame_args.as_slice(), &mut universe.gc_interface);
+                interpreter.push_method_frame_with_args(
+                    *self,
+                    frame_args.as_slice(),
+                    &mut universe.gc_interface,
+                );
             }
             MethodKind::Primitive(func) => {
-                interpreter.current_frame.to_obj().stack_push(receiver);
+                interpreter.current_frame.stack_push(receiver);
                 for arg in args {
-                    interpreter.current_frame.to_obj().stack_push(arg)
+                    interpreter.current_frame.stack_push(arg)
                 }
-                func(interpreter, universe).expect(&format!("invoking func {} failed", &self.to_obj().signature))
+                func(interpreter, universe)
+                    .expect(&format!("invoking func {} failed", &self.signature))
             }
             MethodKind::NotImplemented(_) => todo!(),
         }
@@ -110,12 +121,7 @@ impl Invoke for GCRef<Method> {
 
 impl fmt::Display for Method {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "#{}>>#{} = ",
-            self.holder.to_obj().name(),
-            self.signature
-        )?;
+        write!(f, "#{}>>#{} = ", self.holder.name(), self.signature)?;
         match &self.kind {
             MethodKind::Defined(env) => {
                 writeln!(f, "(")?;
@@ -155,7 +161,7 @@ impl fmt::Display for Method {
                                 Literal::Double(value) => write!(f, "value: (#Double) {}", value),
                                 Literal::Integer(value) => write!(f, "value: (#Integer) {}", value),
                                 Literal::BigInteger(value) => {
-                                    write!(f, "value: (#Integer) {}", value.to_obj())
+                                    write!(f, "value: (#Integer) {}", **value)
                                 }
                                 Literal::Array(_) => write!(f, "value: (#Array)"),
                                 Literal::Block(_) => write!(f, "value: (#Block)"),
@@ -192,7 +198,7 @@ impl fmt::Display for Method {
                         Bytecode::ReturnNonLocal(_) => {}
                         Bytecode::ReturnSelf => {}
                         Bytecode::Jump(idx)
-                        | Bytecode::JumpBackward(idx) 
+                        | Bytecode::JumpBackward(idx)
                         | Bytecode::JumpOnTruePop(idx)
                         | Bytecode::JumpOnFalsePop(idx)
                         | Bytecode::JumpOnFalseTopNil(idx)

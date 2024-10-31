@@ -24,7 +24,7 @@ use crate::method::Method;
 //             }
 //             Value::BigInteger(value) => {
 //                 hasher.write(b"#bigint#");
-//                 value.to_obj().hash(hasher);
+//                 value.hash(hasher);
 //             }
 //             Value::Double(value) => {
 //                 hasher.write(b"#double#");
@@ -42,7 +42,7 @@ use crate::method::Method;
 //             }
 //             Value::String(value) => {
 //                 hasher.write(b"#string#");
-//                 value.to_obj().hash(hasher);
+//                 value.hash(hasher);
 //             }
 //             Value::Array(value) => {
 //                 hasher.write(b"#arr#");
@@ -64,7 +64,7 @@ use crate::method::Method;
 //             }
 //             Value::Invokable(value) => {
 //                 hasher.write(b"#mthd#");
-//                 value.to_obj().hash(hasher);
+//                 value.hash(hasher);
 //             },
 //         }
 //     }
@@ -92,7 +92,7 @@ impl Hash for Block {
 
 impl Hash for Method {
     fn hash<H: Hasher>(&self, hasher: &mut H) {
-        self.holder.to_obj().hash(hasher);
+        self.holder.hash(hasher);
         hasher.write(b">>");
         self.signature.hash(hasher);
     }

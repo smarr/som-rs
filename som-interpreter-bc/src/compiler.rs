@@ -1,11 +1,11 @@
 //!
 //! This is the bytecode compiler for the Simple Object Machine.
 //!
+use indexmap::{IndexMap, IndexSet};
+use num_bigint::BigInt;
 use std::cell::RefCell;
 use std::hash::{Hash, Hasher};
 use std::str::FromStr;
-use indexmap::{IndexMap, IndexSet};
-use num_bigint::BigInt;
 
 use crate::block::{Block, BlockInfo};
 use crate::class::Class;
@@ -60,7 +60,7 @@ impl Hash for Literal {
             }
             Literal::String(val) => {
                 state.write(b"string#");
-                val.to_obj().hash(state);
+                val.hash(state);
             }
             Literal::Double(val) => {
                 state.write(b"dbl#");
@@ -72,15 +72,15 @@ impl Hash for Literal {
             }
             Literal::BigInteger(val) => {
                 state.write(b"bigint#");
-                val.to_obj().hash(state);
+                val.hash(state);
             }
             Literal::Array(val) => {
                 state.write(b"array#");
-                val.to_obj().hash(state);
+                val.hash(state);
             }
             Literal::Block(val) => {
                 state.write(b"blk");
-                val.to_obj().hash(state);
+                val.hash(state);
             }
         }
     }
@@ -186,15 +186,13 @@ impl InnerGenCtxt for BlockGenCtxt<'_> {
 
     fn patch_jump(&mut self, idx_to_patch: usize, new_val: u16) {
         match self.body.as_mut().unwrap().get_mut(idx_to_patch).unwrap() {
-            Bytecode::Jump(jump_idx) |
-            Bytecode::JumpBackward(jump_idx) |
-            Bytecode::JumpOnTrueTopNil(jump_idx) |
-            Bytecode::JumpOnFalseTopNil(jump_idx) |
-            Bytecode::JumpOnTruePop(jump_idx) |
-            Bytecode::JumpOnFalsePop(jump_idx) |
-            Bytecode::JumpIfGreater(jump_idx) => {
-                *jump_idx = new_val
-            }
+            Bytecode::Jump(jump_idx)
+            | Bytecode::JumpBackward(jump_idx)
+            | Bytecode::JumpOnTrueTopNil(jump_idx)
+            | Bytecode::JumpOnFalseTopNil(jump_idx)
+            | Bytecode::JumpOnTruePop(jump_idx)
+            | Bytecode::JumpOnFalsePop(jump_idx)
+            | Bytecode::JumpIfGreater(jump_idx) => *jump_idx = new_val,
             _ => panic!("Attempting to patch a bytecode non jump"),
         };
     }
@@ -233,22 +231,20 @@ impl InnerGenCtxt for BlockGenCtxt<'_> {
                 && matches!(bytecode_win[2], Bytecode::Pop)
             {
                 let are_bc_jump_targets =
-                    body
-                        .iter()
+                    body.iter()
                         .enumerate()
-                        .any(|(maybe_jump_idx, bc)|
-                            match bc {
-                                Bytecode::Jump(jump_offset)
-                                | Bytecode::JumpOnTrueTopNil(jump_offset)
-                                | Bytecode::JumpOnFalseTopNil(jump_offset)
-                                | Bytecode::JumpOnTruePop(jump_offset)
-                                | Bytecode::JumpOnFalsePop(jump_offset)
-                                | Bytecode::JumpIfGreater(jump_offset) => {
-                                    let bc_target_idx = maybe_jump_idx + *jump_offset as usize;
-                                    bc_target_idx == idx || bc_target_idx == idx + 2
-                                }
-                                _ => false,
-                            });
+                        .any(|(maybe_jump_idx, bc)| match bc {
+                            Bytecode::Jump(jump_offset)
+                            | Bytecode::JumpOnTrueTopNil(jump_offset)
+                            | Bytecode::JumpOnFalseTopNil(jump_offset)
+                            | Bytecode::JumpOnTruePop(jump_offset)
+                            | Bytecode::JumpOnFalsePop(jump_offset)
+                            | Bytecode::JumpIfGreater(jump_offset) => {
+                                let bc_target_idx = maybe_jump_idx + *jump_offset as usize;
+                                bc_target_idx == idx || bc_target_idx == idx + 2
+                            }
+                            _ => false,
+                        });
 
                 if are_bc_jump_targets {
                     continue;
@@ -444,54 +440,56 @@ impl MethodCodegen for ast::Expression {
                 match (up_idx, idx) {
                     (0, 0) => ctxt.push_instr(Bytecode::PushSelf),
                     (0, _) => ctxt.push_instr(Bytecode::PushArg(*idx as u8)),
-                    _ => ctxt.push_instr(Bytecode::PushNonLocalArg(*up_idx as u8, *idx as u8))
+                    _ => ctxt.push_instr(Bytecode::PushNonLocalArg(*up_idx as u8, *idx as u8)),
                 };
                 Some(())
             }
             ast::Expression::GlobalRead(name) => {
                 match ctxt.find_field(name) {
                     Some(idx) => ctxt.push_instr(Bytecode::PushField(idx as u8)),
-                    None => {
-                        match name.as_str() {
-                            "nil" => ctxt.push_instr(Bytecode::PushNil),
-                            "super" => {
-                                match ctxt.get_scope() {
-                                    0 => ctxt.push_instr(Bytecode::PushSelf),
-                                    scope => ctxt.push_instr(Bytecode::PushNonLocalArg(scope as u8, 0))
-                                }
-                            }
-                            _ => {
-                                let name = ctxt.intern_symbol(name);
-                                let idx = ctxt.push_literal(Literal::Symbol(name));
-                                ctxt.push_instr(Bytecode::PushGlobal(idx as u8));
-                            }
+                    None => match name.as_str() {
+                        "nil" => ctxt.push_instr(Bytecode::PushNil),
+                        "super" => match ctxt.get_scope() {
+                            0 => ctxt.push_instr(Bytecode::PushSelf),
+                            scope => ctxt.push_instr(Bytecode::PushNonLocalArg(scope as u8, 0)),
+                        },
+                        _ => {
+                            let name = ctxt.intern_symbol(name);
+                            let idx = ctxt.push_literal(Literal::Symbol(name));
+                            ctxt.push_instr(Bytecode::PushGlobal(idx as u8));
                         }
-                    }
+                    },
                 }
 
                 Some(())
             }
-            ast::Expression::LocalVarWrite(_, expr) | ast::Expression::NonLocalVarWrite(_, _, expr) => {
+            ast::Expression::LocalVarWrite(_, expr)
+            | ast::Expression::NonLocalVarWrite(_, _, expr) => {
                 expr.codegen(ctxt, mutator)?;
                 ctxt.push_instr(Bytecode::Dup);
                 match self {
-                    ast::Expression::LocalVarWrite(idx, _) => ctxt.push_instr(Bytecode::PopLocal(0, *idx as u8)),
-                    ast::Expression::NonLocalVarWrite(up_idx, idx, _) => ctxt.push_instr(Bytecode::PopLocal(*up_idx as u8, *idx as u8)),
-                    _ => unreachable!()
+                    ast::Expression::LocalVarWrite(idx, _) => {
+                        ctxt.push_instr(Bytecode::PopLocal(0, *idx as u8))
+                    }
+                    ast::Expression::NonLocalVarWrite(up_idx, idx, _) => {
+                        ctxt.push_instr(Bytecode::PopLocal(*up_idx as u8, *idx as u8))
+                    }
+                    _ => unreachable!(),
                 }
                 Some(())
             }
-            ast::Expression::GlobalWrite(name, expr) => {
-                match ctxt.find_field(name) {
-                    Some(idx) => {
-                        expr.codegen(ctxt, mutator)?;
-                        ctxt.push_instr(Bytecode::Dup);
-                        ctxt.push_instr(Bytecode::PopField(idx as u8));
-                        Some(())
-                    }
-                    None => panic!("couldn't resolve a globalwrite (`{}`) to a field write", name)
+            ast::Expression::GlobalWrite(name, expr) => match ctxt.find_field(name) {
+                Some(idx) => {
+                    expr.codegen(ctxt, mutator)?;
+                    ctxt.push_instr(Bytecode::Dup);
+                    ctxt.push_instr(Bytecode::PopField(idx as u8));
+                    Some(())
                 }
-            }
+                None => panic!(
+                    "couldn't resolve a globalwrite (`{}`) to a field write",
+                    name
+                ),
+            },
             ast::Expression::ArgWrite(up_idx, idx, expr) => {
                 expr.codegen(ctxt, mutator)?;
                 ctxt.push_instr(Bytecode::Dup);
@@ -501,7 +499,7 @@ impl MethodCodegen for ast::Expression {
             ast::Expression::Message(message) => {
                 let is_super_call = match &message.receiver {
                     _super if _super == &Expression::GlobalRead(String::from("super")) => true,
-                    _ => false
+                    _ => false,
                 };
 
                 message.receiver.codegen(ctxt, mutator)?;
@@ -511,11 +509,15 @@ impl MethodCodegen for ast::Expression {
                     return Some(());
                 }
 
-                if (message.signature == "+" || message.signature == "-") && !is_super_call && message.values.len() == 1 && message.values.get(0)? == &Expression::Literal(ast::Literal::Integer(1)) {
+                if (message.signature == "+" || message.signature == "-")
+                    && !is_super_call
+                    && message.values.len() == 1
+                    && message.values.get(0)? == &Expression::Literal(ast::Literal::Integer(1))
+                {
                     match message.signature.as_str() {
                         "+" => ctxt.push_instr(Bytecode::Inc), // also i was considering handling the "+ X" arbitrary case, maybe.,
                         "-" => ctxt.push_instr(Bytecode::Dec),
-                        _ => unreachable!()
+                        _ => unreachable!(),
                     };
                     return Some(());
                 }
@@ -534,37 +536,31 @@ impl MethodCodegen for ast::Expression {
                 let idx = ctxt.push_literal(Literal::Symbol(sym));
 
                 match is_super_call {
-                    false => {
-                        match nb_params {
-                            0 => ctxt.push_instr(Bytecode::Send1(idx as u8)),
-                            1 => ctxt.push_instr(Bytecode::Send2(idx as u8)),
-                            2 => ctxt.push_instr(Bytecode::Send3(idx as u8)),
-                            _ => ctxt.push_instr(Bytecode::SendN(idx as u8)),
-                        }
-                    }
-                    true => {
-                        match nb_params {
-                            0 => ctxt.push_instr(Bytecode::SuperSend1(idx as u8)),
-                            1 => ctxt.push_instr(Bytecode::SuperSend2(idx as u8)),
-                            2 => ctxt.push_instr(Bytecode::SuperSend3(idx as u8)),
-                            _ => ctxt.push_instr(Bytecode::SuperSendN(idx as u8)),
-                        }
-                    }
+                    false => match nb_params {
+                        0 => ctxt.push_instr(Bytecode::Send1(idx as u8)),
+                        1 => ctxt.push_instr(Bytecode::Send2(idx as u8)),
+                        2 => ctxt.push_instr(Bytecode::Send3(idx as u8)),
+                        _ => ctxt.push_instr(Bytecode::SendN(idx as u8)),
+                    },
+                    true => match nb_params {
+                        0 => ctxt.push_instr(Bytecode::SuperSend1(idx as u8)),
+                        1 => ctxt.push_instr(Bytecode::SuperSend2(idx as u8)),
+                        2 => ctxt.push_instr(Bytecode::SuperSend3(idx as u8)),
+                        _ => ctxt.push_instr(Bytecode::SuperSendN(idx as u8)),
+                    },
                 }
 
                 Some(())
             }
             ast::Expression::Exit(expr, scope) => {
                 match scope {
-                    0 => {
-                        match expr.as_ref() {
-                            Expression::ArgRead(0, 0) => ctxt.push_instr(Bytecode::ReturnSelf),
-                            _ => {
-                                expr.codegen(ctxt, mutator)?;
-                                ctxt.push_instr(Bytecode::ReturnLocal)
-                            }
+                    0 => match expr.as_ref() {
+                        Expression::ArgRead(0, 0) => ctxt.push_instr(Bytecode::ReturnSelf),
+                        _ => {
+                            expr.codegen(ctxt, mutator)?;
+                            ctxt.push_instr(Bytecode::ReturnLocal)
                         }
-                    }
+                    },
                     _ => {
                         expr.codegen(ctxt, mutator)?;
                         ctxt.push_instr(Bytecode::ReturnNonLocal(*scope as u8));
@@ -574,7 +570,11 @@ impl MethodCodegen for ast::Expression {
                 Some(())
             }
             ast::Expression::Literal(literal) => {
-                fn convert_literal(ctxt: &mut dyn InnerGenCtxt, literal: &ast::Literal, mutator: &mut GCInterface) -> Literal {
+                fn convert_literal(
+                    ctxt: &mut dyn InnerGenCtxt,
+                    literal: &ast::Literal,
+                    mutator: &mut GCInterface,
+                ) -> Literal {
                     match literal {
                         ast::Literal::Symbol(val) => {
                             Literal::Symbol(ctxt.intern_symbol(val.as_str()))
@@ -588,8 +588,17 @@ impl MethodCodegen for ast::Expression {
                             loop {
                                 let lit = ctxt.get_literal(i);
                                 match lit {
-                                    None => break Literal::String(GCRef::<String>::alloc(val.clone(), mutator)), // reached end of literals and no duplicate, we alloc
-                                    Some(str_lit @ Literal::String(str_ptr)) if str_ptr.to_obj() == val => break str_lit.clone(),
+                                    None => {
+                                        break Literal::String(GCRef::<String>::alloc(
+                                            val.clone(),
+                                            mutator,
+                                        ))
+                                    } // reached end of literals and no duplicate, we alloc
+                                    Some(str_lit @ Literal::String(str_ptr))
+                                        if **str_ptr == *val =>
+                                    {
+                                        break str_lit.clone()
+                                    }
                                     _ => {}
                                 }
                                 i += 1;
@@ -601,7 +610,10 @@ impl MethodCodegen for ast::Expression {
                             // this is to handle a weird corner case where "-2147483648" is considered to be a bigint by the lexer and then parser, when it's in fact just barely in i32 range
                             match big_int_str.parse::<i32>() {
                                 Ok(x) => Literal::Integer(x),
-                                _ => Literal::BigInteger(GCRef::<BigInt>::alloc(BigInt::from_str(big_int_str).unwrap(), mutator))
+                                _ => Literal::BigInteger(GCRef::<BigInt>::alloc(
+                                    BigInt::from_str(big_int_str).unwrap(),
+                                    mutator,
+                                )),
                             }
                         }
                         ast::Literal::Array(val) => {
@@ -668,7 +680,9 @@ impl GenCtxt for ClassGenCtxt<'_> {
     }
 
     fn find_field(&mut self, name: &str) -> Option<usize> {
-        self.fields.iter().position(|f_int| self.interner.lookup(*f_int) == name)
+        self.fields
+            .iter()
+            .position(|f_int| self.interner.lookup(*f_int) == name)
     }
 
     fn class_name(&self) -> &str {
@@ -676,7 +690,11 @@ impl GenCtxt for ClassGenCtxt<'_> {
     }
 }
 
-fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::MethodDef, mutator: &mut GCInterface) -> Option<Method> {
+fn compile_method(
+    outer: &mut dyn GenCtxt,
+    defn: &ast::MethodDef,
+    mutator: &mut GCInterface,
+) -> Option<Method> {
     /// Only add a ReturnSelf at the end of a method if needed: i.e. there's no existing return, and if there is, that it can't be jumped over.
     fn should_add_return_self(ctxt: &mut MethodGenCtxt, body: &ast::Body) -> bool {
         if body.exprs.is_empty() {
@@ -686,25 +704,27 @@ fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::MethodDef, mutator: &mut 
         // going back two BC to skip the POP added after each expr.codegen(...).
         match ctxt.get_instructions().iter().nth_back(1) {
             // if the last BC is a return, we check whether it can be skipped over. if so, we add a ReturnSelf
-            Some(Bytecode::ReturnLocal) | Some(Bytecode::ReturnNonLocal(_)) | Some(Bytecode::ReturnSelf) => {
+            Some(Bytecode::ReturnLocal)
+            | Some(Bytecode::ReturnNonLocal(_))
+            | Some(Bytecode::ReturnSelf) => {
                 let idx_of_pop_before_potential_return_self = ctxt.get_instructions().len() - 1;
 
-                ctxt.get_instructions().iter().enumerate().any(|(bc_idx, bc)| {
-                    match bc {
+                ctxt.get_instructions()
+                    .iter()
+                    .enumerate()
+                    .any(|(bc_idx, bc)| match bc {
                         Bytecode::Jump(jump_idx)
                         | Bytecode::JumpOnTrueTopNil(jump_idx)
                         | Bytecode::JumpOnFalseTopNil(jump_idx)
                         | Bytecode::JumpOnTruePop(jump_idx)
                         | Bytecode::JumpOnFalsePop(jump_idx)
-                        | Bytecode::JumpIfGreater(jump_idx)
-                        => {
+                        | Bytecode::JumpIfGreater(jump_idx) => {
                             bc_idx + *jump_idx as usize >= idx_of_pop_before_potential_return_self
                         }
-                        _ => false
-                    }
-                })
+                        _ => false,
+                    })
             }
-            _ => true
+            _ => true,
         }
     }
 
@@ -726,20 +746,24 @@ fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::MethodDef, mutator: &mut 
             locals_nbr: {
                 match &defn.body {
                     MethodBody::Primitive => 0,
-                    MethodBody::Body { locals_nbr, .. } => *locals_nbr
+                    MethodBody::Body { locals_nbr, .. } => *locals_nbr,
                 }
             },
             args_nbr: {
                 match defn.signature.chars().next().unwrap() {
-                    '~' | '&' | '|' | '*' | '/' | '\\' | '+' | '=' | '>' | '<' | ',' | '@' | '%' | '-' => 2,
-                    _ => defn.signature.chars().filter(|c| *c == ':').count()
+                    '~' | '&' | '|' | '*' | '/' | '\\' | '+' | '=' | '>' | '<' | ',' | '@'
+                    | '%' | '-' => 2,
+                    _ => defn.signature.chars().filter(|c| *c == ':').count(),
                 }
             },
             #[cfg(feature = "frame-debug-info")]
             debug_info: {
                 match &defn.body {
-                    MethodBody::Primitive => { BlockDebugInfo { parameters: vec![], locals: vec![] } }
-                    MethodBody::Body { debug_info, .. } => debug_info.clone()
+                    MethodBody::Primitive => BlockDebugInfo {
+                        parameters: vec![],
+                        locals: vec![],
+                    },
+                    MethodBody::Body { debug_info, .. } => debug_info.clone(),
                 }
             },
         },
@@ -809,7 +833,11 @@ fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::MethodDef, mutator: &mut 
     Some(method)
 }
 
-fn compile_block(outer: &mut dyn GenCtxt, defn: &ast::Block, mutator: &mut GCInterface) -> Option<Block> {
+fn compile_block(
+    outer: &mut dyn GenCtxt,
+    defn: &ast::Block,
+    mutator: &mut GCInterface,
+) -> Option<Block> {
     // println!("(system) compiling block ...");
 
     let mut ctxt = BlockGenCtxt {
@@ -839,7 +867,6 @@ fn compile_block(outer: &mut dyn GenCtxt, defn: &ast::Block, mutator: &mut GCInt
         ctxt.push_instr(Bytecode::ReturnLocal);
     }
 
-
     let frame = None;
     // let locals = {
     // let locals = std::mem::take(&mut ctxt.locals);
@@ -857,17 +884,20 @@ fn compile_block(outer: &mut dyn GenCtxt, defn: &ast::Block, mutator: &mut GCInt
 
     let block = Block {
         frame,
-        blk_info: GCRef::<BlockInfo>::alloc(BlockInfo {
-            // locals,
-            nb_locals,
-            literals,
-            body,
-            nb_params,
-            inline_cache,
-            max_stack_size,
-            #[cfg(feature = "frame-debug-info")]
-            block_debug_info: ctxt.debug_info,
-        }, mutator),
+        blk_info: GCRef::<BlockInfo>::alloc(
+            BlockInfo {
+                // locals,
+                nb_locals,
+                literals,
+                body,
+                nb_params,
+                inline_cache,
+                max_stack_size,
+                #[cfg(feature = "frame-debug-info")]
+                block_debug_info: ctxt.debug_info,
+            },
+            mutator,
+        ),
     };
 
     // println!("(system) compiled block !");
@@ -899,26 +929,22 @@ fn get_max_stack_size(body: &Vec<Bytecode>) -> u8 {
             | Bytecode::Push0
             | Bytecode::Push1
             | Bytecode::PushNil
-            | Bytecode::PushSelf
-            => {
+            | Bytecode::PushSelf => {
                 abstract_stack_size += 1;
                 if abstract_stack_size > max_stack_size_observed {
                     max_stack_size_observed = abstract_stack_size
                 }
-            },
+            }
             Bytecode::Pop
             | Bytecode::PopLocal(..)
             | Bytecode::PopArg(..)
             | Bytecode::PopField(..)
             | Bytecode::JumpOnTruePop(..)
-            | Bytecode::JumpOnFalsePop(..)
-            => {
-                abstract_stack_size -= 1
-            },
+            | Bytecode::JumpOnFalsePop(..) => abstract_stack_size -= 1,
             Bytecode::Send1(_) | Bytecode::SuperSend1(_) => {}
-            Bytecode::Send2(_) | Bytecode::SuperSend2(_) => { abstract_stack_size -= 1 } // number of arguments (they all get popped) + 1 for the result
-            Bytecode::Send3(_) | Bytecode::SuperSend3(_) => { abstract_stack_size -= 2 }
-            Bytecode::SendN(_idx) | Bytecode::SuperSendN(_idx) => { abstract_stack_size -= 3 } // TODO it can be more than 3. need to look up the signature from the index, which needs access to literals + interner.
+            Bytecode::Send2(_) | Bytecode::SuperSend2(_) => abstract_stack_size -= 1, // number of arguments (they all get popped) + 1 for the result
+            Bytecode::Send3(_) | Bytecode::SuperSend3(_) => abstract_stack_size -= 2,
+            Bytecode::SendN(_idx) | Bytecode::SuperSendN(_idx) => abstract_stack_size -= 3, // TODO it can be more than 3. need to look up the signature from the index, which needs access to literals + interner.
             Bytecode::Halt => {}
             Bytecode::Inc => {}
             Bytecode::Dec => {}
@@ -950,14 +976,14 @@ pub fn compile_class(
         class: &GCRef<Class>,
         locals: &mut IndexSet<Interned>,
     ) {
-        if let Some(class) = class.to_obj().super_class() {
+        if let Some(class) = class.super_class() {
             collect_static_locals(interner, &class, locals);
         }
-        locals.extend(class.to_obj().locals.keys().copied());
+        locals.extend(class.locals.keys().copied());
     }
 
     if let Some(super_class) = super_class {
-        collect_static_locals(interner, &super_class.to_obj().class(), &mut locals);
+        collect_static_locals(interner, &super_class.class(), &mut locals);
     }
 
     locals.extend(
@@ -988,7 +1014,9 @@ pub fn compile_class(
         let signature = static_class_ctxt.interner.intern(method.signature.as_str());
         let mut method = compile_method(&mut static_class_ctxt, method, mutator)?;
         method.holder = static_class_gc_ptr;
-        static_class_ctxt.methods.insert(signature, GCRef::<Method>::alloc(method, mutator));
+        static_class_ctxt
+            .methods
+            .insert(signature, GCRef::<Method>::alloc(method, mutator));
     }
 
     if let Some(primitives) = primitives::get_class_primitives(&defn.name) {
@@ -1007,11 +1035,13 @@ pub fn compile_class(
                 holder: static_class_gc_ptr,
             };
             let signature = static_class_ctxt.interner.intern(signature);
-            static_class_ctxt.methods.insert(signature, GCRef::<Method>::alloc(method, mutator));
+            static_class_ctxt
+                .methods
+                .insert(signature, GCRef::<Method>::alloc(method, mutator));
         }
     }
 
-    let static_class_mut = static_class_gc_ptr.to_obj(); // todo couldn't we have done that before
+    let mut static_class_mut = static_class_gc_ptr; // todo couldn't we have done that before
     static_class_mut.locals = static_class_ctxt
         .fields
         .into_iter()
@@ -1031,10 +1061,10 @@ pub fn compile_class(
         class: &GCRef<Class>,
         locals: &mut IndexSet<Interned>,
     ) {
-        if let Some(class) = class.to_obj().super_class() {
+        if let Some(class) = class.super_class() {
             collect_instance_locals(interner, &class, locals);
         }
-        locals.extend(class.to_obj().locals.keys());
+        locals.extend(class.locals.keys());
     }
 
     if let Some(super_class) = super_class {
@@ -1098,7 +1128,7 @@ pub fn compile_class(
         }
     }
 
-    let instance_class_mut = instance_class_gc_ptr.to_obj();
+    let mut instance_class_mut = instance_class_gc_ptr;
     instance_class_mut.locals = instance_class_ctxt
         .fields
         .into_iter()

@@ -1,4 +1,7 @@
-use crate::ast::{AstBinaryDispatch, AstBlock, AstBody, AstDispatchNode, AstExpression, AstLiteral, AstMethodDef, AstNAryDispatch, AstSuperMessage, AstTerm, AstTernaryDispatch, AstUnaryDispatch, InlinedNode};
+use crate::ast::{
+    AstBinaryDispatch, AstBlock, AstBody, AstDispatchNode, AstExpression, AstLiteral, AstMethodDef,
+    AstNAryDispatch, AstSuperMessage, AstTerm, AstTernaryDispatch, AstUnaryDispatch, InlinedNode,
+};
 use crate::block::Block;
 use crate::frame::{Frame, FrameAccess};
 use crate::gc::VecValue;
@@ -41,7 +44,7 @@ impl Evaluate for AstExpression {
             Self::Block(blk) => blk.evaluate(universe),
             Self::LocalExit(expr) => {
                 let value = propagate!(expr.evaluate(universe));
-                Return::NonLocal(value, universe.current_frame)  // not well named - Return::NonLocal means "exits the scope", so it can be a regular, local return. 
+                Return::NonLocal(value, universe.current_frame) // not well named - Return::NonLocal means "exits the scope", so it can be a regular, local return.
             }
             Self::NonLocalExit(expr, scope) => {
                 debug_assert_ne!(*scope, 0);
@@ -59,11 +62,11 @@ impl Evaluate for AstExpression {
 
                     loop {
                         if current_frame == method_frame {
-                            break true
+                            break true;
                         } else if current_frame.is_empty() {
-                            break false
+                            break false;
                         } else {
-                            current_frame = current_frame.to_obj().prev_frame;
+                            current_frame = current_frame.prev_frame;
                         }
                     }
                 };
@@ -80,7 +83,9 @@ impl Evaluate for AstExpression {
                         _ => {
                             // Should never happen, because `universe.current_frame()` would
                             // have been equal to `universe.current_method_frame()`.
-                            return Return::Exception("A method frame has escaped itself ??".to_string());
+                            return Return::Exception(
+                                "A method frame has escaped itself ??".to_string(),
+                            );
                         }
                     };
                     universe.escaped_block(instance, block).unwrap_or_else(|| {
@@ -93,43 +98,39 @@ impl Evaluate for AstExpression {
                 }
             }
             Self::Literal(literal) => literal.evaluate(universe),
-            Self::LocalVarRead(idx) => {
-                Return::Local(universe.lookup_local(*idx))
-            }
+            Self::LocalVarRead(idx) => Return::Local(universe.lookup_local(*idx)),
             Self::NonLocalVarRead(scope, idx) => {
                 Return::Local(universe.lookup_non_local(*idx, *scope))
             }
-            Self::FieldRead(idx) => {
-                Return::Local(universe.lookup_field(*idx))
-            }
-            Self::ArgRead(scope, idx) => {
-                Return::Local(universe.lookup_arg(*idx, *scope))
-            }
-            Self::GlobalRead(name) =>
-                match name.as_str() {
-                    _ => universe.lookup_global(name.as_str())
-                        .map(Return::Local)
-                        .or_else(|| {
-                            let frame = universe.current_frame;
-                            let self_value = frame.get_self();
-                            universe.unknown_global(self_value, name.as_str())
-                        })
-                        .unwrap_or_else(|| Return::Exception(format!("global variable '{}' not found", name)))
-                },
+            Self::FieldRead(idx) => Return::Local(universe.lookup_field(*idx)),
+            Self::ArgRead(scope, idx) => Return::Local(universe.lookup_arg(*idx, *scope)),
+            Self::GlobalRead(name) => match name.as_str() {
+                _ => universe
+                    .lookup_global(name.as_str())
+                    .map(Return::Local)
+                    .or_else(|| {
+                        let frame = universe.current_frame;
+                        let self_value = frame.get_self();
+                        universe.unknown_global(self_value, name.as_str())
+                    })
+                    .unwrap_or_else(|| {
+                        Return::Exception(format!("global variable '{}' not found", name))
+                    }),
+            },
             Self::UnaryDispatch(un_op) => un_op.evaluate(universe),
             Self::BinaryDispatch(bin_op) => bin_op.evaluate(universe),
             Self::TernaryDispatch(ter_op) => ter_op.evaluate(universe),
             Self::NAryDispatch(msg) => msg.evaluate(universe),
             Self::SuperMessage(msg) => msg.evaluate(universe),
-            Self::InlinedCall(inlined_node) => {
-                match inlined_node.as_mut() {
-                    InlinedNode::IfInlined(if_inlined) => if_inlined.evaluate(universe),
-                    InlinedNode::IfTrueIfFalseInlined(if_true_if_false_inlined) => if_true_if_false_inlined.evaluate(universe),
-                    InlinedNode::WhileInlined(while_inlined) => while_inlined.evaluate(universe),
-                    InlinedNode::OrInlined(or_inlined) => or_inlined.evaluate(universe),
-                    InlinedNode::AndInlined(and_inlined) => and_inlined.evaluate(universe)
+            Self::InlinedCall(inlined_node) => match inlined_node.as_mut() {
+                InlinedNode::IfInlined(if_inlined) => if_inlined.evaluate(universe),
+                InlinedNode::IfTrueIfFalseInlined(if_true_if_false_inlined) => {
+                    if_true_if_false_inlined.evaluate(universe)
                 }
-            }
+                InlinedNode::WhileInlined(while_inlined) => while_inlined.evaluate(universe),
+                InlinedNode::OrInlined(or_inlined) => or_inlined.evaluate(universe),
+                InlinedNode::AndInlined(and_inlined) => and_inlined.evaluate(universe),
+            },
         }
     }
 }
@@ -137,18 +138,22 @@ impl Evaluate for AstExpression {
 impl Evaluate for AstLiteral {
     fn evaluate(&mut self, universe: &mut Universe) -> Return {
         match self {
-            Self::Array(array) => { // todo: couldn't we precompute those astliterals, really?
-                let mut output = Vec::with_capacity(array.to_obj().0.len());
-                for literal in &mut array.to_obj().0 {
+            Self::Array(array) => {
+                // todo: couldn't we precompute those astliterals, really?
+                let mut output = Vec::with_capacity(array.0.len());
+                for literal in &mut array.0 {
                     let value = propagate!(literal.evaluate(universe));
                     output.push(value);
                 }
-                Return::Local(Value::Array(GCRef::<VecValue>::alloc(VecValue(output), &mut universe.gc_interface)))
+                Return::Local(Value::Array(GCRef::<VecValue>::alloc(
+                    VecValue(output),
+                    &mut universe.gc_interface,
+                )))
             }
             Self::Integer(int) => Return::Local(Value::Integer(*int)),
             Self::BigInteger(bigint) => Return::Local(Value::BigInteger(*bigint)),
             Self::Double(double) => Return::Local(Value::Double(*double)),
-            Self::Symbol(sym) => Return::Local(Value::Symbol(universe.intern_symbol(sym.to_obj()))),
+            Self::Symbol(sym) => Return::Local(Value::Symbol(universe.intern_symbol(sym))),
             Self::String(string) => Return::Local(Value::String(*string)),
         }
     }
@@ -173,7 +178,11 @@ impl Evaluate for GCRef<AstBlock> {
 
 impl AstDispatchNode {
     #[inline(always)]
-    fn lookup_invokable(&mut self, receiver: &Value, universe: &mut Universe) -> (Option<GCRef<Method>>, bool) {
+    fn lookup_invokable(
+        &mut self,
+        receiver: &Value,
+        universe: &mut Universe,
+    ) -> (Option<GCRef<Method>>, bool) {
         let mut is_cache_hit = false;
         let invokable = match &self.inline_cache {
             Some((cached_rcvr_ptr, method)) => {
@@ -186,29 +195,33 @@ impl AstDispatchNode {
                     receiver.lookup_method(universe, &self.signature)
                 }
             }
-            None => receiver.lookup_method(universe, &self.signature)
+            None => receiver.lookup_method(universe, &self.signature),
         };
 
         (invokable, is_cache_hit)
     }
-    
+
     #[inline(always)]
-    fn dispatch_or_dnu(&mut self, invokable: Option<GCRef<Method>>, args: Vec<Value>, is_cache_hit: bool, universe: &mut Universe) -> Return {
+    fn dispatch_or_dnu(
+        &mut self,
+        invokable: Option<GCRef<Method>>,
+        args: Vec<Value>,
+        is_cache_hit: bool,
+        universe: &mut Universe,
+    ) -> Return {
         match invokable {
-            Some(invokable) => {
-                match is_cache_hit {
-                    true => invokable.to_obj().invoke(universe, args),
-                    false => {
-                        let receiver = args.first().unwrap().clone();
-                        let invoke_ret = invokable.to_obj().invoke(universe, args);
+            Some(mut invokable) => match is_cache_hit {
+                true => invokable.invoke(universe, args),
+                false => {
+                    let receiver = args.first().unwrap().clone();
+                    let invoke_ret = invokable.invoke(universe, args);
 
-                        let class_ref = receiver.class(universe);
-                        self.inline_cache = Some((class_ref, invokable));
+                    let class_ref = receiver.class(universe);
+                    self.inline_cache = Some((class_ref, invokable));
 
-                        invoke_ret
-                    }
+                    invoke_ret
                 }
-            }
+            },
             None => {
                 let mut args = args;
                 let receiver = args.remove(0);
@@ -230,7 +243,8 @@ impl Evaluate for AstUnaryDispatch {
     fn evaluate(&mut self, universe: &mut Universe) -> Return {
         let receiver = propagate!(self.dispatch_node.receiver.evaluate(universe));
         let (invokable, is_cache_hit) = self.dispatch_node.lookup_invokable(&receiver, universe);
-        self.dispatch_node.dispatch_or_dnu(invokable, vec![receiver], is_cache_hit, universe)
+        self.dispatch_node
+            .dispatch_or_dnu(invokable, vec![receiver], is_cache_hit, universe)
     }
 }
 
@@ -241,7 +255,8 @@ impl Evaluate for AstBinaryDispatch {
 
         let arg = propagate!(self.arg.evaluate(universe));
 
-        self.dispatch_node.dispatch_or_dnu(invokable, vec![receiver, arg], is_cache_hit, universe)
+        self.dispatch_node
+            .dispatch_or_dnu(invokable, vec![receiver, arg], is_cache_hit, universe)
     }
 }
 
@@ -253,7 +268,12 @@ impl Evaluate for AstTernaryDispatch {
         let arg1 = propagate!(self.arg1.evaluate(universe));
         let arg2 = propagate!(self.arg2.evaluate(universe));
 
-        self.dispatch_node.dispatch_or_dnu(invokable, vec![receiver, arg1, arg2], is_cache_hit, universe)
+        self.dispatch_node.dispatch_or_dnu(
+            invokable,
+            vec![receiver, arg1, arg2],
+            is_cache_hit,
+            universe,
+        )
     }
 }
 
@@ -272,15 +292,19 @@ impl Evaluate for AstNAryDispatch {
             output
         };
 
-        debug_assert!(args.len() > 3, "should be a specialized unary/binary/ternary node, not a generic N-ary node");
+        debug_assert!(
+            args.len() > 3,
+            "should be a specialized unary/binary/ternary node, not a generic N-ary node"
+        );
 
-        self.dispatch_node.dispatch_or_dnu(invokable, args, is_cache_hit, universe)
+        self.dispatch_node
+            .dispatch_or_dnu(invokable, args, is_cache_hit, universe)
     }
 }
 
 impl Evaluate for AstSuperMessage {
     fn evaluate(&mut self, universe: &mut Universe) -> Return {
-        let invokable = self.super_class.to_obj().lookup_method(&self.signature);
+        let invokable = self.super_class.lookup_method(&self.signature);
         let receiver = universe.current_frame.get_self();
         let args = {
             let mut output = Vec::with_capacity(self.values.len() + 1);
@@ -293,7 +317,7 @@ impl Evaluate for AstSuperMessage {
         };
 
         let value = match invokable {
-            Some(invokable) => invokable.to_obj().invoke(universe, args),
+            Some(mut invokable) => invokable.invoke(universe, args),
             None => {
                 let mut args = args;
                 args.remove(0);
@@ -313,7 +337,6 @@ impl Evaluate for AstSuperMessage {
         value
     }
 }
-
 
 impl Evaluate for AstBody {
     fn evaluate(&mut self, universe: &mut Universe) -> Return {
@@ -348,6 +371,6 @@ impl Evaluate for AstMethodDef {
 
 impl Evaluate for GCRef<Block> {
     fn evaluate(&mut self, universe: &mut Universe) -> Return {
-        self.to_obj().block.to_obj().body.evaluate(universe)
+        self.block.body.evaluate(universe)
     }
 }

@@ -40,7 +40,7 @@ macro_rules! promote {
         match $value {
             DoubleLike::Double(value) => value,
             DoubleLike::Integer(value) => value as f64,
-            DoubleLike::BigInteger(value) => match value.to_obj().to_f64() {
+            DoubleLike::BigInteger(value) => match value.to_f64() {
                 Some(value) => value,
                 None => {
                     panic!(
@@ -53,7 +53,7 @@ macro_rules! promote {
     };
 }
 
-fn from_string(universe: &mut Universe, _: Value, string: StringLike)-> Result<Value, Error> {
+fn from_string(universe: &mut Universe, _: Value, string: StringLike) -> Result<Value, Error> {
     const SIGNATURE: &str = "Double>>#fromString:";
 
     let string = match string {
@@ -67,19 +67,22 @@ fn from_string(universe: &mut Universe, _: Value, string: StringLike)-> Result<V
     }
 }
 
-fn as_string(universe: &mut Universe, receiver: DoubleLike)-> Result<Value, Error> {
+fn as_string(universe: &mut Universe, receiver: DoubleLike) -> Result<Value, Error> {
     const SIGNATURE: &str = "Double>>#asString";
 
     let value = promote!(SIGNATURE, receiver);
 
-    Ok(Value::String(GCRef::<String>::alloc(value.to_string(), &mut universe.gc_interface)))
+    Ok(Value::String(GCRef::<String>::alloc(
+        value.to_string(),
+        &mut universe.gc_interface,
+    )))
 }
 
-fn as_integer(_: &mut Universe, receiver: f64)-> Result<Value, Error> {
+fn as_integer(_: &mut Universe, receiver: f64) -> Result<Value, Error> {
     Ok(Value::Integer(receiver.trunc() as i32))
 }
 
-fn sqrt(_: &mut Universe, receiver: DoubleLike)-> Result<Value, Error> {
+fn sqrt(_: &mut Universe, receiver: DoubleLike) -> Result<Value, Error> {
     const SIGNATURE: &str = "Double>>#sqrt";
 
     let value = promote!(SIGNATURE, receiver);
@@ -87,7 +90,7 @@ fn sqrt(_: &mut Universe, receiver: DoubleLike)-> Result<Value, Error> {
     Ok(Value::Double(value.sqrt()))
 }
 
-fn round(_: &mut Universe, receiver: DoubleLike)-> Result<Value, Error> {
+fn round(_: &mut Universe, receiver: DoubleLike) -> Result<Value, Error> {
     const SIGNATURE: &str = "Double>>#round";
 
     let value = promote!(SIGNATURE, receiver);
@@ -95,7 +98,7 @@ fn round(_: &mut Universe, receiver: DoubleLike)-> Result<Value, Error> {
     Ok(Value::Double(value.round()))
 }
 
-fn cos(_: &mut Universe, value: DoubleLike)-> Result<Value, Error> {
+fn cos(_: &mut Universe, value: DoubleLike) -> Result<Value, Error> {
     const SIGNATURE: &str = "Double>>#cos";
 
     let value = promote!(SIGNATURE, value);
@@ -103,7 +106,7 @@ fn cos(_: &mut Universe, value: DoubleLike)-> Result<Value, Error> {
     Ok(Value::Double(value.cos()))
 }
 
-fn sin(_: &mut Universe, receiver: DoubleLike)-> Result<Value, Error> {
+fn sin(_: &mut Universe, receiver: DoubleLike) -> Result<Value, Error> {
     const SIGNATURE: &str = "Double>>#sin";
 
     let value = promote!(SIGNATURE, receiver);
@@ -111,11 +114,11 @@ fn sin(_: &mut Universe, receiver: DoubleLike)-> Result<Value, Error> {
     Ok(Value::Double(value.sin()))
 }
 
-fn eq(_: &mut Universe, a: Value, b: Value)-> Result<Value, Error> {
+fn eq(_: &mut Universe, a: Value, b: Value) -> Result<Value, Error> {
     Ok(Value::Boolean(a == b))
 }
 
-fn lt(_: &mut Universe, a: DoubleLike, b: DoubleLike)-> Result<Value, Error> {
+fn lt(_: &mut Universe, a: DoubleLike, b: DoubleLike) -> Result<Value, Error> {
     const SIGNATURE: &str = "Double>>#<";
 
     let a = promote!(SIGNATURE, a);
@@ -124,7 +127,7 @@ fn lt(_: &mut Universe, a: DoubleLike, b: DoubleLike)-> Result<Value, Error> {
     Ok(Value::Boolean(a < b))
 }
 
-fn plus(_: &mut Universe, a: DoubleLike, b: DoubleLike)-> Result<Value, Error> {
+fn plus(_: &mut Universe, a: DoubleLike, b: DoubleLike) -> Result<Value, Error> {
     const SIGNATURE: &str = "Double>>#+";
 
     let a = promote!(SIGNATURE, a);
@@ -133,7 +136,7 @@ fn plus(_: &mut Universe, a: DoubleLike, b: DoubleLike)-> Result<Value, Error> {
     Ok(Value::Double(a + b))
 }
 
-fn minus(_: &mut Universe, a: DoubleLike, b: DoubleLike)-> Result<Value, Error> {
+fn minus(_: &mut Universe, a: DoubleLike, b: DoubleLike) -> Result<Value, Error> {
     const SIGNATURE: &str = "Double>>#-";
 
     let a = promote!(SIGNATURE, a);
@@ -142,7 +145,7 @@ fn minus(_: &mut Universe, a: DoubleLike, b: DoubleLike)-> Result<Value, Error> 
     Ok(Value::Double(a - b))
 }
 
-fn times(_: &mut Universe, a: DoubleLike, b: DoubleLike)-> Result<Value, Error> {
+fn times(_: &mut Universe, a: DoubleLike, b: DoubleLike) -> Result<Value, Error> {
     const SIGNATURE: &str = "Double>>#*";
 
     let a = promote!(SIGNATURE, a);
@@ -151,7 +154,7 @@ fn times(_: &mut Universe, a: DoubleLike, b: DoubleLike)-> Result<Value, Error> 
     Ok(Value::Double(a * b))
 }
 
-fn divide(_: &mut Universe, a: DoubleLike, b: DoubleLike)-> Result<Value, Error> {
+fn divide(_: &mut Universe, a: DoubleLike, b: DoubleLike) -> Result<Value, Error> {
     const SIGNATURE: &str = "Double>>#//";
 
     let a = promote!(SIGNATURE, a);
@@ -160,7 +163,7 @@ fn divide(_: &mut Universe, a: DoubleLike, b: DoubleLike)-> Result<Value, Error>
     Ok(Value::Double(a / b))
 }
 
-fn modulo(_: &mut Universe, a: DoubleLike, b: DoubleLike)-> Result<Value, Error> {
+fn modulo(_: &mut Universe, a: DoubleLike, b: DoubleLike) -> Result<Value, Error> {
     const SIGNATURE: &str = "Double>>#%";
 
     let a = promote!(SIGNATURE, a);
@@ -169,7 +172,7 @@ fn modulo(_: &mut Universe, a: DoubleLike, b: DoubleLike)-> Result<Value, Error>
     Ok(Value::Double(a % b))
 }
 
-fn positive_infinity(_: &mut Universe, _: Value)-> Result<Value, Error> {
+fn positive_infinity(_: &mut Universe, _: Value) -> Result<Value, Error> {
     const _: &str = "Double>>#positiveInfinity";
 
     Ok(Value::Double(f64::INFINITY))

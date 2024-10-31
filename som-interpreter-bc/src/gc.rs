@@ -1,20 +1,22 @@
-use log::debug;
-use mmtk::Mutator;
-use mmtk::util::{Address, ObjectReference};
-use mmtk::vm::{ObjectModel, SlotVisitor};
-use som_gc::gc_interface::{HasTypeInfoForGC, MMTKtoVMCallbacks, BIGINT_MAGIC_ID, STRING_MAGIC_ID, VECU8_MAGIC_ID};
-use som_gc::object_model::VMObjectModel;
-use som_gc::{SOMVM};
-use som_gc::gcref::GCRef;
-use som_gc::slot::SOMSlot;
 use crate::block::{Block, BlockInfo};
 use crate::class::Class;
 use crate::compiler::Literal;
 use crate::frame::Frame;
 use crate::instance::{Instance, InstanceAccess};
-use crate::{INTERPRETER_RAW_PTR, UNIVERSE_RAW_PTR};
 use crate::method::{Method, MethodKind};
 use crate::value::Value;
+use crate::{INTERPRETER_RAW_PTR, UNIVERSE_RAW_PTR};
+use log::debug;
+use mmtk::util::{Address, ObjectReference};
+use mmtk::vm::{ObjectModel, SlotVisitor};
+use mmtk::Mutator;
+use som_gc::gc_interface::{
+    HasTypeInfoForGC, MMTKtoVMCallbacks, BIGINT_MAGIC_ID, STRING_MAGIC_ID, VECU8_MAGIC_ID,
+};
+use som_gc::gcref::GCRef;
+use som_gc::object_model::VMObjectModel;
+use som_gc::slot::SOMSlot;
+use som_gc::SOMVM;
 
 // Mine. to put in GC headers
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -36,7 +38,7 @@ pub struct VecValue(pub Vec<Value>);
 
 impl HasTypeInfoForGC for VecValue {
     fn get_magic_gc_id() -> u8 {
-        BCObjMagicId::ArrayVal as u8 
+        BCObjMagicId::ArrayVal as u8
     }
 }
 
@@ -60,19 +62,19 @@ impl HasTypeInfoForGC for Method {
 
 impl HasTypeInfoForGC for Block {
     fn get_magic_gc_id() -> u8 {
-        BCObjMagicId::Block  as u8
+        BCObjMagicId::Block as u8
     }
 }
 
 impl HasTypeInfoForGC for Class {
     fn get_magic_gc_id() -> u8 {
-        BCObjMagicId::Class  as u8
+        BCObjMagicId::Class as u8
     }
 }
 
 impl HasTypeInfoForGC for Frame {
     fn get_magic_gc_id() -> u8 {
-        BCObjMagicId::Frame  as u8
+        BCObjMagicId::Frame as u8
     }
 }
 
@@ -87,7 +89,7 @@ pub fn visit_value<'a>(val: &Value, slot_visitor: &'a mut (dyn SlotVisitor<SOMSl
 
 pub fn scan_object<'a>(
     object: ObjectReference,
-    slot_visitor: &'a mut (dyn SlotVisitor<SOMSlot> + 'a)
+    slot_visitor: &'a mut (dyn SlotVisitor<SOMSlot> + 'a),
 ) {
     unsafe {
         // let _ptr: *mut usize = unsafe { obj_addr.as_mut_ref() };
@@ -98,7 +100,7 @@ pub fn scan_object<'a>(
         match gc_id {
             BCObjMagicId::Frame => {
                 let frame: &mut Frame = object.to_raw_address().as_mut_ref();
-                debug!("(frame method is: {})", &frame.current_method.to_obj().signature);
+                debug!("(frame method is: {})", &frame.current_method.signature);
 
                 if !frame.prev_frame.is_empty() {
                     let prev_frame_slot_addr = Address::from_ref(&frame.prev_frame);
@@ -119,7 +121,8 @@ pub fn scan_object<'a>(
                 }
 
                 // this should all really be done in the frame as a custom method. return an iter or something
-                let frame_stack_start_addr: Address = object.to_raw_address().add(size_of::<Frame>());
+                let frame_stack_start_addr: Address =
+                    object.to_raw_address().add(size_of::<Frame>());
                 let mut stack_ptr = frame.stack_ptr;
                 while !std::ptr::eq(stack_ptr, frame_stack_start_addr.to_ptr()) {
                     stack_ptr = stack_ptr.sub(1);
@@ -134,15 +137,19 @@ pub fn scan_object<'a>(
                     MethodKind::Defined(method_env) => {
                         for x in &method_env.literals {
                             match x {
-                                Literal::Block(blk) => slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(blk))),
-                                Literal::String(str) => slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(str))),
-                                Literal::BigInteger(bigint) => slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(bigint))),
-                                Literal::Array(arr) => slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(arr))),
+                                Literal::Block(blk) => slot_visitor
+                                    .visit_slot(SOMSlot::from_address(Address::from_ref(blk))),
+                                Literal::String(str) => slot_visitor
+                                    .visit_slot(SOMSlot::from_address(Address::from_ref(str))),
+                                Literal::BigInteger(bigint) => slot_visitor
+                                    .visit_slot(SOMSlot::from_address(Address::from_ref(bigint))),
+                                Literal::Array(arr) => slot_visitor
+                                    .visit_slot(SOMSlot::from_address(Address::from_ref(arr))),
                                 _ => {}
                             }
                         }
-                    },
-                    _ => {},
+                    }
+                    _ => {}
                 }
 
                 let holder_slot_addr = Address::from_ref(&method.holder);
@@ -154,7 +161,9 @@ pub fn scan_object<'a>(
                 slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(&class.class)));
 
                 if let Some(_) = class.super_class {
-                    slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(class.super_class.as_ref().unwrap())));
+                    slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(
+                        class.super_class.as_ref().unwrap(),
+                    )));
                 }
 
                 for (_, method_ref) in class.methods.iter() {
@@ -179,7 +188,8 @@ pub fn scan_object<'a>(
                 slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(&instance.class)));
 
                 // not the cleanest, to be frank
-                let gcref_instance: GCRef<Instance> = GCRef::from_u64(object.to_raw_address().as_usize() as u64);
+                let gcref_instance: GCRef<Instance> =
+                    GCRef::from_u64(object.to_raw_address().as_usize() as u64);
                 for i in 0..instance.nbr_fields {
                     let val: Value = gcref_instance.lookup_local(i);
                     visit_value(&val, slot_visitor)
@@ -191,7 +201,10 @@ pub fn scan_object<'a>(
                     visit_value(val, slot_visitor)
                 }
             }
-            BCObjMagicId::BlockInfo | BCObjMagicId::String | BCObjMagicId::ArrayU8 | BCObjMagicId::BigInt => {
+            BCObjMagicId::BlockInfo
+            | BCObjMagicId::String
+            | BCObjMagicId::ArrayU8
+            | BCObjMagicId::BigInt => {
                 // leaf nodes: no children.
             }
         }
@@ -205,7 +218,10 @@ fn get_roots_in_mutator_thread(_mutator: &mut Mutator<SOMVM>) -> Vec<SOMSlot> {
 
         // walk the frame list.
         let current_frame_addr = &(*INTERPRETER_RAW_PTR).current_frame;
-        debug!("scanning root: current_frame (method: {})", current_frame_addr.to_obj().current_method.to_obj().signature);
+        debug!(
+            "scanning root: current_frame (method: {})",
+            current_frame_addr.current_method.signature
+        );
         to_process.push(SOMSlot::from_address(Address::from_ref(current_frame_addr)));
 
         // walk globals (includes core classes)

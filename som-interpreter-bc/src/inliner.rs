@@ -1,12 +1,12 @@
 use crate::block::{Block, BlockInfo};
 use crate::compiler::MethodCodegen;
 use crate::compiler::{InnerGenCtxt, Literal};
-use som_gc::gc_interface::GCInterface;
-use som_gc::gcref::GCRef;
 use crate::inliner::JumpType::{JumpOnFalse, JumpOnTrue};
 use crate::inliner::OrAndChoice::{And, Or};
 use som_core::ast;
 use som_core::bytecode::Bytecode;
+use som_gc::gc_interface::GCInterface;
+use som_gc::gcref::GCRef;
 
 pub enum JumpType {
     JumpOnFalse,
@@ -21,13 +21,31 @@ pub enum OrAndChoice {
 // TODO some of those should return Result types and throw errors instead, most likely.
 pub trait PrimMessageInliner {
     /// Starts inlining a function if it's on the list of inlinable functions.
-    fn inline_if_possible(&self, ctxt: &mut dyn InnerGenCtxt, mutator: &mut GCInterface) -> Option<()>;
+    fn inline_if_possible(
+        &self,
+        ctxt: &mut dyn InnerGenCtxt,
+        mutator: &mut GCInterface,
+    ) -> Option<()>;
     /// Inlines an expression. If this results in a PushBlock, calls `inline_last_push_block_bc(...)` to inline the block.
-    fn inline_expression(&self, ctxt: &mut dyn InnerGenCtxt, expression: &ast::Expression, mutator: &mut GCInterface) -> Option<()>;
+    fn inline_expression(
+        &self,
+        ctxt: &mut dyn InnerGenCtxt,
+        expression: &ast::Expression,
+        mutator: &mut GCInterface,
+    ) -> Option<()>;
     /// Gets the last bytecode, assumes it to be a PushBlock, removes it and inlines the block - a set of operations for which there is a redundant need.
-    fn inline_last_push_block_bc(&self, ctxt: &mut dyn InnerGenCtxt, mutator: &mut GCInterface) -> Option<()>;
+    fn inline_last_push_block_bc(
+        &self,
+        ctxt: &mut dyn InnerGenCtxt,
+        mutator: &mut GCInterface,
+    ) -> Option<()>;
     /// Inlines a compiled block into the current scope.
-    fn inline_compiled_block(&self, ctxt: &mut dyn InnerGenCtxt, block: &BlockInfo, mutator: &mut GCInterface) -> Option<()>;
+    fn inline_compiled_block(
+        &self,
+        ctxt: &mut dyn InnerGenCtxt,
+        block: &BlockInfo,
+        mutator: &mut GCInterface,
+    ) -> Option<()>;
     /// When inlining a block, adapt its potential children blocks to account for the inlining changes.
     fn adapt_block_after_outer_inlined(
         &self,
@@ -65,15 +83,15 @@ pub trait PrimMessageInliner {
         mutator: &mut GCInterface,
     ) -> Option<()>;
     /// Inlines `to:do`.
-    fn inline_to_do(
-        &self,
-        ctxt: &mut dyn InnerGenCtxt,
-        mutator: &mut GCInterface,
-    ) -> Option<()>;
+    fn inline_to_do(&self, ctxt: &mut dyn InnerGenCtxt, mutator: &mut GCInterface) -> Option<()>;
 }
 
 impl PrimMessageInliner for ast::Message {
-    fn inline_if_possible(&self, ctxt: &mut dyn InnerGenCtxt, mutator: &mut GCInterface) -> Option<()> {
+    fn inline_if_possible(
+        &self,
+        ctxt: &mut dyn InnerGenCtxt,
+        mutator: &mut GCInterface,
+    ) -> Option<()> {
         match self.signature.as_str() {
             "ifTrue:" => self.inline_if_true_or_if_false(ctxt, JumpOnFalse, mutator),
             "ifFalse:" => self.inline_if_true_or_if_false(ctxt, JumpOnTrue, mutator),
@@ -89,18 +107,30 @@ impl PrimMessageInliner for ast::Message {
         }
     }
 
-    fn inline_expression(&self, ctxt: &mut dyn InnerGenCtxt, expression: &ast::Expression, mutator: &mut GCInterface) -> Option<()> {
+    fn inline_expression(
+        &self,
+        ctxt: &mut dyn InnerGenCtxt,
+        expression: &ast::Expression,
+        mutator: &mut GCInterface,
+    ) -> Option<()> {
         expression.codegen(ctxt, mutator)?;
         match ctxt.get_instructions().last()? {
             Bytecode::PushBlock(_) => self.inline_last_push_block_bc(ctxt, mutator),
-            _ => Some(())
+            _ => Some(()),
         }
     }
 
-    fn inline_last_push_block_bc(&self, ctxt: &mut dyn InnerGenCtxt, mutator: &mut GCInterface) -> Option<()> {
+    fn inline_last_push_block_bc(
+        &self,
+        ctxt: &mut dyn InnerGenCtxt,
+        mutator: &mut GCInterface,
+    ) -> Option<()> {
         let block_idx = match ctxt.get_instructions().last()? {
             Bytecode::PushBlock(val) => *val,
-            bc => panic!("inlining function expects last bytecode to be a PUSH_BLOCK, instead it was {}.", bc),
+            bc => panic!(
+                "inlining function expects last bytecode to be a PUSH_BLOCK, instead it was {}.",
+                bc
+            ),
         };
         ctxt.pop_instr(); // removing the PUSH_BLOCK
 
@@ -110,14 +140,18 @@ impl PrimMessageInliner for ast::Message {
         };
         ctxt.remove_literal(block_idx as usize);
 
-
-        match self.inline_compiled_block(ctxt, cond_block_ref.to_obj().blk_info.to_obj(), mutator) {
+        match self.inline_compiled_block(ctxt, &*((*cond_block_ref).blk_info), mutator) {
             None => panic!("Inlining a compiled block failed!"),
             _ => Some(()),
         }
     }
 
-    fn inline_compiled_block(&self, ctxt: &mut dyn InnerGenCtxt, block: &BlockInfo, mutator: &mut GCInterface) -> Option<()> {
+    fn inline_compiled_block(
+        &self,
+        ctxt: &mut dyn InnerGenCtxt,
+        block: &BlockInfo,
+        mutator: &mut GCInterface,
+    ) -> Option<()> {
         let nbr_locals_pre_inlining = ctxt.get_nbr_locals() as u8;
         let nbr_args_pre_inlining = block.nb_params as u8;
 
@@ -130,40 +164,36 @@ impl PrimMessageInliner for ast::Message {
             new_blk.nb_params = 0;
             new_blk
         };
-        
+
         // last is always ReturnLocal, so it gets ignored
         if let Some((_, body)) = block.body.split_last() {
             for block_bc in body {
                 match block_bc {
-                    Bytecode::PushLocal(idx) => ctxt.push_instr(Bytecode::PushLocal(nbr_locals_pre_inlining + nbr_args_pre_inlining + *idx)),
-                    Bytecode::PushNonLocal(up_idx, idx) => {
-                        match *up_idx - 1 {
-                            0 => ctxt.push_instr(Bytecode::PushLocal(*idx)),
-                            _ => ctxt.push_instr(Bytecode::PushNonLocal(*up_idx - 1, *idx))
-                        }
-                    }
+                    Bytecode::PushLocal(idx) => ctxt.push_instr(Bytecode::PushLocal(
+                        nbr_locals_pre_inlining + nbr_args_pre_inlining + *idx,
+                    )),
+                    Bytecode::PushNonLocal(up_idx, idx) => match *up_idx - 1 {
+                        0 => ctxt.push_instr(Bytecode::PushLocal(*idx)),
+                        _ => ctxt.push_instr(Bytecode::PushNonLocal(*up_idx - 1, *idx)),
+                    },
                     Bytecode::PopLocal(up_idx, idx) => match up_idx {
-                        0 => {
-                            ctxt.push_instr(Bytecode::PopLocal(
+                        0 => ctxt.push_instr(Bytecode::PopLocal(
                             *up_idx,
                             nbr_locals_pre_inlining + nbr_args_pre_inlining + *idx,
-                        ))},
+                        )),
                         1.. => ctxt.push_instr(Bytecode::PopLocal(*up_idx - 1, *idx)),
                     },
                     Bytecode::PushArg(idx) => {
-                        ctxt.push_instr(Bytecode::PushLocal(nbr_locals_pre_inlining + *idx - 1)) // -1 because of the self arg
+                        ctxt.push_instr(Bytecode::PushLocal(nbr_locals_pre_inlining + *idx - 1))
+                        // -1 because of the self arg
                     }
-                    Bytecode::PushNonLocalArg(up_idx, idx) => {
-                        match *up_idx - 1 {
-                            0 => {
-                                match *idx {
-                                    0 => ctxt.push_instr(Bytecode::PushSelf),
-                                    _ => ctxt.push_instr(Bytecode::PushArg(*idx))
-                                }
-                            }
-                            _ => ctxt.push_instr(Bytecode::PushNonLocalArg(*up_idx - 1, *idx))
-                        }
-                    }
+                    Bytecode::PushNonLocalArg(up_idx, idx) => match *up_idx - 1 {
+                        0 => match *idx {
+                            0 => ctxt.push_instr(Bytecode::PushSelf),
+                            _ => ctxt.push_instr(Bytecode::PushArg(*idx)),
+                        },
+                        _ => ctxt.push_instr(Bytecode::PushNonLocalArg(*up_idx - 1, *idx)),
+                    },
                     Bytecode::PopArg(up_idx, idx) => {
                         ctxt.push_instr(Bytecode::PopArg(*up_idx - 1, *idx))
                     }
@@ -198,8 +228,15 @@ impl PrimMessageInliner for ast::Message {
                     Bytecode::PushBlock(block_idx) => {
                         match block.literals.get(*block_idx as usize)? {
                             Literal::Block(inner_block) => {
-                                let new_block = self.adapt_block_after_outer_inlined(ctxt, *inner_block, 1, mutator);
-                                let idx = ctxt.push_literal(Literal::Block(GCRef::<Block>::alloc(new_block, mutator)));
+                                let new_block = self.adapt_block_after_outer_inlined(
+                                    ctxt,
+                                    *inner_block,
+                                    1,
+                                    mutator,
+                                );
+                                let idx = ctxt.push_literal(Literal::Block(GCRef::<Block>::alloc(
+                                    new_block, mutator,
+                                )));
                                 ctxt.push_instr(Bytecode::PushBlock(idx as u8));
                             }
                             _ => panic!("PushBlock not actually pushing a block somehow"),
@@ -238,15 +275,15 @@ impl PrimMessageInliner for ast::Message {
                             }
                         };
                     }
-                    Bytecode::ReturnNonLocal(scope) => {
-                        match scope - 1 {
-                            0 => ctxt.push_instr(Bytecode::ReturnLocal),
-                            new_scope => ctxt.push_instr(Bytecode::ReturnNonLocal(new_scope))
-                        }
-                    }
+                    Bytecode::ReturnNonLocal(scope) => match scope - 1 {
+                        0 => ctxt.push_instr(Bytecode::ReturnLocal),
+                        new_scope => ctxt.push_instr(Bytecode::ReturnNonLocal(new_scope)),
+                    },
                     Bytecode::ReturnLocal => {}
                     Bytecode::ReturnSelf => {
-                        panic!("Inlining found a ReturnSelf in a block, which should be impossible.");
+                        panic!(
+                            "Inlining found a ReturnSelf in a block, which should be impossible."
+                        );
                     }
                     Bytecode::Jump(idx) => ctxt.push_instr(Bytecode::Jump(*idx)),
                     Bytecode::JumpBackward(idx) => ctxt.push_instr(Bytecode::JumpBackward(*idx)),
@@ -260,9 +297,7 @@ impl PrimMessageInliner for ast::Message {
                     Bytecode::JumpOnFalseTopNil(idx) => {
                         ctxt.push_instr(Bytecode::JumpOnFalseTopNil(*idx))
                     }
-                    Bytecode::JumpIfGreater(idx) => {
-                        ctxt.push_instr(Bytecode::JumpIfGreater(*idx))
-                    }
+                    Bytecode::JumpIfGreater(idx) => ctxt.push_instr(Bytecode::JumpIfGreater(*idx)),
                     Bytecode::Halt
                     | Bytecode::Dup
                     | Bytecode::Dup2
@@ -278,9 +313,7 @@ impl PrimMessageInliner for ast::Message {
                     | Bytecode::SuperSend1(_)
                     | Bytecode::SuperSend2(_)
                     | Bytecode::SuperSend3(_)
-                    | Bytecode::SuperSendN(_) => {
-                        ctxt.push_instr(*block_bc)
-                    }
+                    | Bytecode::SuperSendN(_) => ctxt.push_instr(*block_bc),
                 }
             }
         }
@@ -295,12 +328,11 @@ impl PrimMessageInliner for ast::Message {
         adjust_scope_by: usize,
         mutator: &mut GCInterface,
     ) -> Block {
-        let orig_block = orig_block.to_obj();
+        let orig_block = orig_block;
 
         let mut block_literals_to_patch = vec![];
         let new_body = orig_block
             .blk_info
-            .to_obj()
             .body
             .iter()
             .map(|b| match b {
@@ -319,38 +351,29 @@ impl PrimMessageInliner for ast::Message {
                     // (present me): that's correct. see AST for correct (AFAIK) implem for inlining
 
                     match b {
-                        Bytecode::PushNonLocal(_, idx) => {
-                            match new_up_idx {
-                                0 => Bytecode::PushLocal(*idx),
-                                _ => Bytecode::PushNonLocal(new_up_idx, *idx),
-                            }
-                        }
+                        Bytecode::PushNonLocal(_, idx) => match new_up_idx {
+                            0 => Bytecode::PushLocal(*idx),
+                            _ => Bytecode::PushNonLocal(new_up_idx, *idx),
+                        },
                         Bytecode::PopLocal(_, idx) => Bytecode::PopLocal(new_up_idx, *idx),
-                        Bytecode::PushNonLocalArg(_, idx) => {
-                            match new_up_idx {
-                                0 => {
-                                    match *idx {
-                                        0 => Bytecode::PushSelf,
-                                        _ => Bytecode::PushArg(*idx)
-                                    }
-                                }
-                                _ => Bytecode::PushNonLocalArg(new_up_idx, *idx),
-                            }
-                        }
+                        Bytecode::PushNonLocalArg(_, idx) => match new_up_idx {
+                            0 => match *idx {
+                                0 => Bytecode::PushSelf,
+                                _ => Bytecode::PushArg(*idx),
+                            },
+                            _ => Bytecode::PushNonLocalArg(new_up_idx, *idx),
+                        },
                         Bytecode::PopArg(_, idx) => Bytecode::PopArg(new_up_idx, *idx),
                         _ => unreachable!(),
                     }
                 }
-                Bytecode::ReturnNonLocal(scope) => {
-                    match scope - 1 {
-                        0 => Bytecode::ReturnLocal,
-                        new_scope => Bytecode::ReturnNonLocal(new_scope)
-                    }
-                }
+                Bytecode::ReturnNonLocal(scope) => match scope - 1 {
+                    0 => Bytecode::ReturnLocal,
+                    new_scope => Bytecode::ReturnNonLocal(new_scope),
+                },
                 Bytecode::PushBlock(block_idx) => {
                     let inner_lit = orig_block
                         .blk_info
-                        .to_obj()
                         .literals
                         .get(*block_idx as usize)
                         .unwrap_or_else(|| {
@@ -368,7 +391,8 @@ impl PrimMessageInliner for ast::Message {
                         mutator,
                     );
 
-                    block_literals_to_patch.push((block_idx, GCRef::<Block>::alloc(new_block, mutator)));
+                    block_literals_to_patch
+                        .push((block_idx, GCRef::<Block>::alloc(new_block, mutator)));
 
                     Bytecode::PushBlock(*block_idx)
                 }
@@ -383,33 +407,36 @@ impl PrimMessageInliner for ast::Message {
         // TODO: we now pass a mutable pointer to a Block actually, so this is all avoidable!
         Block {
             frame: orig_block.frame.clone(),
-            blk_info: GCRef::<BlockInfo>::alloc(BlockInfo {
-                nb_locals: orig_block.blk_info.to_obj().nb_locals,
-                literals: orig_block
-                    .blk_info
-                    .to_obj()
-                    .literals
-                    .iter()
-                    .enumerate()
-                    .map(|(idx, l)| {
-                        let block_ptr = block_literals_to_patch
-                            .iter()
-                            .find_map(|(block_idx, blk)| (**block_idx == idx as u8).then(|| blk));
+            blk_info: GCRef::<BlockInfo>::alloc(
+                BlockInfo {
+                    nb_locals: orig_block.blk_info.nb_locals,
+                    literals: orig_block
+                        .blk_info
+                        .literals
+                        .iter()
+                        .enumerate()
+                        .map(|(idx, l)| {
+                            let block_ptr =
+                                block_literals_to_patch.iter().find_map(|(block_idx, blk)| {
+                                    (**block_idx == idx as u8).then(|| blk)
+                                });
 
-                        if block_ptr.is_some() {
-                            Literal::Block(*block_ptr.unwrap())
-                        } else {
-                            l.clone()
-                        }
-                    })
-                    .collect(),
-                body: new_body,
-                nb_params: orig_block.blk_info.to_obj().nb_params,
-                max_stack_size: new_max_stack_size,
-                inline_cache: orig_block.blk_info.to_obj().inline_cache.clone(),
-                #[cfg(feature = "frame-debug-info")]
-                block_debug_info: orig_block.blk_info.to_obj().block_debug_info.clone(),
-            }, mutator),
+                            if block_ptr.is_some() {
+                                Literal::Block(*block_ptr.unwrap())
+                            } else {
+                                l.clone()
+                            }
+                        })
+                        .collect(),
+                    body: new_body,
+                    nb_params: orig_block.blk_info.nb_params,
+                    max_stack_size: new_max_stack_size,
+                    inline_cache: orig_block.blk_info.inline_cache.clone(),
+                    #[cfg(feature = "frame-debug-info")]
+                    block_debug_info: orig_block.blk_info.block_debug_info.clone(),
+                },
+                mutator,
+            ),
         }
     }
 
@@ -420,7 +447,7 @@ impl PrimMessageInliner for ast::Message {
         mutator: &mut GCInterface,
     ) -> Option<()> {
         // TODO opt: we only inline when it's a block (see BooleanTest:testIfTrueWithValueBlock to see why), but we could easily only inline when it's any expression that's safe to be inlined. Most fall under that category
-        if self.values.len() != 1|| !matches!(self.values.get(0)?, ast::Expression::Block(_)) {
+        if self.values.len() != 1 || !matches!(self.values.get(0)?, ast::Expression::Block(_)) {
             return None;
         }
 
@@ -443,9 +470,10 @@ impl PrimMessageInliner for ast::Message {
         jump_type: JumpType,
         mutator: &mut GCInterface,
     ) -> Option<()> {
-        if self.values.len() != 2 
+        if self.values.len() != 2
             || !matches!(self.values.get(0)?, ast::Expression::Block(_))
-            || !matches!(self.values.get(1)?, ast::Expression::Block(_)) {
+            || !matches!(self.values.get(1)?, ast::Expression::Block(_))
+        {
             return None;
         }
 
@@ -475,7 +503,8 @@ impl PrimMessageInliner for ast::Message {
         jump_type: JumpType,
         mutator: &mut GCInterface,
     ) -> Option<()> {
-        if self.values.len() != 1 || !matches!(self.values.get(0)?, ast::Expression::Block(_)) { // I guess it doesn't have to be a block, but really, it is in all our benchmarks
+        if self.values.len() != 1 || !matches!(self.values.get(0)?, ast::Expression::Block(_)) {
+            // I guess it doesn't have to be a block, but really, it is in all our benchmarks
             return None;
         }
 
@@ -494,7 +523,9 @@ impl PrimMessageInliner for ast::Message {
 
         ctxt.push_instr(Bytecode::Pop);
 
-        ctxt.push_instr(Bytecode::JumpBackward((ctxt.get_cur_instr_idx() - idx_pre_condition + 1) as u16));
+        ctxt.push_instr(Bytecode::JumpBackward(
+            (ctxt.get_cur_instr_idx() - idx_pre_condition + 1) as u16,
+        ));
         ctxt.backpatch_jump_to_current(cond_jump_idx);
 
         ctxt.push_instr(Bytecode::PushNil);
@@ -538,11 +569,7 @@ impl PrimMessageInliner for ast::Message {
         Some(())
     }
 
-    fn inline_to_do(
-        &self,
-        ctxt: &mut dyn InnerGenCtxt,
-        mutator: &mut GCInterface,
-    ) -> Option<()> {
+    fn inline_to_do(&self, ctxt: &mut dyn InnerGenCtxt, mutator: &mut GCInterface) -> Option<()> {
         if self.values.len() != 2 || !matches!(self.values.get(1)?, ast::Expression::Block(_)) {
             return None;
         }
@@ -563,7 +590,9 @@ impl PrimMessageInliner for ast::Message {
 
         ctxt.push_instr(Bytecode::Pop);
         ctxt.push_instr(Bytecode::Inc);
-        ctxt.push_instr(Bytecode::JumpBackward((ctxt.get_cur_instr_idx() - jump_if_greater_idx) as u16));
+        ctxt.push_instr(Bytecode::JumpBackward(
+            (ctxt.get_cur_instr_idx() - jump_if_greater_idx) as u16,
+        ));
 
         ctxt.backpatch_jump_to_current(jump_if_greater_idx);
 

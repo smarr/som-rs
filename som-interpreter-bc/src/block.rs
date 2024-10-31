@@ -7,9 +7,9 @@ use crate::universe::Universe;
 #[cfg(feature = "frame-debug-info")]
 use som_core::ast::BlockDebugInfo;
 use som_core::bytecode::Bytecode;
+use som_gc::gcref::GCRef;
 use std::cell::RefCell;
 use std::fmt;
-use som_gc::gcref::GCRef;
 
 #[derive(Clone)]
 pub struct BlockInfo {
@@ -45,7 +45,7 @@ impl Block {
 
     /// Retrieve the number of parameters this block accepts.
     pub fn nb_parameters(&self) -> usize {
-        self.blk_info.to_obj().nb_params
+        self.blk_info.nb_params
     }
 }
 
