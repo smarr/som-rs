@@ -66,12 +66,6 @@ impl<T> DerefMut for GCRef<T> {
 // -------------------------------------
 
 impl<T> GCRef<T> {
-    #[inline(always)]
-    pub fn as_ref(&self) -> &T {
-        debug_assert!(!self.ptr.is_zero());
-        unsafe { self.ptr.as_ref() }
-    }
-
     /// Does the address not point to any data?
     /// We use this to avoid using an Option type in interpreter frames. Not sure if it's worth it though.
     #[inline(always)]

@@ -77,7 +77,7 @@ fn from_string(universe: &mut Universe, _: Value, string: StringLike) -> Result<
 fn as_string(universe: &mut Universe, receiver: IntegerLike) -> Result<Value, Error> {
     let value = match receiver {
         IntegerLike::Integer(value) => value.to_string(),
-        IntegerLike::BigInteger(value) => value.as_ref().to_string(),
+        IntegerLike::BigInteger(value) => value.to_string(),
     };
 
     Ok(Value::String(GCRef::<String>::alloc(
@@ -91,7 +91,7 @@ fn as_double(_: &mut Universe, receiver: IntegerLike) -> Result<Value, Error> {
 
     match receiver {
         IntegerLike::Integer(value) => Ok(Value::Double(value as f64)),
-        IntegerLike::BigInteger(value) => match value.as_ref().to_i64() {
+        IntegerLike::BigInteger(value) => match value.to_i64() {
             Some(value) => Ok(Value::Double(value as f64)),
             None => bail!(format!(
                 "'{}': `Integer` too big to be converted to `Double`",
@@ -124,7 +124,7 @@ fn at_random(_: &mut Universe, receiver: IntegerLike) -> Result<Value, Error> {
 fn as_32bit_signed_value(_: &mut Universe, receiver: IntegerLike) -> Result<Value, Error> {
     let value = match receiver {
         IntegerLike::Integer(value) => value,
-        IntegerLike::BigInteger(value) => match value.as_ref().to_u32_digits() {
+        IntegerLike::BigInteger(value) => match value.to_u32_digits() {
             (Sign::Minus, values) => -(values[0] as i32),
             (Sign::Plus, values) | (Sign::NoSign, values) => values[0] as i32,
         },
@@ -141,7 +141,7 @@ fn as_32bit_unsigned_value(
         IntegerLike::Integer(value) => value as u32,
         IntegerLike::BigInteger(value) => {
             // We do this gymnastic to get the 4 lowest bytes from the two's-complement representation.
-            let mut values = value.as_ref().to_signed_bytes_le();
+            let mut values = value.to_signed_bytes_le();
             values.resize(4, 0);
             u32::from_le_bytes(values.try_into().unwrap())
         }
@@ -168,17 +168,17 @@ fn plus(universe: &mut Universe, a: DoubleLike, b: DoubleLike) -> Result<Value, 
             None => demote!(heap, BigInt::from(a) + BigInt::from(b)),
         },
         (DoubleLike::BigInteger(a), DoubleLike::BigInteger(b)) => {
-            demote!(heap, a.as_ref() + b.as_ref())
+            demote!(heap, &*a + &*b)
         }
         (DoubleLike::BigInteger(a), DoubleLike::Integer(b))
         | (DoubleLike::Integer(b), DoubleLike::BigInteger(a)) => {
-            demote!(heap, a.as_ref() + BigInt::from(b))
+            demote!(heap, &*a + BigInt::from(b))
         }
         (DoubleLike::Double(a), DoubleLike::Double(b)) => Ok(Value::Double(a + b)),
         (DoubleLike::Integer(a), DoubleLike::Double(b))
         | (DoubleLike::Double(b), DoubleLike::Integer(a)) => Ok(Value::Double((a as f64) + b)),
         (DoubleLike::BigInteger(a), DoubleLike::Double(b))
-        | (DoubleLike::Double(b), DoubleLike::BigInteger(a)) => match a.as_ref().to_f64() {
+        | (DoubleLike::Double(b), DoubleLike::BigInteger(a)) => match a.to_f64() {
             Some(a) => Ok(Value::Double(a + b)),
             None => bail!(format!(
                 "'{}': `Integer` too big to be converted to `Double`",
@@ -199,19 +199,19 @@ fn minus(universe: &mut Universe, a: DoubleLike, b: DoubleLike) -> Result<Value,
             None => demote!(heap, BigInt::from(a) - BigInt::from(b)),
         },
         (DoubleLike::BigInteger(a), DoubleLike::BigInteger(b)) => {
-            demote!(heap, a.as_ref() - b.as_ref())
+            demote!(heap, &*a - &*b)
         }
         (DoubleLike::BigInteger(a), DoubleLike::Integer(b)) => {
-            demote!(heap, a.as_ref() - BigInt::from(b))
+            demote!(heap, &*a - BigInt::from(b))
         }
         (DoubleLike::Integer(a), DoubleLike::BigInteger(b)) => {
-            demote!(heap, BigInt::from(a) - b.as_ref())
+            demote!(heap, BigInt::from(a) - &*b)
         }
         (DoubleLike::Double(a), DoubleLike::Double(b)) => Ok(Value::Double(a - b)),
         (DoubleLike::Integer(a), DoubleLike::Double(b))
         | (DoubleLike::Double(b), DoubleLike::Integer(a)) => Ok(Value::Double((a as f64) - b)),
         (DoubleLike::BigInteger(a), DoubleLike::Double(b))
-        | (DoubleLike::Double(b), DoubleLike::BigInteger(a)) => match a.as_ref().to_f64() {
+        | (DoubleLike::Double(b), DoubleLike::BigInteger(a)) => match a.to_f64() {
             Some(a) => Ok(Value::Double(a - b)),
             None => bail!(format!(
                 "'{}': `Integer` too big to be converted to `Double`",
@@ -232,11 +232,11 @@ fn times(universe: &mut Universe, a: DoubleLike, b: DoubleLike) -> Result<Value,
             None => demote!(heap, BigInt::from(a) * BigInt::from(b)),
         },
         (DoubleLike::BigInteger(a), DoubleLike::BigInteger(b)) => {
-            demote!(heap, a.as_ref() * b.as_ref())
+            demote!(heap, &*a * &*b)
         }
         (DoubleLike::BigInteger(a), DoubleLike::Integer(b))
         | (DoubleLike::Integer(b), DoubleLike::BigInteger(a)) => {
-            demote!(heap, a.as_ref() * BigInt::from(b))
+            demote!(heap, &*a * BigInt::from(b))
         }
         (DoubleLike::Double(a), DoubleLike::Double(b)) => Ok(Value::Double(a * b)),
         (DoubleLike::Integer(a), DoubleLike::Double(b))
@@ -256,11 +256,11 @@ fn divide(universe: &mut Universe, a: DoubleLike, b: DoubleLike) -> Result<Value
             None => demote!(heap, BigInt::from(a) / BigInt::from(b)),
         },
         (DoubleLike::BigInteger(a), DoubleLike::BigInteger(b)) => {
-            demote!(heap, a.as_ref() / b.as_ref())
+            demote!(heap, &*a / &*b)
         }
         (DoubleLike::BigInteger(a), DoubleLike::Integer(b))
         | (DoubleLike::Integer(b), DoubleLike::BigInteger(a)) => {
-            demote!(heap, a.as_ref() / BigInt::from(b))
+            demote!(heap, &*a / BigInt::from(b))
         }
         (DoubleLike::Double(a), DoubleLike::Double(b)) => Ok(Value::Double(a / b)),
         (DoubleLike::Integer(a), DoubleLike::Double(b))
@@ -294,7 +294,7 @@ fn modulo(universe: &mut Universe, a: IntegerLike, b: i32) -> Result<Value, Erro
             }
         }
         IntegerLike::BigInteger(a) => {
-            let result = a.as_ref() % b;
+            let result = &*a % b;
             if result.is_positive() != b.is_positive() {
                 demote!(&mut universe.gc_interface, (result + b) % b)
             } else {
@@ -324,7 +324,7 @@ fn sqrt(universe: &mut Universe, a: DoubleLike) -> Result<Value, Error> {
                 Ok(Value::Double(sqrt))
             }
         }
-        DoubleLike::BigInteger(a) => demote!(&mut universe.gc_interface, a.as_ref().sqrt()),
+        DoubleLike::BigInteger(a) => demote!(&mut universe.gc_interface, a.sqrt()),
         DoubleLike::Double(a) => Ok(Value::Double(a.sqrt())),
     }
 }
@@ -334,11 +334,11 @@ fn bitand(universe: &mut Universe, a: IntegerLike, b: IntegerLike) -> Result<Val
     match (a, b) {
         (IntegerLike::Integer(a), IntegerLike::Integer(b)) => Ok(Value::Integer(a & b)),
         (IntegerLike::BigInteger(a), IntegerLike::BigInteger(b)) => {
-            demote!(heap, a.as_ref() & b.as_ref())
+            demote!(heap, &*a & &*b)
         }
         (IntegerLike::BigInteger(a), IntegerLike::Integer(b))
         | (IntegerLike::Integer(b), IntegerLike::BigInteger(a)) => {
-            demote!(heap, a.as_ref() & BigInt::from(b))
+            demote!(heap, &*a & BigInt::from(b))
         }
     }
 }
@@ -348,11 +348,11 @@ fn bitxor(universe: &mut Universe, a: IntegerLike, b: IntegerLike) -> Result<Val
     match (a, b) {
         (IntegerLike::Integer(a), IntegerLike::Integer(b)) => Ok(Value::Integer(a ^ b)),
         (IntegerLike::BigInteger(a), IntegerLike::BigInteger(b)) => {
-            demote!(heap, a.as_ref() ^ b.as_ref())
+            demote!(heap, &*a ^ &*b)
         }
         (IntegerLike::BigInteger(a), IntegerLike::Integer(b))
         | (IntegerLike::Integer(b), IntegerLike::BigInteger(a)) => {
-            demote!(heap, a.as_ref() ^ BigInt::from(b))
+            demote!(heap, &*a ^ BigInt::from(b))
         }
     }
 }
@@ -362,12 +362,12 @@ fn lt(_: &mut Universe, a: DoubleLike, b: DoubleLike) -> Result<bool, Error> {
 
     match (a, b) {
         (DoubleLike::Integer(a), DoubleLike::Integer(b)) => Ok(a < b),
-        (DoubleLike::BigInteger(a), DoubleLike::BigInteger(b)) => Ok(a.as_ref() < b.as_ref()),
+        (DoubleLike::BigInteger(a), DoubleLike::BigInteger(b)) => Ok(&*a < &*b),
         (DoubleLike::Double(a), DoubleLike::Double(b)) => Ok(a < b),
         (DoubleLike::Integer(a), DoubleLike::Double(b))
         | (DoubleLike::Double(b), DoubleLike::Integer(a)) => Ok((a as f64) < b),
-        (DoubleLike::BigInteger(a), DoubleLike::Integer(b)) => Ok(a.as_ref() < &BigInt::from(b)),
-        (DoubleLike::Integer(a), DoubleLike::BigInteger(b)) => Ok(&BigInt::from(a) < b.as_ref()),
+        (DoubleLike::BigInteger(a), DoubleLike::Integer(b)) => Ok(&*a < &BigInt::from(b)),
+        (DoubleLike::Integer(a), DoubleLike::BigInteger(b)) => Ok(&BigInt::from(a) < &*b),
         _ => bail!(format!("'{}': wrong types", SIGNATURE)),
     }
 }
@@ -375,9 +375,9 @@ fn lt(_: &mut Universe, a: DoubleLike, b: DoubleLike) -> Result<bool, Error> {
 fn eq(_: &mut Universe, a: Value, b: Value) -> Result<bool, Error> {
     // match (a, b) {
     //     (Value::Integer(a), Value::Integer(b)) => Return::Local(Value::Boolean(a == b)),
-    //     (Value::BigInteger(a), Value::BigInteger(b)) => Return::Local(Value::Boolean(a.as_ref() == b.as_ref())),
+    //     (Value::BigInteger(a), Value::BigInteger(b)) => Return::Local(Value::Boolean(&*a == &*b)),
     //     (Value::Integer(a), Value::BigInteger(b)) | (Value::BigInteger(b), Value::Integer(a)) => {
-    //         Return::Local(Value::Boolean(BigInt::from(a) == *b.as_ref()))
+    //         Return::Local(Value::Boolean(BigInt::from(a) == *&*b))
     //     }
     //     (Value::Double(a), Value::Double(b)) => Return::Local(Value::Boolean(a == b)),
     //     (Value::Integer(a), Value::Double(b)) | (Value::Double(b), Value::Integer(a)) => {
@@ -396,7 +396,7 @@ fn eq(_: &mut Universe, a: Value, b: Value) -> Result<bool, Error> {
 
     let value = match (a, b) {
         (DoubleLike::Integer(a), DoubleLike::Integer(b)) => a == b,
-        (DoubleLike::BigInteger(a), DoubleLike::BigInteger(b)) => a.as_ref() == b.as_ref(),
+        (DoubleLike::BigInteger(a), DoubleLike::BigInteger(b)) => &*a == &*b,
         (DoubleLike::Double(a), DoubleLike::Double(b)) => a == b,
         (DoubleLike::Integer(a), DoubleLike::Double(b)) => (a as f64) == b,
         (DoubleLike::Double(a), DoubleLike::Integer(b)) => a == (b as f64),
@@ -431,7 +431,7 @@ fn shift_left(universe: &mut Universe, a: IntegerLike, b: i32) -> Result<Value, 
             },
             None => demote!(heap, BigInt::from(a) << (b as u32)),
         },
-        IntegerLike::BigInteger(a) => demote!(heap, a.as_ref() << (b as u32)),
+        IntegerLike::BigInteger(a) => demote!(heap, &*a << (b as u32)),
     }
 }
 

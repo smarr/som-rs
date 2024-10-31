@@ -801,8 +801,7 @@ impl PartialEq for ValueEnum {
             (Self::Double(a), Self::Double(b)) => a.eq(b),
             (Self::BigInteger(a), Self::BigInteger(b)) => a.eq(b),
             (Self::BigInteger(a), Self::Integer(b)) | (Self::Integer(b), Self::BigInteger(a)) => {
-                // a.eq(&BigInt::from(*b))
-                a.as_ref().eq(&BigInt::from(*b)) // not sure that's entirely correct
+                (&**a).eq(&BigInt::from(*b))
             }
             (Self::Symbol(a), Self::Symbol(b)) => a.eq(b),
             (Self::String(a), Self::String(b)) => a == b,
