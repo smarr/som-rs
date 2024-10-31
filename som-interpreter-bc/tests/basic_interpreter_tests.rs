@@ -1,20 +1,19 @@
+use som_gc::gcref::GCRef;
 use som_interpreter_bc::compiler;
 use som_interpreter_bc::frame::Frame;
 use som_interpreter_bc::interpreter::Interpreter;
-use som_interpreter_bc::universe::{Universe, HEAP_SIZE};
+use som_interpreter_bc::universe::Universe;
 use som_interpreter_bc::value::Value;
 use som_lexer::{Lexer, Token};
 use som_parser::lang;
 use std::path::PathBuf;
-use som_gc::gc_interface::GCInterface;
-use som_gc::gcref::GCRef;
 
 fn setup_universe() -> Universe {
     let classpath = vec![
         PathBuf::from("../core-lib/Smalltalk"),
         PathBuf::from("../core-lib/TestSuite/BasicInterpreterTests"),
     ];
-    Universe::with_classpath(classpath, GCInterface::init(HEAP_SIZE)).expect("could not setup test universe")
+    Universe::with_classpath(classpath).expect("could not setup test universe")
 }
 
 #[test]

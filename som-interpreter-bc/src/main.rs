@@ -8,20 +8,17 @@ use std::path::PathBuf;
 use anyhow::{bail, Context};
 #[cfg(feature = "jemalloc")]
 use jemallocator::Jemalloc;
-use som_gc::gc_interface::GCInterface;
 use som_gc::gcref::GCRef;
-use som_gc::{MMTK_TO_VM_INTERFACE, MUTATOR_WRAPPER};
 use som_interpreter_bc::class::Class;
 use structopt::StructOpt;
 
 mod shell;
 
 use som_interpreter_bc::disassembler::disassemble_method_body;
-use som_interpreter_bc::gc::get_callbacks_for_gc;
 use som_interpreter_bc::method::{Method, MethodKind};
 #[cfg(feature = "profiler")]
 use som_interpreter_bc::profiler::Profiler;
-use som_interpreter_bc::universe::{Universe, HEAP_SIZE};
+use som_interpreter_bc::universe::Universe;
 use som_interpreter_bc::value::Value;
 use som_interpreter_bc::{INTERPRETER_RAW_PTR, UNIVERSE_RAW_PTR};
 
@@ -84,14 +81,7 @@ fn run() -> anyhow::Result<()> {
         classpath.push(directory.to_path_buf());
     }
 
-    let mut gc_interface = GCInterface::init(HEAP_SIZE);
-
-    unsafe {
-        MMTK_TO_VM_INTERFACE.set(get_callbacks_for_gc()).unwrap_or_else(|_| panic!("couldn't set callbacks to establish MMTk=>VM connection?"));
-        MUTATOR_WRAPPER.set(&mut gc_interface).unwrap_or_else(|_| panic!("couldn't set mutator wrapper?"));
-    }
-
-    let mut universe = Universe::with_classpath(classpath, gc_interface)?;
+    let mut universe = Universe::with_classpath(classpath)?;
 
     // unsafe { UNIVERSE_RAW_PTR = &mut universe; }
 
@@ -144,8 +134,7 @@ fn disassemble_class(opts: Options) -> anyhow::Result<()> {
         classpath.push(directory.to_path_buf());
     }
 
-    let gc_interface = GCInterface::init(HEAP_SIZE);
-    let mut universe = Universe::with_classpath(classpath.clone(), gc_interface)?;
+    let mut universe = Universe::with_classpath(classpath.clone())?;
 
     // "Object" special casing needed since `load_class` assumes the class has a superclass and Object doesn't, and I didn't want to change the class loading logic just for the disassembler (tho it's probably fine)
     let class = match file_stem {

@@ -64,5 +64,5 @@ fn mmtk() -> &'static MMTK<SOMVM> {
     &MMTK_SINGLETON.get().unwrap()
 }
 
-pub static mut MUTATOR_WRAPPER: OnceCell<*mut GCInterface> = OnceCell::new();
+pub(crate) static mut MUTATOR_WRAPPER: OnceCell<*mut GCInterface> = OnceCell::new();
 pub static mut MMTK_TO_VM_INTERFACE: OnceCell<MMTKtoVMCallbacks> = OnceCell::new();

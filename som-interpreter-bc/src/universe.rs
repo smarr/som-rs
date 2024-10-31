@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::Ordering;
 use som_gc::gc_interface::{GCInterface, IS_WORLD_STOPPED};
 use som_gc::gcref::GCRef;
-use crate::gc::VecValue;
+use crate::gc::{get_callbacks_for_gc, VecValue};
 
 /// GC heap size
 pub const HEAP_SIZE: usize = 1024 * 1024 * 256;
@@ -81,15 +81,17 @@ pub struct Universe {
     /// The interpreter's core classes.
     pub core: CoreClasses,
     /// GC interface for GC operations
-    pub gc_interface: GCInterface,
+    pub gc_interface: &'static mut GCInterface,
 }
 
 impl Universe {
     /// Initialize the universe from the given classpath.
-    pub fn with_classpath(classpath: Vec<PathBuf>, mut gc_interface: GCInterface) -> Result<Self, Error> {
+    pub fn with_classpath(classpath: Vec<PathBuf>) -> Result<Self, Error> {
         let mut interner = Interner::with_capacity(100);
         let mut globals = vec![];
 
+        let mut gc_interface = GCInterface::init(HEAP_SIZE, get_callbacks_for_gc());
+        
         let object_class = Self::load_system_class(&mut interner, classpath.as_slice(), "Object", &mut gc_interface)?;
         let class_class = Self::load_system_class(&mut interner, classpath.as_slice(), "Class", &mut gc_interface)?;
         let metaclass_class =

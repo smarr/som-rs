@@ -7,7 +7,7 @@ use std::time::Instant;
 use crate::block::Block;
 use crate::class::Class;
 use crate::frame::{Frame, FrameAccess};
-use crate::gc::VecValue;
+use crate::gc::{get_callbacks_for_gc, VecValue};
 use crate::invokable::{Invoke, Return};
 use crate::value::Value;
 use anyhow::{anyhow, Error};
@@ -86,15 +86,17 @@ pub struct Universe {
     /// The time record of the universe's creation.
     pub start_time: Instant,
     /// GC interface
-    pub gc_interface: GCInterface
+    pub gc_interface: &'static mut GCInterface
 }
 
 impl Universe {
     /// Initialize the universe from the given classpath.
-    pub fn with_classpath(classpath: Vec<PathBuf>, mut gc_interface: GCInterface) -> Result<Self, Error> {
+    pub fn with_classpath(classpath: Vec<PathBuf>) -> Result<Self, Error> {
         let interner = Interner::with_capacity(100);
         let mut globals = HashMap::new();
 
+        let mut gc_interface = GCInterface::init(HEAP_SIZE, get_callbacks_for_gc());
+        
         let object_class = Self::load_system_class(classpath.as_slice(), "Object", None, &mut gc_interface)?;
         let class_class = Self::load_system_class(classpath.as_slice(), "Class", Some(object_class.clone()), &mut gc_interface)?;
         let metaclass_class = Self::load_system_class(classpath.as_slice(), "Metaclass", Some(class_class.clone()), &mut gc_interface)?;

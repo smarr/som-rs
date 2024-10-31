@@ -6,7 +6,7 @@ use mmtk::{memory_manager, AllocationSemantics, MMTKBuilder, Mutator};
 use std::sync::atomic::{AtomicBool, Ordering};
 use num_bigint::BigInt;
 use crate::api::{mmtk_bind_mutator, mmtk_destroy_mutator, mmtk_handle_user_collection_request, mmtk_initialize_collection, mmtk_set_fixed_heap_size};
-use crate::{MMTK_SINGLETON, SOMVM};
+use crate::{MMTK_SINGLETON, MMTK_TO_VM_INTERFACE, MUTATOR_WRAPPER, SOMVM};
 use crate::gcref::GCRef;
 use crate::slot::SOMSlot;
 
@@ -60,14 +60,29 @@ pub struct MMTKtoVMCallbacks {
 
 impl GCInterface {
     /// Initialize the GCInterface. Internally inits MMTk and fetches everything needed to actually communicate with the GC.
-    pub fn init(heap_size: usize) -> Self {
+    pub fn init<'a>(heap_size: usize, vm_callbacks: MMTKtoVMCallbacks) -> &'a mut Self {
         let (mutator_thread, mutator, default_allocator) = Self::init_mmtk(heap_size);
-        Self {
+        let mut self_ = Box::new(Self {
             mutator_thread,
             mutator,
             _default_allocator: default_allocator,
             start_the_world_count: 0
+        });
+
+        unsafe {
+            // in the context of tests, this function gets invoked many times, so they can have already been initialized.
+            
+            if MUTATOR_WRAPPER.get().is_none() {
+                MUTATOR_WRAPPER.set(&mut *self_).unwrap_or_else(|_| panic!("couldn't set mutator wrapper?"));
+            }
+            
+            if MMTK_TO_VM_INTERFACE.get().is_none() {
+                MMTK_TO_VM_INTERFACE.set(vm_callbacks).unwrap_or_else(|_| panic!("couldn't set callbacks to establish MMTk=>VM connection?"));
+            } 
         }
+
+        
+        Box::leak(self_)
     }
 
     fn init_mmtk(heap_size: usize) -> (VMMutatorThread, Box<Mutator<SOMVM>>, *mut BumpAllocator<SOMVM>) {
