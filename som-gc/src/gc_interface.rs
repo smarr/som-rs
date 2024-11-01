@@ -1,5 +1,5 @@
 use crate::api::{
-    mmtk_alloc, mmtk_bind_mutator, mmtk_destroy_mutator, mmtk_handle_user_collection_request,
+    mmtk_bind_mutator, mmtk_destroy_mutator, mmtk_handle_user_collection_request,
     mmtk_initialize_collection, mmtk_set_fixed_heap_size,
 };
 use crate::gcref::GCRef;
@@ -8,7 +8,7 @@ use crate::slot::SOMSlot;
 use crate::{MMTK_SINGLETON, MMTK_TO_VM_INTERFACE, MUTATOR_WRAPPER, SOMVM};
 use core::mem::size_of;
 use log::debug;
-use mmtk::util::alloc::{Allocator, BumpAllocator};
+use mmtk::util::alloc::{Allocator, FreeListAllocator};
 use mmtk::util::constants::MIN_OBJECT_SIZE;
 use mmtk::util::{Address, ObjectReference, OpaquePointer, VMMutatorThread, VMThread};
 use mmtk::vm::SlotVisitor;
@@ -21,12 +21,12 @@ pub static IS_WORLD_STOPPED: AtomicBool = AtomicBool::new(false);
 
 static GC_OFFSET: usize = 0;
 static GC_ALIGN: usize = 8;
-static GC_SEMANTICS: AllocationSemantics = AllocationSemantics::Default;
+// static GC_SEMANTICS: AllocationSemantics = AllocationSemantics::Default;
 
 /// TODO rename, maybe MutatorWrapper
 pub struct GCInterface {
     mutator: Box<Mutator<SOMVM>>,
-    default_allocator: *mut BumpAllocator<SOMVM>,
+    default_allocator: *mut FreeListAllocator<SOMVM>,
     mutator_thread: VMMutatorThread,
     start_the_world_count: usize,
 }
@@ -78,7 +78,7 @@ impl GCInterface {
     ) -> (
         VMMutatorThread,
         Box<Mutator<SOMVM>>,
-        *mut BumpAllocator<SOMVM>,
+        *mut FreeListAllocator<SOMVM>,
     ) {
         let builder: MMTKBuilder = {
             let mut builder = MMTKBuilder::new();
@@ -120,7 +120,7 @@ impl GCInterface {
         let default_allocator_offset = Mutator::<SOMVM>::get_allocator_base_offset(selector);
 
         // At run time: allocate with the default semantics without resolving allocator
-        let default_allocator: *mut BumpAllocator<SOMVM> = {
+        let default_allocator: *mut FreeListAllocator<SOMVM> = {
             let mutator_addr = Address::from_ref(&*mutator);
             unsafe {
                 let ptr = mutator_addr + default_allocator_offset;
@@ -142,64 +142,14 @@ impl GCInterface {
 
     // Allocates a type, but with a given size. Useful when an object needs more than what we tell Rust through defining a struct.
     // (e.g. Value arrays stored directly in the heap - see BC Frame)
-    pub fn alloc_with_size<T: HasTypeInfoForGC>(&mut self, obj: T, size: usize) -> GCRef<T> {
-        // self.alloc_with_size_cached_allocator(obj, size);
-        self.alloc_with_size_slow(obj, size)
-    }
-
-    #[inline(always)]
-    #[allow(dead_code, unused)]
-    fn alloc_with_size_slow<T: HasTypeInfoForGC>(&mut self, obj: T, size: usize) -> GCRef<T> {
-        debug_assert!(size >= MIN_OBJECT_SIZE);
-        let mutator = self.mutator.as_mut();
-
-        // adding VM header size (type info) to amount we allocate
-        let size = size + OBJECT_REF_OFFSET;
-
-        let header_addr = mmtk_alloc(mutator, size, GC_ALIGN, GC_OFFSET, GC_SEMANTICS);
-
-        debug_assert!(!header_addr.is_zero());
-        let obj_addr = SOMVM::object_start_to_ref(header_addr);
-
-        // AFAIK, this is not needed.
-        // mmtk_post_alloc(mutator, SOMVM::object_start_to_ref(addr), size, GC_SEMANTICS);
-
-        unsafe {
-            // *addr.as_mut_ref() = obj;
-            *header_addr.as_mut_ref() = T::get_magic_gc_id();
-            *(obj_addr.to_raw_address().as_mut_ref()) = obj;
-        }
-
-        GCRef {
-            ptr: obj_addr.to_raw_address(),
-            _phantom: PhantomData,
-        }
-    }
-
-    #[allow(dead_code, unused)]
-    fn alloc_with_size_cached_allocator<T: HasTypeInfoForGC>(
-        &mut self,
-        obj: T,
-        size: usize,
-    ) -> GCRef<T> {
+    pub fn alloc_with_size<T: HasTypeInfoForGC>(&mut self, obj: T, mut size: usize) -> GCRef<T> {
         debug_assert!(size >= MIN_OBJECT_SIZE);
         let allocator = unsafe { &mut (*self.default_allocator) };
 
         // adding VM header size (type info) to amount we allocate
-        let size = size + OBJECT_REF_OFFSET;
+        size += OBJECT_REF_OFFSET;
 
-        dbg!("wo");
-        let addr = allocator.alloc(size, GC_ALIGN, GC_OFFSET);
-
-        debug_assert!(!addr.is_zero());
-        debug_assert!(size >= MIN_OBJECT_SIZE);
-        let mutator = self.mutator.as_mut();
-
-        // not sure that's correct? adding VM header size (type info) to amount we allocate.
-        let size = size + OBJECT_REF_OFFSET;
-
-        let header_addr = mmtk_alloc(mutator, size, GC_ALIGN, GC_OFFSET, GC_SEMANTICS);
-
+        let header_addr = allocator.alloc(size, GC_ALIGN, GC_OFFSET);
         debug_assert!(!header_addr.is_zero());
         let obj_addr = SOMVM::object_start_to_ref(header_addr);
 
@@ -207,7 +157,6 @@ impl GCInterface {
         // mmtk_post_alloc(mutator, SOMVM::object_start_to_ref(addr), size, GC_SEMANTICS);
 
         unsafe {
-            // *addr.as_mut_ref() = obj;
             *header_addr.as_mut_ref() = T::get_magic_gc_id();
             *(obj_addr.to_raw_address().as_mut_ref()) = obj;
         }
