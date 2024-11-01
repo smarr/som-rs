@@ -6,6 +6,7 @@ use crate::instance::{Instance, InstanceAccess};
 use crate::method::{Method, MethodKind};
 use crate::value::Value;
 use crate::{INTERPRETER_RAW_PTR, UNIVERSE_RAW_PTR};
+use core::mem::size_of;
 use log::debug;
 use mmtk::util::{Address, ObjectReference};
 use mmtk::vm::{ObjectModel, SlotVisitor};
@@ -17,7 +18,6 @@ use som_gc::gcref::GCRef;
 use som_gc::object_model::VMObjectModel;
 use som_gc::slot::SOMSlot;
 use som_gc::SOMVM;
-use std::mem::size_of;
 
 // Mine. to put in GC headers
 #[derive(Debug, Copy, Clone, PartialEq)]

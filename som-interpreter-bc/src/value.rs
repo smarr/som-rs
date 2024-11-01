@@ -1,6 +1,6 @@
+use core::mem::size_of;
 use std::convert::TryInto;
 use std::fmt;
-use std::mem::size_of;
 
 use crate::block::Block;
 use crate::class::Class;

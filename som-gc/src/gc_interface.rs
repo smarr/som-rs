@@ -6,6 +6,7 @@ use crate::gcref::GCRef;
 use crate::object_model::OBJECT_REF_OFFSET;
 use crate::slot::SOMSlot;
 use crate::{MMTK_SINGLETON, MMTK_TO_VM_INTERFACE, MUTATOR_WRAPPER, SOMVM};
+use core::mem::size_of;
 use log::debug;
 use mmtk::util::alloc::{Allocator, BumpAllocator};
 use mmtk::util::constants::MIN_OBJECT_SIZE;
@@ -15,7 +16,6 @@ use mmtk::{memory_manager, AllocationSemantics, MMTKBuilder, Mutator};
 use num_bigint::BigInt;
 use std::marker::PhantomData;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::mem::size_of;
 
 pub static IS_WORLD_STOPPED: AtomicBool = AtomicBool::new(false);
 

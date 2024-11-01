@@ -55,7 +55,7 @@ fn class(
 fn object_size(_: &mut Interpreter, _: &mut Universe, receiver: Value) -> Result<i32, Error> {
     const SIGNATURE: &'static str = "Object>>#objectSize";
 
-    std::mem::size_of_val(&receiver)
+    core::mem::size_of_val(&receiver)
         .try_into()
         .with_context(|| format!("`{SIGNATURE}`: could not convert `usize` to `i32`"))
 }

@@ -55,7 +55,7 @@ fn class(universe: &mut Universe, object: Value) -> Result<Value, Error> {
 fn object_size(_: &mut Universe, _: Value) -> Result<Value, Error> {
     const _: &'static str = "Object>>#objectSize";
 
-    Ok(Value::Integer(std::mem::size_of::<Value>() as i32))
+    Ok(Value::Integer(core::mem::size_of::<Value>() as i32))
 }
 
 fn hashcode(_: &mut Universe, receiver: Value) -> Result<Value, Error> {
