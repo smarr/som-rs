@@ -4,6 +4,7 @@ use std::io::Write;
 
 use crate::class::Class;
 use crate::convert::{Nil, Primitive, StringLike, System};
+use crate::gc::VecValue;
 use crate::interpreter::Interpreter;
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
@@ -24,6 +25,7 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> 
         ("ticks", self::ticks.into_func(), true),
         ("time", self::time.into_func(), true),
         ("fullGC", self::full_gc.into_func(), true),
+        ("gcStats", self::gc_stats.into_func(), true),
         ("exit:", self::exit.into_func(), true),
         ("global:", self::global.into_func(), true),
         ("global:put:", self::global_put.into_func(), true),
@@ -233,6 +235,20 @@ fn full_gc(_: &mut Interpreter, universe: &mut Universe, _: Value) -> Result<boo
     universe.gc_interface.full_gc_request();
 
     Ok(true)
+}
+
+fn gc_stats(_: &mut Interpreter, universe: &mut Universe, _: Value) -> Result<GCRef<VecValue>, Error> {
+    let gc_interface = &universe.gc_interface;
+    let total_gc = gc_interface.get_nbr_collections();
+    let total_gc_time = gc_interface.get_total_gc_time();
+    let total_bytes_alloc = gc_interface.get_used_bytes();
+
+    Ok(universe.gc_interface.alloc(VecValue(
+        vec![Value::Integer(total_gc as i32),
+             Value::Integer(total_gc_time as i32),
+             Value::Integer(total_bytes_alloc as i32)
+        ]
+    )))
 }
 
 /// Search for an instance primitive matching the given signature.

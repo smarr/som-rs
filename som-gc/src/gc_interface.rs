@@ -1,7 +1,4 @@
-use crate::api::{
-    mmtk_bind_mutator, mmtk_destroy_mutator, mmtk_handle_user_collection_request,
-    mmtk_initialize_collection, mmtk_set_fixed_heap_size,
-};
+use crate::api::{mmtk_bind_mutator, mmtk_destroy_mutator, mmtk_handle_user_collection_request, mmtk_initialize_collection, mmtk_set_fixed_heap_size, mmtk_used_bytes};
 use crate::gcref::GCRef;
 use crate::object_model::OBJECT_REF_OFFSET;
 use crate::slot::SOMSlot;
@@ -16,6 +13,7 @@ use mmtk::{memory_manager, AllocationSemantics, MMTKBuilder, Mutator};
 use num_bigint::BigInt;
 use std::marker::PhantomData;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::{Duration, Instant};
 
 pub static IS_WORLD_STOPPED: AtomicBool = AtomicBool::new(false);
 
@@ -29,6 +27,7 @@ pub struct GCInterface {
     default_allocator: *mut FreeListAllocator<SOMVM>,
     mutator_thread: VMMutatorThread,
     start_the_world_count: usize,
+    total_gc_time: std::time::Duration,
 }
 
 impl Drop for GCInterface {
@@ -51,6 +50,7 @@ impl GCInterface {
             mutator,
             default_allocator,
             start_the_world_count: 0,
+            total_gc_time: Duration::new(0, 0)
         });
 
         unsafe {
@@ -91,11 +91,9 @@ impl GCInterface {
             // let gc_success = builder.set_option("plan", "SemiSpace");
             assert!(gc_success, "Couldn't set GC plan");
 
-            // let ok = builder.set_option("stress_factor", DEFAULT_STRESS_FACTOR.to_string().as_str());
-            // assert!(ok);
-            // let ok = builder.set_option("analysis_factor", DEFAULT_STRESS_FACTOR.to_string().as_str());
-            // assert!(ok);
-
+            #[cfg(feature = "stress_test")]
+            assert!(builder.set_option("stress_factor", "1000000"));
+            
             builder
         };
 
@@ -149,6 +147,9 @@ impl GCInterface {
         // adding VM header size (type info) to amount we allocate
         size += OBJECT_REF_OFFSET;
 
+        // slow path, if needed for experimenting/debugging
+        // let header_addr = mmtk_alloc(&mut *self.mutator, size, GC_ALIGN, GC_OFFSET, AllocationSemantics::Default);
+
         let header_addr = allocator.alloc(size, GC_ALIGN, GC_OFFSET);
         debug_assert!(!header_addr.is_zero());
         let obj_addr = SOMVM::object_start_to_ref(header_addr);
@@ -177,11 +178,21 @@ impl GCInterface {
         self.start_the_world_count
     }
 
+    pub fn get_used_bytes(&self) -> usize {
+        mmtk_used_bytes()
+    }
+
+    pub fn get_total_gc_time(&self) -> usize {
+        self.total_gc_time.as_micros() as usize
+    }
+    
     pub(crate) fn block_for_gc(&mut self, _tls: VMMutatorThread) {
         AtomicBool::store(&IS_WORLD_STOPPED, true, Ordering::SeqCst);
         debug!("block_for_gc: stopped the world!");
+        let time_pre_gc = Instant::now();
         while AtomicBool::load(&IS_WORLD_STOPPED, Ordering::SeqCst) {}
         debug!("block_for_gc: world no longer stopped.");
+        self.total_gc_time += Instant::now() - time_pre_gc;
     }
 
     pub(crate) fn stop_all_mutators<F>(&'static mut self, mut mutator_visitor: F)

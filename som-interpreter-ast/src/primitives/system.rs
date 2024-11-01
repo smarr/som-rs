@@ -7,6 +7,8 @@ use once_cell::sync::Lazy;
 use som_core::interner::Interned;
 use std::convert::TryFrom;
 use std::fs;
+use som_gc::gcref::GCRef;
+use crate::gc::VecValue;
 
 pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| {
     Box::new([
@@ -19,6 +21,7 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> 
         ("ticks", self::ticks.into_func(), true),
         ("time", self::time.into_func(), true),
         ("fullGC", self::full_gc.into_func(), true),
+        ("gcStats", self::gc_stats.into_func(), true),
         ("exit:", self::exit.into_func(), true),
         ("global:", self::global.into_func(), true),
         ("global:put:", self::global_put.into_func(), true),
@@ -170,6 +173,20 @@ fn print_stack_trace(_: &mut Universe, _: Value) -> Result<bool, Error> {
 fn full_gc(_: &mut Universe, _: Value) -> Result<Value, Error> {
     // We don't do any garbage collection at all, so we return false.
     Ok(Value::Boolean(false))
+}
+
+fn gc_stats(universe: &mut Universe, _: Value) -> Result<GCRef<VecValue>, Error> {
+    let gc_interface = &universe.gc_interface;
+    let total_gc = gc_interface.get_nbr_collections();
+    let total_gc_time = gc_interface.get_total_gc_time();
+    let total_bytes_alloc = gc_interface.get_used_bytes();
+
+    Ok(universe.gc_interface.alloc(VecValue(
+        vec![Value::Integer(total_gc as i32),
+             Value::Integer(total_gc_time as i32),
+             Value::Integer(total_bytes_alloc as i32)
+        ]
+    )))
 }
 
 /// Search for an instance primitive matching the given signature.

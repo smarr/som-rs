@@ -22,6 +22,9 @@ log = "0.4.21"
 num-bigint = "0.4.3"
 
 [features]
+default = []
 #default = ["mmtk/extreme_assertions"]
+
+stress_test = []
 is_mmtk_object = ["mmtk/is_mmtk_object"]
 malloc_counted_size = ["mmtk/malloc_counted_size"]
