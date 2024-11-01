@@ -607,7 +607,36 @@ impl NaNBoxedVal {
 
 impl PartialEq for NaNBoxedVal {
     fn eq(&self, other: &Self) -> bool {
-        ValueEnum::from(*self) == ValueEnum::from(*other)
+        if self.as_u64() == other.as_u64() {
+            // this encapsulates every comparison between values of the same primitive type, e.g. comparing two i32s or two booleans
+            true
+        } else if let (Some(a), Some(b)) = (self.as_double(), other.as_double()) {
+            a == b
+        } else if let (Some(a), Some(b)) = (self.as_integer(), other.as_double()) {
+            (a as f64) == b
+        } else if let (Some(a), Some(b)) = (self.as_double(), other.as_integer()) {
+            (b as f64) == a
+        } else if let (Some(a), Some(b)) = (self.as_big_integer(), other.as_big_integer()) {
+            a == b
+        } else if let (Some(a), Some(b)) = (self.as_big_integer(), other.as_integer()) {
+            (&*a).eq(&BigInt::from(b))
+        } else if let (Some(a), Some(b)) = (self.as_integer(), other.as_big_integer()) {
+            BigInt::from(a).eq(&*b)
+        } else if let (Some(a), Some(b)) = (self.as_string(), other.as_string()) {
+            a == b
+        } else if let (Some(a), Some(b)) = (self.as_array(), other.as_array()) {
+            (a.0.len() == b.0.len()) && a.0.iter().zip(&b.0).all(|(val_a, val_b)| val_a == val_b)
+        } else if let (Some(a), Some(b)) = (self.as_instance(), other.as_instance()) {
+            a == b
+        } else if let (Some(a), Some(b)) = (self.as_class(), other.as_class()) {
+            a == b
+        } else if let (Some(a), Some(b)) = (self.as_block(), other.as_block()) {
+            a == b
+        } else if let (Some(a), Some(b)) = (self.as_invokable(), other.as_invokable()) {
+            a == b
+        } else {
+            false
+        }
     }
 }
 

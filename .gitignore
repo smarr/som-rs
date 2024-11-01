@@ -24,5 +24,8 @@ rebench.data
 som-interp-ast
 som-interp-bc
 
+# AWFY benchmarks
+are-we-fast-yet/
 
-mmtk-core
+# used when building mmtk from source to do better debugging
+mmtk-core/
