@@ -150,8 +150,8 @@ pub fn scan_object<'a>(
                     }
                 }
 
-                // let holder_slot_addr = Address::from_ref(&method.holder);
-                // slot_visitor.visit_slot(SOMSlot::from_address(holder_slot_addr))
+                let holder_slot_addr = Address::from_ref(&method.holder);
+                slot_visitor.visit_slot(SOMSlot::from_address(holder_slot_addr))
             }
             BCObjMagicId::Class => {
                 let class: &mut Class = object.to_raw_address().as_mut_ref();
@@ -183,8 +183,7 @@ pub fn scan_object<'a>(
             }
             BCObjMagicId::Instance => {
                 let instance: &mut Instance = object.to_raw_address().as_mut_ref();
-
-                // slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(&instance.class)));
+                slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(&instance.class)));
 
                 // not the cleanest, to be frank
                 let gcref_instance: GCRef<Instance> =
