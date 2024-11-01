@@ -186,9 +186,9 @@ pub fn scan_object<'a>(
             AstObjMagicId::Method => {
                 let method: &mut Method = object.to_raw_address().as_mut_ref();
 
-                // TODO we shouldn't need to scan the holder. because we ASSUME that when we encounter a method, we did so through a class.
+                // we shouldn't need to scan the holder. because we ASSUME that when we encounter a method, we did so through a class.
                 // I'm not sure in what case this isn't valid.
-                slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(&method.holder)));
+                // slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(&method.holder)));
 
                 match &method.kind {
                     MethodKind::Defined(_method_def) => {
@@ -207,7 +207,7 @@ pub fn scan_object<'a>(
             AstObjMagicId::Instance => {
                 let instance: &mut Instance = object.to_raw_address().as_mut_ref();
 
-                slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(&instance.class)));
+                // slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(&instance.class)));
 
                 for val in &instance.locals {
                     visit_value(&val, slot_visitor)
@@ -355,7 +355,7 @@ fn visit_expr(expr: &AstExpression, slot_visitor: &mut dyn SlotVisitor<SOMSlot>)
             }
         }
         AstExpression::SuperMessage(super_message) => {
-            slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(&super_message.super_class)));
+            // slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(&super_message.super_class)));
             for arg in &super_message.values {
                 visit_expr(arg, slot_visitor);
             }
