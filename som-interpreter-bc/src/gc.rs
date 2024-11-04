@@ -88,6 +88,21 @@ pub fn visit_value<'a>(val: &Value, slot_visitor: &'a mut (dyn SlotVisitor<SOMSl
     }
 }
 
+pub fn visit_literal<'a>(lit: &Literal, slot_visitor: &'a mut (dyn SlotVisitor<SOMSlot> + 'a)) {
+    match lit {
+        Literal::Block(blk) => slot_visitor
+            .visit_slot(SOMSlot::from_address(Address::from_ref(blk))),
+        Literal::String(str) => slot_visitor
+            .visit_slot(SOMSlot::from_address(Address::from_ref(str))),
+        Literal::BigInteger(bigint) => slot_visitor
+            .visit_slot(SOMSlot::from_address(Address::from_ref(bigint))),
+        Literal::Array(arr) => slot_visitor
+            .visit_slot(SOMSlot::from_address(Address::from_ref(arr))),
+        _ => {}
+    }
+}
+
+
 pub fn scan_object<'a>(
     object: ObjectReference,
     slot_visitor: &'a mut (dyn SlotVisitor<SOMSlot> + 'a),
@@ -122,8 +137,7 @@ pub fn scan_object<'a>(
                 }
 
                 // this should all really be done in the frame as a custom method. return an iter or something
-                let frame_stack_start_addr: Address =
-                    object.to_raw_address().add(size_of::<Frame>());
+                let frame_stack_start_addr: Address = object.to_raw_address().add(size_of::<Frame>());
                 let mut stack_ptr = frame.stack_ptr;
                 while !std::ptr::eq(stack_ptr, frame_stack_start_addr.to_ptr()) {
                     stack_ptr = stack_ptr.sub(1);
@@ -136,17 +150,7 @@ pub fn scan_object<'a>(
 
                 if let MethodKind::Defined(method_env) = &method.kind {
                     for x in &method_env.literals {
-                        match x {
-                            Literal::Block(blk) => slot_visitor
-                                .visit_slot(SOMSlot::from_address(Address::from_ref(blk))),
-                            Literal::String(str) => slot_visitor
-                                .visit_slot(SOMSlot::from_address(Address::from_ref(str))),
-                            Literal::BigInteger(bigint) => slot_visitor
-                                .visit_slot(SOMSlot::from_address(Address::from_ref(bigint))),
-                            Literal::Array(arr) => slot_visitor
-                                .visit_slot(SOMSlot::from_address(Address::from_ref(arr))),
-                            _ => {}
-                        }
+                        visit_literal(x, slot_visitor)
                     }
                 }
 
@@ -199,8 +203,13 @@ pub fn scan_object<'a>(
                     visit_value(val, slot_visitor)
                 }
             }
-            BCObjMagicId::BlockInfo
-            | BCObjMagicId::String
+            BCObjMagicId::BlockInfo => {
+                let block_info: &mut BlockInfo = object.to_raw_address().as_mut_ref();
+                for lit in &block_info.literals {
+                    visit_literal(lit, slot_visitor)
+                }
+            }
+            BCObjMagicId::String
             | BCObjMagicId::ArrayU8
             | BCObjMagicId::BigInt => {
                 // leaf nodes: no children.

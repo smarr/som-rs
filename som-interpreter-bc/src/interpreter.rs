@@ -94,6 +94,8 @@ impl Interpreter {
 
         let frame_ptr = Frame::alloc_from_method(method, args, self.current_frame, mutator);
 
+        frame_copy.remove_n_last_elements(nbr_args);
+        
         self.bytecode_idx = 0;
         self.current_bytecodes = frame_ptr.bytecodes;
         self.current_frame = frame_ptr;
@@ -518,8 +520,9 @@ impl Interpreter {
             let Some(method) = method else {
                 let mut frame_copy = interpreter.current_frame.clone();
                 let args = frame_copy.stack_n_last_elements(nb_params);
+                interpreter.current_frame.remove_n_last_elements(nb_params);
                 let self_value = interpreter.current_frame.clone().stack_pop();
-
+                
                 // could be avoided by passing args slice directly...
                 // ...but A) DNU is a very rare path and B) i guess we allocate a new args arr in the DNU call anyway
                 let args = args.iter().map(|v| v.clone()).collect();

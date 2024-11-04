@@ -287,8 +287,15 @@ impl Frame {
     pub fn stack_n_last_elements(&mut self, n: usize) -> &[Value] {
         unsafe {
             let slice_ptr = self.stack_ptr.sub(n);
-            self.stack_ptr = slice_ptr;
+            // self.stack_ptr = slice_ptr;
             std::slice::from_raw_parts_mut(slice_ptr, n)
+        }
+    }
+
+    #[inline(always)]
+    pub fn remove_n_last_elements(&mut self, n: usize) {
+        unsafe {
+            self.stack_ptr = self.stack_ptr.sub(n)
         }
     }
 

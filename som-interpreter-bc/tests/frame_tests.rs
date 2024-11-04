@@ -204,6 +204,8 @@ fn frame_stack_split_off() {
 
     assert_eq!(two_last, vec![Value::INTEGER_ONE, Value::Boolean(true)]);
 
+    frame.remove_n_last_elements(2);
+    
     assert_eq!(Frame::stack_len(frame_ptr), 3);
     assert_eq!(frame.stack_last(), &Value::NIL);
 }
