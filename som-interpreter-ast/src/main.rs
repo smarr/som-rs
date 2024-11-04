@@ -38,6 +38,10 @@ struct Options {
     /// Enable verbose output (with timing information).
     #[structopt(short = "v")]
     verbose: bool,
+
+    /// Enable verbose output (with timing information).
+    #[structopt(long, short = "hs")]
+    heap_size: Option<usize>,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -61,7 +65,14 @@ fn main() -> anyhow::Result<()> {
                 classpath.push(directory.to_path_buf());
             }
 
-            let mut universe = Universe::with_classpath(classpath)?;
+            let mut universe = {
+                match opts.heap_size {
+                    Some(heap_size) => {
+                        Universe::with_classpath_and_heap_size(classpath, heap_size)?
+                    }
+                    None => Universe::with_classpath(classpath)?,
+                }
+            };
 
             unsafe {
                 UNIVERSE_RAW_PTR = &mut universe;

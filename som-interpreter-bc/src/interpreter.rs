@@ -534,7 +534,7 @@ impl Interpreter {
 
             match method.kind() {
                 MethodKind::Defined(_) => {
-                    // let name = &method.holder.borrow().name.clone();
+                    // let name = &method.holder.name.clone();
                     // eprintln!("Invoking {:?} (in {:?})", &method.signature, &name);
                     // if method.signature == "initializeWith:selector:arguments:" {
                     //     dbg!("wow");
@@ -589,12 +589,10 @@ impl Interpreter {
             let maybe_found = unsafe { inline_cache.get_unchecked_mut(bytecode_idx) };
 
             match maybe_found {
-                Some((receiver, method)) if *receiver == class.ptr.to_ptr() => Some(*method),
+                Some((receiver, method)) if receiver.ptr == class.ptr => Some(*method),
                 place @ None => {
                     let found = class.lookup_method(signature);
-                    *place = found
-                        .clone()
-                        .map(|method| (class.ptr.to_ptr() as *const _, method));
+                    *place = found.clone().map(|method| (class.clone(), method));
                     found
                 }
                 _ => class.lookup_method(signature),

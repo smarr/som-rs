@@ -15,8 +15,8 @@ use som_core::interner::{Interned, Interner};
 use som_gc::gc_interface::GCInterface;
 use som_gc::gcref::GCRef;
 
-/// GC heap size
-pub const HEAP_SIZE: usize = 1024 * 1024 * 256;
+/// GC default heap size
+pub const DEFAULT_HEAP_SIZE: usize = 1024 * 1024 * 256;
 
 /// The core classes of the SOM interpreter.
 ///
@@ -91,10 +91,18 @@ pub struct Universe {
 impl Universe {
     /// Initialize the universe from the given classpath.
     pub fn with_classpath(classpath: Vec<PathBuf>) -> Result<Self, Error> {
+        Self::with_classpath_and_heap_size(classpath, DEFAULT_HEAP_SIZE)
+    }
+
+    /// Initialize the universe from the given classpath, and given a heap size
+    pub fn with_classpath_and_heap_size(
+        classpath: Vec<PathBuf>,
+        heap_size: usize,
+    ) -> Result<Self, Error> {
         let interner = Interner::with_capacity(100);
         let mut globals = HashMap::new();
 
-        let mut gc_interface = GCInterface::init(HEAP_SIZE, get_callbacks_for_gc());
+        let mut gc_interface = GCInterface::init(heap_size, get_callbacks_for_gc());
 
         let object_class =
             Self::load_system_class(classpath.as_slice(), "Object", None, &mut gc_interface)?;

@@ -18,7 +18,7 @@ use som_gc::gcref::GCRef;
 pub struct MethodEnv {
     pub literals: Vec<Literal>,
     pub body: Vec<Bytecode>,
-    pub inline_cache: RefCell<Vec<Option<(*const Class, GCRef<Method>)>>>,
+    pub inline_cache: RefCell<Vec<Option<(GCRef<Class>, GCRef<Method>)>>>,
     pub nbr_locals: usize,
     pub max_stack_size: u8,
     #[cfg(feature = "frame-debug-info")]

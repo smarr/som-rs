@@ -22,8 +22,8 @@ pub struct Frame {
     pub bytecodes: *const Vec<Bytecode>,
     /// Literals/constants associated with the frame.
     pub literals: *const Vec<Literal>,
-    /// Inline cache associated with the frame. TODO - refcell not worth it with the GC now, is it?
-    pub inline_cache: *const RefCell<Vec<Option<(*const Class, GCRef<Method>)>>>, // todo class can also be a GC ref, that's basically a pointer
+    /// Inline cache associated with the frame. TODO - do we keep the refcell really?
+    pub inline_cache: *const RefCell<Vec<Option<(GCRef<Class>, GCRef<Method>)>>>,
     /// Bytecode index.
     pub bytecode_idx: usize,
 

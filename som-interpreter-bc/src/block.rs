@@ -18,7 +18,7 @@ pub struct BlockInfo {
     pub body: Vec<Bytecode>,
     pub nb_locals: usize,
     pub nb_params: usize,
-    pub inline_cache: RefCell<Vec<Option<(*const Class, GCRef<Method>)>>>,
+    pub inline_cache: RefCell<Vec<Option<(GCRef<Class>, GCRef<Method>)>>>,
     pub max_stack_size: u8,
     #[cfg(feature = "frame-debug-info")]
     pub block_debug_info: BlockDebugInfo,
