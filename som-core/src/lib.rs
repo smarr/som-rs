@@ -8,3 +8,5 @@ pub mod ast;
 pub mod bytecode;
 /// Facilities for string interning.
 pub mod interner;
+/// Shared value representation logic (NaN boxing really)
+pub mod value;

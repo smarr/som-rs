@@ -4,13 +4,12 @@ use crate::block::Block;
 use crate::class::Class;
 use crate::instance::Instance;
 use crate::method::Method;
-use crate::value::{NaNBoxedVal, ValueEnum};
 
-impl Hash for ValueEnum {
-    fn hash<H: Hasher>(&self, hasher: &mut H) {
-        NaNBoxedVal::from(self.clone()).hash(hasher)
-    }
-}
+// impl Hash for ValueEnum {
+//     fn hash<H: Hasher>(&self, hasher: &mut H) {
+//         NaNBoxedVal::from(self.clone()).hash(hasher)
+//     }
+// }
 
 impl Hash for Class {
     fn hash<H: Hasher>(&self, hasher: &mut H) {
