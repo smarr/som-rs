@@ -42,7 +42,8 @@ pub mod block1 {
         _: &mut Universe,
         _: GCRef<Block>,
     ) -> Result<(), Error> {
-        interpreter.current_frame.bytecode_idx = 0;
+        // interpreter.current_frame.bytecode_idx = 0;
+        interpreter.bytecode_idx = 0;
 
         Ok(())
     }

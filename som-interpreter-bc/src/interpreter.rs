@@ -388,11 +388,6 @@ impl Interpreter {
                 }
                 Bytecode::ReturnNonLocal(up_idx) => {
                     let method_frame = Frame::nth_frame_back(&self.current_frame, up_idx);
-                    // let escaped_frames = self
-                    //     .frames
-                    //     .iter()
-                    //     .rev()
-                    //     .position(|live_frame| *live_frame == method_frame);
 
                     let escaped_frames = {
                         let mut current_frame = self.current_frame;
@@ -414,13 +409,8 @@ impl Interpreter {
                         let val = self.current_frame.stack_pop();
 
                         self.pop_n_frames(count + 1);
-                        // if self.current_frame.is_empty() {
-                        //      return Some(self.stack.pop().unwrap_or(Value::NIL));
-                        // }
                         self.current_frame.stack_push(val);
                     } else {
-                        // NB: I did some changes there with the blockself bits and i'm not positive it works the same as before, but it should.
-
                         // Block has escaped its method frame.
                         let instance = self.current_frame.get_self();
                         let block = match self.current_frame.lookup_argument(0).as_block() {
@@ -556,7 +546,7 @@ impl Interpreter {
                     );
                 }
                 MethodKind::Primitive(func) => {
-                    // eprintln!("Invoking prim {:?} (in {:?})", &method.signature, &method.holder.borrow().name);
+                    // eprintln!("Invoking prim {:?} (in {:?})", &method.signature, &method.holder.name);
                     func(interpreter, universe)
                         .with_context(|| {
                             anyhow::anyhow!(
