@@ -1,6 +1,5 @@
 use std::convert::{TryFrom, TryInto};
 
-use crate::block::Block;
 use crate::convert::{DoubleLike, IntegerLike, Primitive, StringLike};
 use crate::interpreter::Interpreter;
 use crate::primitives::PrimitiveFn;
@@ -43,11 +42,11 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> 
             self::as_32bit_unsigned_value.into_func(),
             true,
         ),
-        ("to:do:", self::to_do.into_func(), true),
-        ("to:by:do:", self::to_by_do.into_func(), true),
-        ("downTo:do:", self::down_to_do.into_func(), true),
-        ("downTo:by:do:", self::down_to_by_do.into_func(), true),
-        ("timesRepeat:", self::times_repeat.into_func(), true),
+        // ("to:do:", self::to_do.into_func(), true),
+        // ("to:by:do:", self::to_by_do.into_func(), true),
+        // ("downTo:do:", self::down_to_do.into_func(), true),
+        // ("downTo:by:do:", self::down_to_by_do.into_func(), true),
+        // ("timesRepeat:", self::times_repeat.into_func(), true),
     ])
 });
 pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> =
@@ -597,8 +596,9 @@ fn shift_right(
     Ok(value)
 }
 
-// Nota Bene: blocks for to:do: and friends get instrumented as a special case in the parser, so that they don't leave their "self" on the stack.
-fn to_do(
+// These guys break in some cases. TODO: inline them instead, we've already got 90% of the logic for each by handling to:do:
+
+/*fn to_do(
     interpreter: &mut Interpreter,
     universe: &mut Universe,
     start: i32,
@@ -690,6 +690,7 @@ fn times_repeat(
     }
     Ok(n)
 }
+*/
 
 /// Search for an instance primitive matching the given signature.
 pub fn get_instance_primitive(signature: &str) -> Option<&'static PrimitiveFn> {
