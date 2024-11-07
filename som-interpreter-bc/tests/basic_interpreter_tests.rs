@@ -1,5 +1,5 @@
 use som_gc::gcref::GCRef;
-use som_interpreter_bc::compiler;
+use som_interpreter_bc::{compiler, INTERPRETER_RAW_PTR, UNIVERSE_RAW_PTR};
 use som_interpreter_bc::frame::Frame;
 use som_interpreter_bc::interpreter::Interpreter;
 use som_interpreter_bc::universe::Universe;
@@ -11,6 +11,7 @@ use std::path::PathBuf;
 fn setup_universe() -> Universe {
     let classpath = vec![
         PathBuf::from("../core-lib/Smalltalk"),
+        PathBuf::from("../core-lib/TestSuite"),
         PathBuf::from("../core-lib/TestSuite/BasicInterpreterTests"),
     ];
     Universe::with_classpath(classpath).expect("could not setup test universe")
@@ -209,4 +210,24 @@ fn basic_interpreter_tests() {
             assert_eq!(&output, expected, "unexpected test output value");
         }
     }
+}
+
+/// Runs the TestHarness, which handles many basic tests written in SOM
+#[test]
+fn test_harness() {
+    let mut universe = setup_universe();
+    
+    let args = ["TestHarness"].iter()
+        .map(|str| Value::String(universe.gc_interface.alloc(String::from(*str))))
+        .collect();
+
+    let mut interpreter = universe.initialize(args).unwrap();
+
+    // needed for GC
+    unsafe {
+        UNIVERSE_RAW_PTR = &mut universe;
+        INTERPRETER_RAW_PTR = &mut interpreter;
+    }
+    
+    assert_eq!(interpreter.run(&mut universe), Some(Value::INTEGER_ZERO))
 }

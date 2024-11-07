@@ -11,6 +11,7 @@ use som_parser::lang;
 fn setup_universe() -> Universe {
     let classpath = vec![
         PathBuf::from("../core-lib/Smalltalk"),
+        PathBuf::from("../core-lib/TestSuite"),
         PathBuf::from("../core-lib/TestSuite/BasicInterpreterTests"),
     ];
     Universe::with_classpath(classpath).expect("could not setup test universe")
@@ -193,5 +194,27 @@ fn basic_interpreter_tests() {
             Return::Restart => panic!("unexpected `restart` from basic interpreter test"),
             Return::Exception(err) => panic!("unexpected exception: '{}'", err),
         }
+    }
+}
+
+/// Runs the TestHarness, which handles many basic tests written in SOM
+#[test]
+fn test_harness() {
+    let mut universe = setup_universe();
+    unsafe {
+        UNIVERSE_RAW_PTR = &mut universe; 
+    }
+
+    let args = ["TestHarness"].iter()
+        .map(|str| Value::String(universe.gc_interface.alloc(String::from(*str))))
+        .collect();
+
+    let output = universe.initialize(args).unwrap_or_else(|| {
+        Return::Exception("could not find 'System>>#initialize:'".to_string())
+    });
+    
+    match output {
+        Return::Local(val) => assert_eq!(val, Value::INTEGER_ZERO),
+        ret => panic!("Unexpected result from test harness: {:?}", ret)
     }
 }

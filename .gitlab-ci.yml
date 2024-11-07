@@ -25,9 +25,6 @@ build-and-test-interpreters:
 
     - RUST_TEST_THREADS=1 cargo test
 
-    - cargo +$CARGO_VERSION run --bin som-interpreter-ast --release -- -c core-lib/Smalltalk core-lib/TestSuite -- TestHarness
-    - cargo +$CARGO_VERSION run --bin som-interpreter-bc --release -- -c core-lib/Smalltalk core-lib/TestSuite -- TestHarness
-
     # Package and Upload
     - lz4 ./target/release/som-interpreter-ast som-interpreter-ast.lz4
     - lz4 ./target/release/som-interpreter-bc som-interpreter-bc.lz4
