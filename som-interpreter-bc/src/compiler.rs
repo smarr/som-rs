@@ -22,6 +22,7 @@ use som_core::bytecode::Bytecode;
 use som_core::interner::{Interned, Interner};
 use som_gc::gc_interface::GCInterface;
 use som_gc::gcref::GCRef;
+use crate::primitives::UNIMPLEM_PRIMITIVE;
 
 #[derive(Debug, Clone)]
 pub enum Literal {
@@ -795,7 +796,7 @@ fn compile_method(
 
     let method = Method {
         kind: match &defn.body {
-            ast::MethodBody::Primitive => MethodKind::NotImplemented(defn.signature.clone()),
+            ast::MethodBody::Primitive => MethodKind::Primitive(&*UNIMPLEM_PRIMITIVE),
             ast::MethodBody::Body { .. } => {
                 // let locals = std::mem::take(&mut ctxt.inner.locals);
                 let nbr_locals = ctxt.inner.locals_nbr;

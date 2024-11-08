@@ -19,6 +19,9 @@ pub mod symbol;
 /// Primitives for the **System** class.
 pub mod system;
 
+use anyhow::Error;
+use once_cell::sync::Lazy;
+use crate::convert::Primitive;
 use crate::invokable::Return;
 pub use self::blocks::{block1, block2, block3};
 
@@ -74,3 +77,13 @@ pub fn get_instance_primitives(
         _ => None,
     }
 }
+
+
+/// Function called for an unimplemented primitive.
+fn unimplem_prim_fn(_: &mut Universe, _: i32) -> Result<i32, Error> {
+    panic!("called an unimplemented primitive")
+}
+
+pub static UNIMPLEM_PRIMITIVE: Lazy<Box<&'static PrimitiveFn>> = Lazy::new(|| {
+    Box::new(unimplem_prim_fn.into_func())
+});

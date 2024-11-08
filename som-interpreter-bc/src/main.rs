@@ -207,13 +207,6 @@ fn dump_class_methods(
                     signature = method.signature(),
                 );
             }
-            MethodKind::NotImplemented(_) => {
-                println!(
-                    "{class}>>#{signature} (not implemented)",
-                    class = file_stem,
-                    signature = method.signature(),
-                );
-            }
         }
     }
 }

@@ -30,8 +30,6 @@ pub enum MethodKind {
     TrivialSetter(TrivialSetterMethod),
     /// A call to a specialized method
     Specialized(MethodKindSpecialized),
-    /// A non-implemented primitive.
-    NotImplemented(String),
 }
 
 impl Debug for MethodKind {

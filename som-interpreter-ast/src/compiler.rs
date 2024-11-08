@@ -1,3 +1,4 @@
+use std::panic;
 use crate::ast::{
     AstBinaryDispatch, AstBlock, AstBody, AstDispatchNode, AstExpression, AstLiteral, AstMethodDef,
     AstNAryDispatch, AstSuperMessage, AstTernaryDispatch, AstUnaryDispatch,
@@ -19,6 +20,7 @@ use som_core::ast;
 use som_core::ast::{Expression, Literal, MethodBody};
 use som_gc::gc_interface::GCInterface;
 use som_gc::gcref::GCRef;
+use crate::primitives::UNIMPLEM_PRIMITIVE;
 
 pub struct AstMethodCompilerCtxt<'a> {
     /// The class in which context we're compiling. Needed for resolving field accesses. Should always be Some() outside of a testing context.
@@ -92,7 +94,7 @@ impl<'a> AstMethodCompilerCtxt<'a> {
                 MethodKind::Specialized(MethodKindSpecialized::DownToDo(DownToDoNode {}))
             }
             _ => match method.body {
-                MethodBody::Primitive => MethodKind::NotImplemented(method.signature.clone()),
+                MethodBody::Primitive => MethodKind::Primitive(&*UNIMPLEM_PRIMITIVE),
                 MethodBody::Body { .. } => {
                     let ast_method_def =
                         AstMethodCompilerCtxt::parse_method_def(method, class, gc_interface);

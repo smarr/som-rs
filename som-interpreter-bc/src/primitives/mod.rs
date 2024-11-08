@@ -21,7 +21,8 @@ pub mod system;
 
 pub use self::blocks::{block1, block2, block3};
 use anyhow::Error;
-
+use once_cell::sync::Lazy;
+use crate::convert::Primitive;
 use crate::interpreter::Interpreter;
 use crate::universe::Universe;
 
@@ -73,3 +74,12 @@ pub fn get_instance_primitives(
         _ => None,
     }
 }
+
+/// Function called for an unimplemented primitive.
+fn unimplem_prim_fn(_: &mut Interpreter, _: &mut Universe, _: i32) -> Result<i32, Error> {
+    panic!("called an unimplemented primitive")
+}
+
+pub static UNIMPLEM_PRIMITIVE: Lazy<Box<&'static PrimitiveFn>> = Lazy::new(|| {
+    Box::new(unimplem_prim_fn.into_func())
+});

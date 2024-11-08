@@ -556,15 +556,6 @@ impl Interpreter {
                         })
                         .unwrap();
                 }
-                MethodKind::NotImplemented(err) => {
-                    let self_value = interpreter.current_frame.stack_nth_back(nb_params);
-                    println!(
-                        "{}>>#{}",
-                        self_value.class(&universe).name(),
-                        method.signature(),
-                    );
-                    panic!("Primitive `#{}` not implemented", err)
-                }
             }
         }
 

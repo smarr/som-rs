@@ -31,9 +31,7 @@ pub enum MethodKind {
     /// A user-defined method from the AST.
     Defined(MethodEnv),
     /// An interpreter primitive.
-    Primitive(&'static PrimitiveFn),
-    /// A non-implemented primitive.
-    NotImplemented(String),
+    Primitive(&'static PrimitiveFn)
 }
 
 impl MethodKind {
@@ -114,7 +112,6 @@ impl Invoke for GCRef<Method> {
                 func(interpreter, universe)
                     .expect(&format!("invoking func {} failed", &self.signature))
             }
-            MethodKind::NotImplemented(_) => todo!(),
         }
     }
 }
@@ -211,8 +208,7 @@ impl fmt::Display for Method {
                 }
                 Ok(())
             }
-            MethodKind::Primitive(_) => write!(f, "<primitive>"),
-            MethodKind::NotImplemented(_) => write!(f, "<primitive>"),
+            MethodKind::Primitive(_) => write!(f, "<primitive>")
         }
     }
 }
