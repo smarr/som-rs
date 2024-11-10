@@ -2,6 +2,8 @@
 //! This is the interpreter for the Simple Object Machine.
 //!
 
+use std::ptr::NonNull;
+
 use crate::interpreter::Interpreter;
 use crate::universe::Universe;
 
@@ -46,5 +48,7 @@ pub mod gc;
 // /// A weak reference to an object.
 // pub type SOMWeakRef<T> = Weak<RefCell<T>>;
 
-pub static mut UNIVERSE_RAW_PTR: *mut Universe = std::ptr::null_mut();
-pub static mut INTERPRETER_RAW_PTR: *mut Interpreter = std::ptr::null_mut();
+/// Raw pointer needed to trace GC roots. Meant to be accessed only non-mutably, hence the "CONST" in the name.
+pub static mut UNIVERSE_RAW_PTR_CONST: Option<NonNull<Universe>> = None;
+/// See `UNIVERSE_RAW_PTR_CONST`.
+pub static mut INTERPRETER_RAW_PTR_CONST: Option<NonNull<Interpreter>> = None;

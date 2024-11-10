@@ -5,7 +5,7 @@ use crate::frame::Frame;
 use crate::instance::{Instance, InstanceAccess};
 use crate::method::{Method, MethodKind};
 use crate::value::Value;
-use crate::{INTERPRETER_RAW_PTR, UNIVERSE_RAW_PTR};
+use crate::{INTERPRETER_RAW_PTR_CONST, UNIVERSE_RAW_PTR_CONST};
 use core::mem::size_of;
 use log::debug;
 use mmtk::util::{Address, ObjectReference};
@@ -209,13 +209,13 @@ fn get_roots_in_mutator_thread(_mutator: &mut Mutator<SOMVM>) -> Vec<SOMSlot> {
         let mut to_process: Vec<SOMSlot> = vec![];
 
         // walk the frame list.
-        let current_frame_addr = &(*INTERPRETER_RAW_PTR).current_frame;
+        let current_frame_addr = &INTERPRETER_RAW_PTR_CONST.unwrap().as_ref().current_frame;
         debug!("scanning root: current_frame (method: {})", current_frame_addr.current_method.signature);
         to_process.push(SOMSlot::from_address(Address::from_ref(current_frame_addr)));
 
         // walk globals (includes core classes)
         debug!("scanning roots: globals");
-        for (_name, val) in (*UNIVERSE_RAW_PTR).globals.iter() {
+        for (_name, val) in UNIVERSE_RAW_PTR_CONST.unwrap().as_ref().globals.iter() {
             if val.is_ptr_type() {
                 // to_process.push(SOMSlot::from_value(*val));
                 to_process.push(SOMSlot::from_value(val.as_u64()));

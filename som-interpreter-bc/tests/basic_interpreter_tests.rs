@@ -3,10 +3,11 @@ use som_interpreter_bc::frame::Frame;
 use som_interpreter_bc::interpreter::Interpreter;
 use som_interpreter_bc::universe::Universe;
 use som_interpreter_bc::value::Value;
-use som_interpreter_bc::{compiler, INTERPRETER_RAW_PTR, UNIVERSE_RAW_PTR};
+use som_interpreter_bc::{compiler, INTERPRETER_RAW_PTR_CONST, UNIVERSE_RAW_PTR_CONST};
 use som_lexer::{Lexer, Token};
 use som_parser::lang;
 use std::path::PathBuf;
+use std::ptr::NonNull;
 
 fn setup_universe() -> Universe {
     let classpath = vec![
@@ -142,8 +143,8 @@ fn test_harness() {
 
     // needed for GC
     unsafe {
-        UNIVERSE_RAW_PTR = &mut universe;
-        INTERPRETER_RAW_PTR = &mut interpreter;
+        UNIVERSE_RAW_PTR_CONST = NonNull::new(&mut universe);
+        INTERPRETER_RAW_PTR_CONST = NonNull::new(&mut interpreter);
     }
 
     assert_eq!(interpreter.run(&mut universe), Some(Value::INTEGER_ZERO))

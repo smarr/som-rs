@@ -5,7 +5,7 @@ use crate::frame::{Frame, FrameAccess};
 use crate::instance::Instance;
 use crate::method::{Method, MethodKind};
 use crate::value::Value;
-use crate::UNIVERSE_RAW_PTR;
+use crate::{FRAME_ARGS_PTR, UNIVERSE_RAW_PTR_CONST};
 use log::debug;
 use mmtk::util::{Address, ObjectReference};
 use mmtk::vm::{ObjectModel, SlotVisitor};
@@ -97,25 +97,19 @@ impl HasTypeInfoForGC for Method {
 
 // --- Scanning
 
-// When GC triggers while we're allocating a frame, the arguments we want to add to that frame are being passed as an argument to the frame allocation function.
-// This means the GC does NOT know how to reach them, and we have to inform it ourselves... So whenever we allocate a frame, we store a pointer to its arguments before that.
-// It's possible this isn't just an issue when allocating frames, and that we need argument pointers to other values being initialized when we trigger GC. But I assume, and hope, not.
-// It's not very pretty. But I'm not sure how else to fix it at the moment.
-pub static mut FRAME_ARGS_PTR: Option<*const Vec<Value>> = None;
-
 fn get_roots_in_mutator_thread(_mutator: &mut Mutator<SOMVM>) -> Vec<SOMSlot> {
     debug!("calling scan_roots_in_mutator_thread");
     unsafe {
         let mut to_process: Vec<SOMSlot> = vec![];
 
         // walk the frame list.
-        let current_frame_addr = &(*UNIVERSE_RAW_PTR).current_frame;
+        let current_frame_addr = &UNIVERSE_RAW_PTR_CONST.unwrap().as_ref().current_frame;
         debug!("scanning root: current_frame");
         to_process.push(SOMSlot::from_address(Address::from_ref(current_frame_addr)));
 
         // walk globals (includes core classes)
         debug!("scanning roots: globals");
-        for (_name, val) in (*UNIVERSE_RAW_PTR).globals.iter() {
+        for (_name, val) in UNIVERSE_RAW_PTR_CONST.unwrap().as_ref().globals.iter() {
             if val.is_ptr_type() {
                 to_process.push(SOMSlot::from_value(val.as_u64()));
             }
@@ -123,7 +117,7 @@ fn get_roots_in_mutator_thread(_mutator: &mut Mutator<SOMVM>) -> Vec<SOMSlot> {
 
         if let Some(frame_args) = FRAME_ARGS_PTR {
             debug!("scanning roots: frame arguments (frame allocation triggered a GC)");
-            for arg in &*frame_args {
+            for arg in frame_args.as_ref() {
                 if arg.is_ptr_type() {
                     to_process.push(SOMSlot::Value(ValueSlot::from_value(arg.as_u64())))
                 }

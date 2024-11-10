@@ -4,6 +4,7 @@
 #![warn(missing_docs)]
 
 use std::path::PathBuf;
+use std::ptr::NonNull;
 
 use anyhow::{bail, Context};
 #[cfg(feature = "jemalloc")]
@@ -19,7 +20,7 @@ use som_interpreter_bc::method::{Method, MethodKind};
 use som_interpreter_bc::profiler::Profiler;
 use som_interpreter_bc::universe::Universe;
 use som_interpreter_bc::value::Value;
-use som_interpreter_bc::{INTERPRETER_RAW_PTR, UNIVERSE_RAW_PTR};
+use som_interpreter_bc::{INTERPRETER_RAW_PTR_CONST, UNIVERSE_RAW_PTR_CONST};
 
 #[cfg(feature = "jemalloc")]
 #[global_allocator]
@@ -99,8 +100,8 @@ fn run() -> anyhow::Result<()> {
     let mut interpreter = universe.initialize(args).expect("issue running program");
 
     unsafe {
-        INTERPRETER_RAW_PTR = &mut interpreter;
-        UNIVERSE_RAW_PTR = &mut universe;
+        INTERPRETER_RAW_PTR_CONST = NonNull::new(&mut interpreter);
+        UNIVERSE_RAW_PTR_CONST = NonNull::new(&mut universe);
     }
 
     interpreter.run(&mut universe);

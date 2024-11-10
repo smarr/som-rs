@@ -4,6 +4,7 @@
 #![warn(missing_docs)]
 
 use std::path::PathBuf;
+use std::ptr::NonNull;
 
 use anyhow::anyhow;
 #[cfg(feature = "jemalloc")]
@@ -15,7 +16,7 @@ mod shell;
 use som_interpreter_ast::invokable::Return;
 use som_interpreter_ast::universe::Universe;
 use som_interpreter_ast::value::Value;
-use som_interpreter_ast::UNIVERSE_RAW_PTR;
+use som_interpreter_ast::UNIVERSE_RAW_PTR_CONST;
 
 #[cfg(feature = "jemalloc")]
 #[global_allocator]
@@ -69,7 +70,7 @@ fn main() -> anyhow::Result<()> {
             };
 
             unsafe {
-                UNIVERSE_RAW_PTR = &mut universe;
+                UNIVERSE_RAW_PTR_CONST = NonNull::new(&mut universe);
             }
 
             let args = std::iter::once(String::from(file_stem))

@@ -1,9 +1,10 @@
-use crate::gc::FRAME_ARGS_PTR;
 use crate::value::Value;
+use crate::FRAME_ARGS_PTR;
 use core::mem::size_of;
 use som_gc::gc_interface::GCInterface;
 use som_gc::gcref::{CustomAlloc, GCRef};
 use std::marker::PhantomData;
+use std::ptr::NonNull;
 
 /// The kind of a given frame.
 // #[cfg(feature = "frame-debug-info")]
@@ -62,7 +63,7 @@ impl Frame {
         };
 
         unsafe {
-            FRAME_ARGS_PTR = Some(&params);
+            FRAME_ARGS_PTR = NonNull::new(&mut params);
         }
         let mut frame_ptr = Frame::alloc(frame, gc_interface);
         unsafe {

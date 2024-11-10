@@ -3,10 +3,10 @@ use som_interpreter_ast::evaluate::Evaluate;
 use som_interpreter_ast::invokable::Return;
 use som_interpreter_ast::universe::Universe;
 use som_interpreter_ast::value::Value;
-use som_interpreter_ast::UNIVERSE_RAW_PTR;
+use som_interpreter_ast::UNIVERSE_RAW_PTR_CONST;
 use som_lexer::{Lexer, Token};
 use som_parser::lang;
-use std::path::PathBuf;
+use std::{path::PathBuf, ptr::NonNull};
 
 fn setup_universe() -> Universe {
     let classpath = vec![
@@ -21,7 +21,7 @@ fn setup_universe() -> Universe {
 fn basic_interpreter_tests() {
     let mut universe = setup_universe();
     unsafe {
-        UNIVERSE_RAW_PTR = &mut universe; // for gc
+        UNIVERSE_RAW_PTR_CONST = NonNull::new(&mut universe); // for gc
     }
 
     let return_class = Value::Class(universe.load_class("Return").unwrap());
@@ -138,7 +138,7 @@ fn basic_interpreter_tests() {
 fn test_harness() {
     let mut universe = setup_universe();
     unsafe {
-        UNIVERSE_RAW_PTR = &mut universe;
+        UNIVERSE_RAW_PTR_CONST = NonNull::new(&mut universe);
     }
 
     let args = ["TestHarness"].iter().map(|str| Value::String(universe.gc_interface.alloc(String::from(*str)))).collect();
