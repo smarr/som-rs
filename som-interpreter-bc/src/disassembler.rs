@@ -12,12 +12,7 @@ pub fn disassemble_method_body(universe: &Universe, class: &Class, env: &MethodE
     eprintln!("------- Used disassembler without debug symbols. While it could be possible, it's likely not desired. -------");
 }
 
-fn disassemble_body(
-    universe: &Universe,
-    class: &Class,
-    level: usize,
-    env: &mut Vec<&dyn FrameEnv>,
-) {
+fn disassemble_body(universe: &Universe, class: &Class, level: usize, env: &mut Vec<&dyn FrameEnv>) {
     let padding = "  |".repeat(level);
     let current = env.last().copied().unwrap();
     for (cur_idx, bytecode) in current.get_body().into_iter().copied().enumerate() {
@@ -28,11 +23,7 @@ fn disassemble_body(
         } else {
             2
         };
-        print!(
-            "{cur_idx} {0} {padding} {1}",
-            " ".repeat(extra_spaces_nbr),
-            bytecode.padded_name()
-        );
+        print!("{cur_idx} {0} {padding} {1}", " ".repeat(extra_spaces_nbr), bytecode.padded_name());
         // print!("{padding} {0}", bytecode.padded_name());
 
         match bytecode {
@@ -55,11 +46,7 @@ fn disassemble_body(
             }
             Bytecode::PushNonLocal(up_idx, idx) | Bytecode::PopLocal(up_idx, idx) => {
                 print!(" {up_idx}, {idx}");
-                let local_str = env
-                    .iter()
-                    .rev()
-                    .nth(usize::from(up_idx))
-                    .and_then(|env| Some(env.resolve_local(idx)));
+                let local_str = env.iter().rev().nth(usize::from(up_idx)).and_then(|env| Some(env.resolve_local(idx)));
                 println!(" (`{0}`)", local_str.unwrap()); // code's kinda all over the place, it was a quick and easy refactor. could/should be cleaned
             }
             Bytecode::PushField(idx) | Bytecode::PopField(idx) => {
@@ -77,8 +64,7 @@ fn disassemble_body(
             }
             Bytecode::PushNonLocalArg(up_idx, idx) => {
                 print!(" {up_idx}, {idx}");
-                let arg_str = (env.iter().rev().nth(usize::from(up_idx)))
-                    .and_then(|env| Some(env.resolve_argument(idx)));
+                let arg_str = (env.iter().rev().nth(usize::from(up_idx))).and_then(|env| Some(env.resolve_argument(idx)));
                 println!(" (`{0}`)", arg_str.unwrap());
             }
             Bytecode::PushBlock(idx) => {
@@ -92,10 +78,7 @@ fn disassemble_body(
                 disassemble_body(universe, class, level + 1, env);
                 env.pop();
             }
-            Bytecode::PushConstant(_)
-            | Bytecode::PushConstant0
-            | Bytecode::PushConstant1
-            | Bytecode::PushConstant2 => {
+            Bytecode::PushConstant(_) | Bytecode::PushConstant0 | Bytecode::PushConstant1 | Bytecode::PushConstant2 => {
                 let idx = match bytecode {
                     Bytecode::PushConstant(c_idx) => c_idx,
                     Bytecode::PushConstant0 => 0,
@@ -134,8 +117,7 @@ fn disassemble_body(
             }
             Bytecode::PopArg(up_idx, idx) => {
                 print!(" {up_idx}, {idx}");
-                let arg_str = (env.iter().rev().nth(usize::from(up_idx)))
-                    .and_then(|env| Some(env.resolve_argument(idx)));
+                let arg_str = (env.iter().rev().nth(usize::from(up_idx))).and_then(|env| Some(env.resolve_argument(idx)));
                 println!(" (`{0}`)", arg_str.unwrap());
             }
             Bytecode::Send1(idx)
@@ -165,18 +147,10 @@ fn disassemble_body(
             | Bytecode::JumpOnFalseTopNil(idx)
             | Bytecode::JumpOnTrueTopNil(idx)
             | Bytecode::JumpIfGreater(idx) => {
-                println!(
-                    " {} (jump to bytecode index {})",
-                    idx,
-                    cur_idx + idx as usize
-                );
+                println!(" {} (jump to bytecode index {})", idx, cur_idx + idx as usize);
             }
             Bytecode::JumpBackward(idx) => {
-                println!(
-                    " {} (jump to bytecode index {})",
-                    idx,
-                    cur_idx - idx as usize
-                );
+                println!(" {} (jump to bytecode index {})", idx, cur_idx - idx as usize);
             }
             Bytecode::Push0 | Bytecode::Push1 | Bytecode::PushNil => {
                 println!();
@@ -250,12 +224,7 @@ impl FrameEnv for Block {
 
     #[cfg(feature = "frame-debug-info")]
     fn resolve_argument(&self, idx: u8) -> String {
-        match self
-            .blk_info
-            .block_debug_info
-            .parameters
-            .get(usize::from(idx))
-        {
+        match self.blk_info.block_debug_info.parameters.get(usize::from(idx)) {
             None => String::from("(argument not found)"),
             Some(s) => s.clone(),
         }

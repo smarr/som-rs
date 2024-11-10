@@ -102,7 +102,7 @@ pub const IS_PTR_PATTERN: u64 = CELL_BASE_TAG << TAG_SHIFT;
 #[macro_export]
 macro_rules! nan_boxed_val_base_impl {
     ($ty:ty) => {
-        impl $ty {           
+        impl $ty {
             pub const NIL: Self = Self::new(NIL_TAG, 0);
             /// The `system` value.
             pub const SYSTEM: Self = Self::new(SYSTEM_TAG, 0);
@@ -110,24 +110,24 @@ macro_rules! nan_boxed_val_base_impl {
             pub const TRUE: Self = Self::new(BOOLEAN_TAG, 1);
             /// The boolean `false` value.
             pub const FALSE: Self = Self::new(BOOLEAN_TAG, 0);
-    
+
             /// The integer `0` value.
             pub const INTEGER_ZERO: Self = Self::new(INTEGER_TAG, 0);
             /// The integer `1` value.
             pub const INTEGER_ONE: Self = Self::new(INTEGER_TAG, 1);
-    
+
             /// Returns whether this value is a pointer type value.
             #[inline(always)]
             pub fn is_ptr_type(self) -> bool {
                 (self.encoded & IS_PTR_PATTERN) == IS_PTR_PATTERN
             }
-            
+
             /// Return the value as its internal representation: a u64 type.
             #[inline(always)]
             pub fn as_u64(self) -> u64 {
                 self.encoded
             }
-    
+
             /// Returns the tag bits of the value.
             #[inline(always)]
             pub fn tag(self) -> u64 {
@@ -138,20 +138,20 @@ macro_rules! nan_boxed_val_base_impl {
             pub fn payload(self) -> u64 {
                 self.encoded & !TAG_EXTRACTION
             }
-            
+
             #[inline(always)]
             pub fn extract_gc_cell<T>(self) -> GCRef<T> {
                 let ptr = self.extract_pointer_bits();
                 GCRef::from_u64(ptr) // i doubt the compiler isn't making this conversion free
             }
-        
+
             #[inline(always)]
             fn extract_pointer_bits(self) -> u64 {
                 // For x86_64 the top 16 bits should be sign extending the "real" top bit (47th).
                 // So first shift the top 16 bits away then using the right shift it sign extends the top 16 bits.
                 (((self.encoded << 16) as i64) >> 16) as u64
             }
-    
+
             #[inline(always)]
             pub const fn new(tag: u64, value: u64) -> Self {
                 // NOTE: Pointers in x86-64 use just 48 bits however are supposed to be
@@ -161,12 +161,10 @@ macro_rules! nan_boxed_val_base_impl {
                 //       we can recover it when extracting the pointer again.
                 //       See also: Value::extract_pointer.
                 Self {
-                    encoded: CANON_NAN_BITS
-                        | ((tag << TAG_SHIFT) & TAG_EXTRACTION)
-                        | (value & !TAG_EXTRACTION)
+                    encoded: CANON_NAN_BITS | ((tag << TAG_SHIFT) & TAG_EXTRACTION) | (value & !TAG_EXTRACTION),
                 }
             }
-    
+
             /// Returns a new boolean value.
             #[inline(always)]
             pub fn new_boolean(value: bool) -> Self {
@@ -176,13 +174,13 @@ macro_rules! nan_boxed_val_base_impl {
                     Self::FALSE
                 }
             }
-    
+
             /// Returns a new integer value.
             #[inline(always)]
             pub fn new_integer(value: i32) -> Self {
                 Self::new(INTEGER_TAG, value as u64)
             }
-    
+
             /// Returns a new double value.
             #[inline(always)]
             pub fn new_double(value: f64) -> Self {
@@ -195,13 +193,13 @@ macro_rules! nan_boxed_val_base_impl {
                     },
                 }
             }
-    
+
             /// Returns a new symbol value.
             #[inline(always)]
             pub fn new_symbol(value: Interned) -> Self {
                 Self::new(SYMBOL_TAG, value.0.into())
             }
-    
+
             /// Returns a new big integer value.
             #[inline(always)]
             pub fn new_big_integer(value: GCRef<BigInt>) -> Self {
@@ -212,9 +210,9 @@ macro_rules! nan_boxed_val_base_impl {
             pub fn new_string(value: GCRef<String>) -> Self {
                 Self::new(STRING_TAG, value.ptr.as_usize().try_into().unwrap())
             }
-    
+
             // --------
-    
+
             /// Returns whether this value is a big integer.
             #[inline(always)]
             pub fn is_big_integer(self) -> bool {
@@ -225,7 +223,7 @@ macro_rules! nan_boxed_val_base_impl {
             pub fn is_string(self) -> bool {
                 self.tag() == STRING_TAG
             }
-    
+
             /// Returns whether this value is `nil``.
             #[inline(always)]
             pub fn is_nil(self) -> bool {
@@ -241,7 +239,7 @@ macro_rules! nan_boxed_val_base_impl {
             pub fn is_integer(self) -> bool {
                 self.tag() == INTEGER_TAG
             }
-    
+
             /// Returns whether this value is a double.
             #[inline(always)]
             pub fn is_double(self) -> bool {
@@ -249,33 +247,33 @@ macro_rules! nan_boxed_val_base_impl {
                 // exactly only those bits set.
                 (self.encoded & CANON_NAN_BITS) != CANON_NAN_BITS || (self.encoded == CANON_NAN_BITS)
             }
-    
+
             /// Returns whether this value is a boolean.
             #[inline(always)]
             pub fn is_boolean(self) -> bool {
                 self.tag() == BOOLEAN_TAG
             }
-    
+
             /// Returns whether or not it's a boolean corresponding to true. NB: does NOT check if the type actually is a boolean.
             #[inline(always)]
             pub fn is_boolean_true(self) -> bool {
                 self.payload() == 1
             }
-    
+
             /// Returns whether or not it's a boolean corresponding to false. NB: does NOT check if the type actually is a boolean.
             #[inline(always)]
             pub fn is_boolean_false(self) -> bool {
                 self.payload() == 0
             }
-    
+
             /// Returns whether this value is a symbol.
             #[inline(always)]
             pub fn is_symbol(self) -> bool {
                 self.tag() == SYMBOL_TAG
             }
-    
+
             // ----------------
-    
+
             /// Returns this value as a big integer, if such is its type.
             #[inline(always)]
             pub fn as_big_integer(self) -> Option<GCRef<BigInt>> {
@@ -286,22 +284,21 @@ macro_rules! nan_boxed_val_base_impl {
             pub fn as_string(self) -> Option<GCRef<String>> {
                 self.is_string().then(|| self.extract_gc_cell())
             }
-    
+
             // `as_*` for non pointer types
-    
+
             /// Returns this value as an integer, if such is its type.
             #[inline(always)]
             pub fn as_integer(self) -> Option<i32> {
-                self.is_integer()
-                    .then(|| (self.encoded & 0xFFFFFFFF) as i32)
+                self.is_integer().then(|| (self.encoded & 0xFFFFFFFF) as i32)
             }
-    
+
             /// Returns this value as a double, if such is its type.
             #[inline(always)]
             pub fn as_double(self) -> Option<f64> {
                 self.is_double().then(|| f64::from_bits(self.encoded))
             }
-    
+
             /// Returns this value as a boolean, if such is its type.
             #[inline(always)]
             pub fn as_boolean(self) -> Option<bool> {
@@ -310,44 +307,43 @@ macro_rules! nan_boxed_val_base_impl {
             /// Returns this value as a symbol, if such is its type.
             #[inline(always)]
             pub fn as_symbol(self) -> Option<Interned> {
-                self.is_symbol()
-                    .then(|| Interned((self.encoded & 0xFFFFFFFF) as u32))
+                self.is_symbol().then(|| Interned((self.encoded & 0xFFFFFFFF) as u32))
             }
-    
-            // ----------------        
-    
+
+            // ----------------
+
             // these are all for backwards compatibility (i.e.: i don't want to do massive amounts of refactoring), but also maybe clever-ish replacement with normal Value enums
             #[inline(always)]
             pub fn Boolean(value: bool) -> Self {
                 Self::new_boolean(value)
             }
-    
+
             #[inline(always)]
             pub fn Integer(value: i32) -> Self {
                 Self::new_integer(value)
             }
-    
+
             #[inline(always)]
             pub fn Double(value: f64) -> Self {
                 Self::new_double(value)
             }
-    
+
             #[inline(always)]
             pub fn Symbol(value: Interned) -> Self {
                 Self::new_symbol(value)
             }
-    
+
             #[inline(always)]
             pub fn BigInteger(value: GCRef<BigInt>) -> Self {
                 Self::new_big_integer(value)
             }
-    
+
             #[inline(always)]
             pub fn String(value: GCRef<String>) -> Self {
                 Self::new_string(value)
             }
         }
-            
+
         impl PartialEq for $ty {
             fn eq(&self, other: &Self) -> bool {
                 if self.as_u64() == other.as_u64() {
@@ -372,5 +368,5 @@ macro_rules! nan_boxed_val_base_impl {
                 }
             }
         }
-    }
+    };
 }

@@ -17,10 +17,7 @@ impl Instance {
     pub fn from_class(class: GCRef<Class>) -> Self {
         let locals = class.fields.iter().map(|_| Value::NIL).collect();
 
-        Self {
-            class,
-            locals,
-        }
+        Self { class, locals }
     }
 
     /// Get the class of which this is an instance from.
@@ -37,7 +34,7 @@ impl Instance {
     pub fn lookup_local(&self, idx: u8) -> Value {
         match cfg!(debug_assertions) {
             true => self.locals.get(idx as usize).unwrap().clone(),
-            false => unsafe { self.locals.get_unchecked(idx as usize).clone() }
+            false => unsafe { self.locals.get_unchecked(idx as usize).clone() },
         }
     }
 

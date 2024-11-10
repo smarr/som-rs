@@ -22,23 +22,14 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> 
         ("isWhiteSpace", self::is_whitespace.into_func(), true),
         ("asSymbol", self::as_symbol.into_func(), true),
         ("concatenate:", self::concatenate.into_func(), true),
-        (
-            "primSubstringFrom:to:",
-            self::prim_substring_from_to.into_func(),
-            true,
-        ),
+        ("primSubstringFrom:to:", self::prim_substring_from_to.into_func(), true),
         ("=", self::eq.into_func(), true),
         ("charAt:", self::char_at.into_func(), true),
     ])
 });
-pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> =
-    Lazy::new(|| Box::new([]));
+pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| Box::new([]));
 
-fn length(
-    _: &mut Interpreter,
-    universe: &mut Universe,
-    receiver: StringLike,
-) -> Result<Value, Error> {
+fn length(_: &mut Interpreter, universe: &mut Universe, receiver: StringLike) -> Result<Value, Error> {
     const _: &str = "String>>#length";
 
     let string = match receiver {
@@ -55,11 +46,7 @@ fn length(
     Ok(value)
 }
 
-fn hashcode(
-    _: &mut Interpreter,
-    universe: &mut Universe,
-    receiver: StringLike,
-) -> Result<i32, Error> {
+fn hashcode(_: &mut Interpreter, universe: &mut Universe, receiver: StringLike) -> Result<i32, Error> {
     const _: &str = "String>>#hashcode";
 
     let string = match receiver {
@@ -74,11 +61,7 @@ fn hashcode(
     Ok(hash)
 }
 
-fn is_letters(
-    _: &mut Interpreter,
-    universe: &mut Universe,
-    receiver: StringLike,
-) -> Result<bool, Error> {
+fn is_letters(_: &mut Interpreter, universe: &mut Universe, receiver: StringLike) -> Result<bool, Error> {
     const _: &str = "String>>#isLetters";
 
     let string = match receiver {
@@ -89,11 +72,7 @@ fn is_letters(
     Ok(!string.is_empty() && !string.is_empty() && string.chars().all(char::is_alphabetic))
 }
 
-fn is_digits(
-    _: &mut Interpreter,
-    universe: &mut Universe,
-    receiver: StringLike,
-) -> Result<bool, Error> {
+fn is_digits(_: &mut Interpreter, universe: &mut Universe, receiver: StringLike) -> Result<bool, Error> {
     const _: &str = "String>>#isDigits";
 
     let string = match receiver {
@@ -104,11 +83,7 @@ fn is_digits(
     Ok(!string.is_empty() && string.chars().all(char::is_numeric))
 }
 
-fn is_whitespace(
-    _: &mut Interpreter,
-    universe: &mut Universe,
-    receiver: StringLike,
-) -> Result<bool, Error> {
+fn is_whitespace(_: &mut Interpreter, universe: &mut Universe, receiver: StringLike) -> Result<bool, Error> {
     const _: &str = "String>>#isWhiteSpace";
 
     let string = match receiver {
@@ -119,12 +94,7 @@ fn is_whitespace(
     Ok(!string.is_empty() && string.chars().all(char::is_whitespace))
 }
 
-fn concatenate(
-    _: &mut Interpreter,
-    universe: &mut Universe,
-    receiver: StringLike,
-    other: StringLike,
-) -> Result<GCRef<String>, Error> {
+fn concatenate(_: &mut Interpreter, universe: &mut Universe, receiver: StringLike, other: StringLike) -> Result<GCRef<String>, Error> {
     const _: &str = "String>>#concatenate:";
 
     let s1 = match receiver {
@@ -140,11 +110,7 @@ fn concatenate(
     Ok(universe.gc_interface.alloc(format!("{s1}{s2}")))
 }
 
-fn as_symbol(
-    _: &mut Interpreter,
-    universe: &mut Universe,
-    receiver: StringLike,
-) -> Result<Interned, Error> {
+fn as_symbol(_: &mut Interpreter, universe: &mut Universe, receiver: StringLike) -> Result<Interned, Error> {
     const _: &str = "String>>#asSymbol";
 
     let symbol = match receiver {
@@ -179,13 +145,7 @@ fn eq(_: &mut Interpreter, universe: &mut Universe, a: Value, b: Value) -> Resul
     Ok(a == b)
 }
 
-fn prim_substring_from_to(
-    _: &mut Interpreter,
-    universe: &mut Universe,
-    receiver: StringLike,
-    from: i32,
-    to: i32,
-) -> Result<GCRef<String>, Error> {
+fn prim_substring_from_to(_: &mut Interpreter, universe: &mut Universe, receiver: StringLike, from: i32, to: i32) -> Result<GCRef<String>, Error> {
     const _: &str = "String>>#primSubstringFrom:to:";
 
     let from = usize::try_from(from - 1)?;
@@ -196,40 +156,25 @@ fn prim_substring_from_to(
         StringLike::Symbol(sym) => universe.lookup_symbol(sym),
     };
 
-    Ok(universe
-        .gc_interface
-        .alloc(string.chars().skip(from).take(to - from).collect()))
+    Ok(universe.gc_interface.alloc(string.chars().skip(from).take(to - from).collect()))
 }
 
-fn char_at(
-    _: &mut Interpreter,
-    universe: &mut Universe,
-    receiver: StringLike,
-    idx: i32,
-) -> Result<GCRef<String>, Error> {
+fn char_at(_: &mut Interpreter, universe: &mut Universe, receiver: StringLike, idx: i32) -> Result<GCRef<String>, Error> {
     let string = match receiver {
         StringLike::String(ref value) => value.as_str(),
         StringLike::Symbol(sym) => universe.lookup_symbol(sym),
     };
 
     // TODO opt: just return a pointer to the char in question, right?
-    Ok(universe.gc_interface.alloc(String::from(
-        string.chars().nth((idx - 1) as usize).unwrap(),
-    )))
+    Ok(universe.gc_interface.alloc(String::from(string.chars().nth((idx - 1) as usize).unwrap())))
 }
 
 /// Search for an instance primitive matching the given signature.
 pub fn get_instance_primitive(signature: &str) -> Option<&'static PrimitiveFn> {
-    INSTANCE_PRIMITIVES
-        .iter()
-        .find(|it| it.0 == signature)
-        .map(|it| it.1)
+    INSTANCE_PRIMITIVES.iter().find(|it| it.0 == signature).map(|it| it.1)
 }
 
 /// Search for a class primitive matching the given signature.
 pub fn get_class_primitive(signature: &str) -> Option<&'static PrimitiveFn> {
-    CLASS_PRIMITIVES
-        .iter()
-        .find(|it| it.0 == signature)
-        .map(|it| it.1)
+    CLASS_PRIMITIVES.iter().find(|it| it.0 == signature).map(|it| it.1)
 }

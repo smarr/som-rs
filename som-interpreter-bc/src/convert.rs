@@ -165,80 +165,70 @@ impl FromArgs for Value {
 impl FromArgs for bool {
     fn from_args(interpreter: &mut Interpreter, _: &mut Universe) -> Result<Self, Error> {
         let arg = interpreter.current_frame.stack_pop();
-        arg.as_boolean()
-            .context("could not resolve `Value` as `Boolean`")
+        arg.as_boolean().context("could not resolve `Value` as `Boolean`")
     }
 }
 
 impl FromArgs for i32 {
     fn from_args(interpreter: &mut Interpreter, _: &mut Universe) -> Result<Self, Error> {
         let arg = interpreter.current_frame.stack_pop();
-        arg.as_integer()
-            .context("could not resolve `Value` as `Integer`")
+        arg.as_integer().context("could not resolve `Value` as `Integer`")
     }
 }
 
 impl FromArgs for f64 {
     fn from_args(interpreter: &mut Interpreter, _: &mut Universe) -> Result<Self, Error> {
         let arg = interpreter.current_frame.stack_pop();
-        arg.as_double()
-            .context("could not resolve `Value` as `Double`")
+        arg.as_double().context("could not resolve `Value` as `Double`")
     }
 }
 
 impl FromArgs for Interned {
     fn from_args(interpreter: &mut Interpreter, _: &mut Universe) -> Result<Self, Error> {
         let arg = interpreter.current_frame.stack_pop();
-        arg.as_symbol()
-            .context("could not resolve `Value` as `Symbol`")
+        arg.as_symbol().context("could not resolve `Value` as `Symbol`")
     }
 }
 
 impl FromArgs for GCRef<String> {
     fn from_args(interpreter: &mut Interpreter, _: &mut Universe) -> Result<Self, Error> {
         let arg = interpreter.current_frame.stack_pop();
-        arg.as_string()
-            .context("could not resolve `Value` as `String`")
+        arg.as_string().context("could not resolve `Value` as `String`")
     }
 }
 
 impl FromArgs for GCRef<VecValue> {
     fn from_args(interpreter: &mut Interpreter, _: &mut Universe) -> Result<Self, Error> {
         let arg = interpreter.current_frame.stack_pop();
-        arg.as_array()
-            .context("could not resolve `Value` as `Array`")
+        arg.as_array().context("could not resolve `Value` as `Array`")
     }
 }
 
 impl FromArgs for GCRef<Class> {
     fn from_args(interpreter: &mut Interpreter, _: &mut Universe) -> Result<Self, Error> {
         let arg = interpreter.current_frame.stack_pop();
-        arg.as_class()
-            .context("could not resolve `Value` as `Class`")
+        arg.as_class().context("could not resolve `Value` as `Class`")
     }
 }
 
 impl FromArgs for GCRef<Instance> {
     fn from_args(interpreter: &mut Interpreter, _: &mut Universe) -> Result<Self, Error> {
         let arg = interpreter.current_frame.stack_pop();
-        arg.as_instance()
-            .context("could not resolve `Value` as `Instance`")
+        arg.as_instance().context("could not resolve `Value` as `Instance`")
     }
 }
 
 impl FromArgs for GCRef<Block> {
     fn from_args(interpreter: &mut Interpreter, _: &mut Universe) -> Result<Self, Error> {
         let arg = interpreter.current_frame.stack_pop();
-        arg.as_block()
-            .context("could not resolve `Value` as `Block`")
+        arg.as_block().context("could not resolve `Value` as `Block`")
     }
 }
 
 impl FromArgs for GCRef<Method> {
     fn from_args(interpreter: &mut Interpreter, _: &mut Universe) -> Result<Self, Error> {
         let arg = interpreter.current_frame.stack_pop();
-        arg.as_invokable()
-            .context("could not resolve `Value` as `Method`")
+        arg.as_invokable().context("could not resolve `Value` as `Method`")
     }
 }
 
@@ -312,21 +302,13 @@ pub trait Primitive<T>: Sized + Send + Sync + 'static {
     fn invoke(&self, interpreter: &mut Interpreter, universe: &mut Universe) -> Result<(), Error>;
 
     fn into_func(self) -> &'static PrimitiveFn {
-        let boxed = Box::new(
-            move |interpreter: &mut Interpreter, universe: &mut Universe| {
-                self.invoke(interpreter, universe)
-            },
-        );
+        let boxed = Box::new(move |interpreter: &mut Interpreter, universe: &mut Universe| self.invoke(interpreter, universe));
         Box::leak(boxed)
     }
 }
 
 pub trait IntoReturn {
-    fn into_return(
-        self,
-        interpreter: &mut Interpreter,
-        heap: &mut GCInterface,
-    ) -> Result<(), Error>;
+    fn into_return(self, interpreter: &mut Interpreter, heap: &mut GCInterface) -> Result<(), Error>;
 }
 
 macro_rules! reverse {
@@ -385,11 +367,7 @@ macro_rules! derive_stuff {
 }
 
 impl<T: IntoValue> IntoReturn for T {
-    fn into_return(
-        self,
-        interpreter: &mut Interpreter,
-        heap: &mut GCInterface,
-    ) -> Result<(), Error> {
+    fn into_return(self, interpreter: &mut Interpreter, heap: &mut GCInterface) -> Result<(), Error> {
         interpreter.current_frame.stack_push(self.into_value(heap));
         Ok(())
     }

@@ -1,5 +1,5 @@
-use std::fmt::{Display, Formatter};
 use std::fmt::Write;
+use std::fmt::{Display, Formatter};
 
 use indenter::indented;
 

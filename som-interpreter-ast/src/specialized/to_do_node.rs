@@ -19,7 +19,10 @@ impl Invoke for ToDoNode {
         } else if let (Some(a), Some(b), Some(c)) = (start_int_val.as_double(), end_int_val.as_double(), body_block_val.as_block()) {
             Self::do_double_loop(a, b, c, universe)
         } else {
-            panic!("to:do: was not given two ints and a block as arguments, but {:?} and {:?} and {:?}", start_int_val, end_int_val, body_block_val)
+            panic!(
+                "to:do: was not given two ints and a block as arguments, but {:?} and {:?} and {:?}",
+                start_int_val, end_int_val, body_block_val
+            )
         }
     }
 }
@@ -27,13 +30,12 @@ impl Invoke for ToDoNode {
 impl ToDoNode {
     fn do_int_loop(start_int: i32, end_int: i32, mut body_block: GCRef<Block>, universe: &mut Universe) -> Return {
         let nbr_locals = body_block.block.nbr_locals;
-        
+
         for i in start_int..=end_int {
-            propagate!(universe.with_frame(
-                nbr_locals,
-                vec![Value::Block(body_block), Value::Integer(i)],
-                |universe| body_block.evaluate(universe),
-            ));
+            propagate!(
+                universe.with_frame(nbr_locals, vec![Value::Block(body_block), Value::Integer(i)], |universe| body_block
+                    .evaluate(universe),)
+            );
         }
         Return::Local(Value::Integer(start_int))
     }
@@ -43,11 +45,10 @@ impl ToDoNode {
         let mut i = start_double;
 
         while i <= end_double {
-            propagate!(universe.with_frame(
-                nbr_locals,
-                vec![Value::Block(body_block), Value::Double(i)],
-                |universe| body_block.evaluate(universe),
-            ));
+            propagate!(
+                universe.with_frame(nbr_locals, vec![Value::Block(body_block), Value::Double(i)], |universe| body_block
+                    .evaluate(universe),)
+            );
             i += 1.0
         }
 

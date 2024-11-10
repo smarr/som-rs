@@ -36,7 +36,7 @@ pub struct AstGenCtxtData<'a> {
     local_names: Vec<String>,
     param_names: Vec<String>,
     current_scope: usize,
-    outer_ctxt: Option<AstGenCtxt<'a>>
+    outer_ctxt: Option<AstGenCtxt<'a>>,
 }
 
 pub type AstGenCtxt<'a> = Rc<RefCell<AstGenCtxtData<'a>>>;
@@ -64,23 +64,22 @@ impl<'a> AstGenCtxtData<'a> {
 
 impl<'a> AstGenCtxtData<'a> {
     pub fn new_ctxt_from(outer: AstGenCtxt, kind: AstGenCtxtType) -> AstGenCtxt {
-        Rc::new(RefCell::new(
-            AstGenCtxtData {
-                kind,
-                name: "NO NAME".to_string(),
-                super_class_name: outer.borrow().super_class_name.clone(),
-                local_names: vec![],
-                param_names: vec![],
-                current_scope: outer.borrow().current_scope + 1,
-                outer_ctxt: Some(Rc::clone(&outer)),
-            }))
+        Rc::new(RefCell::new(AstGenCtxtData {
+            kind,
+            name: "NO NAME".to_string(),
+            super_class_name: outer.borrow().super_class_name.clone(),
+            local_names: vec![],
+            param_names: vec![],
+            current_scope: outer.borrow().current_scope + 1,
+            outer_ctxt: Some(Rc::clone(&outer)),
+        }))
     }
 
     // for debugging
     pub fn get_class_name(&self) -> String {
         match &self.kind {
-            AstGenCtxtType::Class => { self.name.clone() }
-            _ => self.outer_ctxt.as_ref().unwrap().borrow_mut().get_class_name()
+            AstGenCtxtType::Class => self.name.clone(),
+            _ => self.outer_ctxt.as_ref().unwrap().borrow_mut().get_class_name(),
         }
     }
 
@@ -89,10 +88,9 @@ impl<'a> AstGenCtxtData<'a> {
         Rc::clone(outer)
     }
 
-
     pub fn get_super_class_name(&self) -> Option<String> {
         match &self.kind {
-            AstGenCtxtType::Class => { self.super_class_name.clone() }
+            AstGenCtxtType::Class => self.super_class_name.clone(),
             AstGenCtxtType::Method(method_type) => {
                 let s_cl_name = self.outer_ctxt.as_ref().unwrap().borrow_mut().get_super_class_name();
 
@@ -102,7 +100,7 @@ impl<'a> AstGenCtxtData<'a> {
                     (None, AstMethodGenCtxtType::CLASS) => Some(String::from("Class")),
                 }
             }
-            _ => self.outer_ctxt.as_ref().unwrap().borrow_mut().get_super_class_name()
+            _ => self.outer_ctxt.as_ref().unwrap().borrow_mut().get_super_class_name(),
         }
     }
 
@@ -128,30 +126,29 @@ impl<'a> AstGenCtxtData<'a> {
         self.get_local(name)
             .map(|idx| FoundVar::Local(0, idx))
             .or_else(|| self.get_param(name).map(|idx| FoundVar::Argument(0, idx)))
-            .or_else(|| { // check whether it's defined in an outer scope block as a local or arg...
+            .or_else(|| {
+                // check whether it's defined in an outer scope block as a local or arg...
                 match &self.outer_ctxt.as_ref() {
                     None => None,
-                    Some(outer) => outer.borrow().find_var(name).map(|found|
-                        match found {
-                            FoundVar::Local(up_idx, idx) => FoundVar::Local(up_idx + 1, idx),
-                            FoundVar::Argument(up_idx, idx) => FoundVar::Argument(up_idx + 1, idx),
-                            // FoundVar::Field(idx) => FoundVar::Field(idx),
-                        }
-                    )
+                    Some(outer) => outer.borrow().find_var(name).map(|found| match found {
+                        FoundVar::Local(up_idx, idx) => FoundVar::Local(up_idx + 1, idx),
+                        FoundVar::Argument(up_idx, idx) => FoundVar::Argument(up_idx + 1, idx),
+                        // FoundVar::Field(idx) => FoundVar::Field(idx),
+                    }),
                 }
             })
-            // .or_else(|| // ...and if we recursively searched and it wasn't in a block, it must be a field (or search fails and it's a global).
-            //     match self.kind {
-            //         AstGenCtxtType::Method(method_type) => {
-            //             let class_ctxt = self.outer_ctxt.as_ref().unwrap().borrow();
-            //             match method_type {
-            //                 AstMethodGenCtxtType::INSTANCE => class_ctxt.get_instance_field(name).map(FoundVar::Field),
-            //                 AstMethodGenCtxtType::CLASS => class_ctxt.get_static_field(name).map(FoundVar::Field),
-            //             }
-            //         }
-            //         _ => None,
-            //     }
-            // )
+        // .or_else(|| // ...and if we recursively searched and it wasn't in a block, it must be a field (or search fails and it's a global).
+        //     match self.kind {
+        //         AstGenCtxtType::Method(method_type) => {
+        //             let class_ctxt = self.outer_ctxt.as_ref().unwrap().borrow();
+        //             match method_type {
+        //                 AstMethodGenCtxtType::INSTANCE => class_ctxt.get_instance_field(name).map(FoundVar::Field),
+        //                 AstMethodGenCtxtType::CLASS => class_ctxt.get_static_field(name).map(FoundVar::Field),
+        //             }
+        //         }
+        //         _ => None,
+        //     }
+        // )
     }
     fn get_var_read(&self, name: &String) -> Expression {
         if name == "self" {
@@ -162,12 +159,10 @@ impl<'a> AstGenCtxtData<'a> {
             None => Expression::GlobalRead(name.clone()),
             Some(v) => {
                 match v {
-                    FoundVar::Local(up_idx, idx) => {
-                        match up_idx {
-                            0 => Expression::LocalVarRead(idx),
-                            _ => Expression::NonLocalVarRead(up_idx, idx)
-                        }
-                    }
+                    FoundVar::Local(up_idx, idx) => match up_idx {
+                        0 => Expression::LocalVarRead(idx),
+                        _ => Expression::NonLocalVarRead(up_idx, idx),
+                    },
                     FoundVar::Argument(up_idx, idx) => Expression::ArgRead(up_idx, idx + 1),
                     // FoundVar::Field(idx) => Expression::FieldRead(idx)
                 }
@@ -177,19 +172,15 @@ impl<'a> AstGenCtxtData<'a> {
 
     fn get_var_write(&self, name: &String, expr: Box<Expression>) -> Expression {
         match self.find_var(name) {
-            None => {
-                return Expression::GlobalWrite(name.clone(), expr)
-            }
+            None => return Expression::GlobalWrite(name.clone(), expr),
             Some(v) => {
                 match v {
-                    FoundVar::Local(up_idx, idx) => {
-                        match up_idx {
-                            0 => Expression::LocalVarWrite(idx, expr),
-                            _ => Expression::NonLocalVarWrite(up_idx, idx, expr)
-                        }
-                    }
+                    FoundVar::Local(up_idx, idx) => match up_idx {
+                        0 => Expression::LocalVarWrite(idx, expr),
+                        _ => Expression::NonLocalVarWrite(up_idx, idx, expr),
+                    },
                     FoundVar::Argument(up_idx, idx) => Expression::ArgWrite(up_idx, idx + 1, expr), // + 1 to adjust for self
-                    // FoundVar::Field(idx) => Expression::FieldWrite(idx, expr)
+                                                                                                    // FoundVar::Field(idx) => Expression::FieldWrite(idx, expr)
                 }
             }
         }
@@ -199,7 +190,7 @@ impl<'a> AstGenCtxtData<'a> {
         match &self.kind {
             AstGenCtxtType::Class => method_scope - 1, // functionally unreachable branch. maybe reachable in the REPL, when we're technically outside a method, maybe? not sure.
             AstGenCtxtType::Method(_) => method_scope,
-            AstGenCtxtType::Block => self.outer_ctxt.as_ref().unwrap().borrow().get_method_scope_rec(method_scope + 1)
+            AstGenCtxtType::Block => self.outer_ctxt.as_ref().unwrap().borrow().get_method_scope_rec(method_scope + 1),
         }
     }
 
@@ -220,7 +211,6 @@ impl<'a> AstGenCtxtData<'a> {
     }
 }
 
-
 /// Parses the input of an entire file into an AST.
 pub fn parse_file(input: &[Token]) -> Option<ClassDef> {
     self::apply(lang::file(), input)
@@ -233,8 +223,8 @@ pub fn parse_file_no_universe(input: &[Token]) -> Option<ClassDef> {
 
 /// Applies a parser and returns the output value if the entirety of the input has been parsed successfully.
 pub fn apply<'a, A, P>(mut parser: P, input: &'a [Token]) -> Option<A>
-    where
-        P: Parser<A, &'a [Token], AstGenCtxt<'a>>,
+where
+    P: Parser<A, &'a [Token], AstGenCtxt<'a>>,
 {
     match parser.parse(input, Rc::new(RefCell::new(AstGenCtxtData::init()))) {
         Some((output, tail, _)) if tail.is_empty() => Some(output),

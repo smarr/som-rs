@@ -12,7 +12,7 @@ pub struct Block {
     /// Reference to the captured stack frame.
     pub frame: GCRef<Frame>,
     /// Block definition from the AST.
-    pub block: GCRef<AstBlock>
+    pub block: GCRef<AstBlock>,
 }
 
 impl Block {
@@ -34,7 +34,6 @@ impl Block {
 
 impl fmt::Debug for Block {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct(&format!("Block{}", self.nb_parameters() + 1))
-            .finish()
+        f.debug_struct(&format!("Block{}", self.nb_parameters() + 1)).finish()
     }
 }

@@ -19,7 +19,8 @@ impl Evaluate for TrivialGlobalMethod {
     fn evaluate(&mut self, universe: &mut Universe) -> Return {
         let name = self.global_name.as_str();
         // TODO: logic duplicated with globalread - need to avoid that somehow
-        universe.lookup_global(name)
+        universe
+            .lookup_global(name)
             .map(Return::Local)
             .or_else(|| {
                 let frame = universe.current_frame;
@@ -38,7 +39,7 @@ pub struct TrivialGetterMethod {
 impl Invoke for TrivialGetterMethod {
     fn invoke(&mut self, _: &mut Universe, args: Vec<Value>) -> Return {
         let arg = args.first().unwrap();
-        
+
         if let Some(cls) = arg.as_class() {
             Return::Local(cls.class().lookup_field(self.field_idx))
         } else if let Some(instance) = arg.as_instance() {
@@ -55,17 +56,16 @@ pub struct TrivialSetterMethod {
 }
 
 impl Invoke for TrivialSetterMethod {
-    
     fn invoke(&mut self, _: &mut Universe, args: Vec<Value>) -> Return {
         let val = args.get(1).unwrap();
         let rcvr = args.first().unwrap();
-        
+
         if let Some(cls) = rcvr.as_class() {
             cls.class().assign_field(self.field_idx, val.clone());
             Return::Local(Value::Class(cls))
         } else if let Some(mut instance) = rcvr.as_instance() {
             instance.assign_local(self.field_idx, val.clone());
-            Return::Local(Value::Instance(instance))   
+            Return::Local(Value::Instance(instance))
         } else {
             panic!("trivial getter not called on a class/instance?")
         }

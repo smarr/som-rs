@@ -17,17 +17,12 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> 
         ("isWhiteSpace", self::is_whitespace.into_func(), true),
         ("asSymbol", self::as_symbol.into_func(), true),
         ("concatenate:", self::concatenate.into_func(), true),
-        (
-            "primSubstringFrom:to:",
-            self::prim_substring_from_to.into_func(),
-            true,
-        ),
+        ("primSubstringFrom:to:", self::prim_substring_from_to.into_func(), true),
         ("=", self::eq.into_func(), true),
         ("charAt:", self::char_at.into_func(), true),
     ])
 });
-pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> =
-    Lazy::new(|| Box::new([]));
+pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| Box::new([]));
 
 fn length(universe: &mut Universe, value: StringLike) -> Result<Value, Error> {
     const SIGNATURE: &str = "String>>#length";
@@ -78,9 +73,7 @@ fn is_digits(universe: &mut Universe, value: StringLike) -> Result<Value, Error>
         StringLike::Symbol(sym) => universe.lookup_symbol(sym),
     };
 
-    Ok(Value::Boolean(
-        !value.is_empty() && value.chars().all(char::is_numeric),
-    ))
+    Ok(Value::Boolean(!value.is_empty() && value.chars().all(char::is_numeric)))
 }
 
 fn is_whitespace(universe: &mut Universe, value: StringLike) -> Result<Value, Error> {
@@ -89,16 +82,10 @@ fn is_whitespace(universe: &mut Universe, value: StringLike) -> Result<Value, Er
         StringLike::Symbol(sym) => universe.lookup_symbol(sym),
     };
 
-    Ok(Value::Boolean(
-        !value.is_empty() && value.chars().all(char::is_whitespace),
-    ))
+    Ok(Value::Boolean(!value.is_empty() && value.chars().all(char::is_whitespace)))
 }
 
-fn concatenate(
-    universe: &mut Universe,
-    receiver: StringLike,
-    other: StringLike,
-) -> Result<Value, Error> {
+fn concatenate(universe: &mut Universe, receiver: StringLike, other: StringLike) -> Result<Value, Error> {
     let s1 = match receiver {
         StringLike::String(ref value) => value.as_str(),
         StringLike::Symbol(sym) => universe.lookup_symbol(sym),
@@ -109,9 +96,7 @@ fn concatenate(
         StringLike::Symbol(sym) => universe.lookup_symbol(sym),
     };
 
-    Ok(Value::String(
-        universe.gc_interface.alloc(format!("{}{}", s1, s2)),
-    ))
+    Ok(Value::String(universe.gc_interface.alloc(format!("{}{}", s1, s2))))
 }
 
 fn as_symbol(universe: &mut Universe, value: StringLike) -> Result<Value, Error> {
@@ -127,9 +112,9 @@ fn char_at(universe: &mut Universe, receiver: StringLike, idx: i32) -> Result<Va
         StringLike::Symbol(sym) => universe.lookup_symbol(sym),
     };
 
-    Ok(Value::String(universe.gc_interface.alloc(String::from(
-        string.chars().nth((idx - 1) as usize).unwrap(),
-    ))))
+    Ok(Value::String(
+        universe.gc_interface.alloc(String::from(string.chars().nth((idx - 1) as usize).unwrap())),
+    ))
 }
 
 fn eq(universe: &mut Universe, a: Value, b: Value) -> Result<bool, Error> {
@@ -154,12 +139,7 @@ fn eq(universe: &mut Universe, a: Value, b: Value) -> Result<bool, Error> {
     Ok(a == b)
 }
 
-fn prim_substring_from_to(
-    universe: &mut Universe,
-    receiver: StringLike,
-    from: i32,
-    to: i32,
-) -> Result<Value, Error> {
+fn prim_substring_from_to(universe: &mut Universe, receiver: StringLike, from: i32, to: i32) -> Result<Value, Error> {
     let from = usize::try_from(from - 1).unwrap();
     let to = usize::try_from(to).unwrap();
 
@@ -168,25 +148,17 @@ fn prim_substring_from_to(
         StringLike::Symbol(sym) => universe.lookup_symbol(sym),
     };
 
-    let s = universe
-        .gc_interface
-        .alloc(string.chars().skip(from).take(to - from).collect());
+    let s = universe.gc_interface.alloc(string.chars().skip(from).take(to - from).collect());
 
     Ok(Value::String(s))
 }
 
 /// Search for an instance primitive matching the given signature.
 pub fn get_instance_primitive(signature: &str) -> Option<&'static PrimitiveFn> {
-    INSTANCE_PRIMITIVES
-        .iter()
-        .find(|it| it.0 == signature)
-        .map(|it| it.1)
+    INSTANCE_PRIMITIVES.iter().find(|it| it.0 == signature).map(|it| it.1)
 }
 
 /// Search for a class primitive matching the given signature.
 pub fn get_class_primitive(signature: &str) -> Option<&'static PrimitiveFn> {
-    CLASS_PRIMITIVES
-        .iter()
-        .find(|it| it.0 == signature)
-        .map(|it| it.1)
+    CLASS_PRIMITIVES.iter().find(|it| it.0 == signature).map(|it| it.1)
 }

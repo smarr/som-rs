@@ -41,12 +41,12 @@ pub mod primitives;
 /// The interpreter's main data structure.
 pub mod universe;
 
-/// Specialized AST nodes
-pub mod specialized;
 mod convert;
-/// Facilities for manipulating values.
-pub mod value;
 /// To interact with the GC.
 pub mod gc;
+/// Specialized AST nodes
+pub mod specialized;
+/// Facilities for manipulating values.
+pub mod value;
 
 pub static mut UNIVERSE_RAW_PTR: *mut Universe = std::ptr::null_mut();

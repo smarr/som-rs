@@ -1,9 +1,9 @@
 use som_gc::gcref::GCRef;
-use som_interpreter_bc::{compiler, INTERPRETER_RAW_PTR, UNIVERSE_RAW_PTR};
 use som_interpreter_bc::frame::Frame;
 use som_interpreter_bc::interpreter::Interpreter;
 use som_interpreter_bc::universe::Universe;
 use som_interpreter_bc::value::Value;
+use som_interpreter_bc::{compiler, INTERPRETER_RAW_PTR, UNIVERSE_RAW_PTR};
 use som_lexer::{Lexer, Token};
 use som_parser::lang;
 use std::path::PathBuf;
@@ -43,18 +43,9 @@ fn basic_interpreter_tests() {
         ("Blocks testEmptyOneArg", Value::Integer(1)),
         ("Blocks testEmptyTwoArg", Value::Integer(1)),
         ("Return testReturnSelf", Value::Class(return_class_ptr)),
-        (
-            "Return testReturnSelfImplicitly",
-            Value::Class(return_class_ptr),
-        ),
-        (
-            "Return testNoReturnReturnsSelf",
-            Value::Class(return_class_ptr),
-        ),
-        (
-            "Return testBlockReturnsImplicitlyLastValue",
-            Value::Integer(4),
-        ),
+        ("Return testReturnSelfImplicitly", Value::Class(return_class_ptr)),
+        ("Return testNoReturnReturnsSelf", Value::Class(return_class_ptr)),
+        ("Return testBlockReturnsImplicitlyLastValue", Value::Integer(4)),
         ("IfTrueIfFalse test", Value::Integer(42)),
         ("IfTrueIfFalse test2", Value::Integer(33)),
         ("IfTrueIfFalse test3", Value::Integer(4)),
@@ -62,46 +53,19 @@ fn basic_interpreter_tests() {
             "CompilerSimplification testReturnConstantSymbol",
             Value::Symbol(universe.intern_symbol("constant")),
         ),
-        (
-            "IfTrueIfFalse testIfTrueTrueResult",
-            Value::Class(universe.integer_class()),
-        ),
-        (
-            "IfTrueIfFalse testIfTrueFalseResult",
-            Value::Class(universe.nil_class()),
-        ),
-        (
-            "IfTrueIfFalse testIfFalseTrueResult",
-            Value::Class(universe.nil_class()),
-        ),
-        (
-            "IfTrueIfFalse testIfFalseFalseResult",
-            Value::Class(universe.integer_class()),
-        ),
-        (
-            "CompilerSimplification testReturnConstantInt",
-            Value::Integer(42),
-        ),
-        (
-            "CompilerSimplification testReturnSelf",
-            Value::Class(compiler_simplification_class_ptr),
-        ),
+        ("IfTrueIfFalse testIfTrueTrueResult", Value::Class(universe.integer_class())),
+        ("IfTrueIfFalse testIfTrueFalseResult", Value::Class(universe.nil_class())),
+        ("IfTrueIfFalse testIfFalseTrueResult", Value::Class(universe.nil_class())),
+        ("IfTrueIfFalse testIfFalseFalseResult", Value::Class(universe.integer_class())),
+        ("CompilerSimplification testReturnConstantInt", Value::Integer(42)),
+        ("CompilerSimplification testReturnSelf", Value::Class(compiler_simplification_class_ptr)),
         (
             "CompilerSimplification testReturnSelfImplicitly",
             Value::Class(compiler_simplification_class_ptr),
         ),
-        (
-            "CompilerSimplification testReturnArgumentN",
-            Value::Integer(55),
-        ),
-        (
-            "CompilerSimplification testReturnArgumentA",
-            Value::Integer(44),
-        ),
-        (
-            "CompilerSimplification testSetField",
-            Value::Symbol(universe.intern_symbol("foo")),
-        ),
+        ("CompilerSimplification testReturnArgumentN", Value::Integer(55)),
+        ("CompilerSimplification testReturnArgumentA", Value::Integer(44)),
+        ("CompilerSimplification testSetField", Value::Symbol(universe.intern_symbol("foo"))),
         ("CompilerSimplification testGetField", Value::Integer(40)),
         ("Hash testHash", Value::Integer(444)),
         ("Arrays testEmptyToInts", Value::Integer(3)),
@@ -111,42 +75,18 @@ fn basic_interpreter_tests() {
         ("Arrays testNewWithAll", Value::Integer(1)),
         ("BlockInlining testNoInlining", Value::Integer(1)),
         ("BlockInlining testOneLevelInlining", Value::Integer(1)),
-        (
-            "BlockInlining testOneLevelInliningWithLocalShadowTrue",
-            Value::Integer(2),
-        ),
-        (
-            "BlockInlining testOneLevelInliningWithLocalShadowFalse",
-            Value::Integer(1),
-        ),
-        (
-            "BlockInlining testShadowDoesntStoreWrongLocal",
-            Value::Integer(33),
-        ),
-        (
-            "BlockInlining testShadowDoesntReadUnrelated",
-            Value::Class(universe.nil_class()),
-        ),
+        ("BlockInlining testOneLevelInliningWithLocalShadowTrue", Value::Integer(2)),
+        ("BlockInlining testOneLevelInliningWithLocalShadowFalse", Value::Integer(1)),
+        ("BlockInlining testShadowDoesntStoreWrongLocal", Value::Integer(33)),
+        ("BlockInlining testShadowDoesntReadUnrelated", Value::Class(universe.nil_class())),
         ("BlockInlining testBlockNestedInIfTrue", Value::Integer(2)),
         ("BlockInlining testBlockNestedInIfFalse", Value::Integer(42)),
         ("BlockInlining testStackDisciplineTrue", Value::Integer(1)),
         ("BlockInlining testStackDisciplineFalse", Value::Integer(2)),
-        (
-            "BlockInlining testDeepNestedInlinedIfTrue",
-            Value::Integer(3),
-        ),
-        (
-            "BlockInlining testDeepNestedInlinedIfFalse",
-            Value::Integer(42),
-        ),
-        (
-            "BlockInlining testDeepNestedBlocksInInlinedIfTrue",
-            Value::Integer(5),
-        ),
-        (
-            "BlockInlining testDeepNestedBlocksInInlinedIfFalse",
-            Value::Integer(43),
-        ),
+        ("BlockInlining testDeepNestedInlinedIfTrue", Value::Integer(3)),
+        ("BlockInlining testDeepNestedInlinedIfFalse", Value::Integer(42)),
+        ("BlockInlining testDeepNestedBlocksInInlinedIfTrue", Value::Integer(5)),
+        ("BlockInlining testDeepNestedBlocksInInlinedIfFalse", Value::Integer(43)),
         ("BlockInlining testDeepDeepNestedTrue", Value::Integer(9)),
         ("BlockInlining testDeepDeepNestedFalse", Value::Integer(43)),
         ("BlockInlining testToDoNestDoNestIfTrue", Value::Integer(2)),
@@ -155,10 +95,7 @@ fn basic_interpreter_tests() {
         ("Regressions testSymbolEquality", Value::Integer(1)),
         ("Regressions testSymbolReferenceEquality", Value::Integer(1)),
         ("Regressions testUninitializedLocal", Value::Integer(1)),
-        (
-            "Regressions testUninitializedLocalInBlock",
-            Value::Integer(1),
-        ),
+        ("Regressions testUninitializedLocalInBlock", Value::Integer(1)),
         ("BinaryOperation test", Value::Integer(3 + 8)),
         ("NumberOfTests numberOfTests", Value::Integer(65)),
     ];
@@ -166,27 +103,16 @@ fn basic_interpreter_tests() {
     for (counter, (expr, expected)) in tests.iter().enumerate() {
         println!("testing: '{}'", expr);
 
-        let line = format!(
-            "BasicInterpreterTest{} = ( run = ( ^ ( {} ) ) )",
-            counter, expr
-        );
+        let line = format!("BasicInterpreterTest{} = ( run = ( ^ ( {} ) ) )", counter, expr);
 
         let mut lexer = Lexer::new(line).skip_comments(true).skip_whitespace(true);
         let tokens: Vec<Token> = lexer.by_ref().collect();
-        assert!(
-            lexer.text().is_empty(),
-            "could not fully tokenize test expression"
-        );
+        assert!(lexer.text().is_empty(), "could not fully tokenize test expression");
 
         let class_def = som_parser::apply(lang::class_def(), tokens.as_slice()).unwrap();
 
         let object_class = universe.object_class();
-        let class = compiler::compile_class(
-            &mut universe.interner,
-            &class_def,
-            Some(&object_class),
-            &mut universe.gc_interface,
-        );
+        let class = compiler::compile_class(&mut universe.interner, &class_def, Some(&object_class), &mut universe.gc_interface);
         assert!(class.is_some(), "could not compile test expression");
         let mut class = class.unwrap();
 
@@ -195,16 +121,9 @@ fn basic_interpreter_tests() {
         class.class().set_super_class(&object_class.class());
         class.class().set_class(&metaclass_class);
 
-        let method = class
-            .lookup_method(method_name)
-            .expect("method not found ??");
+        let method = class.lookup_method(method_name).expect("method not found ??");
 
-        let frame = Frame::alloc_from_method(
-            method,
-            &[Value::SYSTEM],
-            GCRef::default(),
-            &mut universe.gc_interface,
-        );
+        let frame = Frame::alloc_from_method(method, &[Value::SYSTEM], GCRef::default(), &mut universe.gc_interface);
         let mut interpreter = Interpreter::new(frame);
         if let Some(output) = interpreter.run(&mut universe) {
             assert_eq!(&output, expected, "unexpected test output value");
@@ -216,10 +135,8 @@ fn basic_interpreter_tests() {
 #[test]
 fn test_harness() {
     let mut universe = setup_universe();
-    
-    let args = ["TestHarness"].iter()
-        .map(|str| Value::String(universe.gc_interface.alloc(String::from(*str))))
-        .collect();
+
+    let args = ["TestHarness"].iter().map(|str| Value::String(universe.gc_interface.alloc(String::from(*str)))).collect();
 
     let mut interpreter = universe.initialize(args).unwrap();
 
@@ -228,6 +145,6 @@ fn test_harness() {
         UNIVERSE_RAW_PTR = &mut universe;
         INTERPRETER_RAW_PTR = &mut interpreter;
     }
-    
+
     assert_eq!(interpreter.run(&mut universe), Some(Value::INTEGER_ZERO))
 }

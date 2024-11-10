@@ -1,12 +1,12 @@
-use mmtk::util::VMMutatorThread;
+use crate::{mmtk, SOMVM};
 use mmtk::memory_manager;
 use mmtk::scheduler::GCWorker;
 use mmtk::util::opaque_pointer::*;
+use mmtk::util::VMMutatorThread;
 use mmtk::util::{Address, ObjectReference};
 use mmtk::AllocationSemantics;
 use mmtk::MMTKBuilder;
 use mmtk::Mutator;
-use crate::{mmtk, SOMVM};
 // This file exposes MMTk Rust API to the native code. This is not an exhaustive list of all the APIs.
 // Most commonly used APIs are listed in https://docs.mmtk.io/api/mmtk/memory_manager/index.html. The binding can expose them here.
 
@@ -14,21 +14,12 @@ pub fn mmtk_create_builder() -> MMTKBuilder {
     mmtk::MMTKBuilder::new()
 }
 
-pub fn mmtk_set_option_from_string(
-    builder: &mut MMTKBuilder,
-    name: &str,
-    value: &str,
-) -> bool {
+pub fn mmtk_set_option_from_string(builder: &mut MMTKBuilder, name: &str, value: &str) -> bool {
     builder.set_option(name, value)
 }
 
 pub fn mmtk_set_fixed_heap_size(builder: &mut MMTKBuilder, heap_size: usize) -> bool {
-    builder
-        .options
-        .gc_trigger
-        .set(mmtk::util::options::GCTriggerSelector::FixedHeapSize(
-            heap_size,
-        ))
+    builder.options.gc_trigger.set(mmtk::util::options::GCTriggerSelector::FixedHeapSize(heap_size))
 }
 
 pub fn mmtk_bind_mutator(tls: VMMutatorThread) -> Box<Mutator<SOMVM>> {
@@ -42,13 +33,7 @@ pub fn mmtk_destroy_mutator(mutator: &mut Mutator<SOMVM>) {
     // let _ = unsafe { Box::from_raw(mutator) };
 }
 
-pub fn mmtk_alloc(
-    mutator: &mut Mutator<SOMVM>,
-    size: usize,
-    align: usize,
-    offset: usize,
-    semantics: AllocationSemantics,
-) -> Address {
+pub fn mmtk_alloc(mutator: &mut Mutator<SOMVM>, size: usize, align: usize, offset: usize, semantics: AllocationSemantics) -> Address {
     // This just demonstrates that the binding should check against `max_non_los_default_alloc_bytes` to allocate large objects.
     // In pratice, a binding may want to lift this code to somewhere in the runtime where the allocated bytes is constant so
     // they can statically know if a normal allocation or a large object allocation is needed.
@@ -63,12 +48,7 @@ pub fn mmtk_alloc(
     memory_manager::alloc::<SOMVM>(mutator, size, align, offset, semantics)
 }
 
-pub fn mmtk_post_alloc(
-    mutator: &mut Mutator<SOMVM>,
-    refer: ObjectReference,
-    bytes: usize,
-    semantics: AllocationSemantics,
-) {
+pub fn mmtk_post_alloc(mutator: &mut Mutator<SOMVM>, refer: ObjectReference, bytes: usize, semantics: AllocationSemantics) {
     // This just demonstrates that the binding should check against `max_non_los_default_alloc_bytes` to allocate large objects.
     // In pratice, a binding may want to lift this code to somewhere in the runtime where the allocated bytes is constant so
     // they can statically know if a normal allocation or a large object allocation is needed.
@@ -173,11 +153,7 @@ pub fn mmtk_calloc(num: usize, size: usize) -> Address {
 }
 
 #[cfg(feature = "malloc_counted_size")]
-pub fn mmtk_realloc_with_old_size(
-    addr: Address,
-    size: usize,
-    old_size: usize,
-) -> Address {
+pub fn mmtk_realloc_with_old_size(addr: Address, size: usize, old_size: usize) -> Address {
     memory_manager::realloc_with_old_size::<SOMVM>(mmtk(), addr, size, old_size)
 }
 pub fn mmtk_realloc(addr: Address, size: usize) -> Address {

@@ -73,7 +73,7 @@ impl HasTypeInfoForGC for VecAstLiteral {
 
 impl HasTypeInfoForGC for Frame {
     fn get_magic_gc_id() -> u8 {
-        AstObjMagicId::Frame  as u8
+        AstObjMagicId::Frame as u8
     }
 }
 
@@ -120,7 +120,7 @@ fn get_roots_in_mutator_thread(_mutator: &mut Mutator<SOMVM>) -> Vec<SOMSlot> {
                 to_process.push(SOMSlot::from_value(val.as_u64()));
             }
         }
-        
+
         if let Some(frame_args) = FRAME_ARGS_PTR {
             debug!("scanning roots: frame arguments (frame allocation triggered a GC)");
             for arg in &*frame_args {
@@ -135,10 +135,7 @@ fn get_roots_in_mutator_thread(_mutator: &mut Mutator<SOMVM>) -> Vec<SOMSlot> {
     }
 }
 
-pub fn scan_object<'a>(
-    object: ObjectReference,
-    slot_visitor: &'a mut (dyn SlotVisitor<SOMSlot> + 'a)
-) {
+pub fn scan_object<'a>(object: ObjectReference, slot_visitor: &'a mut (dyn SlotVisitor<SOMSlot> + 'a)) {
     unsafe {
         let gc_id: &AstObjMagicId = VMObjectModel::ref_to_header(object).as_ref();
 
@@ -197,9 +194,7 @@ pub fn scan_object<'a>(
                             visit_expr(expr, slot_visitor)
                         }
                     }
-                    MethodKind::TrivialLiteral(trivial_lit) => {
-                        visit_literal(&trivial_lit.literal, slot_visitor)
-                    }
+                    MethodKind::TrivialLiteral(trivial_lit) => visit_literal(&trivial_lit.literal, slot_visitor),
                     MethodKind::Primitive(_) | MethodKind::TrivialGlobal(_) | MethodKind::TrivialGetter(_) | MethodKind::TrivialSetter(_) => {}
                     MethodKind::Specialized(_) => {} // for now, specialized methods don't contain data that needs to be traced.
                 }
@@ -252,74 +247,60 @@ fn visit_value<'a>(val: &Value, slot_visitor: &'a mut (dyn SlotVisitor<SOMSlot> 
 
 fn visit_literal(literal: &AstLiteral, slot_visitor: &mut dyn SlotVisitor<SOMSlot>) {
     match &literal {
-        AstLiteral::Symbol(s) | AstLiteral::String(s) => {
-            slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(s)))
-        }
-        AstLiteral::BigInteger(big_int) => {
-            slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(big_int)))
-        }
-        AstLiteral::Array(arr) => {
-            slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(arr)))
-        }
+        AstLiteral::Symbol(s) | AstLiteral::String(s) => slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(s))),
+        AstLiteral::BigInteger(big_int) => slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(big_int))),
+        AstLiteral::Array(arr) => slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(arr))),
         AstLiteral::Double(_) | AstLiteral::Integer(_) => {}
     }
 }
 
 fn visit_expr(expr: &AstExpression, slot_visitor: &mut dyn SlotVisitor<SOMSlot>) {
     match expr {
-        AstExpression::Block(blk) => {
-            slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(blk)))
-        }
-        AstExpression::Literal(lit) => {
-            visit_literal(lit, slot_visitor)
-        }
-        AstExpression::InlinedCall(inlined_node) => {
-            match inlined_node.as_ref() {
-                InlinedNode::IfInlined(if_inlined) => {
-                    visit_expr(&if_inlined.cond_expr, slot_visitor);
-                    for expr in &if_inlined.body_instrs.exprs {
-                        visit_expr(expr, slot_visitor)
-                    }
-                }
-                InlinedNode::IfTrueIfFalseInlined(if_true_if_false_inlined) => {
-                    visit_expr(&if_true_if_false_inlined.cond_expr, slot_visitor);
-                    for expr in &if_true_if_false_inlined.body_1_instrs.exprs {
-                        visit_expr(expr, slot_visitor)
-                    }
-                    for expr in &if_true_if_false_inlined.body_2_instrs.exprs {
-                        visit_expr(expr, slot_visitor)
-                    }
-                }
-                InlinedNode::WhileInlined(while_inlined) => {
-                    for expr in &while_inlined.cond_instrs.exprs {
-                        visit_expr(expr, slot_visitor)
-                    }
-                    for expr in &while_inlined.body_instrs.exprs {
-                        visit_expr(expr, slot_visitor)
-                    }
-                }
-                InlinedNode::OrInlined(or_inlined) => {
-                    visit_expr(&or_inlined.first, slot_visitor);
-                    for expr in &or_inlined.second.exprs {
-                        visit_expr(expr, slot_visitor)
-                    }
-                }
-                InlinedNode::AndInlined(and_inlined) => {
-                    visit_expr(&and_inlined.first, slot_visitor);
-                    for expr in &and_inlined.second.exprs {
-                        visit_expr(expr, slot_visitor)
-                    }
+        AstExpression::Block(blk) => slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(blk))),
+        AstExpression::Literal(lit) => visit_literal(lit, slot_visitor),
+        AstExpression::InlinedCall(inlined_node) => match inlined_node.as_ref() {
+            InlinedNode::IfInlined(if_inlined) => {
+                visit_expr(&if_inlined.cond_expr, slot_visitor);
+                for expr in &if_inlined.body_instrs.exprs {
+                    visit_expr(expr, slot_visitor)
                 }
             }
-        }
+            InlinedNode::IfTrueIfFalseInlined(if_true_if_false_inlined) => {
+                visit_expr(&if_true_if_false_inlined.cond_expr, slot_visitor);
+                for expr in &if_true_if_false_inlined.body_1_instrs.exprs {
+                    visit_expr(expr, slot_visitor)
+                }
+                for expr in &if_true_if_false_inlined.body_2_instrs.exprs {
+                    visit_expr(expr, slot_visitor)
+                }
+            }
+            InlinedNode::WhileInlined(while_inlined) => {
+                for expr in &while_inlined.cond_instrs.exprs {
+                    visit_expr(expr, slot_visitor)
+                }
+                for expr in &while_inlined.body_instrs.exprs {
+                    visit_expr(expr, slot_visitor)
+                }
+            }
+            InlinedNode::OrInlined(or_inlined) => {
+                visit_expr(&or_inlined.first, slot_visitor);
+                for expr in &or_inlined.second.exprs {
+                    visit_expr(expr, slot_visitor)
+                }
+            }
+            InlinedNode::AndInlined(and_inlined) => {
+                visit_expr(&and_inlined.first, slot_visitor);
+                for expr in &and_inlined.second.exprs {
+                    visit_expr(expr, slot_visitor)
+                }
+            }
+        },
         AstExpression::LocalExit(expr)
         | AstExpression::NonLocalExit(expr, _)
         | AstExpression::LocalVarWrite(_, expr)
         | AstExpression::ArgWrite(_, _, expr)
         | AstExpression::FieldWrite(_, expr)
-        | AstExpression::NonLocalVarWrite(_, _, expr) => {
-            visit_expr(expr, slot_visitor)
-        }
+        | AstExpression::NonLocalVarWrite(_, _, expr) => visit_expr(expr, slot_visitor),
         AstExpression::UnaryDispatch(dispatch) => {
             visit_expr(&dispatch.dispatch_node.receiver, slot_visitor);
             // if let Some(cache) = dispatch.dispatch_node.inline_cache {

@@ -45,7 +45,7 @@ impl PartialEq for MethodKind {
 }
 
 /// MethodKind for specialized methods, which are very common methods whose behaviour we know ahead of time (control flow, for the most part)
-/// Importantly, many of them go unused most of the time because we usually inline control flow nodes instead. 
+/// Importantly, many of them go unused most of the time because we usually inline control flow nodes instead.
 #[derive(Debug, Clone, PartialEq)]
 pub enum MethodKindSpecialized {
     /// Specialized whileTrue:/whileFalse:
@@ -79,7 +79,7 @@ pub struct Method {
 
 impl PartialEq for Method {
     fn eq(&self, other: &Self) -> bool {
-        self.kind == other.kind && self.signature == other.signature && (self.holder.ptr == other.holder.ptr) 
+        self.kind == other.kind && self.signature == other.signature && (self.holder.ptr == other.holder.ptr)
     }
 }
 

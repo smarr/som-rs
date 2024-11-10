@@ -20,22 +20,17 @@ pub mod symbol;
 pub mod system;
 
 pub use self::blocks::{block1, block2, block3};
-use anyhow::Error;
-use once_cell::sync::Lazy;
 use crate::convert::Primitive;
 use crate::interpreter::Interpreter;
 use crate::universe::Universe;
+use anyhow::Error;
+use once_cell::sync::Lazy;
 
 // TODO we're missing several primitive changes from master originally
 
-pub type PrimitiveFn = dyn Fn(&mut Interpreter, &mut Universe) -> Result<(), Error>
-+ Send
-+ Sync
-+ 'static;
+pub type PrimitiveFn = dyn Fn(&mut Interpreter, &mut Universe) -> Result<(), Error> + Send + Sync + 'static;
 
-pub fn get_class_primitives(
-    class_name: &str,
-) -> Option<&'static [(&'static str, &'static PrimitiveFn, bool)]> {
+pub fn get_class_primitives(class_name: &str) -> Option<&'static [(&'static str, &'static PrimitiveFn, bool)]> {
     match class_name {
         "Array" => Some(self::array::CLASS_PRIMITIVES.as_ref()),
         "Block1" => Some(self::block1::CLASS_PRIMITIVES.as_ref()),
@@ -54,9 +49,7 @@ pub fn get_class_primitives(
     }
 }
 
-pub fn get_instance_primitives(
-    class_name: &str,
-) -> Option<&'static [(&'static str, &'static PrimitiveFn, bool)]> {
+pub fn get_instance_primitives(class_name: &str) -> Option<&'static [(&'static str, &'static PrimitiveFn, bool)]> {
     match class_name {
         "Array" => Some(self::array::INSTANCE_PRIMITIVES.as_ref()),
         "Block1" => Some(self::block1::INSTANCE_PRIMITIVES.as_ref()),
@@ -80,6 +73,4 @@ fn unimplem_prim_fn(_: &mut Interpreter, _: &mut Universe, _: i32) -> Result<i32
     panic!("called an unimplemented primitive")
 }
 
-pub static UNIMPLEM_PRIMITIVE: Lazy<Box<&'static PrimitiveFn>> = Lazy::new(|| {
-    Box::new(unimplem_prim_fn.into_func())
-});
+pub static UNIMPLEM_PRIMITIVE: Lazy<Box<&'static PrimitiveFn>> = Lazy::new(|| Box::new(unimplem_prim_fn.into_func()));

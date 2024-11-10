@@ -1,14 +1,14 @@
 use crate::convert::{Primitive, StringLike};
+use crate::gc::VecValue;
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
 use crate::value::Value;
 use anyhow::{bail, Context, Error};
 use once_cell::sync::Lazy;
 use som_core::interner::Interned;
+use som_gc::gcref::GCRef;
 use std::convert::TryFrom;
 use std::fs;
-use som_gc::gcref::GCRef;
-use crate::gc::VecValue;
 
 pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| {
     Box::new([
@@ -29,8 +29,7 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> 
         ("printStackTrace", self::print_stack_trace.into_func(), true),
     ])
 });
-pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> =
-    Lazy::new(|| Box::new([]));
+pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| Box::new([]));
 
 fn load_file(universe: &mut Universe, _: Value, path: StringLike) -> Result<Value, Error> {
     let path = match path {
@@ -109,12 +108,7 @@ fn global(universe: &mut Universe, _: Value, name: Interned) -> Result<Value, Er
     Ok(universe.lookup_global(symbol).unwrap_or(Value::NIL))
 }
 
-fn global_put(
-    universe: &mut Universe,
-    _: Value,
-    name: Interned,
-    value: Value,
-) -> Result<Value, Error> {
+fn global_put(universe: &mut Universe, _: Value, name: Interned, value: Value) -> Result<Value, Error> {
     let symbol = universe.lookup_symbol(name).to_string();
     universe.assign_global(symbol, &value);
     Ok(value)
@@ -181,26 +175,19 @@ fn gc_stats(universe: &mut Universe, _: Value) -> Result<GCRef<VecValue>, Error>
     let total_gc_time = gc_interface.get_total_gc_time();
     let total_bytes_alloc = gc_interface.get_used_bytes();
 
-    Ok(universe.gc_interface.alloc(VecValue(
-        vec![Value::Integer(total_gc as i32),
-             Value::Integer(total_gc_time as i32),
-             Value::Integer(total_bytes_alloc as i32)
-        ]
-    )))
+    Ok(universe.gc_interface.alloc(VecValue(vec![
+        Value::Integer(total_gc as i32),
+        Value::Integer(total_gc_time as i32),
+        Value::Integer(total_bytes_alloc as i32),
+    ])))
 }
 
 /// Search for an instance primitive matching the given signature.
 pub fn get_instance_primitive(signature: &str) -> Option<&'static PrimitiveFn> {
-    INSTANCE_PRIMITIVES
-        .iter()
-        .find(|it| it.0 == signature)
-        .map(|it| it.1)
+    INSTANCE_PRIMITIVES.iter().find(|it| it.0 == signature).map(|it| it.1)
 }
 
 /// Search for a class primitive matching the given signature.
 pub fn get_class_primitive(signature: &str) -> Option<&'static PrimitiveFn> {
-    CLASS_PRIMITIVES
-        .iter()
-        .find(|it| it.0 == signature)
-        .map(|it| it.1)
+    CLASS_PRIMITIVES.iter().find(|it| it.0 == signature).map(|it| it.1)
 }

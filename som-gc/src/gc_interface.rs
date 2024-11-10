@@ -1,4 +1,7 @@
-use crate::api::{mmtk_bind_mutator, mmtk_destroy_mutator, mmtk_handle_user_collection_request, mmtk_initialize_collection, mmtk_set_fixed_heap_size, mmtk_used_bytes};
+use crate::api::{
+    mmtk_bind_mutator, mmtk_destroy_mutator, mmtk_handle_user_collection_request, mmtk_initialize_collection, mmtk_set_fixed_heap_size,
+    mmtk_used_bytes,
+};
 use crate::gcref::GCRef;
 use crate::object_model::OBJECT_REF_OFFSET;
 use crate::slot::SOMSlot;
@@ -50,22 +53,20 @@ impl GCInterface {
             mutator,
             default_allocator,
             start_the_world_count: 0,
-            total_gc_time: Duration::new(0, 0)
+            total_gc_time: Duration::new(0, 0),
         });
 
         unsafe {
             // in the context of tests, this function gets invoked many times, so they can have already been initialized.
 
             if MUTATOR_WRAPPER.get().is_none() {
-                MUTATOR_WRAPPER
-                    .set(&mut *self_)
-                    .unwrap_or_else(|_| panic!("couldn't set mutator wrapper?"));
+                MUTATOR_WRAPPER.set(&mut *self_).unwrap_or_else(|_| panic!("couldn't set mutator wrapper?"));
             }
 
             if MMTK_TO_VM_INTERFACE.get().is_none() {
-                MMTK_TO_VM_INTERFACE.set(vm_callbacks).unwrap_or_else(|_| {
-                    panic!("couldn't set callbacks to establish MMTk=>VM connection?")
-                });
+                MMTK_TO_VM_INTERFACE
+                    .set(vm_callbacks)
+                    .unwrap_or_else(|_| panic!("couldn't set callbacks to establish MMTk=>VM connection?"));
             }
         }
 
@@ -73,13 +74,7 @@ impl GCInterface {
     }
 
     /// Initialize MMTk, and get from it all the info we need to initialize our interface
-    fn init_mmtk(
-        heap_size: usize,
-    ) -> (
-        VMMutatorThread,
-        Box<Mutator<SOMVM>>,
-        *mut FreeListAllocator<SOMVM>,
-    ) {
+    fn init_mmtk(heap_size: usize) -> (VMMutatorThread, Box<Mutator<SOMVM>>, *mut FreeListAllocator<SOMVM>) {
         let builder: MMTKBuilder = {
             let mut builder = MMTKBuilder::new();
 
@@ -93,7 +88,7 @@ impl GCInterface {
 
             #[cfg(feature = "stress_test")]
             assert!(builder.set_option("stress_factor", "1000000"));
-            
+
             builder
         };
 
@@ -111,10 +106,7 @@ impl GCInterface {
         let tls = VMMutatorThread(VMThread(OpaquePointer::UNINITIALIZED));
         let mutator = mmtk_bind_mutator(tls);
 
-        let selector = memory_manager::get_allocator_mapping(
-            MMTK_SINGLETON.get().unwrap(),
-            AllocationSemantics::Default,
-        );
+        let selector = memory_manager::get_allocator_mapping(MMTK_SINGLETON.get().unwrap(), AllocationSemantics::Default);
         let default_allocator_offset = Mutator::<SOMVM>::get_allocator_base_offset(selector);
 
         // At run time: allocate with the default semantics without resolving allocator
@@ -185,7 +177,7 @@ impl GCInterface {
     pub fn get_total_gc_time(&self) -> usize {
         self.total_gc_time.as_micros() as usize
     }
-    
+
     pub(crate) fn block_for_gc(&mut self, _tls: VMMutatorThread) {
         AtomicBool::store(&IS_WORLD_STOPPED, true, Ordering::SeqCst);
         debug!("block_for_gc: stopped the world!");
@@ -218,9 +210,7 @@ impl GCInterface {
         self.mutator.as_mut()
     }
 
-    pub(crate) fn get_all_mutators(
-        &mut self,
-    ) -> Box<dyn Iterator<Item = &mut Mutator<SOMVM>> + '_> {
+    pub(crate) fn get_all_mutators(&mut self) -> Box<dyn Iterator<Item = &mut Mutator<SOMVM>> + '_> {
         debug!("calling get_all_mutators");
         Box::new(std::iter::once(self.mutator.as_mut()))
     }

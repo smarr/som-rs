@@ -8,13 +8,11 @@ pub struct IfTrueIfFalseNode {}
 
 impl Invoke for IfTrueIfFalseNode {
     fn invoke(&mut self, universe: &mut Universe, args: Vec<Value>) -> Return {
-        let (cond_block_val, block_1_arg, block_2_arg) = unsafe {
-            (args.get_unchecked(0), args.get_unchecked(1), args.get_unchecked(2))
-        };
+        let (cond_block_val, block_1_arg, block_2_arg) = unsafe { (args.get_unchecked(0), args.get_unchecked(1), args.get_unchecked(2)) };
 
         let bool_val = match cond_block_val.as_boolean() {
             Some(a) => a,
-            _ => panic!("ifTrue:ifFalse: condition did not evaluate to boolean")
+            _ => panic!("ifTrue:ifFalse: condition did not evaluate to boolean"),
         };
 
         // let (bool_val, body_block, body_block2) = match (cond_block_val, body_block_arg, body_block_arg2) {
@@ -27,12 +25,8 @@ impl Invoke for IfTrueIfFalseNode {
         match block_to_evaluate.as_block() {
             Some(mut b) => {
                 let nbr_locals = b.block.nbr_locals;
-                universe.with_frame(
-                    nbr_locals,
-                    vec![Value::Block(b)],
-                    |universe| b.evaluate(universe),
-                )
-            },
+                universe.with_frame(nbr_locals, vec![Value::Block(b)], |universe| b.evaluate(universe))
+            }
             None => Return::Local(block_to_evaluate.clone()),
         }
     }

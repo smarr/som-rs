@@ -21,30 +21,17 @@ fn get_method(method_txt: &str, method_name: &str, universe: &mut Universe) -> G
 
     let class_txt = format!("Foo = ( {} )", method_txt);
 
-    let mut lexer = Lexer::new(class_txt)
-        .skip_comments(true)
-        .skip_whitespace(true);
+    let mut lexer = Lexer::new(class_txt).skip_comments(true).skip_whitespace(true);
     let tokens: Vec<Token> = lexer.by_ref().collect();
-    assert!(
-        lexer.text().is_empty(),
-        "could not fully tokenize test expression"
-    );
+    assert!(lexer.text().is_empty(), "could not fully tokenize test expression");
 
     let class_def = som_parser::apply(lang::class_def(), tokens.as_slice()).unwrap();
 
     let object_class = universe.object_class();
-    let class = compiler::compile_class(
-        &mut universe.interner,
-        &class_def,
-        Some(&object_class),
-        &mut universe.gc_interface,
-    );
+    let class = compiler::compile_class(&mut universe.interner, &class_def, Some(&object_class), &mut universe.gc_interface);
     assert!(class.is_some(), "could not compile test expression");
 
-    class
-        .unwrap()
-        .lookup_method(method_name_interned)
-        .expect("method not found somehow?")
+    class.unwrap().lookup_method(method_name_interned).expect("method not found somehow?")
 }
 
 #[test]
@@ -53,12 +40,7 @@ fn frame_basic_local_access() {
 
     let method_ref = get_method("foo = ( | a b c | ^ false )", "foo", &mut universe);
 
-    let mut frame = Frame::alloc_from_method(
-        method_ref,
-        &[],
-        GCRef::default(),
-        &mut universe.gc_interface,
-    );
+    let mut frame = Frame::alloc_from_method(method_ref, &[], GCRef::default(), &mut universe.gc_interface);
 
     frame.assign_local(0, Value::Integer(42));
     assert_eq!(frame.lookup_local(0).as_integer(), Some(42));
@@ -81,11 +63,7 @@ fn frame_basic_local_access() {
 fn frame_basic_arg_access() {
     let mut universe = setup_universe();
 
-    let method_ref = get_method(
-        "foo: a and: b also: c = ( ^ false )",
-        "foo:and:also:",
-        &mut universe,
-    );
+    let method_ref = get_method("foo: a and: b also: c = ( ^ false )", "foo:and:also:", &mut universe);
 
     let mut frame = Frame::alloc_from_method(
         method_ref,
@@ -106,11 +84,7 @@ fn frame_basic_arg_access() {
 fn frame_mixed_local_and_arg_access() {
     let mut universe = setup_universe();
 
-    let method_ref = get_method(
-        "foo: a and: b = ( | a b c | ^ false )",
-        "foo:and:",
-        &mut universe,
-    );
+    let method_ref = get_method("foo: a and: b = ( | a b c | ^ false )", "foo:and:", &mut universe);
 
     let mut frame = Frame::alloc_from_method(
         method_ref,
@@ -142,11 +116,7 @@ fn frame_mixed_local_and_arg_access() {
 fn frame_stack_accesses() {
     let mut universe = setup_universe();
 
-    let method_ref = get_method(
-        "foo: a and: b = ( | a b c | ^ false )",
-        "foo:and:",
-        &mut universe,
-    );
+    let method_ref = get_method("foo: a and: b = ( | a b c | ^ false )", "foo:and:", &mut universe);
 
     let frame_ptr = Frame::alloc_from_method(
         method_ref,
@@ -178,11 +148,7 @@ fn frame_stack_accesses() {
 fn frame_stack_split_off() {
     let mut universe = setup_universe();
 
-    let method_ref = get_method(
-        "foo: a and: b = ( | a b c | ^ false )",
-        "foo:and:",
-        &mut universe,
-    );
+    let method_ref = get_method("foo: a and: b = ( | a b c | ^ false )", "foo:and:", &mut universe);
 
     let frame_ptr = Frame::alloc_from_method(
         method_ref,
@@ -205,7 +171,7 @@ fn frame_stack_split_off() {
     assert_eq!(two_last, vec![Value::INTEGER_ONE, Value::Boolean(true)]);
 
     frame.remove_n_last_elements(2);
-    
+
     assert_eq!(Frame::stack_len(frame_ptr), 3);
     assert_eq!(frame.stack_last(), &Value::NIL);
 }

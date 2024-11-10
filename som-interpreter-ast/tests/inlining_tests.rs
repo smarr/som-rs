@@ -10,22 +10,13 @@ use som_lexer::{Lexer, Token};
 use som_parser::lang;
 
 fn get_ast(class_txt: &str) -> AstMethodDef {
-    let mut lexer = Lexer::new(class_txt)
-        .skip_comments(true)
-        .skip_whitespace(true);
+    let mut lexer = Lexer::new(class_txt).skip_comments(true).skip_whitespace(true);
     let tokens: Vec<Token> = lexer.by_ref().collect();
-    assert!(
-        lexer.text().is_empty(),
-        "could not fully tokenize test expression"
-    );
+    assert!(lexer.text().is_empty(), "could not fully tokenize test expression");
 
     let method_def = som_parser::apply(lang::instance_method_def(), tokens.as_slice()).unwrap();
 
-    AstMethodCompilerCtxt::parse_method_def(
-        &method_def,
-        None,
-        GCInterface::init(DEFAULT_HEAP_SIZE, get_callbacks_for_gc()),
-    )
+    AstMethodCompilerCtxt::parse_method_def(&method_def, None, GCInterface::init(DEFAULT_HEAP_SIZE, get_callbacks_for_gc()))
 }
 
 #[test]
@@ -48,9 +39,7 @@ fn if_true_inlining_ok() {
                         expected_bool: true,
                         cond_expr: GlobalRead(Box::new("true".to_string())),
                         body_instrs: AstBody {
-                            exprs: vec![LocalExit(Box::new(GlobalRead(Box::new(
-                                "true".to_string()
-                            ))))],
+                            exprs: vec![LocalExit(Box::new(GlobalRead(Box::new("true".to_string()))))],
                         },
                     },),)),
                     LocalExit(Box::new(GlobalRead(Box::new("false".to_string())))),
@@ -143,11 +132,7 @@ pub fn recursive_inlining() {
     let resolve = get_ast(contains_key_txt);
 
     let cleaned_ast_answer: String = ast_answer.chars().filter(|c| !c.is_whitespace()).collect();
-    let cleaned_resolve: String = resolve
-        .to_string()
-        .chars()
-        .filter(|c| !c.is_whitespace())
-        .collect();
+    let cleaned_resolve: String = resolve.to_string().chars().filter(|c| !c.is_whitespace()).collect();
 
     assert_eq!(cleaned_ast_answer, cleaned_resolve);
 }

@@ -21,30 +21,18 @@ fn get_bytecodes_from_method(class_txt: &str, method_name: &str) -> Vec<Bytecode
 
     let method_name_interned = universe.intern_symbol(method_name);
 
-    let mut lexer = Lexer::new(class_txt)
-        .skip_comments(true)
-        .skip_whitespace(true);
+    let mut lexer = Lexer::new(class_txt).skip_comments(true).skip_whitespace(true);
     let tokens: Vec<Token> = lexer.by_ref().collect();
-    assert!(
-        lexer.text().is_empty(),
-        "could not fully tokenize test expression"
-    );
+    assert!(lexer.text().is_empty(), "could not fully tokenize test expression");
 
     let class_def = som_parser::apply(lang::class_def(), tokens.as_slice()).unwrap();
 
     let object_class = universe.object_class();
-    let class = compiler::compile_class(
-        &mut universe.interner,
-        &class_def,
-        Some(&object_class),
-        &mut universe.gc_interface,
-    );
+    let class = compiler::compile_class(&mut universe.interner, &class_def, Some(&object_class), &mut universe.gc_interface);
     assert!(class.is_some(), "could not compile test expression");
 
     let class = class.unwrap();
-    let method = class
-        .lookup_method(method_name_interned)
-        .expect("method not found ??");
+    let method = class.lookup_method(method_name_interned).expect("method not found ??");
 
     match &method.kind {
         MethodKind::Defined(m) => m.body.clone(),
@@ -53,9 +41,7 @@ fn get_bytecodes_from_method(class_txt: &str, method_name: &str) -> Vec<Bytecode
 }
 
 fn expect_bytecode_sequence(bytecodes: &Vec<Bytecode>, expected_bc_sequence: &[Bytecode]) {
-    assert!(bytecodes
-        .windows(expected_bc_sequence.len())
-        .any(|window| window == expected_bc_sequence))
+    assert!(bytecodes.windows(expected_bc_sequence.len()).any(|window| window == expected_bc_sequence))
 }
 
 #[test]
@@ -196,14 +182,7 @@ fn or_and_inlining_ok() {
     let bytecodes = get_bytecodes_from_method(class_txt, "run");
     expect_bytecode_sequence(
         &bytecodes,
-        &[
-            PushGlobal(0),
-            JumpOnTruePop(3),
-            PushGlobal(1),
-            Jump(2),
-            PushGlobal(0),
-            ReturnLocal,
-        ],
+        &[PushGlobal(0), JumpOnTruePop(3), PushGlobal(1), Jump(2), PushGlobal(0), ReturnLocal],
     );
 
     let class_txt2 = "Foo = ( run = (
@@ -214,14 +193,7 @@ fn or_and_inlining_ok() {
     let bytecodes = get_bytecodes_from_method(class_txt2, "run");
     expect_bytecode_sequence(
         &bytecodes,
-        &[
-            PushGlobal(0),
-            JumpOnFalsePop(3),
-            PushGlobal(1),
-            Jump(2),
-            PushGlobal(1),
-            ReturnLocal,
-        ],
+        &[PushGlobal(0), JumpOnFalsePop(3), PushGlobal(1), Jump(2), PushGlobal(1), ReturnLocal],
     );
 }
 
@@ -239,14 +211,7 @@ fn or_and_no_block_inlining_ok() {
     dbg!(&bytecodes);
     expect_bytecode_sequence(
         &bytecodes,
-        &[
-            PushGlobal(0),
-            JumpOnTruePop(3),
-            PushGlobal(1),
-            Jump(2),
-            PushGlobal(0),
-            ReturnLocal,
-        ],
+        &[PushGlobal(0), JumpOnTruePop(3), PushGlobal(1), Jump(2), PushGlobal(0), ReturnLocal],
     );
 }
 

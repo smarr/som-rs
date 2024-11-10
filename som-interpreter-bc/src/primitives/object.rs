@@ -21,16 +21,8 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> 
         ("objectSize", self::object_size.into_func(), true),
         ("hashcode", self::hashcode.into_func(), true),
         ("perform:", self::perform.into_func(), true),
-        (
-            "perform:withArguments:",
-            self::perform_with_arguments.into_func(),
-            true,
-        ),
-        (
-            "perform:inSuperclass:",
-            self::perform_in_super_class.into_func(),
-            true,
-        ),
+        ("perform:withArguments:", self::perform_with_arguments.into_func(), true),
+        ("perform:inSuperclass:", self::perform_in_super_class.into_func(), true),
         (
             "perform:withArguments:inSuperclass:",
             self::perform_with_arguments_in_super_class.into_func(),
@@ -41,14 +33,9 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> 
         ("==", self::eq.into_func(), true),
     ])
 });
-pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> =
-    Lazy::new(|| Box::new([]));
+pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| Box::new([]));
 
-fn class(
-    _: &mut Interpreter,
-    universe: &mut Universe,
-    receiver: Value,
-) -> Result<GCRef<Class>, Error> {
+fn class(_: &mut Interpreter, universe: &mut Universe, receiver: Value) -> Result<GCRef<Class>, Error> {
     Ok(receiver.class(universe))
 }
 
@@ -71,12 +58,7 @@ fn eq(_: &mut Interpreter, _: &mut Universe, receiver: Value, other: Value) -> R
     Ok(receiver == other)
 }
 
-fn perform(
-    interpreter: &mut Interpreter,
-    universe: &mut Universe,
-    receiver: Value,
-    signature: Interned,
-) -> Result<(), Error> {
+fn perform(interpreter: &mut Interpreter, universe: &mut Universe, receiver: Value, signature: Interned) -> Result<(), Error> {
     const SIGNATURE: &str = "Object>>#perform:";
 
     let Some(invokable) = receiver.lookup_method(universe, signature) else {
@@ -84,12 +66,7 @@ fn perform(
         let args = vec![receiver.clone()];
         return universe
             .does_not_understand(interpreter, receiver.clone(), signature, args)
-            .with_context(|| {
-                format!(
-                    "`{SIGNATURE}`: method `{signature_str}` not found for `{}`",
-                    receiver.to_string(universe),
-                )
-            });
+            .with_context(|| format!("`{SIGNATURE}`: method `{signature_str}` not found for `{}`", receiver.to_string(universe),));
     };
 
     invokable.invoke(interpreter, universe, receiver, vec![]);
@@ -107,17 +84,10 @@ fn perform_with_arguments(
 
     let Some(invokable) = receiver.lookup_method(universe, signature) else {
         let signature_str = universe.lookup_symbol(signature).to_owned();
-        let args = std::iter::once(receiver.clone())
-            .chain(arguments.0.clone())
-            .collect(); // lame clone
+        let args = std::iter::once(receiver.clone()).chain(arguments.0.clone()).collect(); // lame clone
         return universe
             .does_not_understand(interpreter, receiver.clone(), signature, args)
-            .with_context(|| {
-                format!(
-                    "`{SIGNATURE}`: method `{signature_str}` not found for `{}`",
-                    receiver.to_string(universe)
-                )
-            });
+            .with_context(|| format!("`{SIGNATURE}`: method `{signature_str}` not found for `{}`", receiver.to_string(universe)));
     };
 
     invokable.invoke(interpreter, universe, receiver, arguments.0.clone());
@@ -138,12 +108,7 @@ fn perform_in_super_class(
         let args = vec![receiver.clone()];
         return universe
             .does_not_understand(interpreter, Value::Class(class), signature, args)
-            .with_context(|| {
-                format!(
-                    "`{SIGNATURE}`: method `{signature_str}` not found for `{}`",
-                    receiver.to_string(universe)
-                )
-            });
+            .with_context(|| format!("`{SIGNATURE}`: method `{signature_str}` not found for `{}`", receiver.to_string(universe)));
     };
 
     invokable.invoke(interpreter, universe, receiver, vec![]);
@@ -164,29 +129,17 @@ fn perform_with_arguments_in_super_class(
 
     let Some(invokable) = method else {
         let signature_str = universe.lookup_symbol(signature).to_owned();
-        let args = std::iter::once(receiver.clone())
-            .chain(arguments.0.clone())
-            .collect(); // lame to clone args, right?
+        let args = std::iter::once(receiver.clone()).chain(arguments.0.clone()).collect(); // lame to clone args, right?
         return universe
             .does_not_understand(interpreter, Value::Class(class), signature, args)
-            .with_context(|| {
-                format!(
-                    "`{SIGNATURE}`: method `{signature_str}` not found for `{}`",
-                    receiver.to_string(universe)
-                )
-            });
+            .with_context(|| format!("`{SIGNATURE}`: method `{signature_str}` not found for `{}`", receiver.to_string(universe)));
     };
 
     invokable.invoke(interpreter, universe, receiver, arguments.0.clone());
     Ok(())
 }
 
-fn inst_var_at(
-    _: &mut Interpreter,
-    _: &mut Universe,
-    receiver: Value,
-    index: i32,
-) -> Result<Option<Value>, Error> {
+fn inst_var_at(_: &mut Interpreter, _: &mut Universe, receiver: Value, index: i32) -> Result<Option<Value>, Error> {
     // expect_args!(SIGNATURE, interpreter, [
     //     object => object,
     //     Value::Integer(index) => index,
@@ -211,13 +164,7 @@ fn inst_var_at(
     Ok(Some(receiver.lookup_local(index)))
 }
 
-fn inst_var_at_put(
-    _: &mut Interpreter,
-    _: &mut Universe,
-    mut receiver: Value,
-    index: i32,
-    value: Value,
-) -> Result<Option<Value>, Error> {
+fn inst_var_at_put(_: &mut Interpreter, _: &mut Universe, mut receiver: Value, index: i32, value: Value) -> Result<Option<Value>, Error> {
     const _: &'static str = "Object>>#instVarAt:put:";
 
     let index = usize::try_from(index.saturating_sub(1))?;
@@ -229,16 +176,10 @@ fn inst_var_at_put(
 
 /// Search for an instance primitive matching the given signature.
 pub fn get_instance_primitive(signature: &str) -> Option<&'static PrimitiveFn> {
-    INSTANCE_PRIMITIVES
-        .iter()
-        .find(|it| it.0 == signature)
-        .map(|it| it.1)
+    INSTANCE_PRIMITIVES.iter().find(|it| it.0 == signature).map(|it| it.1)
 }
 
 /// Search for a class primitive matching the given signature.
 pub fn get_class_primitive(signature: &str) -> Option<&'static PrimitiveFn> {
-    CLASS_PRIMITIVES
-        .iter()
-        .find(|it| it.0 == signature)
-        .map(|it| it.1)
+    CLASS_PRIMITIVES.iter().find(|it| it.0 == signature).map(|it| it.1)
 }

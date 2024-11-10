@@ -14,15 +14,21 @@ impl Collection<SOMVM> for VMCollection {
     where
         F: FnMut(&'static mut Mutator<SOMVM>),
     {
-        unsafe { (**(MUTATOR_WRAPPER.get_mut().unwrap())).stop_all_mutators(mutator_visitor); }
+        unsafe {
+            (**(MUTATOR_WRAPPER.get_mut().unwrap())).stop_all_mutators(mutator_visitor);
+        }
     }
 
     fn resume_mutators(_tls: VMWorkerThread) {
-        unsafe { (**(MUTATOR_WRAPPER.get_mut().unwrap())).resume_mutators(); }
+        unsafe {
+            (**(MUTATOR_WRAPPER.get_mut().unwrap())).resume_mutators();
+        }
     }
 
     fn block_for_gc(tls: VMMutatorThread) {
-        unsafe { (**(MUTATOR_WRAPPER.get_mut().unwrap())).block_for_gc(tls); }
+        unsafe {
+            (**(MUTATOR_WRAPPER.get_mut().unwrap())).block_for_gc(tls);
+        }
     }
 
     fn spawn_gc_thread(_tls: VMThread, ctx: GCThreadContext<SOMVM>) {
@@ -37,9 +43,7 @@ impl Collection<SOMVM> for VMCollection {
             // let worker_tls = VMWorkerThread(VMThread(OpaquePointer::UNINITIALIZED));
 
             match ctx {
-                GCThreadContext::Worker(w) => {
-                    mmtk::memory_manager::start_worker::<SOMVM>(mmtk(), worker_tls, w)
-                }
+                GCThreadContext::Worker(w) => mmtk::memory_manager::start_worker::<SOMVM>(mmtk(), worker_tls, w),
             }
         });
     }

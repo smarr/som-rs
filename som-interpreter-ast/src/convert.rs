@@ -1,5 +1,5 @@
 // This is all Nicolas Polomack (https://github.com/Hirevo)'s work, despite what the commit history says.
-// Nicolas is the original dev for som-rs, and had this code in an unmerged PR about Nan boxing. 
+// Nicolas is the original dev for som-rs, and had this code in an unmerged PR about Nan boxing.
 // I didn't merge with his commits directly because his version of som-rs and mine have diverged a lot. But the credit is his, my edits are minor so far
 
 use std::convert::TryFrom;
@@ -40,10 +40,7 @@ impl TryFrom<Value> for Nil {
 }
 
 impl FromArgs for Nil {
-    fn from_args(
-        arg: Value,
-        _: &mut Universe,
-    ) -> Result<Self, Error> {
+    fn from_args(arg: Value, _: &mut Universe) -> Result<Self, Error> {
         Self::try_from(arg)
     }
 }
@@ -64,10 +61,7 @@ impl TryFrom<Value> for System {
 }
 
 impl FromArgs for System {
-    fn from_args(
-        arg: Value,
-        _: &mut Universe,
-    ) -> Result<Self, Error> {
+    fn from_args(arg: Value, _: &mut Universe) -> Result<Self, Error> {
         Self::try_from(arg)
     }
 }
@@ -91,10 +85,7 @@ impl TryFrom<Value> for StringLike {
 }
 
 impl FromArgs for StringLike {
-    fn from_args(
-        arg: Value,
-        _: &mut Universe,
-    ) -> Result<Self, Error> {
+    fn from_args(arg: Value, _: &mut Universe) -> Result<Self, Error> {
         Self::try_from(arg)
     }
 }
@@ -120,10 +111,7 @@ impl TryFrom<Value> for DoubleLike {
 }
 
 impl FromArgs for DoubleLike {
-    fn from_args(
-        arg: Value,
-        _: &mut Universe,
-    ) -> Result<Self, Error> {
+    fn from_args(arg: Value, _: &mut Universe) -> Result<Self, Error> {
         Self::try_from(arg)
     }
 }
@@ -147,125 +135,83 @@ impl TryFrom<Value> for IntegerLike {
 }
 
 impl FromArgs for IntegerLike {
-    fn from_args(
-        arg: Value,
-        _: &mut Universe,
-    ) -> Result<Self, Error> {
+    fn from_args(arg: Value, _: &mut Universe) -> Result<Self, Error> {
         Self::try_from(arg)
     }
 }
 
 pub trait FromArgs: Sized {
-    fn from_args(
-        arg: Value,
-        universe: &mut Universe,
-    ) -> Result<Self, Error>;
+    fn from_args(arg: Value, universe: &mut Universe) -> Result<Self, Error>;
 }
 
 impl FromArgs for Value {
-    fn from_args(
-        arg: Value,
-        _: &mut Universe,
-    ) -> Result<Self, Error> {
+    fn from_args(arg: Value, _: &mut Universe) -> Result<Self, Error> {
         Ok(arg)
     }
 }
 
 impl FromArgs for bool {
-    fn from_args(
-        arg: Value,
-        _: &mut Universe,
-    ) -> Result<Self, Error> {
+    fn from_args(arg: Value, _: &mut Universe) -> Result<Self, Error> {
         arg.as_boolean().context("could not resolve `Value` as `Boolean`")
     }
 }
 
 impl FromArgs for i32 {
-    fn from_args(
-        arg: Value,
-        _: &mut Universe,
-    ) -> Result<Self, Error> {
+    fn from_args(arg: Value, _: &mut Universe) -> Result<Self, Error> {
         arg.as_integer().context("could not resolve `Value` as `Integer`")
     }
 }
 
 impl FromArgs for f64 {
-    fn from_args(
-        arg: Value,
-        _: &mut Universe,
-    ) -> Result<Self, Error> {
+    fn from_args(arg: Value, _: &mut Universe) -> Result<Self, Error> {
         arg.as_double().context("could not resolve `Value` as `Double`")
     }
 }
 
 impl FromArgs for Interned {
-    fn from_args(
-        arg: Value,
-        _: &mut Universe,
-    ) -> Result<Self, Error> {
+    fn from_args(arg: Value, _: &mut Universe) -> Result<Self, Error> {
         arg.as_symbol().context("could not resolve `Value` as `Symbol`")
     }
 }
 
 impl FromArgs for GCRef<String> {
-    fn from_args(
-        arg: Value,
-        _: &mut Universe,
-    ) -> Result<Self, Error> {
+    fn from_args(arg: Value, _: &mut Universe) -> Result<Self, Error> {
         arg.as_string().context("could not resolve `Value` as `String`")
     }
 }
 
 impl FromArgs for GCRef<VecValue> {
-    fn from_args(
-        arg: Value,
-        _: &mut Universe,
-    ) -> Result<Self, Error> {
+    fn from_args(arg: Value, _: &mut Universe) -> Result<Self, Error> {
         arg.as_array().context("could not resolve `Value` as `Array`")
     }
 }
 
 impl FromArgs for GCRef<Class> {
-    fn from_args(
-        arg: Value,
-        _: &mut Universe,
-    ) -> Result<Self, Error> {
+    fn from_args(arg: Value, _: &mut Universe) -> Result<Self, Error> {
         arg.as_class().context("could not resolve `Value` as `Class`")
     }
 }
 
 impl FromArgs for GCRef<Instance> {
-    fn from_args(
-        arg: Value,
-        _: &mut Universe,
-    ) -> Result<Self, Error> {
+    fn from_args(arg: Value, _: &mut Universe) -> Result<Self, Error> {
         arg.as_instance().context("could not resolve `Value` as `Instance`")
     }
 }
 
 impl FromArgs for GCRef<Block> {
-    fn from_args(
-        arg: Value,
-        _: &mut Universe,
-    ) -> Result<Self, Error> {
+    fn from_args(arg: Value, _: &mut Universe) -> Result<Self, Error> {
         arg.as_block().context("could not resolve `Value` as `Block`")
     }
 }
 
 impl FromArgs for GCRef<Method> {
-    fn from_args(
-        arg: Value,
-        _: &mut Universe,
-    ) -> Result<Self, Error> {
+    fn from_args(arg: Value, _: &mut Universe) -> Result<Self, Error> {
         arg.as_invokable().context("could not resolve `Value` as `Method`")
     }
 }
 
 impl FromArgs for Return {
-    fn from_args(
-        val: Value,
-        _: &mut Universe,
-    ) -> Result<Self, Error> {
+    fn from_args(val: Value, _: &mut Universe) -> Result<Self, Error> {
         Ok(Return::Local(val))
     }
 }
@@ -337,18 +283,10 @@ impl IntoValue for GCRef<Method> {
 }
 
 pub trait Primitive<T>: Sized + Send + Sync + 'static {
-    fn invoke(
-        &self,
-        universe: &mut Universe,
-        args: Vec<Value>,
-    ) -> Return;
+    fn invoke(&self, universe: &mut Universe, args: Vec<Value>) -> Return;
 
     fn into_func(self) -> &'static PrimitiveFn {
-        let boxed = Box::new(
-            move |universe: &mut Universe, args: Vec<Value>| {
-                self.invoke(universe, args)
-            },
-        );
+        let boxed = Box::new(move |universe: &mut Universe, args: Vec<Value>| self.invoke(universe, args));
         Box::leak(boxed)
     }
 }
@@ -367,7 +305,7 @@ macro_rules! derive_stuff {
                     #[allow(non_snake_case)]
                     let $ty = $ty::from_args(args_iter.next().unwrap().clone(), universe).unwrap();
                 )*
-                
+
                 let result = (self)(universe, $($ty),*,).unwrap();
                 result.into_return(&mut universe.gc_interface)
             }
@@ -390,7 +328,6 @@ impl IntoReturn for Return {
         self
     }
 }
-
 
 impl IntoValue for Value {
     fn into_value(&self, _: &mut GCInterface) -> Value {

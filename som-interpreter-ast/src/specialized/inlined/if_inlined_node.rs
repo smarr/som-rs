@@ -1,17 +1,17 @@
-use std::fmt::{Display, Formatter};
-use std::fmt::Write;
-use indenter::indented;
 use crate::ast::{AstBody, AstExpression};
 use crate::evaluate::Evaluate;
 use crate::invokable::Return;
 use crate::universe::Universe;
 use crate::value::Value;
+use indenter::indented;
+use std::fmt::Write;
+use std::fmt::{Display, Formatter};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct IfInlinedNode {
     pub expected_bool: bool,
     pub cond_expr: AstExpression,
-    pub body_instrs: AstBody
+    pub body_instrs: AstBody,
 }
 
 impl Display for IfInlinedNode {
@@ -32,6 +32,6 @@ impl Evaluate for IfInlinedNode {
             self.body_instrs.evaluate(universe)
         } else {
             Return::Local(Value::NIL)
-        } 
+        }
     }
 }

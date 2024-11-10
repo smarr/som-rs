@@ -1,18 +1,18 @@
-use std::convert::TryInto;
-use std::fmt;
-use std::fmt::{Debug, Formatter};
 use crate::block::Block;
 use crate::class::Class;
 use crate::gc::VecValue;
 use crate::instance::{Instance, InstanceAccess};
 use crate::method::Method;
 use crate::universe::Universe;
-use som_core::interner::Interned;
-use som_core::value::{CELL_BASE_TAG, NIL_TAG, SYSTEM_TAG, STRING_TAG, INTEGER_TAG, BOOLEAN_TAG, BIG_INTEGER_TAG, SYMBOL_TAG};
-use som_core::value::{CANON_NAN_BITS, IS_PTR_PATTERN, TAG_SHIFT, TAG_EXTRACTION};
 use num_bigint::BigInt;
+use som_core::interner::Interned;
 use som_core::nan_boxed_val_base_impl;
+use som_core::value::{BIG_INTEGER_TAG, BOOLEAN_TAG, CELL_BASE_TAG, INTEGER_TAG, NIL_TAG, STRING_TAG, SYMBOL_TAG, SYSTEM_TAG};
+use som_core::value::{CANON_NAN_BITS, IS_PTR_PATTERN, TAG_EXTRACTION, TAG_SHIFT};
 use som_gc::gcref::GCRef;
+use std::convert::TryInto;
+use std::fmt;
+use std::fmt::{Debug, Formatter};
 
 pub type Value = BCNaNBoxedVal;
 
@@ -208,13 +208,7 @@ impl BCNaNBoxedVal {
             STRING_TAG => self.as_string().unwrap().to_string(),
             ARRAY_TAG => {
                 // TODO: I think we can do better here (less allocations).
-                let strings: Vec<String> = self
-                    .as_array()
-                    .unwrap()
-                    .0
-                    .iter()
-                    .map(|value| value.to_string(universe))
-                    .collect();
+                let strings: Vec<String> = self.as_array().unwrap().0.iter().map(|value| value.to_string(universe)).collect();
                 format!("#({})", strings.join(" "))
             }
             BLOCK_TAG => {
@@ -235,7 +229,6 @@ impl BCNaNBoxedVal {
             }
         }
     }
-
 }
 
 // for backwards compatibility with current code... and maybe easy replacement with ValueEnum?
@@ -320,7 +313,9 @@ impl From<ValueEnum> for BCNaNBoxedVal {
             ValueEnum::Double(value) => Self::new_double(value),
             ValueEnum::Symbol(value) => Self::new_symbol(value),
             ValueEnum::String(value) => Self::new_string(value),
-            ValueEnum::Array(_value) => unimplemented!("no impl for arr. would need mutator to be passed as an argument to create a new GCRef. not hard, but we'd ditch the From trait"),
+            ValueEnum::Array(_value) => unimplemented!(
+                "no impl for arr. would need mutator to be passed as an argument to create a new GCRef. not hard, but we'd ditch the From trait"
+            ),
             ValueEnum::Block(value) => Self::new_block(value),
             ValueEnum::Instance(value) => Self::new_instance(value),
             ValueEnum::Class(value) => Self::new_class(value),
@@ -426,10 +421,7 @@ impl ValueEnum {
             Self::String(value) => value.as_str().to_string(),
             Self::Array(values) => {
                 // TODO (from nicolas): I think we can do better here (less allocations).
-                let strings: Vec<String> = values
-                    .iter()
-                    .map(|value| value.to_string(universe))
-                    .collect();
+                let strings: Vec<String> = values.iter().map(|value| value.to_string(universe)).collect();
                 format!("#({})", strings.join(" "))
             }
             Self::Block(block) => format!("instance of Block{}", block.nb_parameters() + 1),
@@ -450,9 +442,7 @@ impl PartialEq for ValueEnum {
             (Self::Nil, Self::Nil) | (Self::System, Self::System) => true,
             (Self::Boolean(a), Self::Boolean(b)) => a.eq(b),
             (Self::Integer(a), Self::Integer(b)) => a.eq(b),
-            (Self::Integer(a), Self::Double(b)) | (Self::Double(b), Self::Integer(a)) => {
-                (*a as f64).eq(b)
-            }
+            (Self::Integer(a), Self::Double(b)) | (Self::Double(b), Self::Integer(a)) => (*a as f64).eq(b),
             (Self::Double(a), Self::Double(b)) => a.eq(b),
             (Self::BigInteger(a), Self::BigInteger(b)) => a.eq(b),
             (Self::BigInteger(a), Self::Integer(b)) | (Self::Integer(b), Self::BigInteger(a)) => {

@@ -13,6 +13,7 @@ use crate::class::Class;
 use crate::inliner::PrimMessageInliner;
 use crate::method::{Method, MethodEnv, MethodKind};
 use crate::primitives;
+use crate::primitives::UNIMPLEM_PRIMITIVE;
 use crate::value::Value;
 use som_core::ast;
 #[cfg(feature = "frame-debug-info")]
@@ -22,7 +23,6 @@ use som_core::bytecode::Bytecode;
 use som_core::interner::{Interned, Interner};
 use som_gc::gc_interface::GCInterface;
 use som_gc::gcref::GCRef;
-use crate::primitives::UNIMPLEM_PRIMITIVE;
 
 #[derive(Debug, Clone)]
 pub enum Literal {
@@ -225,27 +225,21 @@ impl InnerGenCtxt for BlockGenCtxt<'_> {
 
         for (idx, bytecode_win) in body.windows(3).enumerate() {
             if matches!(bytecode_win[0], Bytecode::Dup)
-                && matches!(
-                    bytecode_win[1],
-                    Bytecode::PopField(..) | Bytecode::PopLocal(..) | Bytecode::PopArg(..)
-                )
+                && matches!(bytecode_win[1], Bytecode::PopField(..) | Bytecode::PopLocal(..) | Bytecode::PopArg(..))
                 && matches!(bytecode_win[2], Bytecode::Pop)
             {
-                let are_bc_jump_targets =
-                    body.iter()
-                        .enumerate()
-                        .any(|(maybe_jump_idx, bc)| match bc {
-                            Bytecode::Jump(jump_offset)
-                            | Bytecode::JumpOnTrueTopNil(jump_offset)
-                            | Bytecode::JumpOnFalseTopNil(jump_offset)
-                            | Bytecode::JumpOnTruePop(jump_offset)
-                            | Bytecode::JumpOnFalsePop(jump_offset)
-                            | Bytecode::JumpIfGreater(jump_offset) => {
-                                let bc_target_idx = maybe_jump_idx + *jump_offset as usize;
-                                bc_target_idx == idx || bc_target_idx == idx + 2
-                            }
-                            _ => false,
-                        });
+                let are_bc_jump_targets = body.iter().enumerate().any(|(maybe_jump_idx, bc)| match bc {
+                    Bytecode::Jump(jump_offset)
+                    | Bytecode::JumpOnTrueTopNil(jump_offset)
+                    | Bytecode::JumpOnFalseTopNil(jump_offset)
+                    | Bytecode::JumpOnTruePop(jump_offset)
+                    | Bytecode::JumpOnFalsePop(jump_offset)
+                    | Bytecode::JumpIfGreater(jump_offset) => {
+                        let bc_target_idx = maybe_jump_idx + *jump_offset as usize;
+                        bc_target_idx == idx || bc_target_idx == idx + 2
+                    }
+                    _ => false,
+                });
 
                 if are_bc_jump_targets {
                     continue;
@@ -290,18 +284,12 @@ impl InnerGenCtxt for BlockGenCtxt<'_> {
                         // continue;
                     }
 
-                    let nbr_to_adjust = indices_to_remove
-                        .iter()
-                        .filter(|&&idx| cur_idx < idx && idx <= cur_idx + jump_offset)
-                        .count();
+                    let nbr_to_adjust = indices_to_remove.iter().filter(|&&idx| cur_idx < idx && idx <= cur_idx + jump_offset).count();
                     jumps_to_patch.push((cur_idx, (jump_offset - nbr_to_adjust) as u16));
                 }
                 Bytecode::JumpBackward(jump_offset) => {
                     let jump_offset = *jump_offset as usize;
-                    let nbr_to_adjust = indices_to_remove
-                        .iter()
-                        .filter(|&&idx| cur_idx > idx && idx > cur_idx - jump_offset)
-                        .count();
+                    let nbr_to_adjust = indices_to_remove.iter().filter(|&&idx| cur_idx > idx && idx > cur_idx - jump_offset).count();
                     jumps_to_patch.push((cur_idx, (jump_offset - nbr_to_adjust) as u16));
                     // It's impossible for a JumpBackward to be generated to point to a duplicated dup/pop/pox sequence, as it stands, and as far as I know.
                 }
@@ -464,17 +452,12 @@ impl MethodCodegen for ast::Expression {
 
                 Some(())
             }
-            ast::Expression::LocalVarWrite(_, expr)
-            | ast::Expression::NonLocalVarWrite(_, _, expr) => {
+            ast::Expression::LocalVarWrite(_, expr) | ast::Expression::NonLocalVarWrite(_, _, expr) => {
                 expr.codegen(ctxt, mutator)?;
                 ctxt.push_instr(Bytecode::Dup);
                 match self {
-                    ast::Expression::LocalVarWrite(idx, _) => {
-                        ctxt.push_instr(Bytecode::PopLocal(0, *idx as u8))
-                    }
-                    ast::Expression::NonLocalVarWrite(up_idx, idx, _) => {
-                        ctxt.push_instr(Bytecode::PopLocal(*up_idx as u8, *idx as u8))
-                    }
+                    ast::Expression::LocalVarWrite(idx, _) => ctxt.push_instr(Bytecode::PopLocal(0, *idx as u8)),
+                    ast::Expression::NonLocalVarWrite(up_idx, idx, _) => ctxt.push_instr(Bytecode::PopLocal(*up_idx as u8, *idx as u8)),
                     _ => unreachable!(),
                 }
                 Some(())
@@ -486,10 +469,7 @@ impl MethodCodegen for ast::Expression {
                     ctxt.push_instr(Bytecode::PopField(idx as u8));
                     Some(())
                 }
-                None => panic!(
-                    "couldn't resolve a globalwrite (`{}`) to a field write",
-                    name
-                ),
+                None => panic!("couldn't resolve a globalwrite (`{}`) to a field write", name),
             },
             ast::Expression::ArgWrite(up_idx, idx, expr) => {
                 expr.codegen(ctxt, mutator)?;
@@ -523,10 +503,7 @@ impl MethodCodegen for ast::Expression {
                     return Some(());
                 }
 
-                message
-                    .values
-                    .iter()
-                    .try_for_each(|value| value.codegen(ctxt, mutator))?;
+                message.values.iter().try_for_each(|value| value.codegen(ctxt, mutator))?;
 
                 let nb_params = match message.signature.chars().nth(0) {
                     Some(ch) if !ch.is_alphabetic() => 1,
@@ -571,15 +548,9 @@ impl MethodCodegen for ast::Expression {
                 Some(())
             }
             ast::Expression::Literal(literal) => {
-                fn convert_literal(
-                    ctxt: &mut dyn InnerGenCtxt,
-                    literal: &ast::Literal,
-                    gc_interface: &mut GCInterface,
-                ) -> Literal {
+                fn convert_literal(ctxt: &mut dyn InnerGenCtxt, literal: &ast::Literal, gc_interface: &mut GCInterface) -> Literal {
                     match literal {
-                        ast::Literal::Symbol(val) => {
-                            Literal::Symbol(ctxt.intern_symbol(val.as_str()))
-                        }
+                        ast::Literal::Symbol(val) => Literal::Symbol(ctxt.intern_symbol(val.as_str())),
                         ast::Literal::String(val) => {
                             // TODO: this whole bit is to avoid redundant literals. previous logic broke with strings being put on the GC heap. is it indicative of a deeper issue with redundant strings?
                             // it feels a bit bandaid-ey, since I'm not sure where the bug came from exactly.
@@ -590,11 +561,7 @@ impl MethodCodegen for ast::Expression {
                                 let lit = ctxt.get_literal(i);
                                 match lit {
                                     None => break Literal::String(gc_interface.alloc(val.clone())), // reached end of literals and no duplicate, we alloc
-                                    Some(str_lit @ Literal::String(str_ptr))
-                                        if **str_ptr == *val =>
-                                    {
-                                        break str_lit.clone()
-                                    }
+                                    Some(str_lit @ Literal::String(str_ptr)) if **str_ptr == *val => break str_lit.clone(),
                                     _ => {}
                                 }
                                 i += 1;
@@ -606,9 +573,7 @@ impl MethodCodegen for ast::Expression {
                             // this is to handle a weird corner case where "-2147483648" is considered to be a bigint by the lexer and then parser, when it's in fact just barely in i32 range
                             match big_int_str.parse::<i32>() {
                                 Ok(x) => Literal::Integer(x),
-                                _ => Literal::BigInteger(
-                                    gc_interface.alloc(BigInt::from_str(big_int_str).unwrap()),
-                                ),
+                                _ => Literal::BigInteger(gc_interface.alloc(BigInt::from_str(big_int_str).unwrap())),
                             }
                         }
                         ast::Literal::Array(val) => {
@@ -675,9 +640,7 @@ impl GenCtxt for ClassGenCtxt<'_> {
     }
 
     fn find_field(&mut self, name: &str) -> Option<usize> {
-        self.fields
-            .iter()
-            .position(|f_int| self.interner.lookup(*f_int) == name)
+        self.fields.iter().position(|f_int| self.interner.lookup(*f_int) == name)
     }
 
     fn class_name(&self) -> &str {
@@ -685,11 +648,7 @@ impl GenCtxt for ClassGenCtxt<'_> {
     }
 }
 
-fn compile_method(
-    outer: &mut dyn GenCtxt,
-    defn: &ast::MethodDef,
-    mutator: &mut GCInterface,
-) -> Option<Method> {
+fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::MethodDef, mutator: &mut GCInterface) -> Option<Method> {
     /// Only add a ReturnSelf at the end of a method if needed: i.e. there's no existing return, and if there is, that it can't be jumped over.
     fn should_add_return_self(ctxt: &mut MethodGenCtxt, body: &ast::Body) -> bool {
         if body.exprs.is_empty() {
@@ -699,25 +658,18 @@ fn compile_method(
         // going back two BC to skip the POP added after each expr.codegen(...).
         match ctxt.get_instructions().iter().nth_back(1) {
             // if the last BC is a return, we check whether it can be skipped over. if so, we add a ReturnSelf
-            Some(Bytecode::ReturnLocal)
-            | Some(Bytecode::ReturnNonLocal(_))
-            | Some(Bytecode::ReturnSelf) => {
+            Some(Bytecode::ReturnLocal) | Some(Bytecode::ReturnNonLocal(_)) | Some(Bytecode::ReturnSelf) => {
                 let idx_of_pop_before_potential_return_self = ctxt.get_instructions().len() - 1;
 
-                ctxt.get_instructions()
-                    .iter()
-                    .enumerate()
-                    .any(|(bc_idx, bc)| match bc {
-                        Bytecode::Jump(jump_idx)
-                        | Bytecode::JumpOnTrueTopNil(jump_idx)
-                        | Bytecode::JumpOnFalseTopNil(jump_idx)
-                        | Bytecode::JumpOnTruePop(jump_idx)
-                        | Bytecode::JumpOnFalsePop(jump_idx)
-                        | Bytecode::JumpIfGreater(jump_idx) => {
-                            bc_idx + *jump_idx as usize >= idx_of_pop_before_potential_return_self
-                        }
-                        _ => false,
-                    })
+                ctxt.get_instructions().iter().enumerate().any(|(bc_idx, bc)| match bc {
+                    Bytecode::Jump(jump_idx)
+                    | Bytecode::JumpOnTrueTopNil(jump_idx)
+                    | Bytecode::JumpOnFalseTopNil(jump_idx)
+                    | Bytecode::JumpOnTruePop(jump_idx)
+                    | Bytecode::JumpOnFalsePop(jump_idx)
+                    | Bytecode::JumpIfGreater(jump_idx) => bc_idx + *jump_idx as usize >= idx_of_pop_before_potential_return_self,
+                    _ => false,
+                })
             }
             _ => true,
         }
@@ -746,8 +698,7 @@ fn compile_method(
             },
             args_nbr: {
                 match defn.signature.chars().next().unwrap() {
-                    '~' | '&' | '|' | '*' | '/' | '\\' | '+' | '=' | '>' | '<' | ',' | '@'
-                    | '%' | '-' => 2,
+                    '~' | '&' | '|' | '*' | '/' | '\\' | '+' | '=' | '>' | '<' | ',' | '@' | '%' | '-' => 2,
                     _ => defn.signature.chars().filter(|c| *c == ':').count(),
                 }
             },
@@ -828,11 +779,7 @@ fn compile_method(
     Some(method)
 }
 
-fn compile_block(
-    outer: &mut dyn GenCtxt,
-    defn: &ast::Block,
-    gc_interface: &mut GCInterface,
-) -> Option<Block> {
+fn compile_block(outer: &mut dyn GenCtxt, defn: &ast::Block, gc_interface: &mut GCInterface) -> Option<Block> {
     // println!("(system) compiling block ...");
 
     let mut ctxt = BlockGenCtxt {
@@ -963,11 +910,7 @@ pub fn compile_class(
 ) -> Option<GCRef<Class>> {
     let mut locals = IndexSet::new();
 
-    fn collect_static_locals(
-        interner: &mut Interner,
-        class: &GCRef<Class>,
-        locals: &mut IndexSet<Interned>,
-    ) {
+    fn collect_static_locals(interner: &mut Interner, class: &GCRef<Class>, locals: &mut IndexSet<Interned>) {
         if let Some(class) = class.super_class() {
             collect_static_locals(interner, &class, locals);
         }
@@ -978,11 +921,7 @@ pub fn compile_class(
         collect_static_locals(interner, &super_class.class(), &mut locals);
     }
 
-    locals.extend(
-        defn.static_locals
-            .iter()
-            .map(|name| interner.intern(name.as_str())),
-    );
+    locals.extend(defn.static_locals.iter().map(|name| interner.intern(name.as_str())));
 
     let mut static_class_ctxt = ClassGenCtxt {
         name: format!("{} class", defn.name),
@@ -1006,19 +945,14 @@ pub fn compile_class(
         let signature = static_class_ctxt.interner.intern(method.signature.as_str());
         let mut method = compile_method(&mut static_class_ctxt, method, gc_interface)?;
         method.holder = static_class_gc_ptr;
-        static_class_ctxt
-            .methods
-            .insert(signature, gc_interface.alloc(method));
+        static_class_ctxt.methods.insert(signature, gc_interface.alloc(method));
     }
 
     if let Some(primitives) = primitives::get_class_primitives(&defn.name) {
         for &(signature, primitive, warning) in primitives {
             let symbol = static_class_ctxt.interner.intern(signature);
             if warning && !static_class_ctxt.methods.contains_key(&symbol) {
-                eprintln!(
-                    "Warning: Primitive '{}' is not in class definition for class '{}'",
-                    signature, defn.name
-                );
+                eprintln!("Warning: Primitive '{}' is not in class definition for class '{}'", signature, defn.name);
             }
 
             let method = Method {
@@ -1027,18 +961,12 @@ pub fn compile_class(
                 holder: static_class_gc_ptr,
             };
             let signature = static_class_ctxt.interner.intern(signature);
-            static_class_ctxt
-                .methods
-                .insert(signature, gc_interface.alloc(method));
+            static_class_ctxt.methods.insert(signature, gc_interface.alloc(method));
         }
     }
 
     let mut static_class_mut = static_class_gc_ptr; // todo couldn't we have done that before
-    static_class_mut.locals = static_class_ctxt
-        .fields
-        .into_iter()
-        .map(|name| (name, Value::NIL))
-        .collect();
+    static_class_mut.locals = static_class_ctxt.fields.into_iter().map(|name| (name, Value::NIL)).collect();
     static_class_mut.methods = static_class_ctxt.methods;
     // drop(static_class_mut);
 
@@ -1048,11 +976,7 @@ pub fn compile_class(
 
     let mut locals = IndexSet::new();
 
-    fn collect_instance_locals(
-        interner: &mut Interner,
-        class: &GCRef<Class>,
-        locals: &mut IndexSet<Interned>,
-    ) {
+    fn collect_instance_locals(interner: &mut Interner, class: &GCRef<Class>, locals: &mut IndexSet<Interned>) {
         if let Some(class) = class.super_class() {
             collect_instance_locals(interner, &class, locals);
         }
@@ -1063,11 +987,7 @@ pub fn compile_class(
         collect_instance_locals(interner, super_class, &mut locals);
     }
 
-    locals.extend(
-        defn.instance_locals
-            .iter()
-            .map(|name| interner.intern(name.as_str())),
-    );
+    locals.extend(defn.instance_locals.iter().map(|name| interner.intern(name.as_str())));
 
     let mut instance_class_ctxt = ClassGenCtxt {
         name: defn.name.clone(),
@@ -1088,24 +1008,17 @@ pub fn compile_class(
     let instance_class_gc_ptr = gc_interface.alloc(instance_class);
 
     for method in &defn.instance_methods {
-        let signature = instance_class_ctxt
-            .interner
-            .intern(method.signature.as_str());
+        let signature = instance_class_ctxt.interner.intern(method.signature.as_str());
         let mut method = compile_method(&mut instance_class_ctxt, method, gc_interface)?;
         method.holder = instance_class_gc_ptr;
-        instance_class_ctxt
-            .methods
-            .insert(signature, gc_interface.alloc(method));
+        instance_class_ctxt.methods.insert(signature, gc_interface.alloc(method));
     }
 
     if let Some(primitives) = primitives::get_instance_primitives(&defn.name) {
         for &(signature, primitive, warning) in primitives {
             let symbol = instance_class_ctxt.interner.intern(signature);
             if warning && !instance_class_ctxt.methods.contains_key(&symbol) {
-                eprintln!(
-                    "Warning: Primitive '{}' is not in class definition for class '{}'",
-                    signature, defn.name
-                );
+                eprintln!("Warning: Primitive '{}' is not in class definition for class '{}'", signature, defn.name);
             }
 
             let method = Method {
@@ -1114,18 +1027,12 @@ pub fn compile_class(
                 holder: instance_class_gc_ptr,
             };
             let signature = instance_class_ctxt.interner.intern(signature);
-            instance_class_ctxt
-                .methods
-                .insert(signature, gc_interface.alloc(method));
+            instance_class_ctxt.methods.insert(signature, gc_interface.alloc(method));
         }
     }
 
     let mut instance_class_mut = instance_class_gc_ptr;
-    instance_class_mut.locals = instance_class_ctxt
-        .fields
-        .into_iter()
-        .map(|name| (name, Value::NIL))
-        .collect();
+    instance_class_mut.locals = instance_class_ctxt.fields.into_iter().map(|name| (name, Value::NIL)).collect();
     instance_class_mut.methods = instance_class_ctxt.methods;
     // drop(instance_class_mut);
 

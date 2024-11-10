@@ -16,8 +16,7 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> 
     ])
 });
 
-pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> =
-    Lazy::new(|| Box::new([("new:", self::new.into_func(), true)]));
+pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| Box::new([("new:", self::new.into_func(), true)]));
 
 fn at(_: &mut Universe, values: GCRef<VecValue>, index: i32) -> Result<Value, Error> {
     const SIGNATURE: &str = "Array>>#at:";
@@ -31,12 +30,7 @@ fn at(_: &mut Universe, values: GCRef<VecValue>, index: i32) -> Result<Value, Er
     Ok(value)
 }
 
-fn at_put(
-    _: &mut Universe,
-    mut values: GCRef<VecValue>,
-    index: i32,
-    value: Value,
-) -> Result<Value, Error> {
+fn at_put(_: &mut Universe, mut values: GCRef<VecValue>, index: i32, value: Value) -> Result<Value, Error> {
     const SIGNATURE: &str = "Array>>#at:put:";
 
     let index = match usize::try_from(index - 1) {
@@ -63,27 +57,17 @@ fn new(universe: &mut Universe, _: Value, count: i32) -> Result<Value, Error> {
     const SIGNATURE: &str = "Array>>#new:";
 
     match usize::try_from(count) {
-        Ok(length) => Ok(Value::Array(
-            universe
-                .gc_interface
-                .alloc(VecValue(vec![Value::NIL; length])),
-        )),
+        Ok(length) => Ok(Value::Array(universe.gc_interface.alloc(VecValue(vec![Value::NIL; length])))),
         Err(err) => bail!(format!("'{}': {}", SIGNATURE, err)),
     }
 }
 
 /// Search for an instance primitive matching the given signature.
 pub fn get_instance_primitive(signature: &str) -> Option<&'static PrimitiveFn> {
-    INSTANCE_PRIMITIVES
-        .iter()
-        .find(|it| it.0 == signature)
-        .map(|it| it.1)
+    INSTANCE_PRIMITIVES.iter().find(|it| it.0 == signature).map(|it| it.1)
 }
 
 /// Search for a class primitive matching the given signature.
 pub fn get_class_primitive(signature: &str) -> Option<&'static PrimitiveFn> {
-    CLASS_PRIMITIVES
-        .iter()
-        .find(|it| it.0 == signature)
-        .map(|it| it.1)
+    CLASS_PRIMITIVES.iter().find(|it| it.0 == signature).map(|it| it.1)
 }

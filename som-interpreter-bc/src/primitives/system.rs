@@ -33,15 +33,9 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> 
         ("printStackTrace", self::print_stack_trace.into_func(), true),
     ])
 });
-pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> =
-    Lazy::new(|| Box::new([]));
+pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| Box::new([]));
 
-fn load_file(
-    _: &mut Interpreter,
-    universe: &mut Universe,
-    _: Value,
-    path: StringLike,
-) -> Result<Option<GCRef<String>>, Error> {
+fn load_file(_: &mut Interpreter, universe: &mut Universe, _: Value, path: StringLike) -> Result<Option<GCRef<String>>, Error> {
     const _: &str = "System>>#loadFie:";
 
     let path = match path {
@@ -56,12 +50,7 @@ fn load_file(
     Ok(Some(universe.gc_interface.alloc(value)))
 }
 
-fn print_string(
-    _: &mut Interpreter,
-    universe: &mut Universe,
-    _: Value,
-    string: StringLike,
-) -> Result<System, Error> {
+fn print_string(_: &mut Interpreter, universe: &mut Universe, _: Value, string: StringLike) -> Result<System, Error> {
     const _: &str = "System>>#printString:";
 
     let string = match string {
@@ -83,12 +72,7 @@ fn print_newline(_: &mut Interpreter, _: &mut Universe, _: Value) -> Result<Nil,
     Ok(Nil)
 }
 
-fn error_print(
-    _: &mut Interpreter,
-    universe: &mut Universe,
-    _: Value,
-    string: StringLike,
-) -> Result<System, Error> {
+fn error_print(_: &mut Interpreter, universe: &mut Universe, _: Value, string: StringLike) -> Result<System, Error> {
     const _: &str = "System>>#errorPrint:";
 
     let string = match string {
@@ -102,12 +86,7 @@ fn error_print(
     Ok(System)
 }
 
-fn error_println(
-    _: &mut Interpreter,
-    universe: &mut Universe,
-    _: Value,
-    string: StringLike,
-) -> Result<System, Error> {
+fn error_println(_: &mut Interpreter, universe: &mut Universe, _: Value, string: StringLike) -> Result<System, Error> {
     const _: &str = "System>>#errorPrintln:";
 
     let string = match string {
@@ -120,12 +99,7 @@ fn error_println(
     Ok(System)
 }
 
-fn load(
-    _: &mut Interpreter,
-    universe: &mut Universe,
-    _: Value,
-    class_name: Interned,
-) -> Result<GCRef<Class>, Error> {
+fn load(_: &mut Interpreter, universe: &mut Universe, _: Value, class_name: Interned) -> Result<GCRef<Class>, Error> {
     const _: &str = "System>>#load:";
 
     let class_name = universe.lookup_symbol(class_name).to_string();
@@ -134,35 +108,19 @@ fn load(
     Ok(class)
 }
 
-fn has_global(
-    _: &mut Interpreter,
-    universe: &mut Universe,
-    _: Value,
-    name: Interned,
-) -> Result<bool, Error> {
+fn has_global(_: &mut Interpreter, universe: &mut Universe, _: Value, name: Interned) -> Result<bool, Error> {
     const _: &str = "System>>#hasGlobal:";
 
     Ok(universe.has_global(name))
 }
 
-fn global(
-    _: &mut Interpreter,
-    universe: &mut Universe,
-    _: Value,
-    name: Interned,
-) -> Result<Option<Value>, Error> {
+fn global(_: &mut Interpreter, universe: &mut Universe, _: Value, name: Interned) -> Result<Option<Value>, Error> {
     const _: &str = "System>>#global:";
 
     Ok(universe.lookup_global(name))
 }
 
-fn global_put(
-    _: &mut Interpreter,
-    universe: &mut Universe,
-    _: Value,
-    name: Interned,
-    value: Value,
-) -> Result<Option<Value>, Error> {
+fn global_put(_: &mut Interpreter, universe: &mut Universe, _: Value, name: Interned, value: Value) -> Result<Option<Value>, Error> {
     const _: &str = "System>>#global:put:";
 
     Ok(universe.assign_global(name, value.clone()).map(|_| value))
@@ -196,11 +154,7 @@ fn time(interpreter: &mut Interpreter, _: &mut Universe, _: Value) -> Result<i32
         .with_context(|| format!("`{SIGNATURE}`: could not convert `i128` to `i32`"))
 }
 
-fn print_stack_trace(
-    interpreter: &mut Interpreter,
-    _: &mut Universe,
-    _: Value,
-) -> Result<bool, Error> {
+fn print_stack_trace(interpreter: &mut Interpreter, _: &mut Universe, _: Value) -> Result<bool, Error> {
     const _: &str = "System>>#printStackTrace";
 
     let frame_stack = {
@@ -243,26 +197,19 @@ fn gc_stats(_: &mut Interpreter, universe: &mut Universe, _: Value) -> Result<GC
     let total_gc_time = gc_interface.get_total_gc_time();
     let total_bytes_alloc = gc_interface.get_used_bytes();
 
-    Ok(universe.gc_interface.alloc(VecValue(
-        vec![Value::Integer(total_gc as i32),
-             Value::Integer(total_gc_time as i32),
-             Value::Integer(total_bytes_alloc as i32)
-        ]
-    )))
+    Ok(universe.gc_interface.alloc(VecValue(vec![
+        Value::Integer(total_gc as i32),
+        Value::Integer(total_gc_time as i32),
+        Value::Integer(total_bytes_alloc as i32),
+    ])))
 }
 
 /// Search for an instance primitive matching the given signature.
 pub fn get_instance_primitive(signature: &str) -> Option<&'static PrimitiveFn> {
-    INSTANCE_PRIMITIVES
-        .iter()
-        .find(|it| it.0 == signature)
-        .map(|it| it.1)
+    INSTANCE_PRIMITIVES.iter().find(|it| it.0 == signature).map(|it| it.1)
 }
 
 /// Search for a class primitive matching the given signature.
 pub fn get_class_primitive(signature: &str) -> Option<&'static PrimitiveFn> {
-    CLASS_PRIMITIVES
-        .iter()
-        .find(|it| it.0 == signature)
-        .map(|it| it.1)
+    CLASS_PRIMITIVES.iter().find(|it| it.0 == signature).map(|it| it.1)
 }

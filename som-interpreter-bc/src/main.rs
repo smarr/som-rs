@@ -141,12 +141,7 @@ fn disassemble_class(opts: Options) -> anyhow::Result<()> {
 
     // "Object" special casing needed since `load_class` assumes the class has a superclass and Object doesn't, and I didn't want to change the class loading logic just for the disassembler (tho it's probably fine)
     let class = match file_stem {
-        "Object" => Universe::load_system_class(
-            &mut universe.interner,
-            classpath.as_slice(),
-            "Object",
-            &mut universe.gc_interface,
-        )?,
+        "Object" => Universe::load_system_class(&mut universe.interner, classpath.as_slice(), "Object", &mut universe.gc_interface)?,
         _ => universe.load_class(file_stem)?,
     };
 
@@ -157,18 +152,9 @@ fn disassemble_class(opts: Options) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn dump_class_methods(
-    class: GCRef<Class>,
-    opts: &Options,
-    file_stem: &str,
-    universe: &mut Universe,
-) {
+fn dump_class_methods(class: GCRef<Class>, opts: &Options, file_stem: &str, universe: &mut Universe) {
     let methods: Vec<GCRef<Method>> = if opts.args.is_empty() {
-        class
-            .methods
-            .values()
-            .cloned()
-            .collect::<Vec<GCRef<Method>>>()
+        class.methods.values().cloned().collect::<Vec<GCRef<Method>>>()
     } else {
         opts.args
             .iter()
@@ -201,11 +187,7 @@ fn dump_class_methods(
                 disassemble_method_body(&universe, &class, env);
             }
             MethodKind::Primitive(_) => {
-                println!(
-                    "{class}>>#{signature} (primitive)",
-                    class = file_stem,
-                    signature = method.signature(),
-                );
+                println!("{class}>>#{signature} (primitive)", class = file_stem, signature = method.signature(),);
             }
         }
     }

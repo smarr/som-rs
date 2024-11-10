@@ -18,8 +18,7 @@ impl Profiler {
         let kind = self.profiler.alloc_string(category);
         let id = EventId::from_label(self.profiler.alloc_string(label));
         let thread_id = Self::thread_id_to_u32(current().id());
-        self.profiler
-            .start_recording_interval_event(kind, id, thread_id)
+        self.profiler.start_recording_interval_event(kind, id, thread_id)
     }
 
     /// Start a new detached profiled event.
@@ -27,8 +26,7 @@ impl Profiler {
         let kind = self.profiler.alloc_string(category);
         let id = EventId::from_label(self.profiler.alloc_string(label));
         let thread_id = Self::thread_id_to_u32(current().id());
-        self.profiler
-            .start_recording_interval_event_detached(kind, id, thread_id)
+        self.profiler.start_recording_interval_event_detached(kind, id, thread_id)
     }
 
     /// Finish a detached profiled event.
@@ -37,8 +35,7 @@ impl Profiler {
     }
 
     fn default() -> Self {
-        let profiler = MeasuremeProfiler::new(Path::new("./som-trace"))
-            .expect("could not create profiler file");
+        let profiler = MeasuremeProfiler::new(Path::new("./som-trace")).expect("could not create profiler file");
         Self { profiler }
     }
 
@@ -57,9 +54,7 @@ impl Profiler {
         // Mutating statics is unsafe, so we need to wrap it as so.
         // This is actually safe though because init and drop are only called at the beginning and end of the application.
         unsafe {
-            INSTANCE
-                .take()
-                .expect("could not take back profiler instance");
+            INSTANCE.take().expect("could not take back profiler instance");
         }
     }
 

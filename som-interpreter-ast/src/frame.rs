@@ -52,12 +52,7 @@ impl Frame {
     //     frame
     // }
 
-    pub fn alloc_new_frame(
-        nbr_locals: u8,
-        mut params: Vec<Value>,
-        prev_frame: GCRef<Frame>,
-        gc_interface: &mut GCInterface,
-    ) -> GCRef<Self> {
+    pub fn alloc_new_frame(nbr_locals: u8, mut params: Vec<Value>, prev_frame: GCRef<Frame>, gc_interface: &mut GCInterface) -> GCRef<Self> {
         let frame = Self {
             prev_frame,
             nbr_locals,
@@ -101,10 +96,11 @@ impl Frame {
         }
 
         let mut target_frame: GCRef<Frame> = match current_frame.lookup_argument(0).as_block() {
-            Some(block) => {
-                block.frame
-            }
-            v => panic!("attempting to access a non local var/arg from a method instead of a block: self wasn't blockself but {:?}.", v)
+            Some(block) => block.frame,
+            v => panic!(
+                "attempting to access a non local var/arg from a method instead of a block: self wasn't blockself but {:?}.",
+                v
+            ),
         };
         for _ in 1..n {
             target_frame = match target_frame.lookup_argument(0).as_block() {
@@ -163,48 +159,28 @@ impl FrameAccess for GCRef<Frame> {
 
     fn lookup_argument(&self, idx: u8) -> Value {
         unsafe {
-            let arg_ptr: &Value = self
-                .ptr
-                .add(Self::ARG_OFFSET)
-                .add(idx as usize * size_of::<Value>())
-                .as_ref();
+            let arg_ptr: &Value = self.ptr.add(Self::ARG_OFFSET).add(idx as usize * size_of::<Value>()).as_ref();
             arg_ptr.clone()
         }
     }
 
     fn assign_arg(&mut self, idx: u8, value: Value) {
         // TODO: shouldn't assignments take refs?
-        unsafe {
-            *self
-                .ptr
-                .add(Self::ARG_OFFSET)
-                .add(idx as usize * size_of::<Value>())
-                .as_mut_ref() = value
-        }
+        unsafe { *self.ptr.add(Self::ARG_OFFSET).add(idx as usize * size_of::<Value>()).as_mut_ref() = value }
     }
 
     #[inline] // not sure if necessary
     fn lookup_local(&self, idx: u8) -> Value {
         let nbr_args = self.nbr_args;
         unsafe {
-            let value_ptr: &Value = self
-                .ptr
-                .add(Self::ARG_OFFSET)
-                .add((nbr_args + idx) as usize * size_of::<Value>())
-                .as_ref();
+            let value_ptr: &Value = self.ptr.add(Self::ARG_OFFSET).add((nbr_args + idx) as usize * size_of::<Value>()).as_ref();
             value_ptr.clone()
         }
     }
 
     fn assign_local(&mut self, idx: u8, value: Value) {
         let nbr_args = self.nbr_args;
-        unsafe {
-            *self
-                .ptr
-                .add(Self::ARG_OFFSET)
-                .add((nbr_args + idx) as usize * size_of::<Value>())
-                .as_mut_ref() = value
-        }
+        unsafe { *self.ptr.add(Self::ARG_OFFSET).add((nbr_args + idx) as usize * size_of::<Value>()).as_mut_ref() = value }
     }
 
     fn lookup_field(&self, idx: u8) -> Value {
@@ -240,10 +216,7 @@ impl CustomAlloc<Frame> for Frame {
         let frame_ptr = gc_interface.alloc_with_size(frame, size);
 
         unsafe {
-            let mut locals_addr = frame_ptr
-                .ptr
-                .add(size_of::<Frame>())
-                .add(nbr_args as usize * size_of::<Value>());
+            let mut locals_addr = frame_ptr.ptr.add(size_of::<Frame>()).add(nbr_args as usize * size_of::<Value>());
             for _ in 0..nbr_locals {
                 *locals_addr.as_mut_ref() = Value::NIL;
                 locals_addr = locals_addr.add(size_of::<Value>());

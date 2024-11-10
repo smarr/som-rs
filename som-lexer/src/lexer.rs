@@ -68,11 +68,7 @@ impl Lexer {
         loop {
             let ch = self.chars.pop()?;
             if ch == '"' {
-                break if self.skip_comments {
-                    self.next()
-                } else {
-                    Some(Token::Comment(output))
-                };
+                break if self.skip_comments { self.next() } else { Some(Token::Comment(output)) };
             } else {
                 output.push(ch);
             }
@@ -152,10 +148,7 @@ impl Lexer {
     }
 
     fn is_operator(ch: char) -> bool {
-        matches!(
-            ch,
-            '~' | '&' | '|' | '*' | '/' | '\\' | '+' | '=' | '>' | '<' | ',' | '@' | '%' | '-'
-        )
+        matches!(ch, '~' | '&' | '|' | '*' | '/' | '\\' | '+' | '=' | '>' | '<' | ',' | '@' | '%' | '-')
     }
 }
 
@@ -268,13 +261,7 @@ impl Iterator for Lexer {
                     }
                     Some(Token::Primitive)
                 } else if peeked.is_alphabetic() {
-                    let mut ident: String = self
-                        .chars
-                        .iter()
-                        .rev()
-                        .copied()
-                        .take_while(|c| c.is_alphanumeric() || *c == '_')
-                        .collect();
+                    let mut ident: String = self.chars.iter().rev().copied().take_while(|c| c.is_alphanumeric() || *c == '_').collect();
                     let ident_len = ident.chars().count();
                     for _ in 0..ident_len {
                         self.chars.pop()?;
@@ -292,8 +279,7 @@ impl Iterator for Lexer {
                     let mut dec_iter = iter.clone().skip(int_part_len).peekable();
                     match (dec_iter.next(), dec_iter.peek()) {
                         (Some('.'), Some(ch)) if ch.is_ascii_digit() => {
-                            let dec_part_len =
-                                dec_iter.clone().take_while(|c| c.is_ascii_digit()).count();
+                            let dec_part_len = dec_iter.clone().take_while(|c| c.is_ascii_digit()).count();
                             let total_len = int_part_len + dec_part_len + 1;
                             let repr: String = iter.take(total_len).collect();
                             let number: f64 = repr.parse().ok()?;

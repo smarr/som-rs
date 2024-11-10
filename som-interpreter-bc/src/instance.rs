@@ -95,10 +95,7 @@ pub trait InstanceAccess {
 
 impl InstanceAccess for GCRef<Instance> {
     fn get_field_addr(&self, idx: usize) -> usize {
-        self.ptr
-            .add(size_of::<Instance>())
-            .add(idx * size_of::<Value>())
-            .as_usize()
+        self.ptr.add(size_of::<Instance>()).add(idx * size_of::<Value>()).as_usize()
     }
 
     fn lookup_local(&self, idx: usize) -> Value {

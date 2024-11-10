@@ -1,18 +1,16 @@
-use std::cell::RefCell;
-use std::rc::Rc;
-use std::vec;
 use som_core::ast::*;
 use som_lexer::{Lexer, Token};
 use som_parser_core::combinators::*;
 use som_parser_core::Parser;
-use som_parser_symbols::AstGenCtxtData;
 use som_parser_symbols::lang::*;
+use som_parser_symbols::AstGenCtxtData;
+use std::cell::RefCell;
+use std::rc::Rc;
+use std::vec;
 
 #[test]
 fn literal_tests() {
-    let tokens: Vec<Token> = Lexer::new("1.2 5 #foo 'test'")
-        .skip_whitespace(true)
-        .collect();
+    let tokens: Vec<Token> = Lexer::new("1.2 5 #foo 'test'").skip_whitespace(true).collect();
 
     let result = many(literal()).parse(tokens.as_slice(), Rc::new(RefCell::new(AstGenCtxtData::init())));
 
@@ -30,9 +28,7 @@ fn literal_tests() {
 
 #[test]
 fn expression_test_1() {
-    let tokens: Vec<Token> = Lexer::new("3 + counter get")
-        .skip_whitespace(true)
-        .collect();
+    let tokens: Vec<Token> = Lexer::new("3 + counter get").skip_whitespace(true).collect();
 
     let result = expression().parse(tokens.as_slice(), Rc::new(RefCell::new(AstGenCtxtData::init())));
 
@@ -50,16 +46,13 @@ fn expression_test_1() {
                 signature: String::from("get"),
                 values: vec![],
             }))],
-        })
-    ));
+        }))
+    );
 }
 
 #[test]
 fn block_test() {
-    let tokens: Vec<Token> =
-        Lexer::new("[ :test | |local| local := 'this is correct'. local println. ]")
-            .skip_whitespace(true)
-            .collect();
+    let tokens: Vec<Token> = Lexer::new("[ :test | |local| local := 'this is correct'. local println. ]").skip_whitespace(true).collect();
 
     let result = block().parse(tokens.as_slice(), Rc::new(RefCell::new(AstGenCtxtData::init())));
 
@@ -79,12 +72,7 @@ fn block_test() {
             nbr_locals: 1,
             body: Body {
                 exprs: vec![
-                    Expression::LocalVarWrite(
-                        0,
-                        Box::new(Expression::Literal(Literal::String(String::from(
-                            "this is correct"
-                        ))))
-                    ),
+                    Expression::LocalVarWrite(0, Box::new(Expression::Literal(Literal::String(String::from("this is correct"))))),
                     Expression::Message(Box::new(Message {
                         receiver: Expression::LocalVarRead(0),
                         signature: String::from("println"),
@@ -99,9 +87,7 @@ fn block_test() {
 
 #[test]
 fn expression_test_2() {
-    let tokens: Vec<Token> = Lexer::new(
-        "( 3 == 3 ) ifTrue: [ 'this is correct' println. ] ifFalse: [ 'oh no' println ]",
-    )
+    let tokens: Vec<Token> = Lexer::new("( 3 == 3 ) ifTrue: [ 'this is correct' println. ] ifFalse: [ 'oh no' println ]")
         .skip_whitespace(true)
         .collect();
 
@@ -131,9 +117,7 @@ fn expression_test_2() {
                     nbr_locals: 0,
                     body: Body {
                         exprs: vec![Expression::Message(Box::new(Message {
-                            receiver: Expression::Literal(Literal::String(String::from(
-                                "this is correct"
-                            ))),
+                            receiver: Expression::Literal(Literal::String(String::from("this is correct"))),
                             signature: String::from("println"),
                             values: vec![],
                         }))],
@@ -158,15 +142,13 @@ fn expression_test_2() {
                     }
                 }),
             ],
-        }),
-    ));
+        }),)
+    );
 }
 
 #[test]
 fn primary_test() {
-    let tokens: Vec<Token> = Lexer::new("[ self fib: (n - 1) + (self fib: (n - 2)) ]")
-        .skip_whitespace(true)
-        .collect();
+    let tokens: Vec<Token> = Lexer::new("[ self fib: (n - 1) + (self fib: (n - 2)) ]").skip_whitespace(true).collect();
 
     let result = primary().parse(tokens.as_slice(), Rc::new(RefCell::new(AstGenCtxtData::init())));
 

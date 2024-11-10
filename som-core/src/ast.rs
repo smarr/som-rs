@@ -57,7 +57,7 @@ pub enum MethodBody {
     /// A primitive (meant to be implemented by the VM itself).
     Primitive,
     /// An actual body for the method, with locals.
-    Body { 
+    Body {
         locals_nbr: usize,
         body: Body,
         #[cfg(feature = "block-debug-info")]

@@ -83,19 +83,14 @@ impl Interpreter {
 
     /// Creates and allocates a new frame corresponding to a method.
     /// nbr_args is the number of arguments, including the self value, which it takes from the previous frame.
-    pub fn push_method_frame(
-        &mut self,
-        method: GCRef<Method>,
-        nbr_args: usize,
-        mutator: &mut GCInterface,
-    ) -> GCRef<Frame> {
+    pub fn push_method_frame(&mut self, method: GCRef<Method>, nbr_args: usize, mutator: &mut GCInterface) -> GCRef<Frame> {
         let mut frame_copy = self.current_frame.clone();
         let args = frame_copy.stack_n_last_elements(nbr_args);
 
         let frame_ptr = Frame::alloc_from_method(method, args, self.current_frame, mutator);
 
         frame_copy.remove_n_last_elements(nbr_args);
-        
+
         self.bytecode_idx = 0;
         self.current_bytecodes = frame_ptr.bytecodes;
         self.current_frame = frame_ptr;
@@ -104,12 +99,7 @@ impl Interpreter {
 
     /// Creates and allocates a new frame corresponding to a method, with arguments provided.
     /// Used in primitives and
-    pub fn push_method_frame_with_args(
-        &mut self,
-        method: GCRef<Method>,
-        args: &[Value],
-        mutator: &mut GCInterface,
-    ) -> GCRef<Frame> {
+    pub fn push_method_frame_with_args(&mut self, method: GCRef<Method>, args: &[Value], mutator: &mut GCInterface) -> GCRef<Frame> {
         let frame_ptr = Frame::alloc_from_method(method, args, self.current_frame, mutator);
 
         self.bytecode_idx = 0;
@@ -122,15 +112,9 @@ impl Interpreter {
     /// Creates and allocates a new frame corresponding to a method.
     /// Always passes arguments directly since we don't take them as a slice off the previous frame, like we do for methods.
     /// ...which would likely be faster, actually. TODO.
-    pub fn push_block_frame_with_args(
-        &mut self,
-        block: GCRef<Block>,
-        args: &[Value],
-        mutator: &mut GCInterface,
-    ) -> GCRef<Frame> {
+    pub fn push_block_frame_with_args(&mut self, block: GCRef<Block>, args: &[Value], mutator: &mut GCInterface) -> GCRef<Frame> {
         let current_method = self.current_frame.current_method;
-        let frame_ptr =
-            Frame::alloc_from_block(block, args, current_method, self.current_frame, mutator);
+        let frame_ptr = Frame::alloc_from_block(block, args, current_method, self.current_frame, mutator);
         self.bytecode_idx = 0;
         self.current_bytecodes = frame_ptr.bytecodes;
         self.current_frame = frame_ptr;
@@ -150,8 +134,7 @@ impl Interpreter {
     }
 
     pub fn pop_n_frames(&mut self, n: u8) {
-        let new_current_frame =
-            Frame::nth_frame_back_through_frame_list(&self.current_frame, n + 1);
+        let new_current_frame = Frame::nth_frame_back_through_frame_list(&self.current_frame, n + 1);
         self.current_frame = new_current_frame;
         match new_current_frame.is_empty() {
             true => {}
@@ -274,26 +257,22 @@ impl Interpreter {
                 }
                 Bytecode::PushConstant(idx) => {
                     let literal = self.current_frame.lookup_constant(idx as usize);
-                    let value =
-                        convert_literal(&self.current_frame, literal, &mut universe.gc_interface);
+                    let value = convert_literal(&self.current_frame, literal, &mut universe.gc_interface);
                     self.current_frame.stack_push(value);
                 }
                 Bytecode::PushConstant0 => {
                     let literal = self.current_frame.lookup_constant(0);
-                    let value =
-                        convert_literal(&self.current_frame, literal, &mut universe.gc_interface);
+                    let value = convert_literal(&self.current_frame, literal, &mut universe.gc_interface);
                     self.current_frame.stack_push(value);
                 }
                 Bytecode::PushConstant1 => {
                     let literal = self.current_frame.lookup_constant(1);
-                    let value =
-                        convert_literal(&self.current_frame, literal, &mut universe.gc_interface);
+                    let value = convert_literal(&self.current_frame, literal, &mut universe.gc_interface);
                     self.current_frame.stack_push(value);
                 }
                 Bytecode::PushConstant2 => {
                     let literal = self.current_frame.lookup_constant(2);
-                    let value =
-                        convert_literal(&self.current_frame, literal, &mut universe.gc_interface);
+                    let value = convert_literal(&self.current_frame, literal, &mut universe.gc_interface);
                     self.current_frame.stack_push(value);
                 }
                 Bytecode::PushGlobal(idx) => {
@@ -425,9 +404,9 @@ impl Interpreter {
                         // we store the current bytecode idx to be able to correctly restore the bytecode state when we pop frames
                         self.current_frame.bytecode_idx = self.bytecode_idx;
 
-                        universe.escaped_block(self, instance, block).expect(
-                            "A block has escaped and `escapedBlock:` is not defined on receiver",
-                        );
+                        universe
+                            .escaped_block(self, instance, block)
+                            .expect("A block has escaped and `escapedBlock:` is not defined on receiver");
                     }
                 }
                 Bytecode::Jump(offset) => {
@@ -445,10 +424,7 @@ impl Interpreter {
                     } else if condition_result.is_boolean_false() {
                         self.current_frame.stack_pop();
                     } else {
-                        panic!(
-                            "JumpOnTrueTopNil condition did not evaluate to boolean (was {:?})",
-                            condition_result
-                        )
+                        panic!("JumpOnTrueTopNil condition did not evaluate to boolean (was {:?})", condition_result)
                     }
                 }
                 Bytecode::JumpOnFalseTopNil(offset) => {
@@ -460,10 +436,7 @@ impl Interpreter {
                         self.bytecode_idx += offset as usize - 1;
                         *self.current_frame.stack_last_mut() = Value::NIL;
                     } else {
-                        panic!(
-                            "JumpOnFalseTopNil condition did not evaluate to boolean (was {:?})",
-                            condition_result
-                        )
+                        panic!("JumpOnFalseTopNil condition did not evaluate to boolean (was {:?})", condition_result)
                     }
                 }
                 Bytecode::JumpOnTruePop(offset) => {
@@ -474,10 +447,7 @@ impl Interpreter {
                     } else if condition_result.is_boolean_false() {
                         // pass
                     } else {
-                        panic!(
-                            "JumpOnTruePop condition did not evaluate to boolean (was {:?})",
-                            condition_result
-                        )
+                        panic!("JumpOnTruePop condition did not evaluate to boolean (was {:?})", condition_result)
                     }
                 }
                 Bytecode::JumpOnFalsePop(offset) => {
@@ -488,22 +458,13 @@ impl Interpreter {
                     } else if condition_result.is_boolean_true() {
                         // pass
                     } else {
-                        panic!(
-                            "JumpOnFalsePop condition did not evaluate to boolean (was {:?})",
-                            condition_result
-                        )
+                        panic!("JumpOnFalsePop condition did not evaluate to boolean (was {:?})", condition_result)
                     }
                 }
             }
         }
 
-        pub fn do_send(
-            interpreter: &mut Interpreter,
-            universe: &mut Universe,
-            method: Option<GCRef<Method>>,
-            symbol: Interned,
-            nb_params: usize,
-        ) {
+        pub fn do_send(interpreter: &mut Interpreter, universe: &mut Universe, method: Option<GCRef<Method>>, symbol: Interned, nb_params: usize) {
             // we store the current bytecode idx to be able to correctly restore the bytecode state when we pop frames
             interpreter.current_frame.bytecode_idx = interpreter.bytecode_idx;
 
@@ -512,15 +473,14 @@ impl Interpreter {
                 let args = frame_copy.stack_n_last_elements(nb_params);
                 interpreter.current_frame.remove_n_last_elements(nb_params);
                 let self_value = interpreter.current_frame.clone().stack_pop();
-                
+
                 // could be avoided by passing args slice directly...
                 // ...but A) DNU is a very rare path and B) i guess we allocate a new args arr in the DNU call anyway
                 let args = args.iter().map(|v| v.clone()).collect();
 
-                universe.does_not_understand(interpreter, self_value, symbol, args)
-                    .expect(
-                        "A message cannot be handled and `doesNotUnderstand:arguments:` is not defined on receiver"
-                    );
+                universe
+                    .does_not_understand(interpreter, self_value, symbol, args)
+                    .expect("A message cannot be handled and `doesNotUnderstand:arguments:` is not defined on receiver");
 
                 return;
             };
@@ -539,32 +499,18 @@ impl Interpreter {
                     // if !SYSTEM_CLASS_NAMES.contains(&name.as_str()) {
                     // }
 
-                    interpreter.push_method_frame(
-                        method,
-                        nb_params + 1,
-                        &mut universe.gc_interface,
-                    );
+                    interpreter.push_method_frame(method, nb_params + 1, &mut universe.gc_interface);
                 }
                 MethodKind::Primitive(func) => {
                     // eprintln!("Invoking prim {:?} (in {:?})", &method.signature, &method.holder.name);
                     func(interpreter, universe)
-                        .with_context(|| {
-                            anyhow::anyhow!(
-                                "error calling primitive `{}`",
-                                universe.lookup_symbol(symbol)
-                            )
-                        })
+                        .with_context(|| anyhow::anyhow!("error calling primitive `{}`", universe.lookup_symbol(symbol)))
                         .unwrap();
                 }
             }
         }
 
-        fn resolve_method(
-            frame: &GCRef<Frame>,
-            class: &GCRef<Class>,
-            signature: Interned,
-            bytecode_idx: usize,
-        ) -> Option<GCRef<Method>> {
+        fn resolve_method(frame: &GCRef<Frame>, class: &GCRef<Class>, signature: Interned, bytecode_idx: usize) -> Option<GCRef<Method>> {
             let mut inline_cache = unsafe { (*frame.inline_cache).borrow_mut() };
 
             // SAFETY: this access is actually safe because the bytecode compiler
@@ -583,11 +529,7 @@ impl Interpreter {
             }
         }
 
-        fn convert_literal(
-            frame: &GCRef<Frame>,
-            literal: Literal,
-            gc_interface: &mut GCInterface,
-        ) -> Value {
+        fn convert_literal(frame: &GCRef<Frame>, literal: Literal, gc_interface: &mut GCInterface) -> Value {
             let value = match literal {
                 Literal::Symbol(sym) => Value::Symbol(sym),
                 Literal::String(val) => Value::String(val),

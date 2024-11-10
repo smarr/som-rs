@@ -15,18 +15,12 @@ pub trait Parser<T, I, GCTXT>: Sized {
 
     /// Sequences two parsers, one after the other, collecting both results.
     fn and<U, P: Parser<U, I, GCTXT>>(self, parser: P) -> And<Self, P> {
-        And {
-            p1: self,
-            p2: parser,
-        }
+        And { p1: self, p2: parser }
     }
 
     /// Tries to apply the first parser, if it fails, it tries to apply the second parser.
     fn or<P: Parser<T, I, GCTXT>>(self, parser: P) -> Or<Self, P> {
-        Or {
-            p1: self,
-            p2: parser,
-        }
+        Or { p1: self, p2: parser }
     }
 
     /// Maps a function over the output value of the parser.

@@ -50,9 +50,7 @@ use mmtk::util::{Address, ObjectReference};
 impl SOMVM {
     pub fn object_start_to_ref(start: Address) -> ObjectReference {
         // Safety: start is the allocation result, and it should not be zero with an offset.
-        unsafe {
-            ObjectReference::from_raw_address_unchecked(start + object_model::OBJECT_REF_OFFSET)
-        }
+        unsafe { ObjectReference::from_raw_address_unchecked(start + object_model::OBJECT_REF_OFFSET) }
     }
 }
 

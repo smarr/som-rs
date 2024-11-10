@@ -1,4 +1,4 @@
-use crate::{Parser};
+use crate::Parser;
 
 /// Represents a value of either type A (Left) or type B (Right).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -24,10 +24,7 @@ pub fn not<A, I: Clone, GCTXT: Clone>(mut parser: impl Parser<A, I, GCTXT>) -> i
 }
 
 /// Sequences two parsers, one after the other, collecting both results.
-pub fn sequence<A, B, I, GCTXT>(
-    mut fst: impl Parser<A, I, GCTXT>,
-    mut snd: impl Parser<B, I, GCTXT>,
-) -> impl Parser<(A, B), I, GCTXT> {
+pub fn sequence<A, B, I, GCTXT>(mut fst: impl Parser<A, I, GCTXT>, mut snd: impl Parser<B, I, GCTXT>) -> impl Parser<(A, B), I, GCTXT> {
     // equivalent to: `fst.and(snd)`
     move |input: I, genctxt: GCTXT| {
         let (a, input, genctxt) = fst.parse(input, genctxt)?;
@@ -37,10 +34,7 @@ pub fn sequence<A, B, I, GCTXT>(
 }
 
 /// Tries to apply the first parser, if it fails, it tries to apply the second parser.
-pub fn alternative<A, I: Clone, GCTXT: Clone>(
-    mut fst: impl Parser<A, I, GCTXT>,
-    mut snd: impl Parser<A, I, GCTXT>,
-) -> impl Parser<A, I, GCTXT> {
+pub fn alternative<A, I: Clone, GCTXT: Clone>(mut fst: impl Parser<A, I, GCTXT>, mut snd: impl Parser<A, I, GCTXT>) -> impl Parser<A, I, GCTXT> {
     move |input: I, genctxt: GCTXT| fst.parse(input.clone(), genctxt.clone()).or_else(|| snd.parse(input, genctxt))
 }
 
@@ -62,11 +56,7 @@ pub fn either<A, B, I: Clone, GCTXT: Clone>(
 
 /// Tries to apply a parser, or fallback to a constant value (making it an always-succeeding parser).
 pub fn fallback<A: Clone, I: Clone, GCTXT: Clone>(def: A, mut parser: impl Parser<A, I, GCTXT>) -> impl Parser<A, I, GCTXT> {
-    move |input: I, genctxt: GCTXT| {
-        parser
-            .parse(input.clone(), genctxt.clone())
-            .or_else(|| Some((def.clone(), input, genctxt)))
-    }
+    move |input: I, genctxt: GCTXT| parser.parse(input.clone(), genctxt.clone()).or_else(|| Some((def.clone(), input, genctxt)))
 }
 
 /// Tries to apply a parser, or fallback to its default value (making it an always-succeeding parser).
@@ -76,11 +66,7 @@ pub fn default<A: Default, I: Clone, GCTXT: Clone>(parser: impl Parser<A, I, GCT
 
 /// Tries every parser in a slice, from left to right, and returns the output of the first succeeding one.
 pub fn any<A, I: Clone, GCTXT: Clone>(parsers: &mut [impl Parser<A, I, GCTXT>]) -> impl Parser<A, I, GCTXT> + '_ {
-    move |input: I, genctxt: GCTXT| {
-        parsers
-            .iter_mut()
-            .find_map(|parser| parser.parse(input.clone(), genctxt.clone()))
-    }
+    move |input: I, genctxt: GCTXT| parsers.iter_mut().find_map(|parser| parser.parse(input.clone(), genctxt.clone()))
 }
 
 /// Applies every parser in a slice, from left to right, and returns the output from all of them.
@@ -88,13 +74,11 @@ pub fn any<A, I: Clone, GCTXT: Clone>(parsers: &mut [impl Parser<A, I, GCTXT>]) 
 pub fn all<A, I, GCTXT>(parsers: &mut [impl Parser<A, I, GCTXT>]) -> impl Parser<Vec<A>, I, GCTXT> + '_ {
     move |input: I, genctxt: GCTXT| {
         let output = Vec::<A>::with_capacity(parsers.len());
-        parsers
-            .iter_mut()
-            .try_fold((output, input, genctxt), |(mut output, input, genctxt), parser| {
-                let (value, input, genctxt) = parser.parse(input, genctxt)?;
-                output.push(value);
-                Some((output, input, genctxt))
-            })
+        parsers.iter_mut().try_fold((output, input, genctxt), |(mut output, input, genctxt), parser| {
+            let (value, input, genctxt) = parser.parse(input, genctxt)?;
+            output.push(value);
+            Some((output, input, genctxt))
+        })
     }
 }
 
@@ -115,7 +99,9 @@ pub fn many<A, I: Clone, GCTXT: Clone>(mut parser: impl Parser<A, I, GCTXT>) -> 
         let mut output = Vec::<A>::new();
         let mut genctxt2 = genctxt;
         loop {
-            let Some((value, next, modified_ctxt)) = parser.parse(input.clone(), genctxt2.clone()) else { break };
+            let Some((value, next, modified_ctxt)) = parser.parse(input.clone(), genctxt2.clone()) else {
+                break;
+            };
             genctxt2 = modified_ctxt;
             input = next;
             output.push(value);
@@ -132,7 +118,9 @@ pub fn some<A, I: Clone, GCTXT: Clone>(mut parser: impl Parser<A, I, GCTXT>) -> 
         let mut genctxt2 = genctxt;
 
         loop {
-            let Some((value, next, new_ctxt)) = parser.parse(input.clone(), genctxt2.clone()) else { break };
+            let Some((value, next, new_ctxt)) = parser.parse(input.clone(), genctxt2.clone()) else {
+                break;
+            };
             genctxt2 = new_ctxt;
             input = next;
             output.push(value);
@@ -169,9 +157,7 @@ pub fn sep_by<A, B, I: Clone, GCTXT: Clone>(
             output.push(value);
 
             loop {
-                let l2 = delim
-                    .parse(input.clone(), genctxt2.clone())
-                    .and_then(|(_, input, genctxt3)| within.parse(input, genctxt3));
+                let l2 = delim.parse(input.clone(), genctxt2.clone()).and_then(|(_, input, genctxt3)| within.parse(input, genctxt3));
 
                 if l2.is_none() {
                     break;
@@ -206,10 +192,7 @@ pub fn sep_by1<A, B, I: Clone, GCTXT: Clone>(
         let mut output = Vec::<B>::new();
         let (value, mut input, genctxt) = within.parse(input, genctxt)?;
         output.push(value);
-        while let Some((value, next, _)) = delim
-            .parse(input.clone(), genctxt.clone())
-            .and_then(|(_, input, genctxt)| within.parse(input, genctxt))
-        {
+        while let Some((value, next, _)) = delim.parse(input.clone(), genctxt.clone()).and_then(|(_, input, genctxt)| within.parse(input, genctxt)) {
             input = next;
             output.push(value);
         }

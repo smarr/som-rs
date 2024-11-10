@@ -53,12 +53,8 @@ fn main() -> anyhow::Result<()> {
             shell::interactive(&mut universe, opts.verbose)?
         }
         Some(file) => {
-            let file_stem = file
-                .file_stem()
-                .ok_or_else(|| anyhow!("the given path has no file stem"))?;
-            let file_stem = file_stem
-                .to_str()
-                .ok_or_else(|| anyhow!("the given path contains invalid UTF-8 in its file stem"))?;
+            let file_stem = file.file_stem().ok_or_else(|| anyhow!("the given path has no file stem"))?;
+            let file_stem = file_stem.to_str().ok_or_else(|| anyhow!("the given path contains invalid UTF-8 in its file stem"))?;
 
             let mut classpath = opts.classpath;
             if let Some(directory) = file.parent() {
@@ -67,9 +63,7 @@ fn main() -> anyhow::Result<()> {
 
             let mut universe = {
                 match opts.heap_size {
-                    Some(heap_size) => {
-                        Universe::with_classpath_and_heap_size(classpath, heap_size)?
-                    }
+                    Some(heap_size) => Universe::with_classpath_and_heap_size(classpath, heap_size)?,
                     None => Universe::with_classpath(classpath)?,
                 }
             };
@@ -83,9 +77,7 @@ fn main() -> anyhow::Result<()> {
                 .map(|str| Value::String(universe.gc_interface.alloc(str)))
                 .collect();
 
-            let output = universe.initialize(args).unwrap_or_else(|| {
-                Return::Exception("could not find 'System>>#initialize:'".to_string())
-            });
+            let output = universe.initialize(args).unwrap_or_else(|| Return::Exception("could not find 'System>>#initialize:'".to_string()));
 
             // let class = universe.load_class_from_path(file)?;
             // let instance = Instance::from_class(class);

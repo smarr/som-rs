@@ -18,24 +18,15 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> 
         ("invokeOn:with:", self::invoke_on_with.into_func(), true),
     ])
 });
-pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> =
-    Lazy::new(|| Box::new([]));
+pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| Box::new([]));
 
-fn holder(
-    _: &mut Interpreter,
-    _: &mut Universe,
-    invokable: GCRef<Method>,
-) -> Result<GCRef<Class>, Error> {
+fn holder(_: &mut Interpreter, _: &mut Universe, invokable: GCRef<Method>) -> Result<GCRef<Class>, Error> {
     const _: &str = "Method>>#holder";
 
     Ok(invokable.holder)
 }
 
-fn signature(
-    _: &mut Interpreter,
-    universe: &mut Universe,
-    invokable: GCRef<Method>,
-) -> Result<Interned, Error> {
+fn signature(_: &mut Interpreter, universe: &mut Universe, invokable: GCRef<Method>) -> Result<Interned, Error> {
     const _: &str = "Method>>#signature";
 
     Ok(universe.intern_symbol(invokable.signature()))
@@ -61,16 +52,10 @@ fn invoke_on_with(
 
 /// Search for an instance primitive matching the given signature.
 pub fn get_instance_primitive(signature: &str) -> Option<&'static PrimitiveFn> {
-    INSTANCE_PRIMITIVES
-        .iter()
-        .find(|it| it.0 == signature)
-        .map(|it| it.1)
+    INSTANCE_PRIMITIVES.iter().find(|it| it.0 == signature).map(|it| it.1)
 }
 
 /// Search for a class primitive matching the given signature.
 pub fn get_class_primitive(signature: &str) -> Option<&'static PrimitiveFn> {
-    CLASS_PRIMITIVES
-        .iter()
-        .find(|it| it.0 == signature)
-        .map(|it| it.1)
+    CLASS_PRIMITIVES.iter().find(|it| it.0 == signature).map(|it| it.1)
 }

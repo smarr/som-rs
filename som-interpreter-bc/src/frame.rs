@@ -46,12 +46,7 @@ pub struct Frame {
 }
 
 impl Frame {
-    pub fn alloc_from_method(
-        method: GCRef<Method>,
-        args: &[Value],
-        prev_frame: GCRef<Frame>,
-        gc_interface: &mut GCInterface,
-    ) -> GCRef<Frame> {
+    pub fn alloc_from_method(method: GCRef<Method>, args: &[Value], prev_frame: GCRef<Frame>, gc_interface: &mut GCInterface) -> GCRef<Frame> {
         let frame = Frame::from_method(method, args.len(), prev_frame);
         let max_stack_size = match &method.kind {
             MethodKind::Defined(m_env) => m_env.max_stack_size as usize,
@@ -59,8 +54,7 @@ impl Frame {
         };
 
         // TODO: be nice to wrap this size calculation bit + allocation into its own alloc trait somehow, like CustomAlloc. since the block logic is very similar
-        let size = size_of::<Frame>()
-            + ((max_stack_size + frame.nbr_args + frame.nbr_locals) * size_of::<Value>());
+        let size = size_of::<Frame>() + ((max_stack_size + frame.nbr_args + frame.nbr_locals) * size_of::<Value>());
 
         let frame_ptr = gc_interface.alloc_with_size(frame, size);
         Frame::init_frame_post_alloc(frame_ptr, args, max_stack_size);
@@ -76,8 +70,7 @@ impl Frame {
     ) -> GCRef<Frame> {
         let frame = Frame::from_block(block, args.len(), current_method, prev_frame);
         let max_stack_size = block.blk_info.max_stack_size as usize;
-        let size = size_of::<Frame>()
-            + ((max_stack_size + frame.nbr_args + frame.nbr_locals) * size_of::<Value>());
+        let size = size_of::<Frame>() + ((max_stack_size + frame.nbr_args + frame.nbr_locals) * size_of::<Value>());
 
         let frame_ptr = gc_interface.alloc_with_size(frame, size);
         Frame::init_frame_post_alloc(frame_ptr, args, max_stack_size);
@@ -109,12 +102,7 @@ impl Frame {
     }
 
     // Creates a frame from a block. Meant to only be called by the alloc_from_block function
-    fn from_block(
-        block: GCRef<Block>,
-        nbr_args: usize,
-        current_method: GCRef<Method>,
-        prev_frame: GCRef<Frame>,
-    ) -> Self {
+    fn from_block(block: GCRef<Block>, nbr_args: usize, current_method: GCRef<Method>, prev_frame: GCRef<Frame>) -> Self {
         let block_obj = block;
         Self {
             prev_frame,
@@ -223,10 +211,11 @@ impl Frame {
         }
 
         let mut target_frame: GCRef<Frame> = match current_frame.lookup_argument(0).as_block() {
-            Some(block) => {
-                *block.frame.as_ref().unwrap()
-            }
-            v => panic!("attempting to access a non local var/arg from a method instead of a block: self wasn't blockself but {:?}.", v)
+            Some(block) => *block.frame.as_ref().unwrap(),
+            v => panic!(
+                "attempting to access a non local var/arg from a method instead of a block: self wasn't blockself but {:?}.",
+                v
+            ),
         };
         for _ in 1..n {
             target_frame = match &target_frame.lookup_argument(0).as_block() {
@@ -294,14 +283,11 @@ impl Frame {
 
     #[inline(always)]
     pub fn remove_n_last_elements(&mut self, n: usize) {
-        unsafe {
-            self.stack_ptr = self.stack_ptr.sub(n)
-        }
+        unsafe { self.stack_ptr = self.stack_ptr.sub(n) }
     }
 
     /// Gets the total number of elements on the stack. Only used for debugging.
     pub fn stack_len(frame_ptr: GCRef<Frame>) -> usize {
-        ((frame_ptr.stack_ptr as usize) - (frame_ptr.ptr.as_usize() + OFFSET_TO_STACK))
-            / size_of::<Value>()
+        ((frame_ptr.stack_ptr as usize) - (frame_ptr.ptr.as_usize() + OFFSET_TO_STACK)) / size_of::<Value>()
     }
 }

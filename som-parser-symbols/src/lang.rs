@@ -123,9 +123,7 @@ pub fn identifier<'a>() -> impl Parser<String, &'a [Token], AstGenCtxt<'a>> {
     move |input: &'a [Token], genctxt: AstGenCtxt<'a>| {
         let (head, tail) = input.split_first()?;
         match head {
-            Token::Identifier(value) => {
-                Some((value.clone(), tail, genctxt))
-            }
+            Token::Identifier(value) => Some((value.clone(), tail, genctxt)),
             _ => None,
         }
     }
@@ -165,14 +163,7 @@ pub fn symbol<'a>() -> impl Parser<String, &'a [Token], AstGenCtxt<'a>> {
 }
 
 pub fn array<'a>() -> impl Parser<Vec<Literal>, &'a [Token], AstGenCtxt<'a>> {
-    move |input: &'a [Token], genctxt| {
-        between(
-            exact(Token::NewArray),
-            many(literal()),
-            exact(Token::EndTerm),
-        )
-            .parse(input, genctxt)
-    }
+    move |input: &'a [Token], genctxt| between(exact(Token::NewArray), many(literal()), exact(Token::EndTerm)).parse(input, genctxt)
 }
 
 pub fn literal<'a>() -> impl Parser<Literal, &'a [Token], AstGenCtxt<'a>> {
@@ -198,31 +189,27 @@ pub fn unary_send<'a>() -> impl Parser<Expression, &'a [Token], AstGenCtxt<'a>> 
     move |input: &'a [Token], genctxt: AstGenCtxt<'a>| {
         let ((receiver, signatures), input, genctxt) = primary().and(many(identifier())).parse(input, genctxt)?;
 
-        let a = signatures
-            .into_iter()
-            .fold(receiver, |receiver, signature| {
-                Expression::Message(Box::new(Message {
-                    receiver,
-                    signature,
-                    values: Vec::new(),
-                }))
-            });
+        let a = signatures.into_iter().fold(receiver, |receiver, signature| {
+            Expression::Message(Box::new(Message {
+                receiver,
+                signature,
+                values: Vec::new(),
+            }))
+        });
         Some((a, input, genctxt))
     }
 }
 
 pub fn binary_send<'a>() -> impl Parser<Expression, &'a [Token], AstGenCtxt<'a>> {
-    unary_send()
-        .and(many(operator().and(unary_send())))
-        .map(|(lhs, operands)| {
-            operands.into_iter().fold(lhs, |lhs, (op, rhs)| {
-                Expression::Message(Box::new(Message {
-                    receiver: lhs,
-                    signature: op,
-                    values: vec![rhs],
-                }))
-            })
+    unary_send().and(many(operator().and(unary_send()))).map(|(lhs, operands)| {
+        operands.into_iter().fold(lhs, |lhs, (op, rhs)| {
+            Expression::Message(Box::new(Message {
+                receiver: lhs,
+                signature: op,
+                values: vec![rhs],
+            }))
         })
+    })
 }
 
 pub fn positional_send<'a>() -> impl Parser<Expression, &'a [Token], AstGenCtxt<'a>> {
@@ -233,22 +220,16 @@ pub fn positional_send<'a>() -> impl Parser<Expression, &'a [Token], AstGenCtxt<
             Some((receiver, input, genctxt))
         } else {
             let (signature, values) = pairs.into_iter().unzip();
-            Some((Expression::Message(Box::new(Message {
-                receiver,
-                signature,
-                values,
-            })), input, genctxt))
+            Some((Expression::Message(Box::new(Message { receiver, signature, values })), input, genctxt))
         }
     }
 }
 
 pub fn body<'a>() -> impl Parser<Body, &'a [Token], AstGenCtxt<'a>> {
-    sep_by(exact(Token::Period), exit().or(statement()))
-        .and(optional(exact(Token::Period)))
-        .map(|(exprs, stopped)| Body {
-            exprs,
-            full_stopped: stopped.is_some(),
-        })
+    sep_by(exact(Token::Period), exit().or(statement())).and(optional(exact(Token::Period))).map(|(exprs, stopped)| Body {
+        exprs,
+        full_stopped: stopped.is_some(),
+    })
 }
 
 pub fn locals<'a>() -> impl Parser<Vec<String>, &'a [Token], AstGenCtxt<'a>> {
@@ -284,32 +265,29 @@ pub fn block<'a>() -> impl Parser<Expression, &'a [Token], AstGenCtxt<'a>> {
 
         let new_genctxt = AstGenCtxtData::new_ctxt_from(genctxt, AstGenCtxtType::Block);
 
-        let (((parameters, locals), body), input, genctxt) = default(parameters())
-            .and(default(locals()))
-            .and(body())
-            .parse(input, new_genctxt)?;
+        let (((parameters, locals), body), input, genctxt) = default(parameters()).and(default(locals())).and(body()).parse(input, new_genctxt)?;
         // we unwrap here at the risk of panicking since if it fails we would want to adjust the scope - but atm we just panoc instead of recovering
 
         let (_, input, genctxt) = exact(Token::EndBlock).parse(input, genctxt)?;
 
         let new_genctxt = genctxt.borrow_mut().get_outer();
 
-        Some((Expression::Block(Block {
-            nbr_params: parameters.len(),
-            nbr_locals: locals.len(),
-            #[cfg(feature = "block-debug-info")]
-            dbg_info: Rc::clone(&new_genctxt).borrow().get_debug_info(),
-            body,
-        }), input, new_genctxt))
+        Some((
+            Expression::Block(Block {
+                nbr_params: parameters.len(),
+                nbr_locals: locals.len(),
+                #[cfg(feature = "block-debug-info")]
+                dbg_info: Rc::clone(&new_genctxt).borrow().get_debug_info(),
+                body,
+            }),
+            input,
+            new_genctxt,
+        ))
     }
 }
 
 pub fn term<'a>() -> impl Parser<Expression, &'a [Token], AstGenCtxt<'a>> {
-    between(
-        exact(Token::NewTerm),
-        assignment().or(expression()),
-        exact(Token::EndTerm),
-    )
+    between(exact(Token::NewTerm), assignment().or(expression()), exact(Token::EndTerm))
 }
 
 pub fn exit<'a>() -> impl Parser<Expression, &'a [Token], AstGenCtxt<'a>> {
@@ -325,30 +303,20 @@ pub fn expression<'a>() -> impl Parser<Expression, &'a [Token], AstGenCtxt<'a>> 
 }
 
 pub fn primary<'a>() -> impl Parser<Expression, &'a [Token], AstGenCtxt<'a>> {
-    move |input: &'a [Token], genctxt: AstGenCtxt<'a>| {
-        match identifier().parse(input, Rc::clone(&genctxt)) {
-            None => term()
-                .or(block())
-                .or(literal().map(Expression::Literal))
-                .parse(input, genctxt),
-            Some((name, input, genctxt)) => {
-                Some((genctxt.borrow().get_var_read(&name), input, Rc::clone(&genctxt)))
-            }
-        }
+    move |input: &'a [Token], genctxt: AstGenCtxt<'a>| match identifier().parse(input, Rc::clone(&genctxt)) {
+        None => term().or(block()).or(literal().map(Expression::Literal)).parse(input, genctxt),
+        Some((name, input, genctxt)) => Some((genctxt.borrow().get_var_read(&name), input, Rc::clone(&genctxt))),
     }
 }
 
-
 pub fn assignment<'a>() -> impl Parser<Expression, &'a [Token], AstGenCtxt<'a>> {
-    move |input: &'a [Token], genctxt: AstGenCtxt<'a>| {
-        match identifier()
-            .and_left(exact(Token::Assign))
-            .and(opaque!(statement())).parse(input, genctxt) {
-            Some(((name, expr), input, genctxt)) => {
-                Some((genctxt.borrow().get_var_write(&name, Box::new(expr.clone())), input, Rc::clone(&genctxt)))
-            }
-            None => None
-        }
+    move |input: &'a [Token], genctxt: AstGenCtxt<'a>| match identifier()
+        .and_left(exact(Token::Assign))
+        .and(opaque!(statement()))
+        .parse(input, genctxt)
+    {
+        Some(((name, expr), input, genctxt)) => Some((genctxt.borrow().get_var_write(&name, Box::new(expr.clone())), input, Rc::clone(&genctxt))),
+        None => None,
     }
 }
 
@@ -364,11 +332,8 @@ pub fn primitive<'a>() -> impl Parser<MethodBody, &'a [Token], AstGenCtxt<'a>> {
 #[cfg(feature = "block-debug-info")]
 pub fn method_body<'a>() -> impl Parser<MethodBody, &'a [Token], AstGenCtxt<'a>> {
     move |input: &'a [Token], genctxt: AstGenCtxt<'a>| {
-        let ((locals, body), input, genctxt) = between(
-            exact(Token::NewTerm),
-            default(locals()).and(body()),
-            exact(Token::EndTerm),
-        ).parse(input, genctxt)?;
+        let ((locals, body), input, genctxt) =
+            between(exact(Token::NewTerm), default(locals()).and(body()), exact(Token::EndTerm)).parse(input, genctxt)?;
 
         let method_body = MethodBody::Body {
             locals_nbr: locals.len(),
@@ -382,25 +347,17 @@ pub fn method_body<'a>() -> impl Parser<MethodBody, &'a [Token], AstGenCtxt<'a>>
 
 #[cfg(not(feature = "block-debug-info"))]
 pub fn method_body<'a>() -> impl Parser<MethodBody, &'a [Token], AstGenCtxt<'a>> {
-    between(
-        exact(Token::NewTerm),
-        default(locals()).and(body()),
-        exact(Token::EndTerm),
-    )
-        .map(|(locals, body)| MethodBody::Body {
-            locals_nbr: locals.len(),
-            body,
-        })
+    between(exact(Token::NewTerm), default(locals()).and(body()), exact(Token::EndTerm)).map(|(locals, body)| MethodBody::Body {
+        locals_nbr: locals.len(),
+        body,
+    })
 }
 
 pub fn unary_method_def<'a>() -> impl Parser<MethodDef, &'a [Token], AstGenCtxt<'a>> {
     identifier()
         .and_left(exact(Token::Equal))
         .and(primitive().or(method_body()))
-        .map(|(signature, body)| MethodDef {
-            signature,
-            body,
-        })
+        .map(|(signature, body)| MethodDef { signature, body })
 }
 
 pub fn positional_method_def<'a>() -> impl Parser<MethodDef, &'a [Token], AstGenCtxt<'a>> {
@@ -413,10 +370,7 @@ pub fn positional_method_def<'a>() -> impl Parser<MethodDef, &'a [Token], AstGen
 
         let (body, input, genctxt) = primitive().or(method_body()).parse(input, genctxt)?;
 
-        let method_def = MethodDef {
-            signature,
-            body,
-        };
+        let method_def = MethodDef { signature, body };
 
         Some((method_def, input, genctxt))
     }
@@ -428,11 +382,7 @@ pub fn operator_method_def<'a>() -> impl Parser<MethodDef, &'a [Token], AstGenCt
 
         genctxt.borrow_mut().add_params(&vec![rhs.clone()]);
 
-        primitive().or(method_body())
-            .map(|body| MethodDef {
-                signature: op.clone(),
-                body,
-            }).parse(input, genctxt)
+        primitive().or(method_body()).map(|body| MethodDef { signature: op.clone(), body }).parse(input, genctxt)
     }
 }
 
@@ -440,10 +390,7 @@ pub fn instance_method_def<'a>() -> impl Parser<MethodDef, &'a [Token], AstGenCt
     move |input: &'a [Token], genctxt: AstGenCtxt<'a>| {
         let genctxt = AstGenCtxtData::new_ctxt_from(genctxt, AstGenCtxtType::Method(AstMethodGenCtxtType::INSTANCE));
 
-        match unary_method_def()
-            .or(positional_method_def())
-            .or(operator_method_def())
-            .parse(input, Rc::clone(&genctxt)) {
+        match unary_method_def().or(positional_method_def()).or(operator_method_def()).parse(input, Rc::clone(&genctxt)) {
             Some((method_def, input, genctxt)) => {
                 let original_genctxt = genctxt.borrow_mut().get_outer();
                 Some((method_def, input, original_genctxt))
@@ -457,10 +404,7 @@ pub fn class_method_def<'a>() -> impl Parser<MethodDef, &'a [Token], AstGenCtxt<
     move |input: &'a [Token], genctxt: AstGenCtxt<'a>| {
         let genctxt = AstGenCtxtData::new_ctxt_from(genctxt, AstGenCtxtType::Method(AstMethodGenCtxtType::CLASS));
 
-        match unary_method_def()
-            .or(positional_method_def())
-            .or(operator_method_def())
-            .parse(input, Rc::clone(&genctxt)) {
+        match unary_method_def().or(positional_method_def()).or(operator_method_def()).parse(input, Rc::clone(&genctxt)) {
             Some((method_def, input, genctxt)) => {
                 let original_genctxt = genctxt.borrow_mut().get_outer();
                 Some((method_def, input, original_genctxt))
@@ -496,7 +440,8 @@ pub fn class_def<'a>() -> impl Parser<ClassDef, &'a [Token], AstGenCtxt<'a>> {
                     static_locals,
                     static_methods,
                 }
-            }).parse(input, genctxt)
+            })
+            .parse(input, genctxt)
     }
 }
 

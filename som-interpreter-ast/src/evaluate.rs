@@ -1,6 +1,6 @@
 use crate::ast::{
-    AstBinaryDispatch, AstBlock, AstBody, AstDispatchNode, AstExpression, AstLiteral, AstMethodDef,
-    AstNAryDispatch, AstSuperMessage, AstTerm, AstTernaryDispatch, AstUnaryDispatch, InlinedNode,
+    AstBinaryDispatch, AstBlock, AstBody, AstDispatchNode, AstExpression, AstLiteral, AstMethodDef, AstNAryDispatch, AstSuperMessage, AstTerm,
+    AstTernaryDispatch, AstUnaryDispatch, InlinedNode,
 };
 use crate::block::Block;
 use crate::frame::{Frame, FrameAccess};
@@ -83,25 +83,18 @@ impl Evaluate for AstExpression {
                         _ => {
                             // Should never happen, because `universe.current_frame()` would
                             // have been equal to `universe.current_method_frame()`.
-                            return Return::Exception(
-                                "A method frame has escaped itself ??".to_string(),
-                            );
+                            return Return::Exception("A method frame has escaped itself ??".to_string());
                         }
                     };
                     universe.escaped_block(instance, block).unwrap_or_else(|| {
                         // TODO: should we call `doesNotUnderstand:` here ?
-                        Return::Exception(
-                            "A block has escaped and `escapedBlock:` is not defined on receiver"
-                                .to_string(),
-                        )
+                        Return::Exception("A block has escaped and `escapedBlock:` is not defined on receiver".to_string())
                     })
                 }
             }
             Self::Literal(literal) => literal.evaluate(universe),
             Self::LocalVarRead(idx) => Return::Local(universe.lookup_local(*idx)),
-            Self::NonLocalVarRead(scope, idx) => {
-                Return::Local(universe.lookup_non_local(*idx, *scope))
-            }
+            Self::NonLocalVarRead(scope, idx) => Return::Local(universe.lookup_non_local(*idx, *scope)),
             Self::FieldRead(idx) => Return::Local(universe.lookup_field(*idx)),
             Self::ArgRead(scope, idx) => Return::Local(universe.lookup_arg(*idx, *scope)),
             Self::GlobalRead(name) => match name.as_str() {
@@ -113,9 +106,7 @@ impl Evaluate for AstExpression {
                         let self_value = frame.get_self();
                         universe.unknown_global(self_value, name.as_str())
                     })
-                    .unwrap_or_else(|| {
-                        Return::Exception(format!("global variable '{}' not found", name))
-                    }),
+                    .unwrap_or_else(|| Return::Exception(format!("global variable '{}' not found", name))),
             },
             Self::UnaryDispatch(un_op) => un_op.evaluate(universe),
             Self::BinaryDispatch(bin_op) => bin_op.evaluate(universe),
@@ -124,9 +115,7 @@ impl Evaluate for AstExpression {
             Self::SuperMessage(msg) => msg.evaluate(universe),
             Self::InlinedCall(inlined_node) => match inlined_node.as_mut() {
                 InlinedNode::IfInlined(if_inlined) => if_inlined.evaluate(universe),
-                InlinedNode::IfTrueIfFalseInlined(if_true_if_false_inlined) => {
-                    if_true_if_false_inlined.evaluate(universe)
-                }
+                InlinedNode::IfTrueIfFalseInlined(if_true_if_false_inlined) => if_true_if_false_inlined.evaluate(universe),
                 InlinedNode::WhileInlined(while_inlined) => while_inlined.evaluate(universe),
                 InlinedNode::OrInlined(or_inlined) => or_inlined.evaluate(universe),
                 InlinedNode::AndInlined(and_inlined) => and_inlined.evaluate(universe),
@@ -175,11 +164,7 @@ impl Evaluate for GCRef<AstBlock> {
 
 impl AstDispatchNode {
     #[inline(always)]
-    fn lookup_invokable(
-        &mut self,
-        receiver: &Value,
-        universe: &mut Universe,
-    ) -> (Option<GCRef<Method>>, bool) {
+    fn lookup_invokable(&mut self, receiver: &Value, universe: &mut Universe) -> (Option<GCRef<Method>>, bool) {
         let mut is_cache_hit = false;
         let invokable = match &self.inline_cache {
             Some((cached_rcvr_ptr, method)) => {
@@ -199,13 +184,7 @@ impl AstDispatchNode {
     }
 
     #[inline(always)]
-    fn dispatch_or_dnu(
-        &mut self,
-        invokable: Option<GCRef<Method>>,
-        args: Vec<Value>,
-        is_cache_hit: bool,
-        universe: &mut Universe,
-    ) -> Return {
+    fn dispatch_or_dnu(&mut self, invokable: Option<GCRef<Method>>, args: Vec<Value>, is_cache_hit: bool, universe: &mut Universe) -> Return {
         match invokable {
             Some(mut invokable) => match is_cache_hit {
                 true => invokable.invoke(universe, args),
@@ -222,15 +201,13 @@ impl AstDispatchNode {
             None => {
                 let mut args = args;
                 let receiver = args.remove(0);
-                universe
-                    .does_not_understand(receiver.clone(), &self.signature, args)
-                    .unwrap_or_else(|| {
-                        Return::Exception(format!(
-                            "could not find method '{}>>#{}'",
-                            receiver.class(universe).name(),
-                            self.signature
-                        ))
-                    })
+                universe.does_not_understand(receiver.clone(), &self.signature, args).unwrap_or_else(|| {
+                    Return::Exception(format!(
+                        "could not find method '{}>>#{}'",
+                        receiver.class(universe).name(),
+                        self.signature
+                    ))
+                })
             }
         }
     }
@@ -240,8 +217,7 @@ impl Evaluate for AstUnaryDispatch {
     fn evaluate(&mut self, universe: &mut Universe) -> Return {
         let receiver = propagate!(self.dispatch_node.receiver.evaluate(universe));
         let (invokable, is_cache_hit) = self.dispatch_node.lookup_invokable(&receiver, universe);
-        self.dispatch_node
-            .dispatch_or_dnu(invokable, vec![receiver], is_cache_hit, universe)
+        self.dispatch_node.dispatch_or_dnu(invokable, vec![receiver], is_cache_hit, universe)
     }
 }
 
@@ -252,8 +228,7 @@ impl Evaluate for AstBinaryDispatch {
 
         let arg = propagate!(self.arg.evaluate(universe));
 
-        self.dispatch_node
-            .dispatch_or_dnu(invokable, vec![receiver, arg], is_cache_hit, universe)
+        self.dispatch_node.dispatch_or_dnu(invokable, vec![receiver, arg], is_cache_hit, universe)
     }
 }
 
@@ -265,12 +240,7 @@ impl Evaluate for AstTernaryDispatch {
         let arg1 = propagate!(self.arg1.evaluate(universe));
         let arg2 = propagate!(self.arg2.evaluate(universe));
 
-        self.dispatch_node.dispatch_or_dnu(
-            invokable,
-            vec![receiver, arg1, arg2],
-            is_cache_hit,
-            universe,
-        )
+        self.dispatch_node.dispatch_or_dnu(invokable, vec![receiver, arg1, arg2], is_cache_hit, universe)
     }
 }
 
@@ -294,8 +264,7 @@ impl Evaluate for AstNAryDispatch {
             "should be a specialized unary/binary/ternary node, not a generic N-ary node"
         );
 
-        self.dispatch_node
-            .dispatch_or_dnu(invokable, args, is_cache_hit, universe)
+        self.dispatch_node.dispatch_or_dnu(invokable, args, is_cache_hit, universe)
     }
 }
 
@@ -318,16 +287,14 @@ impl Evaluate for AstSuperMessage {
             None => {
                 let mut args = args;
                 args.remove(0);
-                universe
-                    .does_not_understand(receiver.clone(), &self.signature, args)
-                    .unwrap_or_else(|| {
-                        Return::Exception(format!(
-                            "could not find method '{}>>#{}'",
-                            receiver.class(universe).name(),
-                            self.signature
-                        ))
-                        // Return::Local(Value::Nil)
-                    })
+                universe.does_not_understand(receiver.clone(), &self.signature, args).unwrap_or_else(|| {
+                    Return::Exception(format!(
+                        "could not find method '{}>>#{}'",
+                        receiver.class(universe).name(),
+                        self.signature
+                    ))
+                    // Return::Local(Value::Nil)
+                })
             }
         };
 

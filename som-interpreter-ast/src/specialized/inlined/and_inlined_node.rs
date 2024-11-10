@@ -1,15 +1,15 @@
-use std::fmt::{Display, Formatter};
-use std::fmt::Write;
-use indenter::indented;
 use crate::ast::{AstBody, AstExpression};
 use crate::evaluate::Evaluate;
 use crate::invokable::Return;
 use crate::universe::Universe;
+use indenter::indented;
+use std::fmt::Write;
+use std::fmt::{Display, Formatter};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct AndInlinedNode {
     pub first: AstExpression,
-    pub second: AstBody
+    pub second: AstBody,
 }
 
 impl Display for AndInlinedNode {
@@ -31,7 +31,7 @@ impl Evaluate for AndInlinedNode {
         } else {
             match self.second.evaluate(universe) {
                 Return::Local(a) if a.is_boolean() => Return::Local(a),
-                invalid => panic!("and:'s second part didn't evaluate to a returnlocal + boolean, but {:?}?", invalid)
+                invalid => panic!("and:'s second part didn't evaluate to a returnlocal + boolean, but {:?}?", invalid),
             }
         }
     }

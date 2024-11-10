@@ -28,11 +28,7 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> 
 pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| {
     Box::new([
         ("fromString:", self::from_string.into_func(), true),
-        (
-            "PositiveInfinity",
-            self::positive_infinity.into_func(),
-            true,
-        ),
+        ("PositiveInfinity", self::positive_infinity.into_func(), true),
     ])
 });
 
@@ -44,34 +40,20 @@ macro_rules! promote {
             DoubleLike::BigInteger(value) => match value.to_f64() {
                 Some(value) => value,
                 None => {
-                    panic!(
-                        "'{}': `Integer` too big to be converted to `Double`",
-                        $signature
-                    )
+                    panic!("'{}': `Integer` too big to be converted to `Double`", $signature)
                 }
             },
         }
     };
 }
 
-fn from_string(
-    _: &mut Interpreter,
-    _: &mut Universe,
-    _: Value,
-    string: GCRef<String>,
-) -> Result<f64, Error> {
+fn from_string(_: &mut Interpreter, _: &mut Universe, _: Value, string: GCRef<String>) -> Result<f64, Error> {
     const SIGNATURE: &str = "Double>>#fromString:";
 
-    string
-        .parse()
-        .with_context(|| format!("`{SIGNATURE}`: could not parse `f64` from string"))
+    string.parse().with_context(|| format!("`{SIGNATURE}`: could not parse `f64` from string"))
 }
 
-fn as_string(
-    _: &mut Interpreter,
-    universe: &mut Universe,
-    receiver: DoubleLike,
-) -> Result<GCRef<String>, Error> {
+fn as_string(_: &mut Interpreter, universe: &mut Universe, receiver: DoubleLike) -> Result<GCRef<String>, Error> {
     const SIGNATURE: &str = "Double>>#asString";
 
     let receiver = promote!(SIGNATURE, receiver);
@@ -141,12 +123,7 @@ fn plus(_: &mut Interpreter, _: &mut Universe, a: DoubleLike, b: DoubleLike) -> 
     Ok(a + b)
 }
 
-fn minus(
-    _: &mut Interpreter,
-    _: &mut Universe,
-    a: DoubleLike,
-    b: DoubleLike,
-) -> Result<f64, Error> {
+fn minus(_: &mut Interpreter, _: &mut Universe, a: DoubleLike, b: DoubleLike) -> Result<f64, Error> {
     const SIGNATURE: &str = "Double>>#-";
 
     let a = promote!(SIGNATURE, a);
@@ -155,12 +132,7 @@ fn minus(
     Ok(a - b)
 }
 
-fn times(
-    _: &mut Interpreter,
-    _: &mut Universe,
-    a: DoubleLike,
-    b: DoubleLike,
-) -> Result<f64, Error> {
+fn times(_: &mut Interpreter, _: &mut Universe, a: DoubleLike, b: DoubleLike) -> Result<f64, Error> {
     const SIGNATURE: &str = "Double>>#*";
 
     let a = promote!(SIGNATURE, a);
@@ -169,12 +141,7 @@ fn times(
     Ok(a * b)
 }
 
-fn divide(
-    _: &mut Interpreter,
-    _: &mut Universe,
-    a: DoubleLike,
-    b: DoubleLike,
-) -> Result<f64, Error> {
+fn divide(_: &mut Interpreter, _: &mut Universe, a: DoubleLike, b: DoubleLike) -> Result<f64, Error> {
     const SIGNATURE: &str = "Double>>#//";
 
     let a = promote!(SIGNATURE, a);
@@ -183,12 +150,7 @@ fn divide(
     Ok(a / b)
 }
 
-fn modulo(
-    _: &mut Interpreter,
-    _: &mut Universe,
-    a: DoubleLike,
-    b: DoubleLike,
-) -> Result<f64, Error> {
+fn modulo(_: &mut Interpreter, _: &mut Universe, a: DoubleLike, b: DoubleLike) -> Result<f64, Error> {
     const SIGNATURE: &str = "Double>>#%";
 
     let a = promote!(SIGNATURE, a);
@@ -205,16 +167,10 @@ fn positive_infinity(_: &mut Interpreter, _: &mut Universe, _: Value) -> Result<
 
 /// Search for an instance primitive matching the given signature.
 pub fn get_instance_primitive(signature: &str) -> Option<&'static PrimitiveFn> {
-    INSTANCE_PRIMITIVES
-        .iter()
-        .find(|it| it.0 == signature)
-        .map(|it| it.1)
+    INSTANCE_PRIMITIVES.iter().find(|it| it.0 == signature).map(|it| it.1)
 }
 
 /// Search for a class primitive matching the given signature.
 pub fn get_class_primitive(signature: &str) -> Option<&'static PrimitiveFn> {
-    CLASS_PRIMITIVES
-        .iter()
-        .find(|it| it.0 == signature)
-        .map(|it| it.1)
+    CLASS_PRIMITIVES.iter().find(|it| it.0 == signature).map(|it| it.1)
 }

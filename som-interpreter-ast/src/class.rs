@@ -52,19 +52,12 @@ impl Class {
     /// Load up a class from its class definition from the AST.
     /// NB: super_class is only ever None for one class: the core Object class, which all other classes inherit from.
     /// NB: while it takes the super_class as argument, it's not in charge of hooking it up to the class itself. That's `set_super_class`. Might need changing for clarity.
-    pub fn from_class_def(
-        defn: ClassDef,
-        super_class: Option<GCRef<Class>>,
-        gc_interface: &mut GCInterface,
-    ) -> Result<GCRef<Class>, String> {
+    pub fn from_class_def(defn: ClassDef, super_class: Option<GCRef<Class>>, gc_interface: &mut GCInterface) -> Result<GCRef<Class>, String> {
         let static_locals = {
             let mut static_locals = IndexMap::new();
             for field in defn.static_locals.iter() {
                 if static_locals.insert(field.clone(), Value::NIL).is_some() {
-                    return Err(format!(
-                        "{}: the field named '{}' is already defined in this class",
-                        defn.name, field,
-                    ));
+                    return Err(format!("{}: the field named '{}' is already defined in this class", defn.name, field,));
                 }
             }
             static_locals
@@ -74,10 +67,7 @@ impl Class {
             let mut instance_locals = IndexMap::new();
             for field in defn.instance_locals.iter() {
                 if instance_locals.insert(field.clone(), Value::NIL).is_some() {
-                    return Err(format!(
-                        "{}: the field named '{}' is already defined in this class",
-                        defn.name, field,
-                    ));
+                    return Err(format!("{}: the field named '{}' is already defined in this class", defn.name, field,));
                 }
             }
             instance_locals
@@ -117,11 +107,7 @@ impl Class {
             .iter()
             .map(|method| {
                 let signature = method.signature.clone();
-                let kind = AstMethodCompilerCtxt::get_method_kind(
-                    method,
-                    Some(static_class_gc_ptr),
-                    gc_interface,
-                );
+                let kind = AstMethodCompilerCtxt::get_method_kind(method, Some(static_class_gc_ptr), gc_interface);
                 let method = Method {
                     kind,
                     signature: signature.clone(),
@@ -134,10 +120,7 @@ impl Class {
         if let Some(primitives) = primitives::get_class_primitives(&defn.name) {
             for (signature, primitive, warning) in primitives {
                 if *warning && !static_methods.contains_key(*signature) {
-                    eprintln!(
-                        "Warning: Primitive '{}' is not in class definition for class '{}'",
-                        signature, defn.name
-                    );
+                    eprintln!("Warning: Primitive '{}' is not in class definition for class '{}'", signature, defn.name);
                 }
 
                 let method = Method {
@@ -154,11 +137,7 @@ impl Class {
             .iter()
             .map(|method| {
                 let signature = method.signature.clone();
-                let kind = AstMethodCompilerCtxt::get_method_kind(
-                    method,
-                    Some(instance_class_gc_ptr),
-                    gc_interface,
-                );
+                let kind = AstMethodCompilerCtxt::get_method_kind(method, Some(instance_class_gc_ptr), gc_interface);
                 let method = Method {
                     kind,
                     signature: signature.clone(),
@@ -171,10 +150,7 @@ impl Class {
         if let Some(primitives) = primitives::get_instance_primitives(&defn.name) {
             for (signature, primitive, warning) in primitives {
                 if *warning && !instance_methods.contains_key(*signature) {
-                    eprintln!(
-                        "Warning: Primitive '{}' is not in class definition for class '{}'",
-                        signature, defn.name
-                    );
+                    eprintln!("Warning: Primitive '{}' is not in class definition for class '{}'", signature, defn.name);
                 }
 
                 let method = Method {
@@ -227,10 +203,7 @@ impl Class {
     /// Search for a given method within this class.
     pub fn lookup_method(&self, signature: impl AsRef<str>) -> Option<GCRef<Method>> {
         let signature = signature.as_ref();
-        self.methods
-            .get(signature)
-            .cloned()
-            .or_else(|| self.super_class.clone()?.lookup_method(signature))
+        self.methods.get(signature).cloned().or_else(|| self.super_class.clone()?.lookup_method(signature))
     }
 
     /// Search for a local binding.
@@ -257,14 +230,7 @@ impl Class {
         self.field_names
             .iter()
             .position(|field_name| field_name == name)
-            .and_then(|pos| {
-                Some(
-                    pos + self
-                        .super_class
-                        .map(|scls| scls.get_total_field_nbr())
-                        .unwrap_or(0),
-                )
-            })
+            .and_then(|pos| Some(pos + self.super_class.map(|scls| scls.get_total_field_nbr()).unwrap_or(0)))
             .or_else(|| match self.super_class() {
                 Some(super_class) => super_class.get_field_offset_by_name(name),
                 _ => None,
@@ -284,12 +250,7 @@ impl Class {
         self.field_names
             .iter()
             .cloned()
-            .chain(
-                self.super_class
-                    .as_ref()
-                    .map(|scls| scls.get_all_field_names())
-                    .unwrap_or_else(|| Vec::new()),
-            )
+            .chain(self.super_class.as_ref().map(|scls| scls.get_all_field_names()).unwrap_or_else(|| Vec::new()))
             .collect()
     }
 }

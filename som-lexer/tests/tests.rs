@@ -17,10 +17,7 @@ fn empty_class_test() {
 fn symbol_literal_test() {
     let mut lexer = Lexer::new("#key:word:");
 
-    assert_eq!(
-        lexer.next(),
-        Some(Token::LitSymbol(String::from("key:word:")))
-    );
+    assert_eq!(lexer.next(), Some(Token::LitSymbol(String::from("key:word:"))));
     assert_eq!(lexer.next(), None);
 }
 
@@ -41,9 +38,6 @@ fn assignment_test() {
 fn string_literal_test() {
     let mut lexer = Lexer::new("'some string with new\nline'");
 
-    assert_eq!(
-        lexer.next(),
-        Some(Token::LitString(String::from("some string with new\nline")))
-    );
+    assert_eq!(lexer.next(), Some(Token::LitString(String::from("some string with new\nline"))));
     assert_eq!(lexer.next(), None);
 }

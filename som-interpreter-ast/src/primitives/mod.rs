@@ -19,11 +19,11 @@ pub mod symbol;
 /// Primitives for the **System** class.
 pub mod system;
 
-use anyhow::Error;
-use once_cell::sync::Lazy;
+pub use self::blocks::{block1, block2, block3};
 use crate::convert::Primitive;
 use crate::invokable::Return;
-pub use self::blocks::{block1, block2, block3};
+use anyhow::Error;
+use once_cell::sync::Lazy;
 
 use crate::universe::Universe;
 use crate::value::Value;
@@ -31,14 +31,9 @@ use crate::value::Value;
 /// A interpreter primitive (just a bare function pointer).
 // pub type PrimitiveFn = fn(universe: &mut UniverseAST, args: Vec<Value>)-> Result<Value, Error>;
 // pub type PrimitiveFn = dyn Fn(&mut UniverseAST, Vec<Value>) -> Result<Return, Error>
-pub type PrimitiveFn = dyn Fn(&mut Universe, Vec<Value>) -> Return
-+ Send
-+ Sync
-+ 'static;
+pub type PrimitiveFn = dyn Fn(&mut Universe, Vec<Value>) -> Return + Send + Sync + 'static;
 
-pub fn get_class_primitives(
-    class_name: &str,
-) -> Option<&'static [(&'static str, &'static PrimitiveFn, bool)]> {
+pub fn get_class_primitives(class_name: &str) -> Option<&'static [(&'static str, &'static PrimitiveFn, bool)]> {
     match class_name {
         "Array" => Some(self::array::CLASS_PRIMITIVES.as_ref()),
         "Block1" => Some(self::block1::CLASS_PRIMITIVES.as_ref()),
@@ -57,9 +52,7 @@ pub fn get_class_primitives(
     }
 }
 
-pub fn get_instance_primitives(
-    class_name: &str,
-) -> Option<&'static [(&'static str, &'static PrimitiveFn, bool)]> {
+pub fn get_instance_primitives(class_name: &str) -> Option<&'static [(&'static str, &'static PrimitiveFn, bool)]> {
     match class_name {
         "Array" => Some(self::array::INSTANCE_PRIMITIVES.as_ref()),
         "Block1" => Some(self::block1::INSTANCE_PRIMITIVES.as_ref()),
@@ -78,12 +71,9 @@ pub fn get_instance_primitives(
     }
 }
 
-
 /// Function called for an unimplemented primitive.
 fn unimplem_prim_fn(_: &mut Universe, _: i32) -> Result<i32, Error> {
     panic!("called an unimplemented primitive")
 }
 
-pub static UNIMPLEM_PRIMITIVE: Lazy<Box<&'static PrimitiveFn>> = Lazy::new(|| {
-    Box::new(unimplem_prim_fn.into_func())
-});
+pub static UNIMPLEM_PRIMITIVE: Lazy<Box<&'static PrimitiveFn>> = Lazy::new(|| Box::new(unimplem_prim_fn.into_func()));

@@ -1,8 +1,8 @@
+use crate::SOMVM;
 use log::debug;
 use mmtk::util::copy::{CopySemantics, GCWorkerCopyContext};
 use mmtk::util::{Address, ObjectReference};
 use mmtk::vm::*;
-use crate::SOMVM;
 
 pub struct VMObjectModel {}
 
@@ -30,26 +30,18 @@ impl ObjectModel<SOMVM> for VMObjectModel {
 
     // Forwarding pointers have to be in the header. It is okay to overwrite the object payload with a forwarding pointer.
     // FIXME: The bit offset needs to be set properly.
-    const LOCAL_FORWARDING_POINTER_SPEC: VMLocalForwardingPointerSpec =
-        VMLocalForwardingPointerSpec::in_header(0);
+    const LOCAL_FORWARDING_POINTER_SPEC: VMLocalForwardingPointerSpec = VMLocalForwardingPointerSpec::in_header(0);
     // The other metadata can be put in the side metadata.
-    const LOCAL_FORWARDING_BITS_SPEC: VMLocalForwardingBitsSpec =
-        VMLocalForwardingBitsSpec::side_first();
-    const LOCAL_MARK_BIT_SPEC: VMLocalMarkBitSpec =
-        VMLocalMarkBitSpec::side_after(Self::LOCAL_FORWARDING_BITS_SPEC.as_spec());
-    const LOCAL_LOS_MARK_NURSERY_SPEC: VMLocalLOSMarkNurserySpec =
-        VMLocalLOSMarkNurserySpec::side_after(Self::LOCAL_MARK_BIT_SPEC.as_spec());
+    const LOCAL_FORWARDING_BITS_SPEC: VMLocalForwardingBitsSpec = VMLocalForwardingBitsSpec::side_first();
+    const LOCAL_MARK_BIT_SPEC: VMLocalMarkBitSpec = VMLocalMarkBitSpec::side_after(Self::LOCAL_FORWARDING_BITS_SPEC.as_spec());
+    const LOCAL_LOS_MARK_NURSERY_SPEC: VMLocalLOSMarkNurserySpec = VMLocalLOSMarkNurserySpec::side_after(Self::LOCAL_MARK_BIT_SPEC.as_spec());
 
     const OBJECT_REF_OFFSET_LOWER_BOUND: isize = OBJECT_REF_OFFSET as isize;
 
-    fn copy(
-        _from: ObjectReference,
-        _semantics: CopySemantics,
-        _copy_context: &mut GCWorkerCopyContext<SOMVM>,
-    ) -> ObjectReference {
+    fn copy(_from: ObjectReference, _semantics: CopySemantics, _copy_context: &mut GCWorkerCopyContext<SOMVM>) -> ObjectReference {
         debug!("invoking copy (unfinished...)");
         todo!()
-/*
+        /*
         // dbg!(&from);
         // let _from_ptr: *mut usize = unsafe { from.to_raw_address().as_mut_ref() };
 
@@ -66,7 +58,7 @@ impl ObjectModel<SOMVM> for VMObjectModel {
 
         let dst = copy_context.alloc_copy(from_and_header, bytes, align, offset, semantics);
         debug_assert!(!dst.is_zero());
-        
+
         // dbg!(&dst);
         // unsafe {
         //     let frame: &mut Frame = dst.as_mut_ref();
@@ -76,13 +68,13 @@ impl ObjectModel<SOMVM> for VMObjectModel {
 
         // let to_obj = unsafe { ObjectReference::from_raw_address_unchecked(dst + header_offset) };
         let to_obj = unsafe { ObjectReference::from_raw_address_unchecked(dst) };
-        
+
         let _dst_addr: *mut usize = unsafe { dst.as_mut_ref() };
 
         copy_context.post_copy(to_obj, bytes, semantics);
 
         debug!("Copied object {} into {}", from, to_obj);
-        
+
         to_obj*/
     }
 

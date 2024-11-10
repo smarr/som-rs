@@ -31,7 +31,7 @@ pub enum MethodKind {
     /// A user-defined method from the AST.
     Defined(MethodEnv),
     /// An interpreter primitive.
-    Primitive(&'static PrimitiveFn)
+    Primitive(&'static PrimitiveFn),
 }
 
 impl MethodKind {
@@ -77,40 +77,23 @@ impl Method {
 }
 
 pub trait Invoke {
-    fn invoke(
-        &self,
-        interpreter: &mut Interpreter,
-        universe: &mut Universe,
-        receiver: Value,
-        args: Vec<Value>,
-    );
+    fn invoke(&self, interpreter: &mut Interpreter, universe: &mut Universe, receiver: Value, args: Vec<Value>);
 }
 
 impl Invoke for GCRef<Method> {
-    fn invoke(
-        &self,
-        interpreter: &mut Interpreter,
-        universe: &mut Universe,
-        receiver: Value,
-        mut args: Vec<Value>,
-    ) {
+    fn invoke(&self, interpreter: &mut Interpreter, universe: &mut Universe, receiver: Value, mut args: Vec<Value>) {
         match self.kind() {
             MethodKind::Defined(_) => {
                 let mut frame_args = vec![receiver];
                 frame_args.append(&mut args);
-                interpreter.push_method_frame_with_args(
-                    *self,
-                    frame_args.as_slice(),
-                    &mut universe.gc_interface,
-                );
+                interpreter.push_method_frame_with_args(*self, frame_args.as_slice(), &mut universe.gc_interface);
             }
             MethodKind::Primitive(func) => {
                 interpreter.current_frame.stack_push(receiver);
                 for arg in args {
                     interpreter.current_frame.stack_push(arg)
                 }
-                func(interpreter, universe)
-                    .expect(&format!("invoking func {} failed", &self.signature))
+                func(interpreter, universe).expect(&format!("invoking func {} failed", &self.signature))
             }
         }
     }
@@ -146,9 +129,7 @@ impl fmt::Display for Method {
                         Bytecode::PushBlock(idx) => {
                             write!(f, "index: {}", idx)?;
                         }
-                        Bytecode::PushConstant0
-                        | Bytecode::PushConstant1
-                        | Bytecode::PushConstant2 => {}
+                        Bytecode::PushConstant0 | Bytecode::PushConstant1 | Bytecode::PushConstant2 => {}
                         Bytecode::PushConstant(idx) => {
                             write!(f, "index: {}, ", idx)?;
                             let constant = &env.literals[*idx as usize];
@@ -179,16 +160,10 @@ impl fmt::Display for Method {
                         Bytecode::PopField(idx) => {
                             write!(f, "index: {}", idx)?;
                         }
-                        Bytecode::Send1(idx)
-                        | Bytecode::Send2(idx)
-                        | Bytecode::Send3(idx)
-                        | Bytecode::SendN(idx) => {
+                        Bytecode::Send1(idx) | Bytecode::Send2(idx) | Bytecode::Send3(idx) | Bytecode::SendN(idx) => {
                             write!(f, "index: {}", idx)?;
                         }
-                        Bytecode::SuperSend1(idx)
-                        | Bytecode::SuperSend2(idx)
-                        | Bytecode::SuperSend3(idx)
-                        | Bytecode::SuperSendN(idx) => {
+                        Bytecode::SuperSend1(idx) | Bytecode::SuperSend2(idx) | Bytecode::SuperSend3(idx) | Bytecode::SuperSendN(idx) => {
                             write!(f, "index: {}", idx)?;
                         }
                         Bytecode::ReturnLocal => {}
@@ -208,7 +183,7 @@ impl fmt::Display for Method {
                 }
                 Ok(())
             }
-            MethodKind::Primitive(_) => write!(f, "<primitive>")
+            MethodKind::Primitive(_) => write!(f, "<primitive>"),
         }
     }
 }

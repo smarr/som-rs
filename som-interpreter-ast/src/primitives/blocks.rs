@@ -14,22 +14,12 @@ pub mod block1 {
     use som_gc::gcref::GCRef;
 
     pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> =
-        Lazy::new(|| {
-            Box::new([
-                ("value", self::value.into_func(), true),
-                ("restart", self::restart.into_func(), false),
-            ])
-        });
-    pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> =
-        Lazy::new(|| Box::new([]));
+        Lazy::new(|| Box::new([("value", self::value.into_func(), true), ("restart", self::restart.into_func(), false)]));
+    pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| Box::new([]));
 
     fn value(universe: &mut Universe, mut block: GCRef<Block>) -> Result<Return, Error> {
         let nbr_locals = block.block.nbr_locals;
-        Ok(universe.with_frame(
-            nbr_locals,
-            vec![Value::Block(block)],
-            |universe| block.evaluate(universe),
-        ))
+        Ok(universe.with_frame(nbr_locals, vec![Value::Block(block)], |universe| block.evaluate(universe)))
     }
 
     // TODO: with inlining, this is never called. Maybe it could be removed for better perf since we could forego Return::Restart? but this wouldn't be fully valid interpreter behaviour.
@@ -39,18 +29,12 @@ pub mod block1 {
 
     /// Search for an instance primitive matching the given signature.
     pub fn get_instance_primitive(signature: &str) -> Option<&'static PrimitiveFn> {
-        INSTANCE_PRIMITIVES
-            .iter()
-            .find(|it| it.0 == signature)
-            .map(|it| it.1)
+        INSTANCE_PRIMITIVES.iter().find(|it| it.0 == signature).map(|it| it.1)
     }
 
     /// Search for a class primitive matching the given signature.
     pub fn get_class_primitive(signature: &str) -> Option<&'static PrimitiveFn> {
-        CLASS_PRIMITIVES
-            .iter()
-            .find(|it| it.0 == signature)
-            .map(|it| it.1)
+        CLASS_PRIMITIVES.iter().find(|it| it.0 == signature).map(|it| it.1)
     }
 }
 
@@ -65,36 +49,22 @@ pub mod block2 {
 
     pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> =
         Lazy::new(|| Box::new([("value:", self::value.into_func(), true)]));
-    pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> =
-        Lazy::new(|| Box::new([]));
+    pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| Box::new([]));
 
-    fn value(universe: &mut Universe,
-             mut block: GCRef<Block>,
-             argument: Value,
-    ) -> Result<Return, Error> {
+    fn value(universe: &mut Universe, mut block: GCRef<Block>, argument: Value) -> Result<Return, Error> {
         let nbr_locals = block.block.nbr_locals;
 
-        Ok(universe.with_frame(
-            nbr_locals,
-            vec![Value::Block(block), argument],
-            |universe| block.evaluate(universe),
-        ))
+        Ok(universe.with_frame(nbr_locals, vec![Value::Block(block), argument], |universe| block.evaluate(universe)))
     }
 
     /// Search for an instance primitive matching the given signature.
     pub fn get_instance_primitive(signature: &str) -> Option<&'static PrimitiveFn> {
-        INSTANCE_PRIMITIVES
-            .iter()
-            .find(|it| it.0 == signature)
-            .map(|it| it.1)
+        INSTANCE_PRIMITIVES.iter().find(|it| it.0 == signature).map(|it| it.1)
     }
 
     /// Search for a class primitive matching the given signature.
     pub fn get_class_primitive(signature: &str) -> Option<&'static PrimitiveFn> {
-        CLASS_PRIMITIVES
-            .iter()
-            .find(|it| it.0 == signature)
-            .map(|it| it.1)
+        CLASS_PRIMITIVES.iter().find(|it| it.0 == signature).map(|it| it.1)
     }
 }
 
@@ -109,35 +79,25 @@ pub mod block3 {
 
     pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> =
         Lazy::new(|| Box::new([("value:with:", self::value_with.into_func(), true)]));
-    pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> =
-        Lazy::new(|| Box::new([]));
+    pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| Box::new([]));
 
-    fn value_with(universe: &mut Universe,
-                  mut receiver: GCRef<Block>,
-                  argument1: Value,
-                  argument2: Value) -> Result<Return, Error> {
+    fn value_with(universe: &mut Universe, mut receiver: GCRef<Block>, argument1: Value, argument2: Value) -> Result<Return, Error> {
         let nbr_locals = receiver.block.nbr_locals;
 
-        Ok(universe.with_frame(
-            nbr_locals,
-            vec![Value::Block(receiver), argument1, argument2],
-            |universe| receiver.evaluate(universe),
-        ))
+        Ok(
+            universe.with_frame(nbr_locals, vec![Value::Block(receiver), argument1, argument2], |universe| {
+                receiver.evaluate(universe)
+            }),
+        )
     }
 
     /// Search for an instance primitive matching the given signature.
     pub fn get_instance_primitive(signature: &str) -> Option<&'static PrimitiveFn> {
-        INSTANCE_PRIMITIVES
-            .iter()
-            .find(|it| it.0 == signature)
-            .map(|it| it.1)
+        INSTANCE_PRIMITIVES.iter().find(|it| it.0 == signature).map(|it| it.1)
     }
 
     /// Search for a class primitive matching the given signature.
     pub fn get_class_primitive(signature: &str) -> Option<&'static PrimitiveFn> {
-        CLASS_PRIMITIVES
-            .iter()
-            .find(|it| it.0 == signature)
-            .map(|it| it.1)
+        CLASS_PRIMITIVES.iter().find(|it| it.0 == signature).map(|it| it.1)
     }
 }

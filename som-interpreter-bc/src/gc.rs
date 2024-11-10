@@ -11,9 +11,7 @@ use log::debug;
 use mmtk::util::{Address, ObjectReference};
 use mmtk::vm::{ObjectModel, SlotVisitor};
 use mmtk::Mutator;
-use som_gc::gc_interface::{
-    HasTypeInfoForGC, MMTKtoVMCallbacks, BIGINT_MAGIC_ID, STRING_MAGIC_ID, VECU8_MAGIC_ID,
-};
+use som_gc::gc_interface::{HasTypeInfoForGC, MMTKtoVMCallbacks, BIGINT_MAGIC_ID, STRING_MAGIC_ID, VECU8_MAGIC_ID};
 use som_gc::gcref::GCRef;
 use som_gc::object_model::VMObjectModel;
 use som_gc::slot::SOMSlot;
@@ -90,23 +88,15 @@ pub fn visit_value<'a>(val: &Value, slot_visitor: &'a mut (dyn SlotVisitor<SOMSl
 
 pub fn visit_literal<'a>(lit: &Literal, slot_visitor: &'a mut (dyn SlotVisitor<SOMSlot> + 'a)) {
     match lit {
-        Literal::Block(blk) => slot_visitor
-            .visit_slot(SOMSlot::from_address(Address::from_ref(blk))),
-        Literal::String(str) => slot_visitor
-            .visit_slot(SOMSlot::from_address(Address::from_ref(str))),
-        Literal::BigInteger(bigint) => slot_visitor
-            .visit_slot(SOMSlot::from_address(Address::from_ref(bigint))),
-        Literal::Array(arr) => slot_visitor
-            .visit_slot(SOMSlot::from_address(Address::from_ref(arr))),
+        Literal::Block(blk) => slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(blk))),
+        Literal::String(str) => slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(str))),
+        Literal::BigInteger(bigint) => slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(bigint))),
+        Literal::Array(arr) => slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(arr))),
         _ => {}
     }
 }
 
-
-pub fn scan_object<'a>(
-    object: ObjectReference,
-    slot_visitor: &'a mut (dyn SlotVisitor<SOMSlot> + 'a),
-) {
+pub fn scan_object<'a>(object: ObjectReference, slot_visitor: &'a mut (dyn SlotVisitor<SOMSlot> + 'a)) {
     unsafe {
         // let _ptr: *mut usize = unsafe { obj_addr.as_mut_ref() };
         let gc_id: &BCObjMagicId = VMObjectModel::ref_to_header(object).as_ref();
@@ -163,9 +153,7 @@ pub fn scan_object<'a>(
                 slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(&class.class)));
 
                 if class.super_class.is_some() {
-                    slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(
-                        class.super_class.as_ref().unwrap(),
-                    )));
+                    slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(class.super_class.as_ref().unwrap())));
                 }
 
                 for (_, method_ref) in class.methods.iter() {
@@ -190,8 +178,7 @@ pub fn scan_object<'a>(
                 slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(&instance.class)));
 
                 // not the cleanest, to be frank
-                let gcref_instance: GCRef<Instance> =
-                    GCRef::from_u64(object.to_raw_address().as_usize() as u64);
+                let gcref_instance: GCRef<Instance> = GCRef::from_u64(object.to_raw_address().as_usize() as u64);
                 for i in 0..instance.nbr_fields {
                     let val: Value = gcref_instance.lookup_local(i);
                     visit_value(&val, slot_visitor)
@@ -209,9 +196,7 @@ pub fn scan_object<'a>(
                     visit_literal(lit, slot_visitor)
                 }
             }
-            BCObjMagicId::String
-            | BCObjMagicId::ArrayU8
-            | BCObjMagicId::BigInt => {
+            BCObjMagicId::String | BCObjMagicId::ArrayU8 | BCObjMagicId::BigInt => {
                 // leaf nodes: no children.
             }
         }
@@ -225,10 +210,7 @@ fn get_roots_in_mutator_thread(_mutator: &mut Mutator<SOMVM>) -> Vec<SOMSlot> {
 
         // walk the frame list.
         let current_frame_addr = &(*INTERPRETER_RAW_PTR).current_frame;
-        debug!(
-            "scanning root: current_frame (method: {})",
-            current_frame_addr.current_method.signature
-        );
+        debug!("scanning root: current_frame (method: {})", current_frame_addr.current_method.signature);
         to_process.push(SOMSlot::from_address(Address::from_ref(current_frame_addr)));
 
         // walk globals (includes core classes)

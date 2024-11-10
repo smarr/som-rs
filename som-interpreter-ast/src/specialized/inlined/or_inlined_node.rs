@@ -1,15 +1,15 @@
-use std::fmt::{Display, Formatter};
-use std::fmt::Write;
-use indenter::indented;
 use crate::ast::{AstBody, AstExpression};
 use crate::evaluate::Evaluate;
 use crate::invokable::Return;
 use crate::universe::Universe;
+use indenter::indented;
+use std::fmt::Write;
+use std::fmt::{Display, Formatter};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct OrInlinedNode {
     pub first: AstExpression,
-    pub second: AstBody
+    pub second: AstBody,
 }
 
 impl Display for OrInlinedNode {

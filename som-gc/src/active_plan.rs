@@ -29,17 +29,10 @@ impl ActivePlan<SOMVM> for VMActivePlan {
     }
 
     #[allow(unused)]
-    fn vm_trace_object<Q: ObjectQueue>(
-        queue: &mut Q,
-        object: ObjectReference,
-        _worker: &mut GCWorker<SOMVM>,
-    ) -> ObjectReference {
+    fn vm_trace_object<Q: ObjectQueue>(queue: &mut Q, object: ObjectReference, _worker: &mut GCWorker<SOMVM>) -> ObjectReference {
         // I've had MMTk sometimes panic here. thus i reimplemented this one on our side, but only for debug purposes.
         // this should never be invoked.
 
-        panic!(
-            "entering vm_trace_object for some reason: object {:?} not in mmtk space?",
-            object
-        )
+        panic!("entering vm_trace_object for some reason: object {:?} not in mmtk space?", object)
     }
 }

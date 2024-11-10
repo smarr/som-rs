@@ -1,6 +1,6 @@
+use crate::gcref::GCRef;
 use mmtk::util::{Address, ObjectReference};
 use mmtk::vm::slot::{SimpleSlot, Slot};
-use crate::gcref::GCRef;
 
 // pub type SOMSlot = mmtk::vm::slot::SimpleSlot;
 
@@ -8,7 +8,7 @@ use crate::gcref::GCRef;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum SOMSlot {
     Simple(SimpleSlot),
-    Value(ValueSlot)
+    Value(ValueSlot),
 }
 
 impl SOMSlot {
@@ -39,14 +39,12 @@ impl Slot for SOMSlot {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct ValueSlot {
-    value: u64 // should be a pointer instead, probably (but that might be slower?). using the non nan boxed val makes slots MASSIVE otherwise.
+    value: u64, // should be a pointer instead, probably (but that might be slower?). using the non nan boxed val makes slots MASSIVE otherwise.
 }
 
 impl ValueSlot {
     pub fn from_value(value: u64) -> Self {
-        Self {
-            value
-        }
+        Self { value }
     }
 }
 

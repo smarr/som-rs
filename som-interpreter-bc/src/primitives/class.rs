@@ -22,14 +22,9 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> 
         ]
     })
 });
-pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> =
-    Lazy::new(|| Box::new([]));
+pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| Box::new([]));
 
-fn superclass(
-    interpreter: &mut Interpreter,
-    _: &mut Universe,
-    receiver: GCRef<Class>,
-) -> Result<(), Error> {
+fn superclass(interpreter: &mut Interpreter, _: &mut Universe, receiver: GCRef<Class>) -> Result<(), Error> {
     const _: &str = "Class>>#superclass";
 
     let super_class = receiver.super_class();
@@ -39,11 +34,7 @@ fn superclass(
     Ok(())
 }
 
-fn new(
-    _: &mut Interpreter,
-    universe: &mut Universe,
-    receiver: GCRef<Class>,
-) -> Result<GCRef<Instance>, Error> {
+fn new(_: &mut Interpreter, universe: &mut Universe, receiver: GCRef<Class>) -> Result<GCRef<Instance>, Error> {
     const _: &str = "Class>>#new";
 
     let instance = Instance::from_class(receiver, &mut universe.gc_interface);
@@ -51,38 +42,21 @@ fn new(
     Ok(instance)
 }
 
-fn name(
-    _: &mut Interpreter,
-    universe: &mut Universe,
-    receiver: GCRef<Class>,
-) -> Result<Interned, Error> {
+fn name(_: &mut Interpreter, universe: &mut Universe, receiver: GCRef<Class>) -> Result<Interned, Error> {
     const _: &str = "Class>>#name";
 
     Ok(universe.intern_symbol(receiver.name()))
 }
 
-fn methods(
-    _: &mut Interpreter,
-    universe: &mut Universe,
-    receiver: GCRef<Class>,
-) -> Result<GCRef<VecValue>, Error> {
+fn methods(_: &mut Interpreter, universe: &mut Universe, receiver: GCRef<Class>) -> Result<GCRef<VecValue>, Error> {
     const _: &str = "Class>>#methods";
 
-    let methods = receiver
-        .methods
-        .values()
-        .copied()
-        .map(Value::Invokable)
-        .collect();
+    let methods = receiver.methods.values().copied().map(Value::Invokable).collect();
 
     Ok(universe.gc_interface.alloc(VecValue(methods)))
 }
 
-fn fields(
-    _: &mut Interpreter,
-    universe: &mut Universe,
-    receiver: GCRef<Class>,
-) -> Result<GCRef<VecValue>, Error> {
+fn fields(_: &mut Interpreter, universe: &mut Universe, receiver: GCRef<Class>) -> Result<GCRef<VecValue>, Error> {
     const _: &str = "Class>>#fields";
 
     let fields = receiver.locals.keys().copied().map(Value::Symbol).collect();
@@ -92,16 +66,10 @@ fn fields(
 
 /// Search for an instance primitive matching the given signature.
 pub fn get_instance_primitive(signature: &str) -> Option<&'static PrimitiveFn> {
-    INSTANCE_PRIMITIVES
-        .iter()
-        .find(|it| it.0 == signature)
-        .map(|it| it.1)
+    INSTANCE_PRIMITIVES.iter().find(|it| it.0 == signature).map(|it| it.1)
 }
 
 /// Search for a class primitive matching the given signature.
 pub fn get_class_primitive(signature: &str) -> Option<&'static PrimitiveFn> {
-    CLASS_PRIMITIVES
-        .iter()
-        .find(|it| it.0 == signature)
-        .map(|it| it.1)
+    CLASS_PRIMITIVES.iter().find(|it| it.0 == signature).map(|it| it.1)
 }

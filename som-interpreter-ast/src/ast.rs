@@ -135,10 +135,7 @@ pub struct AstMethodDef {
 
 impl Display for AstMethodDef {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!(
-            "Method {} ({} locals):",
-            &self.signature, self.locals_nbr
-        ))?;
+        f.write_fmt(format_args!("Method {} ({} locals):", &self.signature, self.locals_nbr))?;
         f.write_str(self.body.to_string().as_str())
     }
 }
@@ -155,11 +152,7 @@ impl Display for AstBody {
 
 impl Display for AstBlock {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        writeln!(
-            f,
-            "AstBlock({} params, {} locals):",
-            self.nbr_params, self.nbr_locals
-        )?;
+        writeln!(f, "AstBlock({} params, {} locals):", self.nbr_params, self.nbr_locals)?;
         for expr in &self.body.exprs {
             write!(indented(f), "{}", expr)?;
         }
@@ -219,11 +212,7 @@ impl Display for AstExpression {
                 writeln!(f, "N-AryDispatch \"{}\":", msg.dispatch_node.signature)?;
                 writeln!(indented(f), "Receiver:")?;
                 write!(indented(&mut indented(f)), "{}", msg.dispatch_node.receiver)?;
-                writeln!(
-                    indented(f),
-                    "Values: {}",
-                    if msg.values.is_empty() { "(none)" } else { "" }
-                )?;
+                writeln!(indented(f), "Values: {}", if msg.values.is_empty() { "(none)" } else { "" })?;
                 for value in &msg.values {
                     write!(indented(&mut indented(f)), "{}", value)?;
                 }
@@ -232,11 +221,7 @@ impl Display for AstExpression {
             AstExpression::SuperMessage(msg) => {
                 writeln!(f, "SuperMessage \"{}\":", msg.signature)?;
                 writeln!(indented(f), "Receiver: {}", msg.super_class.name)?;
-                writeln!(
-                    indented(f),
-                    "Values: {}",
-                    if msg.values.is_empty() { "(none)" } else { "" }
-                )?;
+                writeln!(indented(f), "Values: {}", if msg.values.is_empty() { "(none)" } else { "" })?;
                 for value in &msg.values {
                     write!(indented(&mut indented(f)), "{}", value)?;
                 }

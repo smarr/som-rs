@@ -91,132 +91,34 @@ impl Universe {
     }
 
     /// Initialize the universe from the given classpath and heap size.
-    pub fn with_classpath_and_heap_size(
-        classpath: Vec<PathBuf>,
-        heap_size: usize,
-    ) -> Result<Self, Error> {
+    pub fn with_classpath_and_heap_size(classpath: Vec<PathBuf>, heap_size: usize) -> Result<Self, Error> {
         let mut interner = Interner::with_capacity(100);
         let mut globals = vec![];
 
         let mut gc_interface = GCInterface::init(heap_size, get_callbacks_for_gc());
 
-        let object_class = Self::load_system_class(
-            &mut interner,
-            classpath.as_slice(),
-            "Object",
-            &mut gc_interface,
-        )?;
-        let mut class_class = Self::load_system_class(
-            &mut interner,
-            classpath.as_slice(),
-            "Class",
-            &mut gc_interface,
-        )?;
-        let metaclass_class = Self::load_system_class(
-            &mut interner,
-            classpath.as_slice(),
-            "Metaclass",
-            &mut gc_interface,
-        )?;
+        let object_class = Self::load_system_class(&mut interner, classpath.as_slice(), "Object", &mut gc_interface)?;
+        let mut class_class = Self::load_system_class(&mut interner, classpath.as_slice(), "Class", &mut gc_interface)?;
+        let metaclass_class = Self::load_system_class(&mut interner, classpath.as_slice(), "Metaclass", &mut gc_interface)?;
 
-        let mut nil_class = Self::load_system_class(
-            &mut interner,
-            classpath.as_slice(),
-            "Nil",
-            &mut gc_interface,
-        )?;
-        let mut integer_class = Self::load_system_class(
-            &mut interner,
-            classpath.as_slice(),
-            "Integer",
-            &mut gc_interface,
-        )?;
-        let mut array_class = Self::load_system_class(
-            &mut interner,
-            classpath.as_slice(),
-            "Array",
-            &mut gc_interface,
-        )?;
-        let mut method_class = Self::load_system_class(
-            &mut interner,
-            classpath.as_slice(),
-            "Method",
-            &mut gc_interface,
-        )?;
-        let mut symbol_class = Self::load_system_class(
-            &mut interner,
-            classpath.as_slice(),
-            "Symbol",
-            &mut gc_interface,
-        )?;
-        let mut primitive_class = Self::load_system_class(
-            &mut interner,
-            classpath.as_slice(),
-            "Primitive",
-            &mut gc_interface,
-        )?;
-        let mut string_class = Self::load_system_class(
-            &mut interner,
-            classpath.as_slice(),
-            "String",
-            &mut gc_interface,
-        )?;
-        let mut system_class = Self::load_system_class(
-            &mut interner,
-            classpath.as_slice(),
-            "System",
-            &mut gc_interface,
-        )?;
-        let mut double_class = Self::load_system_class(
-            &mut interner,
-            classpath.as_slice(),
-            "Double",
-            &mut gc_interface,
-        )?;
+        let mut nil_class = Self::load_system_class(&mut interner, classpath.as_slice(), "Nil", &mut gc_interface)?;
+        let mut integer_class = Self::load_system_class(&mut interner, classpath.as_slice(), "Integer", &mut gc_interface)?;
+        let mut array_class = Self::load_system_class(&mut interner, classpath.as_slice(), "Array", &mut gc_interface)?;
+        let mut method_class = Self::load_system_class(&mut interner, classpath.as_slice(), "Method", &mut gc_interface)?;
+        let mut symbol_class = Self::load_system_class(&mut interner, classpath.as_slice(), "Symbol", &mut gc_interface)?;
+        let mut primitive_class = Self::load_system_class(&mut interner, classpath.as_slice(), "Primitive", &mut gc_interface)?;
+        let mut string_class = Self::load_system_class(&mut interner, classpath.as_slice(), "String", &mut gc_interface)?;
+        let mut system_class = Self::load_system_class(&mut interner, classpath.as_slice(), "System", &mut gc_interface)?;
+        let mut double_class = Self::load_system_class(&mut interner, classpath.as_slice(), "Double", &mut gc_interface)?;
 
-        let mut block_class = Self::load_system_class(
-            &mut interner,
-            classpath.as_slice(),
-            "Block",
-            &mut gc_interface,
-        )?;
-        let mut block1_class = Self::load_system_class(
-            &mut interner,
-            classpath.as_slice(),
-            "Block1",
-            &mut gc_interface,
-        )?;
-        let mut block2_class = Self::load_system_class(
-            &mut interner,
-            classpath.as_slice(),
-            "Block2",
-            &mut gc_interface,
-        )?;
-        let mut block3_class = Self::load_system_class(
-            &mut interner,
-            classpath.as_slice(),
-            "Block3",
-            &mut gc_interface,
-        )?;
+        let mut block_class = Self::load_system_class(&mut interner, classpath.as_slice(), "Block", &mut gc_interface)?;
+        let mut block1_class = Self::load_system_class(&mut interner, classpath.as_slice(), "Block1", &mut gc_interface)?;
+        let mut block2_class = Self::load_system_class(&mut interner, classpath.as_slice(), "Block2", &mut gc_interface)?;
+        let mut block3_class = Self::load_system_class(&mut interner, classpath.as_slice(), "Block3", &mut gc_interface)?;
 
-        let mut boolean_class = Self::load_system_class(
-            &mut interner,
-            classpath.as_slice(),
-            "Boolean",
-            &mut gc_interface,
-        )?;
-        let mut true_class = Self::load_system_class(
-            &mut interner,
-            classpath.as_slice(),
-            "True",
-            &mut gc_interface,
-        )?;
-        let mut false_class = Self::load_system_class(
-            &mut interner,
-            classpath.as_slice(),
-            "False",
-            &mut gc_interface,
-        )?;
+        let mut boolean_class = Self::load_system_class(&mut interner, classpath.as_slice(), "Boolean", &mut gc_interface)?;
+        let mut true_class = Self::load_system_class(&mut interner, classpath.as_slice(), "True", &mut gc_interface)?;
+        let mut false_class = Self::load_system_class(&mut interner, classpath.as_slice(), "False", &mut gc_interface)?;
 
         // initializeSystemClass(objectClass, null, "Object");
         // set_super_class(&object_class, &nil_class, &metaclass_class);
@@ -327,10 +229,7 @@ impl Universe {
             };
 
             // Collect all tokens from the file.
-            let tokens: Vec<_> = som_lexer::Lexer::new(contents.as_str())
-                .skip_comments(true)
-                .skip_whitespace(true)
-                .collect();
+            let tokens: Vec<_> = som_lexer::Lexer::new(contents.as_str()).skip_comments(true).skip_whitespace(true).collect();
 
             // Parse class definition from the tokens.
             let defn = match som_parser::parse_file(tokens.as_slice()) {
@@ -339,31 +238,21 @@ impl Universe {
             };
 
             if defn.name != class_name {
-                return Err(anyhow!(
-                    "{}: class name is different from file name.",
-                    path.display(),
-                ));
+                return Err(anyhow!("{}: class name is different from file name.", path.display(),));
             }
 
             let super_class = if let Some(ref super_class) = defn.super_class {
                 let symbol = self.intern_symbol(super_class.as_str());
                 match self.lookup_global(symbol) {
-                    v if v.is_some() && v.clone().unwrap().is_class() => {
-                        v.unwrap().as_class().unwrap()
-                    }
+                    v if v.is_some() && v.clone().unwrap().is_class() => v.unwrap().as_class().unwrap(),
                     _ => self.load_class(super_class)?,
                 }
             } else {
                 self.core.object_class
             };
 
-            let mut class = compiler::compile_class(
-                &mut self.interner,
-                &defn,
-                Some(&super_class),
-                &mut self.gc_interface,
-            )
-            .ok_or_else(|| Error::msg(format!("")))?;
+            let mut class = compiler::compile_class(&mut self.interner, &defn, Some(&super_class), &mut self.gc_interface)
+                .ok_or_else(|| Error::msg(format!("")))?;
             set_super_class(&mut class, &super_class, &self.core.metaclass_class);
 
             let symbol = self.intern_symbol(class.name());
@@ -395,10 +284,7 @@ impl Universe {
             };
 
             // Collect all tokens from the file.
-            let tokens: Vec<_> = som_lexer::Lexer::new(contents.as_str())
-                .skip_comments(true)
-                .skip_whitespace(true)
-                .collect();
+            let tokens: Vec<_> = som_lexer::Lexer::new(contents.as_str()).skip_comments(true).skip_whitespace(true).collect();
 
             // Parse class definition from the tokens.
             let defn = match som_parser::parse_file_no_universe(tokens.as_slice()) {
@@ -407,13 +293,9 @@ impl Universe {
             };
 
             if defn.name != class_name {
-                return Err(anyhow!(
-                    "{}: class name is different from file name.",
-                    path.display(),
-                ));
+                return Err(anyhow!("{}: class name is different from file name.", path.display(),));
             }
-            let class = compiler::compile_class(interner, &defn, None, allocator)
-                .ok_or_else(|| Error::msg(format!("")))?;
+            let class = compiler::compile_class(interner, &defn, None, allocator).ok_or_else(|| Error::msg(format!("")))?;
 
             return Ok(class);
         }
@@ -503,10 +385,7 @@ impl Universe {
     }
 
     pub fn has_global(&self, idx: Interned) -> bool {
-        self.globals
-            .iter()
-            .find(|(interned, _)| *interned == idx)
-            .is_some()
+        self.globals.iter().find(|(interned, _)| *interned == idx).is_some()
     }
 
     /// Lookup a symbol.
@@ -516,10 +395,7 @@ impl Universe {
 
     /// Search for a global binding.
     pub fn lookup_global(&self, idx: Interned) -> Option<Value> {
-        self.globals
-            .iter()
-            .find(|(interned, _)| *interned == idx)
-            .map(|(_, value)| *value)
+        self.globals.iter().find(|(interned, _)| *interned == idx).map(|(_, value)| *value)
     }
 
     /// Assign a value to a global binding.
@@ -531,31 +407,16 @@ impl Universe {
 
 impl Universe {
     /// Call `escapedBlock:` on the given value, if it is defined.
-    pub fn escaped_block(
-        &mut self,
-        interpreter: &mut Interpreter,
-        value: Value,
-        block: GCRef<Block>,
-    ) -> Option<()> {
+    pub fn escaped_block(&mut self, interpreter: &mut Interpreter, value: Value, block: GCRef<Block>) -> Option<()> {
         let method_name = self.intern_symbol("escapedBlock:");
         let method = value.lookup_method(self, method_name)?;
-        interpreter.push_method_frame_with_args(
-            method,
-            &[value, Value::Block(block)],
-            &mut self.gc_interface,
-        );
+        interpreter.push_method_frame_with_args(method, &[value, Value::Block(block)], &mut self.gc_interface);
         Some(())
     }
 
     /// Call `doesNotUnderstand:` on the given value, if it is defined.
     #[allow(unreachable_code, unused_variables)]
-    pub fn does_not_understand(
-        &mut self,
-        interpreter: &mut Interpreter,
-        value: Value,
-        symbol: Interned,
-        args: Vec<Value>,
-    ) -> Option<()> {
+    pub fn does_not_understand(&mut self, interpreter: &mut Interpreter, value: Value, symbol: Interned, args: Vec<Value>) -> Option<()> {
         // dbg!(&interpreter.stack);
         // panic!("does not understand: {:?}, called on {:?}", self.interner.lookup(symbol), &value);
 
@@ -570,11 +431,7 @@ impl Universe {
 
         interpreter.push_method_frame_with_args(
             method,
-            &[
-                value,
-                Value::Symbol(symbol),
-                Value::Array(self.gc_interface.alloc(VecValue(args))),
-            ],
+            &[value, Value::Symbol(symbol), Value::Array(self.gc_interface.alloc(VecValue(args)))],
             &mut self.gc_interface,
         );
 
@@ -582,21 +439,12 @@ impl Universe {
     }
 
     /// Call `unknownGlobal:` on the given value, if it is defined.
-    pub fn unknown_global(
-        &mut self,
-        interpreter: &mut Interpreter,
-        value: Value,
-        name: Interned,
-    ) -> Option<()> {
+    pub fn unknown_global(&mut self, interpreter: &mut Interpreter, value: Value, name: Interned) -> Option<()> {
         let method_name = self.intern_symbol("unknownGlobal:");
         let method = value.lookup_method(self, method_name)?;
 
         interpreter.current_frame.bytecode_idx = interpreter.bytecode_idx;
-        interpreter.push_method_frame_with_args(
-            method,
-            &[value, Value::Symbol(name)],
-            &mut self.gc_interface,
-        );
+        interpreter.push_method_frame_with_args(method, &[value, Value::Symbol(name)], &mut self.gc_interface);
 
         Some(())
     }
@@ -607,23 +455,14 @@ impl Universe {
         let method = Value::SYSTEM.lookup_method(self, method_name)?;
 
         let args_vec = self.gc_interface.alloc(VecValue(args));
-        let frame_ptr = Frame::alloc_from_method(
-            method,
-            &[Value::SYSTEM, Value::Array(args_vec)],
-            GCRef::default(),
-            &mut self.gc_interface,
-        );
+        let frame_ptr = Frame::alloc_from_method(method, &[Value::SYSTEM, Value::Array(args_vec)], GCRef::default(), &mut self.gc_interface);
         let interpreter = Interpreter::new(frame_ptr);
 
         Some(interpreter)
     }
 }
 
-fn set_super_class(
-    class: &mut GCRef<Class>,
-    super_class: &GCRef<Class>,
-    metaclass_class: &GCRef<Class>,
-) {
+fn set_super_class(class: &mut GCRef<Class>, super_class: &GCRef<Class>, metaclass_class: &GCRef<Class>) {
     class.set_super_class(super_class);
     class.class().set_super_class(&super_class.class());
     class.class().set_class(metaclass_class);

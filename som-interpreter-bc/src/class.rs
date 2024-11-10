@@ -64,10 +64,7 @@ impl Class {
 
     /// Search for a given method within this class.
     pub fn lookup_method(&self, signature: Interned) -> Option<GCRef<Method>> {
-        self.methods
-            .get(&signature)
-            .cloned()
-            .or_else(|| self.super_class.as_ref()?.lookup_method(signature))
+        self.methods.get(&signature).cloned().or_else(|| self.super_class.as_ref()?.lookup_method(signature))
     }
 
     /// Search for a local binding.

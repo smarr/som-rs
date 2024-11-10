@@ -10,8 +10,8 @@ use crate::universe::Universe;
 use num_bigint::BigInt;
 use som_core::interner::Interned;
 use som_core::nan_boxed_val_base_impl;
-use som_core::value::{CELL_BASE_TAG, INTEGER_TAG, BIG_INTEGER_TAG, STRING_TAG, SYMBOL_TAG, BOOLEAN_TAG, CANON_NAN_BITS, NIL_TAG, SYSTEM_TAG};
-use som_core::value::{IS_PTR_PATTERN, TAG_SHIFT, TAG_EXTRACTION};
+use som_core::value::{BIG_INTEGER_TAG, BOOLEAN_TAG, CANON_NAN_BITS, CELL_BASE_TAG, INTEGER_TAG, NIL_TAG, STRING_TAG, SYMBOL_TAG, SYSTEM_TAG};
+use som_core::value::{IS_PTR_PATTERN, TAG_EXTRACTION, TAG_SHIFT};
 use som_gc::gcref::GCRef;
 
 // The following non-pointer type tags are still available (maybe useful for optimisations ?):
@@ -76,7 +76,7 @@ impl AstNaNBoxedVal {
     // `is_*` methods for pointer types
 
     // `as_*` for pointer types
-    
+
     /// Returns this value as an array, if such is its type.
     #[inline(always)]
     pub fn as_array(self) -> Option<GCRef<VecValue>> {
@@ -105,13 +105,13 @@ impl AstNaNBoxedVal {
     }
 
     // `as_*` for non pointer types
-    
+
     /// Returns the value as a boolean, but without checking if it actually is one.
     #[inline(always)]
     pub fn as_boolean_unchecked(self) -> bool {
         self.payload() != 0
     }
-    
+
     /// Returns a new array value.
     #[inline(always)]
     pub fn new_array(value: GCRef<VecValue>) -> Self {
@@ -223,12 +223,7 @@ impl AstNaNBoxedVal {
             STRING_TAG => self.as_string().unwrap().to_string(),
             ARRAY_TAG => {
                 // TODO: I think we can do better here (less allocations).
-                let strings: Vec<String> = self
-                    .as_array()
-                    .unwrap()
-                    .iter()
-                    .map(|value| value.to_string(universe))
-                    .collect();
+                let strings: Vec<String> = self.as_array().unwrap().iter().map(|value| value.to_string(universe)).collect();
                 format!("#({})", strings.join(" "))
             }
             BLOCK_TAG => {
@@ -444,10 +439,7 @@ impl ValueEnum {
             Self::String(value) => value.as_str().to_string(),
             Self::Array(values) => {
                 // TODO (from nicolas): I think we can do better here (less allocations).
-                let strings: Vec<String> = values
-                    .iter()
-                    .map(|value| value.to_string(universe))
-                    .collect();
+                let strings: Vec<String> = values.iter().map(|value| value.to_string(universe)).collect();
                 format!("#({})", strings.join(" "))
             }
             Self::Block(block) => format!("instance of Block{}", block.nb_parameters() + 1),
@@ -468,14 +460,10 @@ impl PartialEq for ValueEnum {
             (Self::Nil, Self::Nil) | (Self::System, Self::System) => true,
             (Self::Boolean(a), Self::Boolean(b)) => a.eq(b),
             (Self::Integer(a), Self::Integer(b)) => a.eq(b),
-            (Self::Integer(a), Self::Double(b)) | (Self::Double(b), Self::Integer(a)) => {
-                (*a as f64).eq(b)
-            }
+            (Self::Integer(a), Self::Double(b)) | (Self::Double(b), Self::Integer(a)) => (*a as f64).eq(b),
             (Self::Double(a), Self::Double(b)) => a.eq(b),
             (Self::BigInteger(a), Self::BigInteger(b)) => a.eq(b),
-            (Self::BigInteger(a), Self::Integer(b)) | (Self::Integer(b), Self::BigInteger(a)) => {
-                (&**a).eq(&BigInt::from(*b))
-            }
+            (Self::BigInteger(a), Self::Integer(b)) | (Self::Integer(b), Self::BigInteger(a)) => (&**a).eq(&BigInt::from(*b)),
             (Self::Symbol(a), Self::Symbol(b)) => a.eq(b),
             (Self::String(a), Self::String(b)) => a == b,
             (Self::Array(a), Self::Array(b)) => a == b,

@@ -26,11 +26,7 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> 
 pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| {
     Box::new([
         ("fromString:", self::from_string.into_func(), true),
-        (
-            "PositiveInfinity",
-            self::positive_infinity.into_func(),
-            true,
-        ),
+        ("PositiveInfinity", self::positive_infinity.into_func(), true),
     ])
 });
 
@@ -42,10 +38,7 @@ macro_rules! promote {
             DoubleLike::BigInteger(value) => match value.to_f64() {
                 Some(value) => value,
                 None => {
-                    panic!(
-                        "'{}': `Integer` too big to be converted to `Double`",
-                        $signature
-                    )
+                    panic!("'{}': `Integer` too big to be converted to `Double`", $signature)
                 }
             },
         }
@@ -71,9 +64,7 @@ fn as_string(universe: &mut Universe, receiver: DoubleLike) -> Result<Value, Err
 
     let value = promote!(SIGNATURE, receiver);
 
-    Ok(Value::String(
-        universe.gc_interface.alloc(value.to_string()),
-    ))
+    Ok(Value::String(universe.gc_interface.alloc(value.to_string())))
 }
 
 fn as_integer(_: &mut Universe, receiver: f64) -> Result<Value, Error> {
@@ -178,16 +169,10 @@ fn positive_infinity(_: &mut Universe, _: Value) -> Result<Value, Error> {
 
 /// Search for an instance primitive matching the given signature.
 pub fn get_instance_primitive(signature: &str) -> Option<&'static PrimitiveFn> {
-    INSTANCE_PRIMITIVES
-        .iter()
-        .find(|it| it.0 == signature)
-        .map(|it| it.1)
+    INSTANCE_PRIMITIVES.iter().find(|it| it.0 == signature).map(|it| it.1)
 }
 
 /// Search for a class primitive matching the given signature.
 pub fn get_class_primitive(signature: &str) -> Option<&'static PrimitiveFn> {
-    CLASS_PRIMITIVES
-        .iter()
-        .find(|it| it.0 == signature)
-        .map(|it| it.1)
+    CLASS_PRIMITIVES.iter().find(|it| it.0 == signature).map(|it| it.1)
 }

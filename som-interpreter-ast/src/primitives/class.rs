@@ -20,8 +20,7 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> 
         ]
     })
 });
-pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> =
-    Lazy::new(|| Box::new([]));
+pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| Box::new([]));
 
 fn superclass(_: &mut Universe, receiver: GCRef<Class>) -> Result<Value, Error> {
     let super_class = receiver.super_class();
@@ -40,11 +39,7 @@ fn name(universe: &mut Universe, receiver: GCRef<Class>) -> Result<Value, Error>
 }
 
 fn methods(universe: &mut Universe, receiver: GCRef<Class>) -> Result<Value, Error> {
-    let methods = receiver
-        .methods
-        .values()
-        .map(|invokable| Value::Invokable(invokable.clone()))
-        .collect();
+    let methods = receiver.methods.values().map(|invokable| Value::Invokable(invokable.clone())).collect();
 
     Ok(Value::Array(universe.gc_interface.alloc(VecValue(methods))))
 }
@@ -61,16 +56,10 @@ fn fields(universe: &mut Universe, receiver: GCRef<Class>) -> Result<Value, Erro
 
 /// Search for an instance primitive matching the given signature.
 pub fn get_instance_primitive(signature: &str) -> Option<&'static PrimitiveFn> {
-    INSTANCE_PRIMITIVES
-        .iter()
-        .find(|it| it.0 == signature)
-        .map(|it| it.1)
+    INSTANCE_PRIMITIVES.iter().find(|it| it.0 == signature).map(|it| it.1)
 }
 
 /// Search for a class primitive matching the given signature.
 pub fn get_class_primitive(signature: &str) -> Option<&'static PrimitiveFn> {
-    CLASS_PRIMITIVES
-        .iter()
-        .find(|it| it.0 == signature)
-        .map(|it| it.1)
+    CLASS_PRIMITIVES.iter().find(|it| it.0 == signature).map(|it| it.1)
 }
