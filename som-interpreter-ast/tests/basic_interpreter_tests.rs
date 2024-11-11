@@ -1,3 +1,4 @@
+use rstest::{fixture, rstest};
 use som_interpreter_ast::compiler::AstMethodCompilerCtxt;
 use som_interpreter_ast::evaluate::Evaluate;
 use som_interpreter_ast::invokable::Return;
@@ -6,24 +7,36 @@ use som_interpreter_ast::value::Value;
 use som_interpreter_ast::UNIVERSE_RAW_PTR_CONST;
 use som_lexer::{Lexer, Token};
 use som_parser::lang;
+use std::cell::OnceCell;
 use std::{path::PathBuf, ptr::NonNull};
 
-fn setup_universe() -> Universe {
-    let classpath = vec![
-        PathBuf::from("../core-lib/Smalltalk"),
-        PathBuf::from("../core-lib/TestSuite"),
-        PathBuf::from("../core-lib/TestSuite/BasicInterpreterTests"),
-    ];
-    Universe::with_classpath(classpath).expect("could not setup test universe")
+static mut UNIVERSE_CELL: OnceCell<Universe> = OnceCell::new();
+
+#[fixture]
+pub fn universe<'a>() -> &'a mut Universe {
+    unsafe {
+        UNIVERSE_CELL.get_or_init(|| {
+            let classpath = vec![
+                PathBuf::from("../core-lib/Smalltalk"),
+                PathBuf::from("../core-lib/TestSuite"),
+                PathBuf::from("../core-lib/Examples/Benchmarks"),
+                PathBuf::from("../core-lib/Examples/Benchmarks/Json"),
+                PathBuf::from("../core-lib/Examples/Benchmarks/DeltaBlue"),
+                PathBuf::from("../core-lib/Examples/Benchmarks/Richards"),
+                // PathBuf::from("../core-lib/Examples/Benchmarks/LanguageFeatures"), // breaks basic tests?
+                PathBuf::from("../core-lib/TestSuite/BasicInterpreterTests"),
+            ];
+            Universe::with_classpath(classpath).expect("could not setup test universe")
+        });
+
+        let mut_universe_ref = UNIVERSE_CELL.get_mut().unwrap();
+        UNIVERSE_RAW_PTR_CONST = NonNull::new(mut_universe_ref);
+        mut_universe_ref
+    }
 }
 
-#[test]
-fn basic_interpreter_tests() {
-    let mut universe = setup_universe();
-    unsafe {
-        UNIVERSE_RAW_PTR_CONST = NonNull::new(&mut universe); // for gc
-    }
-
+#[rstest]
+fn basic_interpreter_tests(universe: &mut Universe) {
     let return_class = Value::Class(universe.load_class("Return").unwrap());
     let compiler_simplification_class = Value::Class(universe.load_class("CompilerSimplification").unwrap());
 
@@ -113,13 +126,6 @@ fn basic_interpreter_tests() {
         };
         let mut ast = compiler.parse_expression(&ast_parser);
 
-        // let signature = universe.intern_symbol(expr.split(' ').skip(1).next().unwrap_or("unknown"));
-
-        // let kind = FrameKind::Method {
-        //     signature,
-        //     holder: universe.system_class(),
-        //     self_value: Value::System,
-        // };
         let output = universe.with_frame(0, vec![Value::SYSTEM], |universe| ast.evaluate(universe));
 
         match &output {
@@ -134,19 +140,48 @@ fn basic_interpreter_tests() {
 }
 
 /// Runs the TestHarness, which handles many basic tests written in SOM
-#[test]
-fn test_harness() {
-    let mut universe = setup_universe();
-    unsafe {
-        UNIVERSE_RAW_PTR_CONST = NonNull::new(&mut universe);
-    }
-
+#[rstest]
+fn test_harness(universe: &mut Universe) {
     let args = ["TestHarness"].iter().map(|str| Value::String(universe.gc_interface.alloc(String::from(*str)))).collect();
 
     let output = universe.initialize(args).unwrap_or_else(|| Return::Exception("could not find 'System>>#initialize:'".to_string()));
 
     match output {
         Return::Local(val) => assert_eq!(val, Value::INTEGER_ZERO),
+        ret => panic!("Unexpected result from test harness: {:?}", ret),
+    }
+}
+
+#[rstest]
+#[case::bounce("Bounce")]
+#[case::mandelbrot("Mandelbrot")]
+#[case::treesort("TreeSort")]
+#[case::list("List")]
+#[case::permute("Permute")]
+#[case::queens("Queens")]
+#[case::quicksort("QuickSort")]
+#[case::sieve("Sieve")]
+#[case::fannkuch("Fannkuch")]
+#[case::json_small("JsonSmall")]
+#[case::deltablue("DeltaBlue")]
+// #[case::richards("Richards")]
+#[case::towers("Towers")]
+fn basic_benchmark_runner(universe: &mut Universe, #[case] benchmark_name: &str) {
+    let args = ["BenchmarkHarness", benchmark_name, "1", "1"]
+        .iter()
+        .map(|str| Value::String(universe.gc_interface.alloc(String::from(*str))))
+        .collect();
+
+    let output = universe.initialize(args).unwrap_or_else(|| Return::Exception("could not find 'System>>#initialize:'".to_string()));
+
+    let benchmark_harness_class = universe.lookup_global("BenchmarkHarness").unwrap().as_class().unwrap();
+
+    match output {
+        Return::Local(val) => {
+            assert!(val.is_instance());
+            assert_eq!(val.as_instance().unwrap().class, benchmark_harness_class)
+            // TODO: is that correct/enough?
+        }
         ret => panic!("Unexpected result from test harness: {:?}", ret),
     }
 }

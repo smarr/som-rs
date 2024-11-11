@@ -35,6 +35,7 @@ pub struct GCInterface {
 
 impl Drop for GCInterface {
     fn drop(&mut self) {
+        // mmtk_handle_user_collection_request(self.mutator_thread);
         mmtk_destroy_mutator(self.mutator.as_mut())
     }
 }

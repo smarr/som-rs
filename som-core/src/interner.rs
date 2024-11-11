@@ -61,6 +61,11 @@ impl Interner {
         self.vec[id.0 as usize]
     }
 
+    /// Get the ID given a string, if it exists. Only used for testing at the moment
+    pub fn reverse_lookup(&self, name: &str) -> Option<Interned> {
+        self.vec.iter().position(|n| n == &name).map(|e| Interned(e as u32))
+    }
+
     unsafe fn alloc(&mut self, name: &str) -> &'static str {
         let cap = self.buf.capacity();
         if cap < self.buf.len() + name.len() {

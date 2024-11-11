@@ -1,19 +1,39 @@
+use rstest::{fixture, rstest};
 use som_gc::gcref::GCRef;
-use som_interpreter_bc::compiler;
 use som_interpreter_bc::frame::Frame;
 use som_interpreter_bc::method::Method;
 use som_interpreter_bc::universe::Universe;
 use som_interpreter_bc::value::Value;
+use som_interpreter_bc::{compiler, UNIVERSE_RAW_PTR_CONST};
 use som_lexer::{Lexer, Token};
 use som_parser::lang;
+use std::cell::OnceCell;
 use std::path::PathBuf;
+use std::ptr::NonNull;
 
-fn setup_universe() -> Universe {
-    let classpath = vec![
-        PathBuf::from("../core-lib/Smalltalk"),
-        PathBuf::from("../core-lib/TestSuite/BasicInterpreterTests"),
-    ];
-    Universe::with_classpath(classpath).expect("could not setup test universe")
+static mut UNIVERSE_CELL: OnceCell<Universe> = OnceCell::new();
+
+#[fixture]
+pub fn universe<'a>() -> &'a mut Universe {
+    unsafe {
+        UNIVERSE_CELL.get_or_init(|| {
+            let classpath = vec![
+                PathBuf::from("../core-lib/Smalltalk"),
+                PathBuf::from("../core-lib/TestSuite"),
+                PathBuf::from("../core-lib/Examples/Benchmarks"),
+                PathBuf::from("../core-lib/Examples/Benchmarks/Json"),
+                PathBuf::from("../core-lib/Examples/Benchmarks/DeltaBlue"),
+                PathBuf::from("../core-lib/Examples/Benchmarks/Richards"),
+                // PathBuf::from("../core-lib/Examples/Benchmarks/LanguageFeatures"), // breaks basic tests?
+                PathBuf::from("../core-lib/TestSuite/BasicInterpreterTests"),
+            ];
+            Universe::with_classpath(classpath).expect("could not setup test universe")
+        });
+
+        let mut_universe_ref = UNIVERSE_CELL.get_mut().unwrap();
+        UNIVERSE_RAW_PTR_CONST = NonNull::new(mut_universe_ref);
+        mut_universe_ref
+    }
 }
 
 fn get_method(method_txt: &str, method_name: &str, universe: &mut Universe) -> GCRef<Method> {
@@ -34,11 +54,9 @@ fn get_method(method_txt: &str, method_name: &str, universe: &mut Universe) -> G
     class.unwrap().lookup_method(method_name_interned).expect("method not found somehow?")
 }
 
-#[test]
-fn frame_basic_local_access() {
-    let mut universe = setup_universe();
-
-    let method_ref = get_method("foo = ( | a b c | ^ false )", "foo", &mut universe);
+#[rstest]
+fn frame_basic_local_access(universe: &mut Universe) {
+    let method_ref = get_method("foo = ( | a b c | ^ false )", "foo", universe);
 
     let mut frame = Frame::alloc_from_method(method_ref, &[], GCRef::default(), &mut universe.gc_interface);
 
@@ -59,11 +77,9 @@ fn frame_basic_local_access() {
     assert_eq!(frame.lookup_local(2).as_string(), Some(str_ptr));
 }
 
-#[test]
-fn frame_basic_arg_access() {
-    let mut universe = setup_universe();
-
-    let method_ref = get_method("foo: a and: b also: c = ( ^ false )", "foo:and:also:", &mut universe);
+#[rstest]
+fn frame_basic_arg_access(universe: &mut Universe) {
+    let method_ref = get_method("foo: a and: b also: c = ( ^ false )", "foo:and:also:", universe);
 
     let mut frame = Frame::alloc_from_method(
         method_ref,
@@ -80,11 +96,9 @@ fn frame_basic_arg_access() {
     assert_eq!(frame.lookup_argument(2).as_boolean(), Some(true));
 }
 
-#[test]
-fn frame_mixed_local_and_arg_access() {
-    let mut universe = setup_universe();
-
-    let method_ref = get_method("foo: a and: b = ( | a b c | ^ false )", "foo:and:", &mut universe);
+#[rstest]
+fn frame_mixed_local_and_arg_access(universe: &mut Universe) {
+    let method_ref = get_method("foo: a and: b = ( | a b c | ^ false )", "foo:and:", universe);
 
     let mut frame = Frame::alloc_from_method(
         method_ref,
@@ -112,11 +126,9 @@ fn frame_mixed_local_and_arg_access() {
     assert_eq!(frame.lookup_local(2).as_double(), Some(42.42));
 }
 
-#[test]
-fn frame_stack_accesses() {
-    let mut universe = setup_universe();
-
-    let method_ref = get_method("foo: a and: b = ( | a b c | ^ false )", "foo:and:", &mut universe);
+#[rstest]
+fn frame_stack_accesses(universe: &mut Universe) {
+    let method_ref = get_method("foo: a and: b = ( | a b c | ^ false )", "foo:and:", universe);
 
     let frame_ptr = Frame::alloc_from_method(
         method_ref,
@@ -144,11 +156,9 @@ fn frame_stack_accesses() {
     assert_eq!(frame.stack_nth_back(1).as_integer(), Some(10000));
 }
 
-#[test]
-fn frame_stack_split_off() {
-    let mut universe = setup_universe();
-
-    let method_ref = get_method("foo: a and: b = ( | a b c | ^ false )", "foo:and:", &mut universe);
+#[rstest]
+fn frame_stack_split_off(universe: &mut Universe) {
+    let method_ref = get_method("foo: a and: b = ( | a b c | ^ false )", "foo:and:", universe);
 
     let frame_ptr = Frame::alloc_from_method(
         method_ref,

@@ -1,3 +1,4 @@
+use rstest::{fixture, rstest};
 use som_gc::gcref::GCRef;
 use som_interpreter_bc::frame::Frame;
 use som_interpreter_bc::interpreter::Interpreter;
@@ -6,22 +7,37 @@ use som_interpreter_bc::value::Value;
 use som_interpreter_bc::{compiler, INTERPRETER_RAW_PTR_CONST, UNIVERSE_RAW_PTR_CONST};
 use som_lexer::{Lexer, Token};
 use som_parser::lang;
+use std::cell::OnceCell;
 use std::path::PathBuf;
 use std::ptr::NonNull;
 
-fn setup_universe() -> Universe {
-    let classpath = vec![
-        PathBuf::from("../core-lib/Smalltalk"),
-        PathBuf::from("../core-lib/TestSuite"),
-        PathBuf::from("../core-lib/TestSuite/BasicInterpreterTests"),
-    ];
-    Universe::with_classpath(classpath).expect("could not setup test universe")
+static mut UNIVERSE_CELL: OnceCell<Universe> = OnceCell::new();
+
+#[fixture]
+pub fn universe<'a>() -> &'a mut Universe {
+    unsafe {
+        UNIVERSE_CELL.get_or_init(|| {
+            let classpath = vec![
+                PathBuf::from("../core-lib/Smalltalk"),
+                PathBuf::from("../core-lib/TestSuite"),
+                PathBuf::from("../core-lib/Examples/Benchmarks"),
+                PathBuf::from("../core-lib/Examples/Benchmarks/Json"),
+                PathBuf::from("../core-lib/Examples/Benchmarks/DeltaBlue"),
+                PathBuf::from("../core-lib/Examples/Benchmarks/Richards"),
+                // PathBuf::from("../core-lib/Examples/Benchmarks/LanguageFeatures"), // breaks basic tests?
+                PathBuf::from("../core-lib/TestSuite/BasicInterpreterTests"),
+            ];
+            Universe::with_classpath(classpath).expect("could not setup test universe")
+        });
+
+        let mut_universe_ref = UNIVERSE_CELL.get_mut().unwrap();
+        UNIVERSE_RAW_PTR_CONST = NonNull::new(mut_universe_ref);
+        mut_universe_ref
+    }
 }
 
-#[test]
-fn basic_interpreter_tests() {
-    let mut universe = setup_universe();
-
+#[rstest]
+fn basic_interpreter_tests(mut universe: &mut Universe) {
     let return_class_ptr = universe.load_class("Return").unwrap();
     let compiler_simplification_class_ptr = universe.load_class("CompilerSimplification").unwrap();
 
@@ -133,19 +149,54 @@ fn basic_interpreter_tests() {
 }
 
 /// Runs the TestHarness, which handles many basic tests written in SOM
-#[test]
-fn test_harness() {
-    let mut universe = setup_universe();
-
+#[rstest]
+fn test_harness(mut universe: &mut Universe) {
     let args = ["TestHarness"].iter().map(|str| Value::String(universe.gc_interface.alloc(String::from(*str)))).collect();
 
     let mut interpreter = universe.initialize(args).unwrap();
 
     // needed for GC
     unsafe {
-        UNIVERSE_RAW_PTR_CONST = NonNull::new(&mut universe);
         INTERPRETER_RAW_PTR_CONST = NonNull::new(&mut interpreter);
     }
 
     assert_eq!(interpreter.run(&mut universe), Some(Value::INTEGER_ZERO))
+}
+
+#[rstest]
+#[case::bounce("Bounce")]
+#[case::mandelbrot("Mandelbrot")]
+#[case::treesort("TreeSort")]
+#[case::list("List")]
+#[case::permute("Permute")]
+#[case::queens("Queens")]
+#[case::quicksort("QuickSort")]
+#[case::sieve("Sieve")]
+#[case::fannkuch("Fannkuch")]
+#[case::json_small("JsonSmall")]
+#[case::deltablue("DeltaBlue")]
+// #[case::richards("Richards")]
+#[case::towers("Towers")]
+fn basic_benchmark_runner(universe: &mut Universe, #[case] benchmark_name: &str) {
+    let args = ["BenchmarkHarness", benchmark_name, "1", "1"]
+        .iter()
+        .map(|str| Value::String(universe.gc_interface.alloc(String::from(*str))))
+        .collect();
+
+    let mut interpreter = universe.initialize(args).unwrap();
+
+    unsafe {
+        INTERPRETER_RAW_PTR_CONST = NonNull::new(&mut interpreter);
+    }
+
+    let output = interpreter.run(universe);
+
+    let intern_id = universe.interner.reverse_lookup("BenchmarkHarness");
+    assert!(intern_id.is_some());
+    assert!(universe.has_global(intern_id.unwrap()));
+    let benchmark_harness_class = universe.lookup_global(intern_id.unwrap()).unwrap().as_class().unwrap();
+
+    assert!(output.unwrap().is_instance());
+    dbg!(&output.unwrap().as_instance().unwrap().class.name);
+    assert_eq!(output.unwrap().as_instance().unwrap().class, benchmark_harness_class)
 }

@@ -88,6 +88,13 @@ pub struct Universe {
     pub gc_interface: &'static mut GCInterface,
 }
 
+impl Drop for Universe {
+    fn drop(&mut self) {
+        let _box: Box<GCInterface> = unsafe { Box::from_raw(self.gc_interface) };
+        drop(_box)
+    }
+}
+
 impl Universe {
     /// Initialize the universe from the given classpath.
     pub fn with_classpath(classpath: Vec<PathBuf>) -> Result<Self, Error> {
