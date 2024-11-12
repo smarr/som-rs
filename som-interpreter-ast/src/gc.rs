@@ -288,6 +288,13 @@ fn visit_expr(expr: &AstExpression, slot_visitor: &mut dyn SlotVisitor<SOMSlot>)
                     visit_expr(expr, slot_visitor)
                 }
             }
+            InlinedNode::ToDoInlined(to_do_inlined) => {
+                visit_expr(&to_do_inlined.start, slot_visitor);
+                visit_expr(&to_do_inlined.end, slot_visitor);
+                for expr in &to_do_inlined.body.exprs {
+                    visit_expr(&expr, slot_visitor);
+                }
+            }
         },
         AstExpression::LocalExit(expr)
         | AstExpression::NonLocalExit(expr, _)

@@ -55,10 +55,6 @@ impl AstScopeCtxt {
     pub fn get_nbr_args(&self) -> usize {
         self.nbr_args
     }
-
-    pub fn add_nbr_args(&mut self, nbr_to_add: usize) {
-        self.nbr_args += nbr_to_add;
-    }
 }
 
 impl<'a> AstMethodCompilerCtxt<'a> {

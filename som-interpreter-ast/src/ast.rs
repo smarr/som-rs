@@ -5,6 +5,7 @@ use crate::specialized::inlined::and_inlined_node::AndInlinedNode;
 use crate::specialized::inlined::if_inlined_node::IfInlinedNode;
 use crate::specialized::inlined::if_true_if_false_inlined_node::IfTrueIfFalseInlinedNode;
 use crate::specialized::inlined::or_inlined_node::OrInlinedNode;
+use crate::specialized::inlined::to_do_inlined_node::ToDoInlinedNode;
 use crate::specialized::inlined::while_inlined_node::WhileInlinedNode;
 use indenter::indented;
 use num_bigint::BigInt;
@@ -19,6 +20,7 @@ pub enum InlinedNode {
     WhileInlined(WhileInlinedNode),
     OrInlined(OrInlinedNode),
     AndInlined(AndInlinedNode),
+    ToDoInlined(ToDoInlinedNode),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -246,6 +248,7 @@ impl Display for AstExpression {
                 InlinedNode::WhileInlined(node) => writeln!(f, "{}", node),
                 InlinedNode::OrInlined(node) => writeln!(f, "{}", node),
                 InlinedNode::AndInlined(node) => writeln!(f, "{}", node),
+                InlinedNode::ToDoInlined(node) => writeln!(f, "{}", node),
             },
         }
     }

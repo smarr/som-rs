@@ -119,6 +119,7 @@ impl Evaluate for AstExpression {
                 InlinedNode::WhileInlined(while_inlined) => while_inlined.evaluate(universe),
                 InlinedNode::OrInlined(or_inlined) => or_inlined.evaluate(universe),
                 InlinedNode::AndInlined(and_inlined) => and_inlined.evaluate(universe),
+                InlinedNode::ToDoInlined(to_do_inlined) => to_do_inlined.evaluate(universe),
             },
         }
     }
