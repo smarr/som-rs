@@ -22,9 +22,10 @@ pub mod block1 {
         Ok(universe.with_frame(nbr_locals, vec![Value::Block(block)], |universe| block.evaluate(universe)))
     }
 
-    // TODO: with inlining, this is never called. Maybe it could be removed for better perf since we could forego Return::Restart? but this wouldn't be fully valid interpreter behaviour.
     fn restart(_: &mut Universe, _: GCRef<Block>) -> Result<Return, Error> {
-        Ok(Return::Restart)
+        #[cfg(feature = "inlining-disabled")]
+        return Ok(Return::Restart);
+        panic!("calling restart even though inlining is enabled. we don't support this")
     }
 
     /// Search for an instance primitive matching the given signature.

@@ -83,13 +83,12 @@ impl Evaluate for AstExpression {
                         _ => {
                             // Should never happen, because `universe.current_frame()` would
                             // have been equal to `universe.current_method_frame()`.
-                            return Return::Exception("A method frame has escaped itself ??".to_string());
+                            panic!("A method frame has escaped itself ??");
                         }
                     };
-                    universe.escaped_block(instance, block).unwrap_or_else(|| {
-                        // TODO: should we call `doesNotUnderstand:` here ?
-                        Return::Exception("A block has escaped and `escapedBlock:` is not defined on receiver".to_string())
-                    })
+                    universe
+                        .escaped_block(instance, block)
+                        .unwrap_or_else(|| panic!("A block has escaped and `escapedBlock:` is not defined on receiver"))
                 }
             }
             Self::Literal(literal) => literal.evaluate(universe),
@@ -106,7 +105,7 @@ impl Evaluate for AstExpression {
                         let self_value = frame.get_self();
                         universe.unknown_global(self_value, name.as_str())
                     })
-                    .unwrap_or_else(|| Return::Exception(format!("global variable '{}' not found", name))),
+                    .unwrap_or_else(|| panic!("global not found and unknown_global call failed somehow?")),
             },
             Self::UnaryDispatch(un_op) => un_op.evaluate(universe),
             Self::BinaryDispatch(bin_op) => bin_op.evaluate(universe),
@@ -202,13 +201,9 @@ impl AstDispatchNode {
             None => {
                 let mut args = args;
                 let receiver = args.remove(0);
-                universe.does_not_understand(receiver.clone(), &self.signature, args).unwrap_or_else(|| {
-                    Return::Exception(format!(
-                        "could not find method '{}>>#{}'",
-                        receiver.class(universe).name(),
-                        self.signature
-                    ))
-                })
+                universe
+                    .does_not_understand(receiver.clone(), &self.signature, args)
+                    .unwrap_or_else(|| panic!("could not find method '{}>>#{}'", receiver.class(universe).name(), self.signature))
             }
         }
     }
@@ -289,11 +284,7 @@ impl Evaluate for AstSuperMessage {
                 let mut args = args;
                 args.remove(0);
                 universe.does_not_understand(receiver.clone(), &self.signature, args).unwrap_or_else(|| {
-                    Return::Exception(format!(
-                        "could not find method '{}>>#{}'",
-                        receiver.class(universe).name(),
-                        self.signature
-                    ))
+                    panic!("could not find method '{}>>#{}'", receiver.class(universe).name(), self.signature)
                     // Return::Local(Value::Nil)
                 })
             }
@@ -327,7 +318,7 @@ impl Evaluate for AstMethodDef {
                     }
                 }
                 Return::Local(_) => break Return::Local(current_frame.get_self()),
-                Return::Exception(msg) => break Return::Exception(msg),
+                #[cfg(feature = "inlining-disabled")]
                 Return::Restart => continue,
             }
         }

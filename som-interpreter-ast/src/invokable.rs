@@ -12,8 +12,7 @@ pub enum Return {
     Local(Value),
     /// A non-local return, the value is for the parent of the referenced stack frame.
     NonLocal(Value, GCRef<Frame>),
-    /// An exception, expected to bubble all the way up.
-    Exception(String),
+    #[cfg(feature = "inlining-disabled")]
     /// A request to restart execution from the top of the closest body.
     Restart,
 }

@@ -130,11 +130,7 @@ fn basic_interpreter_tests(universe: &mut Universe) {
 
         match &output {
             Return::Local(output) => assert_eq!(output, expected, "unexpected test output value"),
-            Return::NonLocal(_, _) => {
-                panic!("unexpected non-local return from basic interpreter test")
-            }
-            Return::Restart => panic!("unexpected `restart` from basic interpreter test"),
-            Return::Exception(err) => panic!("unexpected exception: '{}'", err),
+            ret => panic!("unexpected non-local return from basic interpreter test: {:?}", ret),
         }
     }
 }
@@ -144,7 +140,7 @@ fn basic_interpreter_tests(universe: &mut Universe) {
 fn test_harness(universe: &mut Universe) {
     let args = ["TestHarness"].iter().map(|str| Value::String(universe.gc_interface.alloc(String::from(*str)))).collect();
 
-    let output = universe.initialize(args).unwrap_or_else(|| Return::Exception("could not find 'System>>#initialize:'".to_string()));
+    let output = universe.initialize(args).unwrap();
 
     match output {
         Return::Local(val) => assert_eq!(val, Value::INTEGER_ZERO),
@@ -172,8 +168,7 @@ fn basic_benchmark_runner(universe: &mut Universe, #[case] benchmark_name: &str)
         .map(|str| Value::String(universe.gc_interface.alloc(String::from(*str))))
         .collect();
 
-    let output = universe.initialize(args).unwrap_or_else(|| Return::Exception("could not find 'System>>#initialize:'".to_string()));
-
+    let output = universe.initialize(args).unwrap();
     let benchmark_harness_class = universe.lookup_global("BenchmarkHarness").unwrap().as_class().unwrap();
 
     match output {

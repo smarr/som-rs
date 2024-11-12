@@ -15,6 +15,7 @@ pub enum VarType<'a> {
     Write(&'a Expression),
 }
 
+#[allow(unused)] // if inlining is disabled, a lot of them go completely unused.
 pub(crate) trait PrimMessageInliner {
     fn inline_if_possible(&mut self, msg: &ast::Message) -> Option<InlinedNode>;
     fn parse_expression_with_inlining(&mut self, expression: &Expression) -> AstExpression;

@@ -205,9 +205,12 @@ impl<'a> AstMethodCompilerCtxt<'a> {
         msg: &ast::Message,
         expr_parsing_func: fn(&mut AstMethodCompilerCtxt<'a>, &Expression) -> AstExpression,
     ) -> AstExpression {
-        let maybe_inlined = self.inline_if_possible(msg);
-        if let Some(inlined_node) = maybe_inlined {
-            return AstExpression::InlinedCall(Box::new(inlined_node));
+        #[cfg(not(feature = "inlining-disabled"))]
+        {
+            let maybe_inlined = self.inline_if_possible(msg);
+            if let Some(inlined_node) = maybe_inlined {
+                return AstExpression::InlinedCall(Box::new(inlined_node));
+            }
         }
 
         if msg.receiver == Expression::GlobalRead(String::from("super")) {

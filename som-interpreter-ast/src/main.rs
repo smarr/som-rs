@@ -13,7 +13,9 @@ use structopt::StructOpt;
 
 mod shell;
 
+#[cfg(feature = "inlining-disabled")]
 use som_interpreter_ast::invokable::Return;
+
 use som_interpreter_ast::universe::Universe;
 use som_interpreter_ast::value::Value;
 use som_interpreter_ast::UNIVERSE_RAW_PTR_CONST;
@@ -78,7 +80,7 @@ fn main() -> anyhow::Result<()> {
                 .map(|str| Value::String(universe.gc_interface.alloc(str)))
                 .collect();
 
-            let output = universe.initialize(args).unwrap_or_else(|| Return::Exception("could not find 'System>>#initialize:'".to_string()));
+            let output = universe.initialize(args).unwrap_or_else(|| panic!("could not find 'System>>#initialize:'"));
 
             // let class = universe.load_class_from_path(file)?;
             // let instance = Instance::from_class(class);
@@ -88,7 +90,7 @@ fn main() -> anyhow::Result<()> {
             // let output = invokable.invoke(&mut universe, vec![instance]);
 
             match output {
-                Return::Exception(message) => println!("ERROR: {}", message),
+                #[cfg(feature = "inlining-disabled")]
                 Return::Restart => println!("ERROR: asked for a restart to the top-level"),
                 _ => {}
             }

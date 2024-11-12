@@ -27,7 +27,7 @@ impl Evaluate for TrivialGlobalMethod {
                 let self_value = frame.get_self();
                 universe.unknown_global(self_value, name)
             })
-            .unwrap_or_else(|| Return::Exception(format!("global variable '{}' not found", name)))
+            .unwrap_or_else(|| panic!("global not found and unknown_global call failed somehow?"))
     }
 }
 

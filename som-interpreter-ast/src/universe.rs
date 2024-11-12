@@ -535,10 +535,8 @@ impl Universe {
         let unknown_global_result = method.invoke(self, vec![value, Value::Symbol(sym)]);
         match unknown_global_result {
             Return::Local(value) | Return::NonLocal(value, _) => Some(Return::Local(value)),
-            Return::Exception(err) => Some(Return::Exception(format!("(from 'System>>#unknownGlobal:') {}", err,))),
-            Return::Restart => Some(Return::Exception(
-                "(from 'System>>#unknownGlobal:') incorrectly asked for a restart".to_string(),
-            )),
+            #[cfg(feature = "inlining-disabled")]
+            Return::Restart => panic!("(from 'System>>#unknownGlobal:') incorrectly asked for a restart"),
         }
     }
 

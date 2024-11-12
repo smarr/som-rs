@@ -42,5 +42,6 @@ log = "0.4.21"
 rstest = "0.23.0"
 
 [features]
+inlining-disabled = []
 jemalloc = ["jemallocator"]
 debug-info = []
