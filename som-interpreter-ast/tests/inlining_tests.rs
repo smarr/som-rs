@@ -1,10 +1,11 @@
 use som_gc::gc_interface::GCInterface;
 use som_interpreter_ast::ast::AstExpression::*;
 use som_interpreter_ast::ast::InlinedNode::IfInlined;
-use som_interpreter_ast::ast::{AstBinaryDispatch, AstBody, AstDispatchNode, AstMethodDef};
+use som_interpreter_ast::ast::{AstBinaryDispatch, AstBody, AstDispatchNode, AstLiteral, AstMethodDef, AstUnaryDispatch, InlinedNode};
 use som_interpreter_ast::compiler::AstMethodCompilerCtxt;
 use som_interpreter_ast::gc::get_callbacks_for_gc;
 use som_interpreter_ast::specialized::inlined::if_inlined_node::IfInlinedNode;
+use som_interpreter_ast::specialized::inlined::to_do_inlined_node::ToDoInlinedNode;
 use som_interpreter_ast::universe::DEFAULT_HEAP_SIZE;
 use som_lexer::{Lexer, Token};
 use som_parser::lang;
@@ -135,4 +136,48 @@ pub fn recursive_inlining() {
     let cleaned_resolve: String = resolve.to_string().chars().filter(|c| !c.is_whitespace()).collect();
 
     assert_eq!(cleaned_ast_answer, cleaned_resolve);
+}
+
+#[test]
+fn to_do_inlining_ok() {
+    let to_do_str = "run = (
+        | a |
+        a := 42.
+        1 to: 50 do: [ :i | (a + i) println ].
+    )";
+
+    let ast = get_ast(to_do_str);
+    assert_eq!(
+        ast,
+        AstMethodDef {
+            signature: "run".to_string(),
+            locals_nbr: 1,
+            body: AstBody {
+                exprs: vec![
+                    LocalVarWrite(0, Box::new(Literal(AstLiteral::Integer(42)))),
+                    InlinedCall(Box::new(InlinedNode::ToDoInlined(ToDoInlinedNode {
+                        start: Literal(AstLiteral::Integer(1)),
+                        end: Literal(AstLiteral::Integer(50)),
+                        body: AstBody {
+                            exprs: vec![UnaryDispatch(Box::new(AstUnaryDispatch {
+                                dispatch_node: AstDispatchNode {
+                                    signature: "println".to_string(),
+                                    receiver: BinaryDispatch(Box::new(AstBinaryDispatch {
+                                        dispatch_node: AstDispatchNode {
+                                            signature: "+".to_string(),
+                                            receiver: LocalVarRead(0),
+                                            inline_cache: None,
+                                        },
+                                        arg: LocalVarRead(1)
+                                    })),
+                                    inline_cache: None,
+                                },
+                            }))]
+                        },
+                        accumulator_idx: 1,
+                    })))
+                ],
+            },
+        }
+    );
 }

@@ -158,30 +158,19 @@ impl PrimMessageInliner for AstMethodCompilerCtxt<'_> {
 
         // new index is more complicated, since some variables can have gotten inlined into other scopes.
         let new_idx = {
-            let up_idx_of_scope_var_will_end_up_into =
-                self.scopes.iter().rev().skip(up_idx).take_while(|scope| scope.is_getting_inlined).count() + up_idx; // if we're accessing a var into a scope that's getting inlined, then its idx may have changed due to the inlining.
+            let nbr_scopes_between_up_idx_and_inline_target =
+                self.scopes.iter().rev().skip(up_idx).take_while(|scope| scope.is_getting_inlined).count(); // if we're accessing a var into a scope that's getting inlined, then its idx may have changed due to the inlining.
 
             let nbr_vars_in_final_scope_to_offset_by = self
                 .scopes
                 .iter()
                 .rev()
                 .skip(up_idx + 1) // we go back right before the original target scope...
-                .take(up_idx_of_scope_var_will_end_up_into - up_idx) // ...and we get all the scopes that get inlined before the target scope...
+                .take(nbr_scopes_between_up_idx_and_inline_target) // ...and we get all the scopes that get inlined before the target scope...
                 .map(AstScopeCtxt::get_nbr_locals) // ...and we aggregate their vars. This number will be by how much to offset the variable index to account for inlining.
                 .sum::<usize>();
 
-            // most often 0: we rarely inline blocks that have arguments. but it happens in the case of `to:do:`.
-            let nbr_inlined_args_turned_vars = self
-                .scopes
-                .iter()
-                .rev()
-                .skip(up_idx) // we go back TO the original target scope, so that we consider its arguments, only the arguments of the scopes after
-                .take(up_idx_of_scope_var_will_end_up_into - up_idx) // ...aaand we get all the scopes that get inlined before then...
-                .map(AstScopeCtxt::get_nbr_args) // ...and we aggregate the arguments that got inlined.
-                .sum::<usize>();
-            // TODO: clarify logic, and explain it better. This adds a new layer of complexity...
-
-            // Visual aide (minus the rarer case of inlined arguments) to understand why and how vars need to be modified:
+            // Visual aide to understand why and how vars need to be modified:
             // _
             // | |a b|
             // |      // V -- THIS SCOPE GETS INLINED (prev scope vars become |a b c| )
@@ -194,6 +183,34 @@ impl PrimMessageInliner for AstMethodCompilerCtxt<'_> {
             // |         |      |  VarRead(1, 0) => VarRead(1, 2)
             // |         |      |  VarRead(2, 0) => VarRead(1, 0)
             // |         |      |  VarRead(2, 1) => VarRead(1, 1)
+            // |         |    _
+            // |         _
+            // _
+
+            // additional complication: we rarely inline blocks that have arguments. It's most often 0, but at the moment it can be 1 in the case of `to:do:`.
+            let nbr_inlined_args_turned_vars = self
+                .scopes
+                .iter()
+                .rev()
+                .skip(up_idx) // we go back TO the original target scope, so that we take its arguments into account if it gets inlined.
+                .take(nbr_scopes_between_up_idx_and_inline_target) // we stop right before the scope we end up into (the arguments of that final target scope will not be inlined)
+                .map(AstScopeCtxt::get_nbr_args) // ...and we aggregate the arguments instead of the locals
+                .sum::<usize>();
+
+            // _
+            // | |a b|
+            // |      // V -- THIS SCOPE GETS INLINED (prev scope vars become |a b i c| )
+            // |         _
+            // |         | Arg: |i|
+            // |         | |c|
+            // |         |       V -- not inlined.
+            // |         |       _
+            // |         |      | |d|
+            // |         |      |  VarRead(0, 0)... becomes: => VarRead(0, 0)
+            // |         |      |  VarRead(1, 0) => VarRead(1, 3)
+            // |         |      |  VarRead(2, 0) => VarRead(1, 0)
+            // |         |      |  VarRead(2, 1) => VarRead(1, 1)
+            // |         |      |  ArgRead(1, 1) => VarRead(1, 2) <----------- NEW CASE
             // |         |    _
             // |         _
             // _
@@ -217,62 +234,49 @@ impl PrimMessageInliner for AstMethodCompilerCtxt<'_> {
         };
 
         // then in 99% of cases, the arg index is the exact same as in the original expression: if the argread/write isn't of an arg of a scope that's getting inlined, it's easy...
-        if !self.scopes.iter().nth_back(up_idx).unwrap().is_getting_inlined {
-            return match input_expr {
+        let are_args_getting_inlined = !self.scopes.iter().nth_back(up_idx).unwrap().is_getting_inlined;
+        match are_args_getting_inlined {
+            true => match input_expr {
                 Expression::ArgRead(..) => AstExpression::ArgRead(new_up_idx, idx as u8),
                 Expression::ArgWrite(_, _, arg_write_expr) => {
                     AstExpression::ArgWrite(new_up_idx, idx as u8, Box::new(self.parse_expression_with_inlining(arg_write_expr)))
                 }
                 _ => unreachable!(),
-            };
+            },
+            false => {
+                // ...but if we DO inline a scope that has arguments, they become local variables!
+                let nbr_scopes_between_up_idx_and_inline_target = self.scopes.iter().rev().skip(up_idx).take_while(|c| c.is_getting_inlined).count();
+
+                let nbr_locals_in_target_scope = self
+                    .scopes
+                    .iter()
+                    .rev()
+                    .skip(up_idx + 1)
+                    .take(nbr_scopes_between_up_idx_and_inline_target)
+                    .map(AstScopeCtxt::get_nbr_locals)
+                    .sum::<usize>();
+
+                let nbr_args_inlined_in_target_scope = self
+                    .scopes
+                    .iter()
+                    .rev()
+                    .skip(up_idx + 1)
+                    .take(nbr_scopes_between_up_idx_and_inline_target - 1)
+                    .map(AstScopeCtxt::get_nbr_args)
+                    .sum::<usize>();
+
+                let arg_idx_as_local = nbr_locals_in_target_scope + nbr_args_inlined_in_target_scope + (idx - 1);
+                // minus one because blockself has been removed. An ArgRead(1) is reading the first non blockself arg, and inlining wipes the block thus its blockself argument.
+
+                let var_type = match input_expr {
+                    Expression::ArgRead(..) => VarType::Read,
+                    Expression::ArgWrite(_, _, expr) => VarType::Write(&*expr),
+                    _ => unreachable!(),
+                };
+
+                self.var_from_coords(new_up_idx, arg_idx_as_local as u8, var_type)
+            }
         }
-
-        // ...but if we DO inline a scope that has arguments, they become local variables!
-        let up_idx_scope_arg_inlined_into = up_idx + self.scopes.iter().rev().skip(up_idx).take_while(|c| c.is_getting_inlined).count();
-
-        // dbg!(idx_scope_arg_inlined_into);
-        //
-        // let nbr_locals_in_target_scope = self.scopes.iter().nth_back(idx_scope_arg_inlined_into).unwrap().get_nbr_locals();
-        let nbr_locals_in_target_scope = self
-            .scopes
-            .iter()
-            .rev()
-            .skip(up_idx + 1)
-            .take(up_idx_scope_arg_inlined_into - up_idx)
-            .map(AstScopeCtxt::get_nbr_locals)
-            .sum::<usize>();
-        // dbg!(nbr_locals_in_target_scope);
-
-        let nbr_args_inlined_in_target_scope = self
-            .scopes
-            .iter()
-            .rev()
-            .skip(up_idx)
-            .take(up_idx_scope_arg_inlined_into - up_idx)
-            .map(AstScopeCtxt::get_nbr_args)
-            .sum::<usize>();
-        // dbg!(nbr_args_inlined_in_target_scope);
-
-        let arg_idx_as_local = nbr_locals_in_target_scope + nbr_args_inlined_in_target_scope + idx - 2;
-
-        // dbg!(arg_idx_as_local);
-        // dbg!();
-
-        // let mut idx = self.scopes.len() - up_idx - 1;
-        // while self.scopes.get(idx).unwrap().is_getting_inlined {
-        //     let cur_scope = self.scopes.get(idx).unwrap();
-        //     arg_idx_as_local += cur_scope.get_nbr_locals();
-        //     arg_idx_as_local += cur_scope.get_nbr_args();
-        //     idx -= 1;
-        // }
-
-        let var_type = match input_expr {
-            Expression::ArgRead(..) => VarType::Read,
-            Expression::ArgWrite(_, _, expr) => VarType::Write(&*expr),
-            _ => unreachable!(),
-        };
-
-        self.var_from_coords(new_up_idx, arg_idx_as_local as u8, var_type)
     }
 
     fn inline_if_true_or_if_false(&mut self, msg: &ast::Message, expected_bool: bool) -> Option<InlinedNode> {
@@ -358,15 +362,9 @@ impl PrimMessageInliner for AstMethodCompilerCtxt<'_> {
             _ => return None,
         };
 
-        // if !self.class.unwrap().name.contains("RichardsBenchmarks") {
-        //     return None;
-        // }
-
         // eprintln!("Inlining to:do: in class {:?}", &self.class.unwrap().name);
 
-        let up_idx_scope_arg_inlined_into = self.scopes.iter().rev().take_while(|c| c.is_getting_inlined).count();
-
-        let accumulator_arg_idx = self.get_nbr_vars_in_scope(up_idx_scope_arg_inlined_into as u8);
+        let accumulator_arg_idx = self.get_nbr_vars_in_scope(0); // and it's the first and only argument in a to:do: block, so no additional offset.
 
         let to_do_inlined_node = ToDoInlinedNode {
             start: self.parse_expression_with_inlining(start_expr),
@@ -376,8 +374,6 @@ impl PrimMessageInliner for AstMethodCompilerCtxt<'_> {
         };
 
         // dbg!(&to_do_inlined_node);
-
-        // std::process::exit(1);
 
         Some(InlinedNode::ToDoInlined(to_do_inlined_node))
     }
@@ -394,17 +390,19 @@ impl AstMethodCompilerCtxt<'_> {
         }
     }
 
-    fn get_nbr_vars_in_scope(&self, up_idx: u8) -> usize {
-        let idx_scope_arg_inlined_into = up_idx as usize;
+    /// Returns the number of arguments in a given scope, accounting for inlining.
+    /// TODO: this should also be used in the arg up_idx/idx resolver for inlining. And likely even in the local var up_idx/idx resolver, which is very similar also.
+    /// It was designed for this purpose, hence the unused _access_from_up_idx argument: and the logic in `adapt_arg_access_from_inlining()` is highly similar.
+    /// The reason why it's not actually unified is simple: A) it works as is, and B) it would take me a bit more time to work out the logic. And I never have time to do everything I need as is...
+    /// So moving on to more pressing stuff. For future me though: I *think* the arg might need to be made into an isize and be "-1" to say "I want to access the previous scope", maybe.
+    fn get_nbr_vars_in_scope(&self, _access_from_up_idx: usize) -> usize {
+        let up_idx_scope_arg_inlined_into = self.scopes.iter().rev().take_while(|c| c.is_getting_inlined).count();
 
-        // let nbr_locals_in_target_scope = self.scopes.iter().nth_back(idx_scope_arg_inlined_into).unwrap().get_nbr_locals();
         let nbr_locals_in_target_scope =
-            self.scopes.iter().rev().take(idx_scope_arg_inlined_into + 1).map(AstScopeCtxt::get_nbr_locals).sum::<usize>();
-        // dbg!(nbr_locals_in_target_scope);
+            self.scopes.iter().rev().take(up_idx_scope_arg_inlined_into + 1).map(AstScopeCtxt::get_nbr_locals).sum::<usize>();
 
         let nbr_args_inlined_in_target_scope =
-            self.scopes.iter().rev().take(idx_scope_arg_inlined_into).map(AstScopeCtxt::get_nbr_args).sum::<usize>();
-        // dbg!(nbr_args_inlined_in_target_scope);
+            self.scopes.iter().rev().take(up_idx_scope_arg_inlined_into).map(AstScopeCtxt::get_nbr_args).sum::<usize>();
 
         nbr_locals_in_target_scope + nbr_args_inlined_in_target_scope
     }
