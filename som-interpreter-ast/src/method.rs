@@ -9,7 +9,7 @@ use crate::specialized::to_do_node::ToDoNode;
 use crate::specialized::trivial_methods::{TrivialGetterMethod, TrivialGlobalMethod, TrivialLiteralMethod, TrivialSetterMethod};
 use crate::specialized::while_node::WhileNode;
 use crate::universe::Universe;
-use som_gc::gcref::GCRef;
+use som_gc::gcref::Gc;
 use std::fmt::{Debug, Formatter};
 
 /// The kind of a class method.
@@ -73,7 +73,7 @@ impl MethodKind {
 #[derive(Debug, Clone)]
 pub struct Method {
     pub kind: MethodKind,
-    pub holder: GCRef<Class>, // it's a weak ref in the original code.
+    pub holder: Gc<Class>, // it's a weak ref in the original code.
     pub signature: String,
 }
 
@@ -84,7 +84,7 @@ impl PartialEq for Method {
 }
 
 impl Method {
-    pub fn class(&self, universe: &Universe) -> GCRef<Class> {
+    pub fn class(&self, universe: &Universe) -> Gc<Class> {
         if self.is_primitive() {
             universe.primitive_class()
         } else {
@@ -96,7 +96,7 @@ impl Method {
         &self.kind
     }
 
-    pub fn holder(&self) -> &GCRef<Class> {
+    pub fn holder(&self) -> &Gc<Class> {
         &self.holder
     }
 

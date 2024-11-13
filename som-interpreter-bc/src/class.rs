@@ -4,7 +4,7 @@ use crate::method::Method;
 use crate::value::Value;
 use indexmap::IndexMap;
 use som_core::interner::Interned;
-use som_gc::gcref::GCRef;
+use som_gc::gcref::Gc;
 // /// A reference that may be either weak or owned/strong.
 // #[derive(Debug, Clone)]
 // pub enum MaybeWeak<A> {
@@ -20,13 +20,13 @@ pub struct Class {
     /// The class' name.
     pub name: String,
     /// The class of this class.
-    pub class: GCRef<Class>,
+    pub class: Gc<Class>,
     /// The superclass of this class.
-    pub super_class: Option<GCRef<Class>>,
+    pub super_class: Option<Gc<Class>>,
     /// The class' locals.
     pub locals: IndexMap<Interned, Value>,
     /// The class' methods/invokables.
-    pub methods: IndexMap<Interned, GCRef<Method>>,
+    pub methods: IndexMap<Interned, Gc<Method>>,
     /// Is this class a static one ?
     pub is_static: bool,
 }
@@ -38,32 +38,32 @@ impl Class {
     }
 
     /// Get the class of this class.
-    pub fn class(&self) -> GCRef<Self> {
+    pub fn class(&self) -> Gc<Self> {
         self.class
     }
 
     /// Set the class of this class (as a weak reference).
-    pub fn set_class(&mut self, class: &GCRef<Self>) {
+    pub fn set_class(&mut self, class: &Gc<Self>) {
         self.class = *class;
     }
 
     /// Set the class of this class (as a strong reference). TODO now useless
-    pub fn set_class_owned(&mut self, class: &GCRef<Self>) {
+    pub fn set_class_owned(&mut self, class: &Gc<Self>) {
         self.class = *class;
     }
 
     /// Get the superclass of this class.
-    pub fn super_class(&self) -> Option<GCRef<Self>> {
+    pub fn super_class(&self) -> Option<Gc<Self>> {
         self.super_class
     }
 
     /// Set the superclass of this class (as a weak reference).
-    pub fn set_super_class(&mut self, class: &GCRef<Self>) {
+    pub fn set_super_class(&mut self, class: &Gc<Self>) {
         self.super_class = Some(*class);
     }
 
     /// Search for a given method within this class.
-    pub fn lookup_method(&self, signature: Interned) -> Option<GCRef<Method>> {
+    pub fn lookup_method(&self, signature: Interned) -> Option<Gc<Method>> {
         self.methods.get(&signature).cloned().or_else(|| self.super_class.as_ref()?.lookup_method(signature))
     }
 

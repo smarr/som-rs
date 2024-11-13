@@ -5,7 +5,7 @@ use crate::universe::Universe;
 use crate::value::Value;
 use anyhow::{bail, Error};
 use once_cell::sync::Lazy;
-use som_gc::gcref::GCRef;
+use som_gc::gcref::Gc;
 use std::convert::TryFrom;
 
 pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| {
@@ -18,7 +18,7 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> 
 
 pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| Box::new([("new:", self::new.into_func(), true)]));
 
-fn at(_: &mut Universe, values: GCRef<VecValue>, index: i32) -> Result<Value, Error> {
+fn at(_: &mut Universe, values: Gc<VecValue>, index: i32) -> Result<Value, Error> {
     const SIGNATURE: &str = "Array>>#at:";
 
     let index = match usize::try_from(index - 1) {
@@ -30,7 +30,7 @@ fn at(_: &mut Universe, values: GCRef<VecValue>, index: i32) -> Result<Value, Er
     Ok(value)
 }
 
-fn at_put(_: &mut Universe, mut values: GCRef<VecValue>, index: i32, value: Value) -> Result<Value, Error> {
+fn at_put(_: &mut Universe, mut values: Gc<VecValue>, index: i32, value: Value) -> Result<Value, Error> {
     const SIGNATURE: &str = "Array>>#at:put:";
 
     let index = match usize::try_from(index - 1) {
@@ -43,7 +43,7 @@ fn at_put(_: &mut Universe, mut values: GCRef<VecValue>, index: i32, value: Valu
     Ok(Value::Array(values))
 }
 
-fn length(_: &mut Universe, values: GCRef<VecValue>) -> Result<Value, Error> {
+fn length(_: &mut Universe, values: Gc<VecValue>) -> Result<Value, Error> {
     const SIGNATURE: &str = "Array>>#length";
 
     let length = values.len();

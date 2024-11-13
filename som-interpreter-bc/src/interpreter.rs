@@ -11,7 +11,7 @@ use anyhow::Context;
 use som_core::bytecode::Bytecode;
 use som_core::interner::Interned;
 use som_gc::gc_interface::GCInterface;
-use som_gc::gcref::GCRef;
+use som_gc::gcref::Gc;
 use std::time::Instant;
 
 macro_rules! send {
@@ -66,13 +66,13 @@ pub struct Interpreter {
     /// The current bytecode index.
     pub bytecode_idx: usize,
     /// The current frame.
-    pub current_frame: GCRef<Frame>,
+    pub current_frame: Gc<Frame>,
     /// Pointer to the frame's bytecodes, to not have to read them from the frame directly
     pub current_bytecodes: *const Vec<Bytecode>,
 }
 
 impl Interpreter {
-    pub fn new(base_frame: GCRef<Frame>) -> Self {
+    pub fn new(base_frame: Gc<Frame>) -> Self {
         Self {
             start_time: Instant::now(),
             bytecode_idx: 0,
@@ -83,7 +83,7 @@ impl Interpreter {
 
     /// Creates and allocates a new frame corresponding to a method.
     /// nbr_args is the number of arguments, including the self value, which it takes from the previous frame.
-    pub fn push_method_frame(&mut self, method: GCRef<Method>, nbr_args: usize, mutator: &mut GCInterface) -> GCRef<Frame> {
+    pub fn push_method_frame(&mut self, method: Gc<Method>, nbr_args: usize, mutator: &mut GCInterface) -> Gc<Frame> {
         let mut frame_copy = self.current_frame.clone();
         let args = frame_copy.stack_n_last_elements(nbr_args);
 
@@ -99,7 +99,7 @@ impl Interpreter {
 
     /// Creates and allocates a new frame corresponding to a method, with arguments provided.
     /// Used in primitives and
-    pub fn push_method_frame_with_args(&mut self, method: GCRef<Method>, args: &[Value], mutator: &mut GCInterface) -> GCRef<Frame> {
+    pub fn push_method_frame_with_args(&mut self, method: Gc<Method>, args: &[Value], mutator: &mut GCInterface) -> Gc<Frame> {
         let frame_ptr = Frame::alloc_from_method(method, args, self.current_frame, mutator);
 
         self.bytecode_idx = 0;
@@ -112,7 +112,7 @@ impl Interpreter {
     /// Creates and allocates a new frame corresponding to a method.
     /// Always passes arguments directly since we don't take them as a slice off the previous frame, like we do for methods.
     /// ...which would likely be faster, actually. TODO.
-    pub fn push_block_frame_with_args(&mut self, block: GCRef<Block>, args: &[Value], mutator: &mut GCInterface) -> GCRef<Frame> {
+    pub fn push_block_frame_with_args(&mut self, block: Gc<Block>, args: &[Value], mutator: &mut GCInterface) -> Gc<Frame> {
         let current_method = self.current_frame.current_method;
         let frame_ptr = Frame::alloc_from_block(block, args, current_method, self.current_frame, mutator);
         self.bytecode_idx = 0;
@@ -464,7 +464,7 @@ impl Interpreter {
             }
         }
 
-        pub fn do_send(interpreter: &mut Interpreter, universe: &mut Universe, method: Option<GCRef<Method>>, symbol: Interned, nb_params: usize) {
+        pub fn do_send(interpreter: &mut Interpreter, universe: &mut Universe, method: Option<Gc<Method>>, symbol: Interned, nb_params: usize) {
             // we store the current bytecode idx to be able to correctly restore the bytecode state when we pop frames
             interpreter.current_frame.bytecode_idx = interpreter.bytecode_idx;
 
@@ -510,7 +510,7 @@ impl Interpreter {
             }
         }
 
-        fn resolve_method(frame: &GCRef<Frame>, class: &GCRef<Class>, signature: Interned, bytecode_idx: usize) -> Option<GCRef<Method>> {
+        fn resolve_method(frame: &Gc<Frame>, class: &Gc<Class>, signature: Interned, bytecode_idx: usize) -> Option<Gc<Method>> {
             let mut inline_cache = unsafe { (*frame.inline_cache).borrow_mut() };
 
             // SAFETY: this access is actually safe because the bytecode compiler
@@ -529,7 +529,7 @@ impl Interpreter {
             }
         }
 
-        fn convert_literal(frame: &GCRef<Frame>, literal: Literal, gc_interface: &mut GCInterface) -> Value {
+        fn convert_literal(frame: &Gc<Frame>, literal: Literal, gc_interface: &mut GCInterface) -> Value {
             let value = match literal {
                 Literal::Symbol(sym) => Value::Symbol(sym),
                 Literal::String(val) => Value::String(val),

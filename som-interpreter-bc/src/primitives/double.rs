@@ -6,7 +6,7 @@ use crate::value::Value;
 use anyhow::{Context, Error};
 use num_traits::ToPrimitive;
 use once_cell::sync::Lazy;
-use som_gc::gcref::GCRef;
+use som_gc::gcref::Gc;
 
 pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| {
     Box::new([
@@ -47,13 +47,13 @@ macro_rules! promote {
     };
 }
 
-fn from_string(_: &mut Interpreter, _: &mut Universe, _: Value, string: GCRef<String>) -> Result<f64, Error> {
+fn from_string(_: &mut Interpreter, _: &mut Universe, _: Value, string: Gc<String>) -> Result<f64, Error> {
     const SIGNATURE: &str = "Double>>#fromString:";
 
     string.parse().with_context(|| format!("`{SIGNATURE}`: could not parse `f64` from string"))
 }
 
-fn as_string(_: &mut Interpreter, universe: &mut Universe, receiver: DoubleLike) -> Result<GCRef<String>, Error> {
+fn as_string(_: &mut Interpreter, universe: &mut Universe, receiver: DoubleLike) -> Result<Gc<String>, Error> {
     const SIGNATURE: &str = "Double>>#asString";
 
     let receiver = promote!(SIGNATURE, receiver);

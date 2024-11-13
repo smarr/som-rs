@@ -6,7 +6,7 @@ use crate::inliner::OrAndChoice::{And, Or};
 use som_core::ast;
 use som_core::bytecode::Bytecode;
 use som_gc::gc_interface::GCInterface;
-use som_gc::gcref::GCRef;
+use som_gc::gcref::Gc;
 
 pub enum JumpType {
     JumpOnFalse,
@@ -32,7 +32,7 @@ pub trait PrimMessageInliner {
     fn adapt_block_after_outer_inlined(
         &self,
         ctxt: &mut dyn InnerGenCtxt,
-        block_body: GCRef<Block>,
+        block_body: Gc<Block>,
         adjust_scope_by: usize,
         mutator: &mut GCInterface,
     ) -> Block;
@@ -229,7 +229,7 @@ impl PrimMessageInliner for ast::Message {
     fn adapt_block_after_outer_inlined(
         &self,
         ctxt: &mut dyn InnerGenCtxt,
-        orig_block: GCRef<Block>,
+        orig_block: Gc<Block>,
         adjust_scope_by: usize,
         gc_interface: &mut GCInterface,
     ) -> Block {

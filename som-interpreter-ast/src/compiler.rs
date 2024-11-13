@@ -17,12 +17,12 @@ use crate::specialized::while_node::WhileNode;
 use som_core::ast;
 use som_core::ast::{Expression, Literal, MethodBody};
 use som_gc::gc_interface::GCInterface;
-use som_gc::gcref::GCRef;
+use som_gc::gcref::Gc;
 use std::panic;
 
 pub struct AstMethodCompilerCtxt<'a> {
     /// The class in which context we're compiling. Needed for resolving field accesses. Should always be Some() outside of a testing context.
-    pub class: Option<GCRef<Class>>,
+    pub class: Option<Gc<Class>>,
     /// The stack of scopes to better reason about inlining.
     pub scopes: Vec<AstScopeCtxt>,
     /// The interface to the GC to allocate anything we want during parsing.
@@ -58,7 +58,7 @@ impl AstScopeCtxt {
 }
 
 impl<'a> AstMethodCompilerCtxt<'a> {
-    pub fn get_method_kind(method: &ast::MethodDef, class: Option<GCRef<Class>>, gc_interface: &mut GCInterface) -> MethodKind {
+    pub fn get_method_kind(method: &ast::MethodDef, class: Option<Gc<Class>>, gc_interface: &mut GCInterface) -> MethodKind {
         // NB: these If/IfTrueIfFalse/While are very rare cases, since we normally inline those functions.
         // But we don't do inlining when e.g. the condition for ifTrue: isn't a block.
         // so there is *some* occasional benefit in having those specialized method nodes around for those cases.
@@ -115,7 +115,7 @@ impl<'a> AstMethodCompilerCtxt<'a> {
 
     /// Transforms a generic MethodDef into an AST-specific one.
     /// Note: public since it's used in tests.
-    pub fn parse_method_def(method_def: &ast::MethodDef, class: Option<GCRef<Class>>, gc_interface: &mut GCInterface) -> AstMethodDef {
+    pub fn parse_method_def(method_def: &ast::MethodDef, class: Option<Gc<Class>>, gc_interface: &mut GCInterface) -> AstMethodDef {
         let (body, locals_nbr) = match &method_def.body {
             MethodBody::Primitive => {
                 unreachable!("unimplemented primitive")

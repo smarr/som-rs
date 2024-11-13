@@ -8,7 +8,7 @@ use crate::value::Value;
 use anyhow::{anyhow, Error};
 use som_core::interner::{Interned, Interner};
 use som_gc::gc_interface::{GCInterface, IS_WORLD_STOPPED};
-use som_gc::gcref::GCRef;
+use som_gc::gcref::Gc;
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
@@ -24,46 +24,46 @@ pub const DEFAULT_HEAP_SIZE: usize = 1024 * 1024 * 256;
 #[derive(Debug)]
 pub struct CoreClasses {
     /// The **Object** class.
-    pub object_class: GCRef<Class>,
+    pub object_class: Gc<Class>,
     /// The **Class** class.
-    pub class_class: GCRef<Class>,
+    pub class_class: Gc<Class>,
     /// The **Class** class.
-    pub metaclass_class: GCRef<Class>,
+    pub metaclass_class: Gc<Class>,
 
     /// The **Nil** class.
-    pub nil_class: GCRef<Class>,
+    pub nil_class: Gc<Class>,
     /// The **Integer** class.
-    pub integer_class: GCRef<Class>,
+    pub integer_class: Gc<Class>,
     /// The **Double** class.
-    pub double_class: GCRef<Class>,
+    pub double_class: Gc<Class>,
     /// The **Array** class.
-    pub array_class: GCRef<Class>,
+    pub array_class: Gc<Class>,
     /// The **Method** class.
-    pub method_class: GCRef<Class>,
+    pub method_class: Gc<Class>,
     /// The **Primitive** class.
-    pub primitive_class: GCRef<Class>,
+    pub primitive_class: Gc<Class>,
     /// The **Symbol** class.
-    pub symbol_class: GCRef<Class>,
+    pub symbol_class: Gc<Class>,
     /// The **String** class.
-    pub string_class: GCRef<Class>,
+    pub string_class: Gc<Class>,
     /// The **System** class.
-    pub system_class: GCRef<Class>,
+    pub system_class: Gc<Class>,
 
     /// The **Block** class.
-    pub block_class: GCRef<Class>,
+    pub block_class: Gc<Class>,
     /// The **Block1** class.
-    pub block1_class: GCRef<Class>,
+    pub block1_class: Gc<Class>,
     /// The **Block2** class.
-    pub block2_class: GCRef<Class>,
+    pub block2_class: Gc<Class>,
     /// The **Block3** class.
-    pub block3_class: GCRef<Class>,
+    pub block3_class: Gc<Class>,
 
     /// The **Boolean** class.
-    pub boolean_class: GCRef<Class>,
+    pub boolean_class: Gc<Class>,
     /// The **True** class.
-    pub true_class: GCRef<Class>,
+    pub true_class: Gc<Class>,
     /// The **False** class.
-    pub false_class: GCRef<Class>,
+    pub false_class: Gc<Class>,
 }
 
 /// The central data structure for the interpreter.
@@ -213,7 +213,7 @@ impl Universe {
     }
 
     /// Load a class from its name into this universe.
-    pub fn load_class(&mut self, class_name: impl Into<String>) -> Result<GCRef<Class>, Error> {
+    pub fn load_class(&mut self, class_name: impl Into<String>) -> Result<Gc<Class>, Error> {
         debug_assert_eq!(IS_WORLD_STOPPED.load(Ordering::SeqCst), false);
 
         let class_name = class_name.into();
@@ -270,7 +270,7 @@ impl Universe {
         classpath: &[impl AsRef<Path>],
         class_name: impl Into<String>,
         allocator: &mut GCInterface,
-    ) -> Result<GCRef<Class>, Error> {
+    ) -> Result<Gc<Class>, Error> {
         let class_name = class_name.into();
         for path in classpath {
             let mut path = path.as_ref().join(class_name.as_str());
@@ -304,78 +304,78 @@ impl Universe {
     }
 
     /// Get the **Nil** class.
-    pub fn nil_class(&self) -> GCRef<Class> {
+    pub fn nil_class(&self) -> Gc<Class> {
         self.core.nil_class
     }
     /// Get the **System** class.
-    pub fn system_class(&self) -> GCRef<Class> {
+    pub fn system_class(&self) -> Gc<Class> {
         self.core.system_class
     }
 
     /// Get the **Object** class.
-    pub fn object_class(&self) -> GCRef<Class> {
+    pub fn object_class(&self) -> Gc<Class> {
         self.core.object_class
     }
 
     /// Get the **Symbol** class.
-    pub fn symbol_class(&self) -> GCRef<Class> {
+    pub fn symbol_class(&self) -> Gc<Class> {
         self.core.symbol_class
     }
     /// Get the **String** class.
-    pub fn string_class(&self) -> GCRef<Class> {
+    pub fn string_class(&self) -> Gc<Class> {
         self.core.string_class
     }
     /// Get the **Array** class.
-    pub fn array_class(&self) -> GCRef<Class> {
+    pub fn array_class(&self) -> Gc<Class> {
         self.core.array_class
     }
 
     /// Get the **Integer** class.
-    pub fn integer_class(&self) -> GCRef<Class> {
+    pub fn integer_class(&self) -> Gc<Class> {
         self.core.integer_class
     }
     /// Get the **Double** class.
-    pub fn double_class(&self) -> GCRef<Class> {
+    pub fn double_class(&self) -> Gc<Class> {
         self.core.double_class
     }
 
     /// Get the **Block** class.
-    pub fn block_class(&self) -> GCRef<Class> {
+    pub fn block_class(&self) -> Gc<Class> {
         self.core.block_class
     }
     /// Get the **Block1** class.
-    pub fn block1_class(&self) -> GCRef<Class> {
+    pub fn block1_class(&self) -> Gc<Class> {
         self.core.block1_class
     }
     /// Get the **Block2** class.
-    pub fn block2_class(&self) -> GCRef<Class> {
+    pub fn block2_class(&self) -> Gc<Class> {
         self.core.block2_class
     }
     /// Get the **Block3** class.
-    pub fn block3_class(&self) -> GCRef<Class> {
+    pub fn block3_class(&self) -> Gc<Class> {
         self.core.block3_class
     }
 
     /// Get the **True** class.
-    pub fn true_class(&self) -> GCRef<Class> {
+    pub fn true_class(&self) -> Gc<Class> {
         self.core.true_class
     }
     /// Get the **False** class.
-    pub fn false_class(&self) -> GCRef<Class> {
+    pub fn false_class(&self) -> Gc<Class> {
         self.core.false_class
     }
 
     /// Get the **Metaclass** class.
-    pub fn metaclass_class(&self) -> GCRef<Class> {
+    pub fn metaclass_class(&self) -> Gc<Class> {
         self.core.metaclass_class
     }
 
     /// Get the **Method** class.
-    pub fn method_class(&self) -> GCRef<Class> {
+    pub fn method_class(&self) -> Gc<Class> {
         self.core.method_class
     }
     /// Get the **Primitive** class.
-    pub fn primitive_class(&self) -> GCRef<Class> {
+    pub fn primitive_class(&self) -> Gc<Class> {
         self.core.primitive_class
     }
 
@@ -407,7 +407,7 @@ impl Universe {
 
 impl Universe {
     /// Call `escapedBlock:` on the given value, if it is defined.
-    pub fn escaped_block(&mut self, interpreter: &mut Interpreter, value: Value, block: GCRef<Block>) -> Option<()> {
+    pub fn escaped_block(&mut self, interpreter: &mut Interpreter, value: Value, block: Gc<Block>) -> Option<()> {
         let method_name = self.intern_symbol("escapedBlock:");
         let method = value.lookup_method(self, method_name)?;
         interpreter.push_method_frame_with_args(method, &[value, Value::Block(block)], &mut self.gc_interface);
@@ -455,14 +455,14 @@ impl Universe {
         let method = Value::SYSTEM.lookup_method(self, method_name)?;
 
         let args_vec = self.gc_interface.alloc(VecValue(args));
-        let frame_ptr = Frame::alloc_from_method(method, &[Value::SYSTEM, Value::Array(args_vec)], GCRef::default(), &mut self.gc_interface);
+        let frame_ptr = Frame::alloc_from_method(method, &[Value::SYSTEM, Value::Array(args_vec)], Gc::default(), &mut self.gc_interface);
         let interpreter = Interpreter::new(frame_ptr);
 
         Some(interpreter)
     }
 }
 
-fn set_super_class(class: &mut GCRef<Class>, super_class: &GCRef<Class>, metaclass_class: &GCRef<Class>) {
+fn set_super_class(class: &mut Gc<Class>, super_class: &Gc<Class>, metaclass_class: &Gc<Class>) {
     class.set_super_class(super_class);
     class.class().set_super_class(&super_class.class());
     class.class().set_class(metaclass_class);

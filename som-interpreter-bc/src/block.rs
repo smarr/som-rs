@@ -7,7 +7,7 @@ use crate::universe::Universe;
 #[cfg(feature = "frame-debug-info")]
 use som_core::ast::BlockDebugInfo;
 use som_core::bytecode::Bytecode;
-use som_gc::gcref::GCRef;
+use som_gc::gcref::Gc;
 use std::cell::RefCell;
 use std::fmt;
 
@@ -18,7 +18,7 @@ pub struct BlockInfo {
     pub body: Vec<Bytecode>,
     pub nb_locals: usize,
     pub nb_params: usize,
-    pub inline_cache: RefCell<Vec<Option<(GCRef<Class>, GCRef<Method>)>>>,
+    pub inline_cache: RefCell<Vec<Option<(Gc<Class>, Gc<Method>)>>>,
     pub max_stack_size: u8,
     #[cfg(feature = "frame-debug-info")]
     pub block_debug_info: BlockDebugInfo,
@@ -28,13 +28,13 @@ pub struct BlockInfo {
 #[derive(Clone)]
 pub struct Block {
     /// Reference to the captured stack frame.
-    pub frame: Option<GCRef<Frame>>,
-    pub blk_info: GCRef<BlockInfo>,
+    pub frame: Option<Gc<Frame>>,
+    pub blk_info: Gc<BlockInfo>,
 }
 
 impl Block {
     /// Get the block's class.
-    pub fn class(&self, universe: &Universe) -> GCRef<Class> {
+    pub fn class(&self, universe: &Universe) -> Gc<Class> {
         match self.nb_parameters() {
             0 => universe.block1_class(),
             1 => universe.block2_class(),

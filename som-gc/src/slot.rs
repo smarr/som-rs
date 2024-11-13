@@ -1,4 +1,4 @@
-use crate::gcref::GCRef;
+use crate::gcref::Gc;
 use mmtk::util::{Address, ObjectReference};
 use mmtk::vm::slot::{SimpleSlot, Slot};
 
@@ -54,8 +54,8 @@ impl Slot for ValueSlot {
     fn load(&self) -> Option<ObjectReference> {
         // debug_assert!(self.value.is_ptr_type());
         // let gcref: GCRef<()> = self.value.extract_gc_cell();
-        let gcref: GCRef<()> = GCRef::from_u64((((self.value << 16) as i64) >> 16) as u64);
-        ObjectReference::from_raw_address(gcref.ptr)
+        let gcref: Gc<()> = Gc::from_u64((((self.value << 16) as i64) >> 16) as u64);
+        unsafe { ObjectReference::from_raw_address(Address::from_usize(gcref.ptr)) }
     }
 
     fn store(&self, _object: ObjectReference) {

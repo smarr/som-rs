@@ -1,32 +1,32 @@
 use crate::class::Class;
 use crate::value::Value;
-use som_gc::gcref::GCRef;
+use som_gc::gcref::Gc;
 use std::fmt;
 
 /// Represents a generic (non-primitive) class instance.
 #[derive(Clone)]
 pub struct Instance {
     /// The class of which this is an instance from.
-    pub class: GCRef<Class>,
+    pub class: Gc<Class>,
     /// This instance's locals.
     pub locals: Vec<Value>,
 }
 
 impl Instance {
     /// Construct an instance for a given class.
-    pub fn from_class(class: GCRef<Class>) -> Self {
+    pub fn from_class(class: Gc<Class>) -> Self {
         let locals = class.fields.iter().map(|_| Value::NIL).collect();
 
         Self { class, locals }
     }
 
     /// Get the class of which this is an instance from.
-    pub fn class(&self) -> GCRef<Class> {
+    pub fn class(&self) -> Gc<Class> {
         self.class
     }
 
     /// Get the superclass of this instance's class.
-    pub fn super_class(&self) -> Option<GCRef<Class>> {
+    pub fn super_class(&self) -> Option<Gc<Class>> {
         self.class.super_class()
     }
 

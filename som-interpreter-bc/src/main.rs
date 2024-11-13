@@ -9,7 +9,7 @@ use std::ptr::NonNull;
 use anyhow::{bail, Context};
 #[cfg(feature = "jemalloc")]
 use jemallocator::Jemalloc;
-use som_gc::gcref::GCRef;
+use som_gc::gcref::Gc;
 use som_interpreter_bc::class::Class;
 use structopt::StructOpt;
 mod shell;
@@ -153,9 +153,9 @@ fn disassemble_class(opts: Options) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn dump_class_methods(class: GCRef<Class>, opts: &Options, file_stem: &str, universe: &mut Universe) {
-    let methods: Vec<GCRef<Method>> = if opts.args.is_empty() {
-        class.methods.values().cloned().collect::<Vec<GCRef<Method>>>()
+fn dump_class_methods(class: Gc<Class>, opts: &Options, file_stem: &str, universe: &mut Universe) {
+    let methods: Vec<Gc<Method>> = if opts.args.is_empty() {
+        class.methods.values().cloned().collect::<Vec<Gc<Method>>>()
     } else {
         opts.args
             .iter()

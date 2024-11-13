@@ -1,5 +1,5 @@
 use crate::ast::AstBlock;
-use som_gc::gcref::GCRef;
+use som_gc::gcref::Gc;
 use std::fmt;
 
 use crate::class::Class;
@@ -10,14 +10,14 @@ use crate::universe::Universe;
 #[derive(Clone)]
 pub struct Block {
     /// Reference to the captured stack frame.
-    pub frame: GCRef<Frame>,
+    pub frame: Gc<Frame>,
     /// Block definition from the AST.
-    pub block: GCRef<AstBlock>,
+    pub block: Gc<AstBlock>,
 }
 
 impl Block {
     /// Get the block's class.
-    pub fn class(&self, universe: &Universe) -> GCRef<Class> {
+    pub fn class(&self, universe: &Universe) -> Gc<Class> {
         match self.nb_parameters() {
             0 => universe.block1_class(),
             1 => universe.block2_class(),

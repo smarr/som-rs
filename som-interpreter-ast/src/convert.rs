@@ -18,7 +18,7 @@ use crate::value::Value;
 use num_bigint::BigInt;
 use som_core::interner::Interned;
 use som_gc::gc_interface::GCInterface;
-use som_gc::gcref::GCRef;
+use som_gc::gcref::Gc;
 
 pub trait IntoValue {
     fn into_value(&self, gc_interface: &mut GCInterface) -> Value;
@@ -68,7 +68,7 @@ impl FromArgs for System {
 
 #[derive(Debug, Clone)]
 pub enum StringLike {
-    String(GCRef<String>),
+    String(Gc<String>),
     Symbol(Interned),
 }
 
@@ -94,7 +94,7 @@ impl FromArgs for StringLike {
 pub enum DoubleLike {
     Double(f64),
     Integer(i32),
-    BigInteger(GCRef<BigInt>),
+    BigInteger(Gc<BigInt>),
 }
 
 impl TryFrom<Value> for DoubleLike {
@@ -119,7 +119,7 @@ impl FromArgs for DoubleLike {
 #[derive(Debug, Clone)]
 pub enum IntegerLike {
     Integer(i32),
-    BigInteger(GCRef<BigInt>),
+    BigInteger(Gc<BigInt>),
 }
 
 impl TryFrom<Value> for IntegerLike {
@@ -174,37 +174,37 @@ impl FromArgs for Interned {
     }
 }
 
-impl FromArgs for GCRef<String> {
+impl FromArgs for Gc<String> {
     fn from_args(arg: Value, _: &mut Universe) -> Result<Self, Error> {
         arg.as_string().context("could not resolve `Value` as `String`")
     }
 }
 
-impl FromArgs for GCRef<VecValue> {
+impl FromArgs for Gc<VecValue> {
     fn from_args(arg: Value, _: &mut Universe) -> Result<Self, Error> {
         arg.as_array().context("could not resolve `Value` as `Array`")
     }
 }
 
-impl FromArgs for GCRef<Class> {
+impl FromArgs for Gc<Class> {
     fn from_args(arg: Value, _: &mut Universe) -> Result<Self, Error> {
         arg.as_class().context("could not resolve `Value` as `Class`")
     }
 }
 
-impl FromArgs for GCRef<Instance> {
+impl FromArgs for Gc<Instance> {
     fn from_args(arg: Value, _: &mut Universe) -> Result<Self, Error> {
         arg.as_instance().context("could not resolve `Value` as `Instance`")
     }
 }
 
-impl FromArgs for GCRef<Block> {
+impl FromArgs for Gc<Block> {
     fn from_args(arg: Value, _: &mut Universe) -> Result<Self, Error> {
         arg.as_block().context("could not resolve `Value` as `Block`")
     }
 }
 
-impl FromArgs for GCRef<Method> {
+impl FromArgs for Gc<Method> {
     fn from_args(arg: Value, _: &mut Universe) -> Result<Self, Error> {
         arg.as_invokable().context("could not resolve `Value` as `Method`")
     }
@@ -240,43 +240,43 @@ impl IntoValue for Interned {
     }
 }
 
-impl IntoValue for GCRef<String> {
+impl IntoValue for Gc<String> {
     fn into_value(&self, _: &mut GCInterface) -> Value {
         Value::String(*self)
     }
 }
 
-impl IntoValue for GCRef<BigInt> {
+impl IntoValue for Gc<BigInt> {
     fn into_value(&self, _: &mut GCInterface) -> Value {
         Value::BigInteger(*self)
     }
 }
 
-impl IntoValue for GCRef<VecValue> {
+impl IntoValue for Gc<VecValue> {
     fn into_value(&self, _: &mut GCInterface) -> Value {
         Value::Array(*self)
     }
 }
 
-impl IntoValue for GCRef<Class> {
+impl IntoValue for Gc<Class> {
     fn into_value(&self, _: &mut GCInterface) -> Value {
         Value::Class(*self)
     }
 }
 
-impl IntoValue for GCRef<Instance> {
+impl IntoValue for Gc<Instance> {
     fn into_value(&self, _: &mut GCInterface) -> Value {
         Value::Instance(*self)
     }
 }
 
-impl IntoValue for GCRef<Block> {
+impl IntoValue for Gc<Block> {
     fn into_value(&self, _: &mut GCInterface) -> Value {
         Value::Block(*self)
     }
 }
 
-impl IntoValue for GCRef<Method> {
+impl IntoValue for Gc<Method> {
     fn into_value(&self, _: &mut GCInterface) -> Value {
         Value::Invokable(*self)
     }

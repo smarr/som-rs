@@ -2,7 +2,7 @@ use crate::class::Class;
 use crate::value::Value;
 use core::mem::size_of;
 use som_gc::gc_interface::GCInterface;
-use som_gc::gcref::{CustomAlloc, GCRef};
+use som_gc::gcref::{CustomAlloc, Gc};
 use std::fmt;
 use std::marker::PhantomData;
 
@@ -10,7 +10,7 @@ use std::marker::PhantomData;
 #[derive(Clone, PartialEq)]
 pub struct Instance {
     /// The class of which this is an instance from.
-    pub class: GCRef<Class>,
+    pub class: Gc<Class>,
     /// will be used for packed repr of locals
     pub nbr_fields: usize,
     /// This instance's locals. Contiguous "Value" instances in memory
@@ -19,8 +19,8 @@ pub struct Instance {
 
 impl Instance {
     /// Construct an instance for a given class.
-    pub fn from_class(class: GCRef<Class>, mutator: &mut GCInterface) -> GCRef<Instance> {
-        fn get_nbr_fields(class: &GCRef<Class>) -> usize {
+    pub fn from_class(class: Gc<Class>, mutator: &mut GCInterface) -> Gc<Instance> {
+        fn get_nbr_fields(class: &Gc<Class>) -> usize {
             let mut nbr_locals = class.locals.len();
             if let Some(super_class) = class.super_class() {
                 nbr_locals += get_nbr_fields(&super_class)
@@ -39,12 +39,12 @@ impl Instance {
     }
 
     /// Get the class of which this is an instance from.
-    pub fn class(&self) -> GCRef<Class> {
+    pub fn class(&self) -> Gc<Class> {
         self.class
     }
 
     /// Get the superclass of this instance's class.
-    pub fn super_class(&self) -> Option<GCRef<Class>> {
+    pub fn super_class(&self) -> Option<Gc<Class>> {
         self.class.super_class()
     }
 
@@ -65,7 +65,7 @@ impl Instance {
 }
 
 impl CustomAlloc<Instance> for Instance {
-    fn alloc(instance: Instance, gc_interface: &mut GCInterface) -> GCRef<Self> {
+    fn alloc(instance: Instance, gc_interface: &mut GCInterface) -> Gc<Self> {
         let size = size_of::<Instance>() + (instance.nbr_fields * size_of::<Value>());
 
         let nbr_fields = instance.nbr_fields;
@@ -73,10 +73,10 @@ impl CustomAlloc<Instance> for Instance {
         let instance_ref = gc_interface.alloc_with_size(instance, size);
 
         unsafe {
-            let mut values_addr = instance_ref.ptr.add(size_of::<Instance>());
+            let mut values_addr = (instance_ref.ptr + size_of::<Instance>()) as *mut Value;
             for _ in 0..nbr_fields {
-                *values_addr.as_mut_ref() = Value::NIL;
-                values_addr = values_addr.add(size_of::<Value>());
+                *values_addr = Value::NIL;
+                values_addr = values_addr.wrapping_add(1);
             }
         };
 
@@ -93,15 +93,15 @@ pub trait InstanceAccess {
     fn assign_local(&mut self, idx: usize, value: Value);
 }
 
-impl InstanceAccess for GCRef<Instance> {
+impl InstanceAccess for Gc<Instance> {
     fn get_field_addr(&self, idx: usize) -> usize {
-        self.ptr.add(size_of::<Instance>()).add(idx * size_of::<Value>()).as_usize()
+        self.ptr + size_of::<Instance>() + (idx * size_of::<Value>())
     }
 
     fn lookup_local(&self, idx: usize) -> Value {
         unsafe {
             let local_ref: &Value = &*(self.get_field_addr(idx) as *const Value);
-            local_ref.clone()
+            *local_ref
         }
     }
 

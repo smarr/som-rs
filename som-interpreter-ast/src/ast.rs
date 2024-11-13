@@ -9,7 +9,7 @@ use crate::specialized::inlined::to_do_inlined_node::ToDoInlinedNode;
 use crate::specialized::inlined::while_inlined_node::WhileInlinedNode;
 use indenter::indented;
 use num_bigint::BigInt;
-use som_gc::gcref::GCRef;
+use som_gc::gcref::Gc;
 use std::fmt::Write;
 use std::fmt::{Debug, Display, Formatter};
 
@@ -47,7 +47,7 @@ pub enum AstExpression {
     LocalExit(Box<AstExpression>),
     NonLocalExit(Box<AstExpression>, u8),
     Literal(AstLiteral),
-    Block(GCRef<AstBlock>),
+    Block(Gc<AstBlock>),
     /// Call to an inlined method node (no dispatching like a message would)
     InlinedCall(Box<InlinedNode>),
     // TODO: we might want a SEQUENCENODE of some kind. instead of relying on AstBody at all, actually.
@@ -56,17 +56,17 @@ pub enum AstExpression {
 #[derive(Debug, Clone, PartialEq)]
 pub enum AstLiteral {
     /// Represents a symbol literal (eg. `#foo`).
-    Symbol(GCRef<String>),
+    Symbol(Gc<String>),
     /// Represents a string literal (eg. `'hello'`).
-    String(GCRef<String>),
+    String(Gc<String>),
     /// Represents a decimal number literal (eg. `3.14`).
     Double(f64),
     /// Represents a integer number literal (eg. `42`).
     Integer(i32),
     /// Represents a big integer (bigger than a 64-bit signed integer can represent).
-    BigInteger(GCRef<BigInt>),
+    BigInteger(Gc<BigInt>),
     /// Represents an array literal (eg. `$(1 2 3)`)
-    Array(GCRef<VecAstLiteral>),
+    Array(Gc<VecAstLiteral>),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -81,7 +81,7 @@ pub struct AstBlock {
     pub body: AstBody,
 }
 
-pub type CacheEntry = (GCRef<Class>, GCRef<Method>);
+pub type CacheEntry = (Gc<Class>, Gc<Method>);
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct AstDispatchNode {
@@ -117,7 +117,7 @@ pub struct AstNAryDispatch {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct AstSuperMessage {
-    pub super_class: GCRef<Class>,
+    pub super_class: Gc<Class>,
     pub signature: String,
     pub values: Vec<AstExpression>,
     // NB: no inline cache. I don't think it's super worth it since super calls are uncommon. Easy to implement though

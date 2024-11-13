@@ -9,8 +9,7 @@ use som_core::interner::Interned;
 use som_core::nan_boxed_val_base_impl;
 use som_core::value::{BIG_INTEGER_TAG, BOOLEAN_TAG, CELL_BASE_TAG, INTEGER_TAG, NIL_TAG, STRING_TAG, SYMBOL_TAG, SYSTEM_TAG};
 use som_core::value::{CANON_NAN_BITS, IS_PTR_PATTERN, TAG_EXTRACTION, TAG_SHIFT};
-use som_gc::gcref::GCRef;
-use std::convert::TryInto;
+use som_gc::gcref::Gc;
 use std::fmt;
 use std::fmt::{Debug, Formatter};
 
@@ -40,28 +39,28 @@ nan_boxed_val_base_impl!(BCNaNBoxedVal);
 impl BCNaNBoxedVal {
     /// Returns a new array value.
     #[inline(always)]
-    pub fn new_array(value: GCRef<VecValue>) -> Self {
-        Self::new(ARRAY_TAG, value.ptr.as_usize().try_into().unwrap())
+    pub fn new_array(value: Gc<VecValue>) -> Self {
+        Self::new(ARRAY_TAG, u64::from(value))
     }
     /// Returns a new block value.
     #[inline(always)]
-    pub fn new_block(value: GCRef<Block>) -> Self {
-        Self::new(BLOCK_TAG, value.ptr.as_usize().try_into().unwrap())
+    pub fn new_block(value: Gc<Block>) -> Self {
+        Self::new(BLOCK_TAG, u64::from(value))
     }
     /// Returns a new class value.
     #[inline(always)]
-    pub fn new_class(value: GCRef<Class>) -> Self {
-        Self::new(CLASS_TAG, value.ptr.as_usize().try_into().unwrap())
+    pub fn new_class(value: Gc<Class>) -> Self {
+        Self::new(CLASS_TAG, u64::from(value))
     }
     /// Returns a new instance value.
     #[inline(always)]
-    pub fn new_instance(value: GCRef<Instance>) -> Self {
-        Self::new(INSTANCE_TAG, value.ptr.as_usize().try_into().unwrap())
+    pub fn new_instance(value: Gc<Instance>) -> Self {
+        Self::new(INSTANCE_TAG, u64::from(value))
     }
     /// Returns a new invocable value.
     #[inline(always)]
-    pub fn new_invokable(value: GCRef<Method>) -> Self {
-        Self::new(INVOKABLE_TAG, value.ptr.as_usize().try_into().unwrap())
+    pub fn new_invokable(value: Gc<Method>) -> Self {
+        Self::new(INVOKABLE_TAG, u64::from(value))
     }
 
     /// Returns whether this value is an array.
@@ -92,34 +91,34 @@ impl BCNaNBoxedVal {
 
     /// Returns this value as an array, if such is its type.
     #[inline(always)]
-    pub fn as_array(self) -> Option<GCRef<VecValue>> {
+    pub fn as_array(self) -> Option<Gc<VecValue>> {
         self.is_array().then(|| self.extract_gc_cell())
     }
     /// Returns this value as a block, if such is its type.
     #[inline(always)]
-    pub fn as_block(self) -> Option<GCRef<Block>> {
+    pub fn as_block(self) -> Option<Gc<Block>> {
         self.is_block().then(|| self.extract_gc_cell())
     }
 
     /// Returns this value as a class, if such is its type.
     #[inline(always)]
-    pub fn as_class(self) -> Option<GCRef<Class>> {
+    pub fn as_class(self) -> Option<Gc<Class>> {
         self.is_class().then(|| self.extract_gc_cell())
     }
     /// Returns this value as an instance, if such is its type.
     #[inline(always)]
-    pub fn as_instance(self) -> Option<GCRef<Instance>> {
+    pub fn as_instance(self) -> Option<Gc<Instance>> {
         self.is_instance().then(|| self.extract_gc_cell())
     }
     /// Returns this value as an invocable, if such is its type.
     #[inline(always)]
-    pub fn as_invokable(self) -> Option<GCRef<Method>> {
+    pub fn as_invokable(self) -> Option<Gc<Method>> {
         self.is_invocable().then(|| self.extract_gc_cell())
     }
 
     /// Get the class of the current value.
     #[inline(always)]
-    pub fn class(&self, universe: &Universe) -> GCRef<Class> {
+    pub fn class(&self, universe: &Universe) -> Gc<Class> {
         match self.tag() {
             NIL_TAG => universe.nil_class(),
             SYSTEM_TAG => universe.system_class(),
@@ -149,7 +148,7 @@ impl BCNaNBoxedVal {
     }
 
     /// Search for a given method for this value.
-    pub fn lookup_method(&self, universe: &Universe, signature: Interned) -> Option<GCRef<Method>> {
+    pub fn lookup_method(&self, universe: &Universe, signature: Interned) -> Option<Gc<Method>> {
         self.class(universe).lookup_method(signature)
     }
 
@@ -235,27 +234,27 @@ impl BCNaNBoxedVal {
 #[allow(non_snake_case)]
 impl BCNaNBoxedVal {
     #[inline(always)]
-    pub fn Array(value: GCRef<VecValue>) -> Self {
+    pub fn Array(value: Gc<VecValue>) -> Self {
         BCNaNBoxedVal::new_array(value)
     }
 
     #[inline(always)]
-    pub fn Block(value: GCRef<Block>) -> Self {
+    pub fn Block(value: Gc<Block>) -> Self {
         BCNaNBoxedVal::new_block(value)
     }
 
     #[inline(always)]
-    pub fn Class(value: GCRef<Class>) -> Self {
+    pub fn Class(value: Gc<Class>) -> Self {
         BCNaNBoxedVal::new_class(value)
     }
 
     #[inline(always)]
-    pub fn Instance(value: GCRef<Instance>) -> Self {
+    pub fn Instance(value: Gc<Instance>) -> Self {
         BCNaNBoxedVal::new_instance(value)
     }
 
     #[inline(always)]
-    pub fn Invokable(value: GCRef<Method>) -> Self {
+    pub fn Invokable(value: Gc<Method>) -> Self {
         BCNaNBoxedVal::new_invokable(value)
     }
 }
@@ -285,7 +284,7 @@ impl From<BCNaNBoxedVal> for ValueEnum {
         } else if let Some(value) = value.as_string() {
             Self::String(value)
         } else if let Some(_value) = value.as_array() {
-            // to work, would need mutator to be passed as an argument to create a new GCRef. not hard, but we'd ditch the From trait
+            // to work, would need mutator to be passed as an argument to create a new Gc. not hard, but we'd ditch the From trait
             eprintln!("no From<NanBoxedVal> impl for arr. returning Nil.");
             Self::NIL
         } else if let Some(value) = value.as_block() {
@@ -314,7 +313,7 @@ impl From<ValueEnum> for BCNaNBoxedVal {
             ValueEnum::Symbol(value) => Self::new_symbol(value),
             ValueEnum::String(value) => Self::new_string(value),
             ValueEnum::Array(_value) => unimplemented!(
-                "no impl for arr. would need mutator to be passed as an argument to create a new GCRef. not hard, but we'd ditch the From trait"
+                "no impl for arr. would need mutator to be passed as an argument to create a new Gc. not hard, but we'd ditch the From trait"
             ),
             ValueEnum::Block(value) => Self::new_block(value),
             ValueEnum::Instance(value) => Self::new_instance(value),
@@ -336,28 +335,28 @@ pub enum ValueEnum {
     /// An integer value.
     Integer(i32),
     /// A big integer value (arbitrarily big).
-    BigInteger(GCRef<BigInt>),
+    BigInteger(Gc<BigInt>),
     /// An floating-point value.
     Double(f64),
     /// An interned symbol value.
     Symbol(Interned),
     /// A string value.
-    String(GCRef<String>),
+    String(Gc<String>),
     /// An array of values.
-    Array(GCRef<Vec<ValueEnum>>),
+    Array(Gc<Vec<ValueEnum>>),
     /// A block value, ready to be evaluated.
-    Block(GCRef<Block>),
+    Block(Gc<Block>),
     /// A generic (non-primitive) class instance.
-    Instance(GCRef<Instance>),
+    Instance(Gc<Instance>),
     /// A bare class object.
-    Class(GCRef<Class>),
+    Class(Gc<Class>),
     /// A bare invokable.
-    Invokable(GCRef<Method>),
+    Invokable(Gc<Method>),
 }
 
 impl ValueEnum {
     /// Get the class of the current value.
-    pub fn class(&self, universe: &Universe) -> GCRef<Class> {
+    pub fn class(&self, universe: &Universe) -> Gc<Class> {
         match self {
             Self::Nil => universe.nil_class(),
             Self::System => universe.system_class(),
@@ -378,7 +377,7 @@ impl ValueEnum {
 
     /// Search for a given method for this value.
     #[inline(always)]
-    pub fn lookup_method(&self, universe: &Universe, signature: Interned) -> Option<GCRef<Method>> {
+    pub fn lookup_method(&self, universe: &Universe, signature: Interned) -> Option<Gc<Method>> {
         self.class(universe).lookup_method(signature)
     }
 
@@ -572,7 +571,7 @@ impl ValueEnum {
 
     /// Returns this value as a big integer, if such is its type.
     #[inline(always)]
-    pub fn as_big_integer(&self) -> Option<GCRef<BigInt>> {
+    pub fn as_big_integer(&self) -> Option<Gc<BigInt>> {
         if let ValueEnum::BigInteger(v) = self {
             Some(*v)
         } else {
@@ -581,7 +580,7 @@ impl ValueEnum {
     }
     /// Returns this value as a string, if such is its type.
     #[inline(always)]
-    pub fn as_string(&self) -> Option<GCRef<String>> {
+    pub fn as_string(&self) -> Option<Gc<String>> {
         if let ValueEnum::String(v) = self {
             Some(*v)
         } else {
@@ -590,7 +589,7 @@ impl ValueEnum {
     }
     /// Returns this value as an array, if such is its type.
     #[inline(always)]
-    pub fn as_array(&self) -> Option<GCRef<Vec<ValueEnum>>> {
+    pub fn as_array(&self) -> Option<Gc<Vec<ValueEnum>>> {
         if let ValueEnum::Array(v) = self {
             Some(*v)
         } else {
@@ -599,7 +598,7 @@ impl ValueEnum {
     }
     /// Returns this value as a block, if such is its type.
     #[inline(always)]
-    pub fn as_block(&self) -> Option<GCRef<Block>> {
+    pub fn as_block(&self) -> Option<Gc<Block>> {
         if let ValueEnum::Block(blk) = self {
             Some(*blk)
         } else {
@@ -609,7 +608,7 @@ impl ValueEnum {
 
     /// Returns this value as a class, if such is its type.
     #[inline(always)]
-    pub fn as_class(&self) -> Option<GCRef<Class>> {
+    pub fn as_class(&self) -> Option<Gc<Class>> {
         if let ValueEnum::Class(v) = self {
             Some(*v)
         } else {
@@ -618,7 +617,7 @@ impl ValueEnum {
     }
     /// Returns this value as an instance, if such is its type.
     #[inline(always)]
-    pub fn as_instance(&self) -> Option<GCRef<Instance>> {
+    pub fn as_instance(&self) -> Option<Gc<Instance>> {
         if let Self::Instance(v) = self {
             Some(*v)
         } else {
@@ -627,7 +626,7 @@ impl ValueEnum {
     }
     /// Returns this value as an invocable, if such is its type.
     #[inline(always)]
-    pub fn as_invokable(&self) -> Option<GCRef<Method>> {
+    pub fn as_invokable(&self) -> Option<Gc<Method>> {
         if let Self::Invokable(v) = self {
             Some(*v)
         } else {
@@ -721,37 +720,37 @@ impl ValueEnum {
 
     /// Returns a new big integer value.
     #[inline(always)]
-    pub fn new_big_integer(value: GCRef<BigInt>) -> Self {
+    pub fn new_big_integer(value: Gc<BigInt>) -> Self {
         ValueEnum::BigInteger(value)
     }
     /// Returns a new string value.
     #[inline(always)]
-    pub fn new_string(value: GCRef<String>) -> Self {
+    pub fn new_string(value: Gc<String>) -> Self {
         ValueEnum::String(value)
     }
     /// Returns a new array value.
     #[inline(always)]
-    pub fn new_array(value: GCRef<Vec<ValueEnum>>) -> Self {
+    pub fn new_array(value: Gc<Vec<ValueEnum>>) -> Self {
         ValueEnum::Array(value)
     }
     /// Returns a new block value.
     #[inline(always)]
-    pub fn new_block(value: GCRef<Block>) -> Self {
+    pub fn new_block(value: Gc<Block>) -> Self {
         ValueEnum::Block(value)
     }
     /// Returns a new class value.
     #[inline(always)]
-    pub fn new_class(value: GCRef<Class>) -> Self {
+    pub fn new_class(value: Gc<Class>) -> Self {
         ValueEnum::Class(value)
     }
     /// Returns a new instance value.
     #[inline(always)]
-    pub fn new_instance(value: GCRef<Instance>) -> Self {
+    pub fn new_instance(value: Gc<Instance>) -> Self {
         ValueEnum::Instance(value)
     }
     /// Returns a new invocable value.
     #[inline(always)]
-    pub fn new_invokable(value: GCRef<Method>) -> Self {
+    pub fn new_invokable(value: Gc<Method>) -> Self {
         ValueEnum::Invokable(value)
     }
 

@@ -12,7 +12,7 @@ use mmtk::util::{Address, ObjectReference};
 use mmtk::vm::{ObjectModel, SlotVisitor};
 use mmtk::Mutator;
 use som_gc::gc_interface::{HasTypeInfoForGC, MMTKtoVMCallbacks, BIGINT_MAGIC_ID, STRING_MAGIC_ID, VECU8_MAGIC_ID};
-use som_gc::gcref::GCRef;
+use som_gc::gcref::Gc;
 use som_gc::object_model::VMObjectModel;
 use som_gc::slot::SOMSlot;
 use som_gc::SOMVM;
@@ -178,7 +178,7 @@ pub fn scan_object<'a>(object: ObjectReference, slot_visitor: &'a mut (dyn SlotV
                 slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(&instance.class)));
 
                 // not the cleanest, to be frank
-                let gcref_instance: GCRef<Instance> = GCRef::from_u64(object.to_raw_address().as_usize() as u64);
+                let gcref_instance: Gc<Instance> = Gc::from_u64(object.to_raw_address().as_usize() as u64);
                 for i in 0..instance.nbr_fields {
                     let val: Value = gcref_instance.lookup_local(i);
                     visit_value(&val, slot_visitor)

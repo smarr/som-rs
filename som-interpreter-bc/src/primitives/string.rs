@@ -11,7 +11,7 @@ use anyhow::Error;
 use num_bigint::BigInt;
 use once_cell::sync::Lazy;
 use som_core::interner::Interned;
-use som_gc::gcref::GCRef;
+use som_gc::gcref::Gc;
 
 pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| {
     Box::new([
@@ -94,7 +94,7 @@ fn is_whitespace(_: &mut Interpreter, universe: &mut Universe, receiver: StringL
     Ok(!string.is_empty() && string.chars().all(char::is_whitespace))
 }
 
-fn concatenate(_: &mut Interpreter, universe: &mut Universe, receiver: StringLike, other: StringLike) -> Result<GCRef<String>, Error> {
+fn concatenate(_: &mut Interpreter, universe: &mut Universe, receiver: StringLike, other: StringLike) -> Result<Gc<String>, Error> {
     const _: &str = "String>>#concatenate:";
 
     let s1 = match receiver {
@@ -145,7 +145,7 @@ fn eq(_: &mut Interpreter, universe: &mut Universe, a: Value, b: Value) -> Resul
     Ok(a == b)
 }
 
-fn prim_substring_from_to(_: &mut Interpreter, universe: &mut Universe, receiver: StringLike, from: i32, to: i32) -> Result<GCRef<String>, Error> {
+fn prim_substring_from_to(_: &mut Interpreter, universe: &mut Universe, receiver: StringLike, from: i32, to: i32) -> Result<Gc<String>, Error> {
     const _: &str = "String>>#primSubstringFrom:to:";
 
     let from = usize::try_from(from - 1)?;
@@ -159,7 +159,7 @@ fn prim_substring_from_to(_: &mut Interpreter, universe: &mut Universe, receiver
     Ok(universe.gc_interface.alloc(string.chars().skip(from).take(to - from).collect()))
 }
 
-fn char_at(_: &mut Interpreter, universe: &mut Universe, receiver: StringLike, idx: i32) -> Result<GCRef<String>, Error> {
+fn char_at(_: &mut Interpreter, universe: &mut Universe, receiver: StringLike, idx: i32) -> Result<Gc<String>, Error> {
     let string = match receiver {
         StringLike::String(ref value) => value.as_str(),
         StringLike::Symbol(sym) => universe.lookup_symbol(sym),

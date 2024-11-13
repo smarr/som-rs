@@ -1,5 +1,5 @@
 use rstest::{fixture, rstest};
-use som_gc::gcref::GCRef;
+use som_gc::gcref::Gc;
 use som_interpreter_bc::frame::Frame;
 use som_interpreter_bc::interpreter::Interpreter;
 use som_interpreter_bc::universe::Universe;
@@ -140,7 +140,7 @@ fn basic_interpreter_tests(mut universe: &mut Universe) {
 
         let method = class.lookup_method(method_name).expect("method not found ??");
 
-        let frame = Frame::alloc_from_method(method, &[Value::SYSTEM], GCRef::default(), &mut universe.gc_interface);
+        let frame = Frame::alloc_from_method(method, &[Value::SYSTEM], Gc::default(), &mut universe.gc_interface);
         let mut interpreter = Interpreter::new(frame);
         if let Some(output) = interpreter.run(&mut universe) {
             assert_eq!(&output, expected, "unexpected test output value");

@@ -6,7 +6,7 @@ use crate::value::Value;
 use core::mem::size_of;
 use som_core::bytecode::Bytecode;
 use som_gc::gc_interface::GCInterface;
-use som_gc::gcref::GCRef;
+use som_gc::gcref::Gc;
 use std::cell::RefCell;
 use std::marker::PhantomData;
 
@@ -15,15 +15,15 @@ const OFFSET_TO_STACK: usize = size_of::<Frame>();
 /// Represents a stack frame.
 pub struct Frame {
     /// The previous frame. Frames are handled as a linked list
-    pub prev_frame: GCRef<Frame>,
+    pub prev_frame: Gc<Frame>,
     /// The method the execution context currently is in.
-    pub current_method: GCRef<Method>,
+    pub current_method: Gc<Method>,
     /// The bytecodes associated with the frame.
     pub bytecodes: *const Vec<Bytecode>,
     /// Literals/constants associated with the frame.
     pub literals: *const Vec<Literal>,
     /// Inline cache associated with the frame. TODO - do we keep the refcell really?
-    pub inline_cache: *const RefCell<Vec<Option<(GCRef<Class>, GCRef<Method>)>>>,
+    pub inline_cache: *const RefCell<Vec<Option<(Gc<Class>, Gc<Method>)>>>,
     /// Bytecode index.
     pub bytecode_idx: usize,
 
@@ -46,7 +46,7 @@ pub struct Frame {
 }
 
 impl Frame {
-    pub fn alloc_from_method(method: GCRef<Method>, args: &[Value], prev_frame: GCRef<Frame>, gc_interface: &mut GCInterface) -> GCRef<Frame> {
+    pub fn alloc_from_method(method: Gc<Method>, args: &[Value], prev_frame: Gc<Frame>, gc_interface: &mut GCInterface) -> Gc<Frame> {
         let frame = Frame::from_method(method, args.len(), prev_frame);
         let max_stack_size = match &method.kind {
             MethodKind::Defined(m_env) => m_env.max_stack_size as usize,
@@ -62,12 +62,12 @@ impl Frame {
     }
 
     pub fn alloc_from_block(
-        block: GCRef<Block>,
+        block: Gc<Block>,
         args: &[Value],
-        current_method: GCRef<Method>,
-        prev_frame: GCRef<Frame>,
+        current_method: Gc<Method>,
+        prev_frame: Gc<Frame>,
         gc_interface: &mut GCInterface,
-    ) -> GCRef<Frame> {
+    ) -> Gc<Frame> {
         let frame = Frame::from_block(block, args.len(), current_method, prev_frame);
         let max_stack_size = block.blk_info.max_stack_size as usize;
         let size = size_of::<Frame>() + ((max_stack_size + frame.nbr_args + frame.nbr_locals) * size_of::<Value>());
@@ -77,12 +77,12 @@ impl Frame {
         frame_ptr
     }
 
-    fn init_frame_post_alloc(frame_ptr: GCRef<Frame>, args: &[Value], stack_size: usize) {
+    fn init_frame_post_alloc(frame_ptr: Gc<Frame>, args: &[Value], stack_size: usize) {
         unsafe {
             let mut frame = frame_ptr;
 
             // setting up the self-referential pointers for args/locals accesses
-            frame.stack_ptr = frame_ptr.ptr.add(OFFSET_TO_STACK).as_mut_ref();
+            frame.stack_ptr = (frame_ptr.ptr + OFFSET_TO_STACK) as *mut Value;
 
             // for idx in 0..stack_size {
             //     *frame.stack_ptr.add(idx) = Value::NIL;
@@ -102,7 +102,7 @@ impl Frame {
     }
 
     // Creates a frame from a block. Meant to only be called by the alloc_from_block function
-    fn from_block(block: GCRef<Block>, nbr_args: usize, current_method: GCRef<Method>, prev_frame: GCRef<Frame>) -> Self {
+    fn from_block(block: Gc<Block>, nbr_args: usize, current_method: Gc<Method>, prev_frame: Gc<Frame>) -> Self {
         let block_obj = block;
         Self {
             prev_frame,
@@ -123,7 +123,7 @@ impl Frame {
     }
 
     // Creates a frame from a block. Meant to only be called by the alloc_from_method function
-    fn from_method(method: GCRef<Method>, nbr_args: usize, prev_frame: GCRef<Frame>) -> Self {
+    fn from_method(method: Gc<Method>, nbr_args: usize, prev_frame: Gc<Frame>) -> Self {
         match method.kind() {
             MethodKind::Defined(env) => Self {
                 prev_frame,
@@ -153,17 +153,16 @@ impl Frame {
                 let block_frame = b.frame.unwrap();
                 block_frame.get_self()
             }
-            None => self_arg.clone(),
+            None => *self_arg,
         }
     }
 
     /// Get the holder for this current method.
-    pub(crate) fn get_method_holder(&self) -> GCRef<Class> {
+    pub(crate) fn get_method_holder(&self) -> Gc<Class> {
         match self.lookup_argument(0).as_block() {
             Some(b) => {
                 let block_frame = b.frame.as_ref().unwrap();
-                let x = block_frame.get_method_holder();
-                x
+                block_frame.get_method_holder()
             }
             None => self.current_method.holder,
         }
@@ -205,12 +204,12 @@ impl Frame {
         }
     }
 
-    pub fn nth_frame_back(current_frame: &GCRef<Frame>, n: u8) -> GCRef<Frame> {
+    pub fn nth_frame_back(current_frame: &Gc<Frame>, n: u8) -> Gc<Frame> {
         if n == 0 {
             return *current_frame;
         }
 
-        let mut target_frame: GCRef<Frame> = match current_frame.lookup_argument(0).as_block() {
+        let mut target_frame: Gc<Frame> = match current_frame.lookup_argument(0).as_block() {
             Some(block) => *block.frame.as_ref().unwrap(),
             v => panic!(
                 "attempting to access a non local var/arg from a method instead of a block: self wasn't blockself but {:?}.",
@@ -229,7 +228,7 @@ impl Frame {
     }
 
     /// nth_frame_back but through prev_frame ptr. TODO: clarify why different implems are needed
-    pub fn nth_frame_back_through_frame_list(current_frame: &GCRef<Frame>, n: u8) -> GCRef<Frame> {
+    pub fn nth_frame_back_through_frame_list(current_frame: &Gc<Frame>, n: u8) -> Gc<Frame> {
         debug_assert_ne!(n, 0);
         let mut target_frame = *current_frame;
         for _ in 1..n {
@@ -287,7 +286,7 @@ impl Frame {
     }
 
     /// Gets the total number of elements on the stack. Only used for debugging.
-    pub fn stack_len(frame_ptr: GCRef<Frame>) -> usize {
-        ((frame_ptr.stack_ptr as usize) - (frame_ptr.ptr.as_usize() + OFFSET_TO_STACK)) / size_of::<Value>()
+    pub fn stack_len(frame_ptr: Gc<Frame>) -> usize {
+        ((frame_ptr.stack_ptr as usize) - (frame_ptr.ptr + OFFSET_TO_STACK)) / size_of::<Value>()
     }
 }

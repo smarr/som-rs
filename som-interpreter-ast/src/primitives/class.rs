@@ -7,7 +7,7 @@ use crate::universe::Universe;
 use crate::value::Value;
 use anyhow::Error;
 use once_cell::sync::Lazy;
-use som_gc::gcref::GCRef;
+use som_gc::gcref::Gc;
 
 pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| {
     Box::new({
@@ -22,29 +22,29 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> 
 });
 pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| Box::new([]));
 
-fn superclass(_: &mut Universe, receiver: GCRef<Class>) -> Result<Value, Error> {
+fn superclass(_: &mut Universe, receiver: Gc<Class>) -> Result<Value, Error> {
     let super_class = receiver.super_class();
     Ok(super_class.map(Value::Class).unwrap_or(Value::NIL))
 }
 
-fn new(universe: &mut Universe, receiver: GCRef<Class>) -> Result<Value, Error> {
+fn new(universe: &mut Universe, receiver: Gc<Class>) -> Result<Value, Error> {
     let instance = Instance::from_class(receiver);
     let instance_ptr = universe.gc_interface.alloc(instance);
     Ok(Value::Instance(instance_ptr))
 }
 
-fn name(universe: &mut Universe, receiver: GCRef<Class>) -> Result<Value, Error> {
+fn name(universe: &mut Universe, receiver: Gc<Class>) -> Result<Value, Error> {
     let sym = universe.intern_symbol(receiver.name());
     Ok(Value::Symbol(sym))
 }
 
-fn methods(universe: &mut Universe, receiver: GCRef<Class>) -> Result<Value, Error> {
+fn methods(universe: &mut Universe, receiver: Gc<Class>) -> Result<Value, Error> {
     let methods = receiver.methods.values().map(|invokable| Value::Invokable(invokable.clone())).collect();
 
     Ok(Value::Array(universe.gc_interface.alloc(VecValue(methods))))
 }
 
-fn fields(universe: &mut Universe, receiver: GCRef<Class>) -> Result<Value, Error> {
+fn fields(universe: &mut Universe, receiver: Gc<Class>) -> Result<Value, Error> {
     let fields = receiver
         .get_all_field_names()
         .iter()

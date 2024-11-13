@@ -8,7 +8,7 @@ use crate::value::Value;
 use anyhow::{bail, Error};
 use once_cell::sync::Lazy;
 use som_core::interner::Interned;
-use som_gc::gcref::GCRef;
+use som_gc::gcref::Gc;
 use std::collections::hash_map::DefaultHasher;
 use std::convert::TryFrom;
 use std::hash::{Hash, Hasher};
@@ -81,7 +81,7 @@ fn perform(universe: &mut Universe, object: Value, sym: Interned) -> Result<Retu
     }
 }
 
-fn perform_with_arguments(universe: &mut Universe, object: Value, sym: Interned, arr: GCRef<VecValue>) -> Result<Return, Error> {
+fn perform_with_arguments(universe: &mut Universe, object: Value, sym: Interned, arr: Gc<VecValue>) -> Result<Return, Error> {
     const SIGNATURE: &'static str = "Object>>#perform:withArguments:";
 
     let signature = universe.lookup_symbol(sym);
@@ -110,7 +110,7 @@ fn perform_with_arguments(universe: &mut Universe, object: Value, sym: Interned,
     }
 }
 
-fn perform_in_super_class(universe: &mut Universe, object: Value, sym: Interned, class: GCRef<Class>) -> Result<Return, Error> {
+fn perform_in_super_class(universe: &mut Universe, object: Value, sym: Interned, class: Gc<Class>) -> Result<Return, Error> {
     const SIGNATURE: &'static str = "Object>>#perform:inSuperclass:";
 
     let signature = universe.lookup_symbol(sym);
@@ -135,8 +135,8 @@ fn perform_with_arguments_in_super_class(
     universe: &mut Universe,
     object: Value,
     sym: Interned,
-    arr: GCRef<VecValue>,
-    class: GCRef<Class>,
+    arr: Gc<VecValue>,
+    class: Gc<Class>,
 ) -> Result<Return, Error> {
     const SIGNATURE: &'static str = "Object>>#perform:withArguments:inSuperclass:";
 

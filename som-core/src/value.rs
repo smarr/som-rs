@@ -140,9 +140,9 @@ macro_rules! nan_boxed_val_base_impl {
             }
 
             #[inline(always)]
-            pub fn extract_gc_cell<T>(self) -> GCRef<T> {
+            pub fn extract_gc_cell<T>(self) -> Gc<T> {
                 let ptr = self.extract_pointer_bits();
-                GCRef::from_u64(ptr) // i doubt the compiler isn't making this conversion free
+                Gc::from_u64(ptr) // i doubt the compiler isn't making this conversion free
             }
 
             #[inline(always)]
@@ -202,13 +202,13 @@ macro_rules! nan_boxed_val_base_impl {
 
             /// Returns a new big integer value.
             #[inline(always)]
-            pub fn new_big_integer(value: GCRef<BigInt>) -> Self {
-                Self::new(BIG_INTEGER_TAG, value.ptr.as_usize().try_into().unwrap())
+            pub fn new_big_integer(value: Gc<BigInt>) -> Self {
+                Self::new(BIG_INTEGER_TAG, u64::from(value))
             }
             /// Returns a new string value.
             #[inline(always)]
-            pub fn new_string(value: GCRef<String>) -> Self {
-                Self::new(STRING_TAG, value.ptr.as_usize().try_into().unwrap())
+            pub fn new_string(value: Gc<String>) -> Self {
+                Self::new(STRING_TAG, u64::from(value))
             }
 
             // --------
@@ -276,12 +276,12 @@ macro_rules! nan_boxed_val_base_impl {
 
             /// Returns this value as a big integer, if such is its type.
             #[inline(always)]
-            pub fn as_big_integer(self) -> Option<GCRef<BigInt>> {
+            pub fn as_big_integer(self) -> Option<Gc<BigInt>> {
                 self.is_big_integer().then(|| self.extract_gc_cell())
             }
             /// Returns this value as a string, if such is its type.
             #[inline(always)]
-            pub fn as_string(self) -> Option<GCRef<String>> {
+            pub fn as_string(self) -> Option<Gc<String>> {
                 self.is_string().then(|| self.extract_gc_cell())
             }
 
@@ -334,12 +334,12 @@ macro_rules! nan_boxed_val_base_impl {
             }
 
             #[inline(always)]
-            pub fn BigInteger(value: GCRef<BigInt>) -> Self {
+            pub fn BigInteger(value: Gc<BigInt>) -> Self {
                 Self::new_big_integer(value)
             }
 
             #[inline(always)]
-            pub fn String(value: GCRef<String>) -> Self {
+            pub fn String(value: Gc<String>) -> Self {
                 Self::new_string(value)
             }
         }

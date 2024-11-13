@@ -9,7 +9,7 @@ use crate::value::Value;
 use anyhow::Error;
 use once_cell::sync::Lazy;
 use som_core::interner::Interned;
-use som_gc::gcref::GCRef;
+use som_gc::gcref::Gc;
 
 pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| {
     Box::new([
@@ -20,13 +20,13 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> 
 });
 pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| Box::new([]));
 
-fn holder(_: &mut Interpreter, _: &mut Universe, invokable: GCRef<Method>) -> Result<GCRef<Class>, Error> {
+fn holder(_: &mut Interpreter, _: &mut Universe, invokable: Gc<Method>) -> Result<Gc<Class>, Error> {
     const _: &str = "Method>>#holder";
 
     Ok(invokable.holder)
 }
 
-fn signature(_: &mut Interpreter, universe: &mut Universe, invokable: GCRef<Method>) -> Result<Interned, Error> {
+fn signature(_: &mut Interpreter, universe: &mut Universe, invokable: Gc<Method>) -> Result<Interned, Error> {
     const _: &str = "Method>>#signature";
 
     Ok(universe.intern_symbol(invokable.signature()))
@@ -35,9 +35,9 @@ fn signature(_: &mut Interpreter, universe: &mut Universe, invokable: GCRef<Meth
 fn invoke_on_with(
     interpreter: &mut Interpreter,
     universe: &mut Universe,
-    invokable: GCRef<Method>,
+    invokable: Gc<Method>,
     receiver: Value,
-    arguments: GCRef<VecValue>,
+    arguments: Gc<VecValue>,
 ) -> Result<(), Error> {
     const _: &str = "Method>>#invokeOn:with:";
 

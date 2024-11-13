@@ -13,7 +13,7 @@ use crate::value::Value;
 use anyhow::{Context, Error};
 use once_cell::sync::Lazy;
 use som_core::interner::Interned;
-use som_gc::gcref::GCRef;
+use som_gc::gcref::Gc;
 
 pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| {
     Box::new([
@@ -35,7 +35,7 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> 
 });
 pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| Box::new([]));
 
-fn class(_: &mut Interpreter, universe: &mut Universe, receiver: Value) -> Result<GCRef<Class>, Error> {
+fn class(_: &mut Interpreter, universe: &mut Universe, receiver: Value) -> Result<Gc<Class>, Error> {
     Ok(receiver.class(universe))
 }
 
@@ -78,7 +78,7 @@ fn perform_with_arguments(
     universe: &mut Universe,
     receiver: Value,
     signature: Interned,
-    arguments: GCRef<VecValue>,
+    arguments: Gc<VecValue>,
 ) -> Result<(), Error> {
     const SIGNATURE: &'static str = "Object>>#perform:withArguments:";
 
@@ -99,7 +99,7 @@ fn perform_in_super_class(
     universe: &mut Universe,
     receiver: Value,
     signature: Interned,
-    class: GCRef<Class>,
+    class: Gc<Class>,
 ) -> Result<(), Error> {
     const SIGNATURE: &'static str = "Object>>#perform:inSuperclass:";
 
@@ -120,8 +120,8 @@ fn perform_with_arguments_in_super_class(
     universe: &mut Universe,
     receiver: Value,
     signature: Interned,
-    arguments: GCRef<VecValue>,
-    class: GCRef<Class>,
+    arguments: Gc<VecValue>,
+    class: Gc<Class>,
 ) -> Result<(), Error> {
     const SIGNATURE: &'static str = "Object>>#perform:withArguments:inSuperclass:";
 

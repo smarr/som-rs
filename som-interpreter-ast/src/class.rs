@@ -7,7 +7,7 @@ use crate::value::Value;
 use indexmap::IndexMap;
 use som_core::ast::ClassDef;
 use som_gc::gc_interface::GCInterface;
-use som_gc::gcref::GCRef;
+use som_gc::gcref::Gc;
 
 // /// A reference that may be either weak or owned/strong.
 // #[derive(Debug, Clone)]
@@ -24,15 +24,15 @@ pub struct Class {
     /// The class' name.
     pub name: String,
     /// The class of this class.
-    pub class: GCRef<Class>,
+    pub class: Gc<Class>,
     /// The superclass of this class.
-    pub super_class: Option<GCRef<Class>>,
+    pub super_class: Option<Gc<Class>>,
     /// The class' fields.
     pub fields: Vec<Value>,
     /// The class' fields names.
     pub field_names: Vec<String>,
     /// The class' methods/invokables.
-    pub methods: IndexMap<String, GCRef<Method>>,
+    pub methods: IndexMap<String, Gc<Method>>,
     /// Is this class a static one ?
     pub is_static: bool,
 }
@@ -52,7 +52,7 @@ impl Class {
     /// Load up a class from its class definition from the AST.
     /// NB: super_class is only ever None for one class: the core Object class, which all other classes inherit from.
     /// NB: while it takes the super_class as argument, it's not in charge of hooking it up to the class itself. That's `set_super_class`. Might need changing for clarity.
-    pub fn from_class_def(defn: ClassDef, super_class: Option<GCRef<Class>>, gc_interface: &mut GCInterface) -> Result<GCRef<Class>, String> {
+    pub fn from_class_def(defn: ClassDef, super_class: Option<Gc<Class>>, gc_interface: &mut GCInterface) -> Result<Gc<Class>, String> {
         let static_locals = {
             let mut static_locals = IndexMap::new();
             for field in defn.static_locals.iter() {
@@ -80,7 +80,7 @@ impl Class {
 
         let static_class = Self {
             name: format!("{} class", defn.name),
-            class: GCRef::default(),
+            class: Gc::default(),
             super_class: maybe_static_superclass,
             fields: vec![Value::NIL; static_locals.len()],
             field_names: defn.static_locals,
@@ -102,7 +102,7 @@ impl Class {
 
         let mut instance_class_gc_ptr = gc_interface.alloc(instance_class);
 
-        let mut static_methods: IndexMap<String, GCRef<Method>> = defn
+        let mut static_methods: IndexMap<String, Gc<Method>> = defn
             .static_methods
             .iter()
             .map(|method| {
@@ -132,7 +132,7 @@ impl Class {
             }
         }
 
-        let mut instance_methods: IndexMap<String, GCRef<Method>> = defn
+        let mut instance_methods: IndexMap<String, Gc<Method>> = defn
             .instance_methods
             .iter()
             .map(|method| {
@@ -174,22 +174,22 @@ impl Class {
     }
 
     /// Get the class of this class.
-    pub fn class(&self) -> GCRef<Self> {
+    pub fn class(&self) -> Gc<Self> {
         self.class
     }
 
     /// Set the class of this class (as a weak reference).
-    pub fn set_class(&mut self, class: &GCRef<Self>) {
+    pub fn set_class(&mut self, class: &Gc<Self>) {
         self.class = *class;
     }
 
     /// Get the superclass of this class.
-    pub fn super_class(&self) -> Option<GCRef<Self>> {
+    pub fn super_class(&self) -> Option<Gc<Self>> {
         self.super_class
     }
 
     /// Set the superclass of this class (as a weak reference).
-    pub fn set_super_class(&mut self, class: &GCRef<Self>) {
+    pub fn set_super_class(&mut self, class: &Gc<Self>) {
         // for local_name in class.borrow().field_names.iter().rev() {
         //     self.field_names.insert(0, local_name.clone());
         // }
@@ -201,7 +201,7 @@ impl Class {
     }
 
     /// Search for a given method within this class.
-    pub fn lookup_method(&self, signature: impl AsRef<str>) -> Option<GCRef<Method>> {
+    pub fn lookup_method(&self, signature: impl AsRef<str>) -> Option<Gc<Method>> {
         let signature = signature.as_ref();
         self.methods.get(signature).cloned().or_else(|| self.super_class.clone()?.lookup_method(signature))
     }

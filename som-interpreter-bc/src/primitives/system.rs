@@ -12,7 +12,7 @@ use crate::value::Value;
 use anyhow::{Context, Error};
 use once_cell::sync::Lazy;
 use som_core::interner::Interned;
-use som_gc::gcref::GCRef;
+use som_gc::gcref::Gc;
 
 pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| {
     Box::new([
@@ -35,7 +35,7 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> 
 });
 pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| Box::new([]));
 
-fn load_file(_: &mut Interpreter, universe: &mut Universe, _: Value, path: StringLike) -> Result<Option<GCRef<String>>, Error> {
+fn load_file(_: &mut Interpreter, universe: &mut Universe, _: Value, path: StringLike) -> Result<Option<Gc<String>>, Error> {
     const _: &str = "System>>#loadFie:";
 
     let path = match path {
@@ -99,7 +99,7 @@ fn error_println(_: &mut Interpreter, universe: &mut Universe, _: Value, string:
     Ok(System)
 }
 
-fn load(_: &mut Interpreter, universe: &mut Universe, _: Value, class_name: Interned) -> Result<GCRef<Class>, Error> {
+fn load(_: &mut Interpreter, universe: &mut Universe, _: Value, class_name: Interned) -> Result<Gc<Class>, Error> {
     const _: &str = "System>>#load:";
 
     let class_name = universe.lookup_symbol(class_name).to_string();
@@ -191,7 +191,7 @@ fn full_gc(_: &mut Interpreter, universe: &mut Universe, _: Value) -> Result<boo
     Ok(true)
 }
 
-fn gc_stats(_: &mut Interpreter, universe: &mut Universe, _: Value) -> Result<GCRef<VecValue>, Error> {
+fn gc_stats(_: &mut Interpreter, universe: &mut Universe, _: Value) -> Result<Gc<VecValue>, Error> {
     let gc_interface = &universe.gc_interface;
     let total_gc = gc_interface.get_nbr_collections();
     let total_gc_time = gc_interface.get_total_gc_time();

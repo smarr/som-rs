@@ -6,7 +6,7 @@ use crate::value::Value;
 use anyhow::{bail, Context, Error};
 use once_cell::sync::Lazy;
 use som_core::interner::Interned;
-use som_gc::gcref::GCRef;
+use som_gc::gcref::Gc;
 use std::convert::TryFrom;
 use std::fs;
 
@@ -169,7 +169,7 @@ fn full_gc(_: &mut Universe, _: Value) -> Result<Value, Error> {
     Ok(Value::Boolean(false))
 }
 
-fn gc_stats(universe: &mut Universe, _: Value) -> Result<GCRef<VecValue>, Error> {
+fn gc_stats(universe: &mut Universe, _: Value) -> Result<Gc<VecValue>, Error> {
     let gc_interface = &universe.gc_interface;
     let total_gc = gc_interface.get_nbr_collections();
     let total_gc_time = gc_interface.get_total_gc_time();

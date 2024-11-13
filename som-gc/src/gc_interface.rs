@@ -2,7 +2,7 @@ use crate::api::{
     mmtk_bind_mutator, mmtk_destroy_mutator, mmtk_handle_user_collection_request, mmtk_initialize_collection, mmtk_set_fixed_heap_size,
     mmtk_used_bytes,
 };
-use crate::gcref::GCRef;
+use crate::gcref::Gc;
 use crate::object_model::OBJECT_REF_OFFSET;
 use crate::slot::SOMSlot;
 use crate::{MMTK_SINGLETON, MMTK_TO_VM_INTERFACE, MUTATOR_WRAPPER, SOMVM};
@@ -14,7 +14,6 @@ use mmtk::util::{Address, ObjectReference, OpaquePointer, VMMutatorThread, VMThr
 use mmtk::vm::SlotVisitor;
 use mmtk::{memory_manager, AllocationSemantics, MMTKBuilder, Mutator};
 use num_bigint::BigInt;
-use std::marker::PhantomData;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
@@ -127,13 +126,13 @@ impl GCInterface {
 
 impl GCInterface {
     // Allocates a type on the heap and returns a pointer to it.
-    pub fn alloc<T: HasTypeInfoForGC>(&mut self, obj: T) -> GCRef<T> {
+    pub fn alloc<T: HasTypeInfoForGC>(&mut self, obj: T) -> Gc<T> {
         self.alloc_with_size(obj, size_of::<T>())
     }
 
     // Allocates a type, but with a given size. Useful when an object needs more than what we tell Rust through defining a struct.
     // (e.g. Value arrays stored directly in the heap - see BC Frame)
-    pub fn alloc_with_size<T: HasTypeInfoForGC>(&mut self, obj: T, mut size: usize) -> GCRef<T> {
+    pub fn alloc_with_size<T: HasTypeInfoForGC>(&mut self, obj: T, mut size: usize) -> Gc<T> {
         debug_assert!(size >= MIN_OBJECT_SIZE);
         let allocator = unsafe { &mut (*self.default_allocator) };
 
@@ -155,10 +154,7 @@ impl GCInterface {
             *(obj_addr.to_raw_address().as_mut_ref()) = obj;
         }
 
-        GCRef {
-            ptr: obj_addr.to_raw_address(),
-            _phantom: PhantomData,
-        }
+        Gc::from_address(obj_addr.to_raw_address())
     }
 
     /// Dispatches a manual collection request to MMTk.

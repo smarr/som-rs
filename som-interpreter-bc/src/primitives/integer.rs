@@ -11,7 +11,7 @@ use num_traits::{Signed, ToPrimitive};
 use once_cell::sync::Lazy;
 use rand::distributions::Uniform;
 use rand::Rng;
-use som_gc::gcref::GCRef;
+use som_gc::gcref::Gc;
 
 pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| {
     Box::new([
@@ -72,7 +72,7 @@ fn from_string(_: &mut Interpreter, universe: &mut Universe, _: Value, string: S
     }
 }
 
-fn as_string(_: &mut Interpreter, universe: &mut Universe, receiver: IntegerLike) -> Result<GCRef<String>, Error> {
+fn as_string(_: &mut Interpreter, universe: &mut Universe, receiver: IntegerLike) -> Result<Gc<String>, Error> {
     const _: &str = "Integer>>#asString";
 
     let receiver = match receiver {
@@ -507,7 +507,7 @@ fn shift_right(_: &mut Interpreter, universe: &mut Universe, a: IntegerLike, b: 
     universe: &mut Universe,
     start: i32,
     end: i32,
-    blk: GCRef<Block>,
+    blk: Gc<Block>,
 ) -> Result<i32, Error> {
     // calling rev() because it's a stack of frames: LIFO means we want to add the last one first, then the penultimate one, etc., til the first
     for i in (start..=end).rev() {
@@ -527,7 +527,7 @@ fn to_by_do(
     start: i32,
     step: i32,
     end: i32,
-    blk: GCRef<Block>,
+    blk: Gc<Block>,
 ) -> Result<i32, Error> {
     for i in (start..=end).rev().step_by(step as usize) {
         interpreter.push_block_frame_with_args(
@@ -545,7 +545,7 @@ fn down_to_do(
     universe: &mut Universe,
     start: i32,
     end: i32,
-    blk: GCRef<Block>,
+    blk: Gc<Block>,
 ) -> Result<i32, Error> {
     for i in end..=start {
         interpreter.push_block_frame_with_args(
@@ -565,7 +565,7 @@ fn down_to_by_do(
     start: i32,
     step: i32,
     end: i32,
-    blk: GCRef<Block>,
+    blk: Gc<Block>,
 ) -> Result<i32, Error> {
     for i in (start..=end).step_by(step as usize) {
         interpreter.push_block_frame_with_args(
@@ -583,7 +583,7 @@ fn times_repeat(
     interpreter: &mut Interpreter,
     universe: &mut Universe,
     n: i32,
-    blk: GCRef<Block>,
+    blk: Gc<Block>,
 ) -> Result<i32, Error> {
     for _ in 1..=n {
         interpreter.push_block_frame_with_args(

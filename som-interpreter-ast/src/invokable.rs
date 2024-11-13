@@ -3,7 +3,7 @@ use crate::frame::Frame;
 use crate::method::{Method, MethodKind, MethodKindSpecialized};
 use crate::universe::Universe;
 use crate::value::Value;
-use som_gc::gcref::GCRef;
+use som_gc::gcref::Gc;
 
 /// Represents the kinds of possible returns from an invocation.
 #[derive(Debug)]
@@ -11,7 +11,7 @@ pub enum Return {
     /// A local return, the value is for the immediate caller.
     Local(Value),
     /// A non-local return, the value is for the parent of the referenced stack frame.
-    NonLocal(Value, GCRef<Frame>),
+    NonLocal(Value, Gc<Frame>),
     #[cfg(feature = "inlining-disabled")]
     /// A request to restart execution from the top of the closest body.
     Restart,

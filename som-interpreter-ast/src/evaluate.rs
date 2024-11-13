@@ -9,7 +9,7 @@ use crate::invokable::{Invoke, Return};
 use crate::method::Method;
 use crate::universe::Universe;
 use crate::value::Value;
-use som_gc::gcref::GCRef;
+use som_gc::gcref::Gc;
 
 /// The trait for evaluating AST nodes.
 pub trait Evaluate {
@@ -151,7 +151,7 @@ impl Evaluate for AstTerm {
     }
 }
 
-impl Evaluate for GCRef<AstBlock> {
+impl Evaluate for Gc<AstBlock> {
     fn evaluate(&mut self, universe: &mut Universe) -> Return {
         let block = Block {
             block: *self,
@@ -164,7 +164,7 @@ impl Evaluate for GCRef<AstBlock> {
 
 impl AstDispatchNode {
     #[inline(always)]
-    fn lookup_invokable(&mut self, receiver: &Value, universe: &mut Universe) -> (Option<GCRef<Method>>, bool) {
+    fn lookup_invokable(&mut self, receiver: &Value, universe: &mut Universe) -> (Option<Gc<Method>>, bool) {
         let mut is_cache_hit = false;
         let invokable = match &self.inline_cache {
             Some((cached_rcvr_ptr, method)) => {
@@ -184,7 +184,7 @@ impl AstDispatchNode {
     }
 
     #[inline(always)]
-    fn dispatch_or_dnu(&mut self, invokable: Option<GCRef<Method>>, args: Vec<Value>, is_cache_hit: bool, universe: &mut Universe) -> Return {
+    fn dispatch_or_dnu(&mut self, invokable: Option<Gc<Method>>, args: Vec<Value>, is_cache_hit: bool, universe: &mut Universe) -> Return {
         match invokable {
             Some(mut invokable) => match is_cache_hit {
                 true => invokable.invoke(universe, args),
@@ -325,7 +325,7 @@ impl Evaluate for AstMethodDef {
     }
 }
 
-impl Evaluate for GCRef<Block> {
+impl Evaluate for Gc<Block> {
     fn evaluate(&mut self, universe: &mut Universe) -> Return {
         self.block.body.evaluate(universe)
     }

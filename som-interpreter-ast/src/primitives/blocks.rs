@@ -11,18 +11,18 @@ pub mod block1 {
     use crate::convert::Primitive;
     use crate::evaluate::Evaluate;
     use anyhow::Error;
-    use som_gc::gcref::GCRef;
+    use som_gc::gcref::Gc;
 
     pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> =
         Lazy::new(|| Box::new([("value", self::value.into_func(), true), ("restart", self::restart.into_func(), false)]));
     pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| Box::new([]));
 
-    fn value(universe: &mut Universe, mut block: GCRef<Block>) -> Result<Return, Error> {
+    fn value(universe: &mut Universe, mut block: Gc<Block>) -> Result<Return, Error> {
         let nbr_locals = block.block.nbr_locals;
         Ok(universe.with_frame(nbr_locals, vec![Value::Block(block)], |universe| block.evaluate(universe)))
     }
 
-    fn restart(_: &mut Universe, _: GCRef<Block>) -> Result<Return, Error> {
+    fn restart(_: &mut Universe, _: Gc<Block>) -> Result<Return, Error> {
         #[cfg(feature = "inlining-disabled")]
         return Ok(Return::Restart);
         panic!("calling restart even though inlining is enabled. we don't support this")
@@ -46,13 +46,13 @@ pub mod block2 {
     use crate::convert::Primitive;
     use crate::evaluate::Evaluate;
     use anyhow::Error;
-    use som_gc::gcref::GCRef;
+    use som_gc::gcref::Gc;
 
     pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> =
         Lazy::new(|| Box::new([("value:", self::value.into_func(), true)]));
     pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| Box::new([]));
 
-    fn value(universe: &mut Universe, mut block: GCRef<Block>, argument: Value) -> Result<Return, Error> {
+    fn value(universe: &mut Universe, mut block: Gc<Block>, argument: Value) -> Result<Return, Error> {
         let nbr_locals = block.block.nbr_locals;
 
         Ok(universe.with_frame(nbr_locals, vec![Value::Block(block), argument], |universe| block.evaluate(universe)))
@@ -76,13 +76,13 @@ pub mod block3 {
     use crate::convert::Primitive;
     use crate::evaluate::Evaluate;
     use anyhow::Error;
-    use som_gc::gcref::GCRef;
+    use som_gc::gcref::Gc;
 
     pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> =
         Lazy::new(|| Box::new([("value:with:", self::value_with.into_func(), true)]));
     pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| Box::new([]));
 
-    fn value_with(universe: &mut Universe, mut receiver: GCRef<Block>, argument1: Value, argument2: Value) -> Result<Return, Error> {
+    fn value_with(universe: &mut Universe, mut receiver: Gc<Block>, argument1: Value, argument2: Value) -> Result<Return, Error> {
         let nbr_locals = receiver.block.nbr_locals;
 
         Ok(

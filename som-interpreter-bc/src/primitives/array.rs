@@ -8,7 +8,7 @@ use crate::universe::Universe;
 use crate::value::Value;
 use anyhow::{Context, Error};
 use once_cell::sync::Lazy;
-use som_gc::gcref::GCRef;
+use som_gc::gcref::Gc;
 
 pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| {
     Box::new([
@@ -20,7 +20,7 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> 
 
 pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| Box::new([("new:", self::new.into_func(), true)]));
 
-fn at(_: &mut Interpreter, _: &mut Universe, receiver: GCRef<VecValue>, index: i32) -> Result<Value, Error> {
+fn at(_: &mut Interpreter, _: &mut Universe, receiver: Gc<VecValue>, index: i32) -> Result<Value, Error> {
     const _: &str = "Array>>#at:";
 
     let index = usize::try_from(index - 1)?;
@@ -28,7 +28,7 @@ fn at(_: &mut Interpreter, _: &mut Universe, receiver: GCRef<VecValue>, index: i
     receiver.0.get(index).cloned().context("index out of bounds")
 }
 
-fn at_put(_: &mut Interpreter, _: &mut Universe, mut receiver: GCRef<VecValue>, index: i32, value: Value) -> Result<GCRef<VecValue>, Error> {
+fn at_put(_: &mut Interpreter, _: &mut Universe, mut receiver: Gc<VecValue>, index: i32, value: Value) -> Result<Gc<VecValue>, Error> {
     const _: &str = "Array>>#at:put:";
 
     let index = usize::try_from(index - 1)?;
@@ -40,13 +40,13 @@ fn at_put(_: &mut Interpreter, _: &mut Universe, mut receiver: GCRef<VecValue>, 
     Ok(receiver)
 }
 
-fn length(_: &mut Interpreter, _: &mut Universe, receiver: GCRef<VecValue>) -> Result<i32, Error> {
+fn length(_: &mut Interpreter, _: &mut Universe, receiver: Gc<VecValue>) -> Result<i32, Error> {
     const _: &str = "Array>>#length";
 
     receiver.0.len().try_into().context("could not convert `usize` to `i32`")
 }
 
-fn new(_: &mut Interpreter, universe: &mut Universe, _: Value, count: i32) -> Result<GCRef<VecValue>, Error> {
+fn new(_: &mut Interpreter, universe: &mut Universe, _: Value, count: i32) -> Result<Gc<VecValue>, Error> {
     const _: &str = "Array>>#new:";
 
     let count = usize::try_from(count)?;

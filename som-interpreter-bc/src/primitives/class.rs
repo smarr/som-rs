@@ -9,7 +9,7 @@ use crate::value::Value;
 use anyhow::Error;
 use once_cell::sync::Lazy;
 use som_core::interner::Interned;
-use som_gc::gcref::GCRef;
+use som_gc::gcref::Gc;
 
 pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| {
     Box::new({
@@ -24,7 +24,7 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> 
 });
 pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| Box::new([]));
 
-fn superclass(interpreter: &mut Interpreter, _: &mut Universe, receiver: GCRef<Class>) -> Result<(), Error> {
+fn superclass(interpreter: &mut Interpreter, _: &mut Universe, receiver: Gc<Class>) -> Result<(), Error> {
     const _: &str = "Class>>#superclass";
 
     let super_class = receiver.super_class();
@@ -34,7 +34,7 @@ fn superclass(interpreter: &mut Interpreter, _: &mut Universe, receiver: GCRef<C
     Ok(())
 }
 
-fn new(_: &mut Interpreter, universe: &mut Universe, receiver: GCRef<Class>) -> Result<GCRef<Instance>, Error> {
+fn new(_: &mut Interpreter, universe: &mut Universe, receiver: Gc<Class>) -> Result<Gc<Instance>, Error> {
     const _: &str = "Class>>#new";
 
     let instance = Instance::from_class(receiver, &mut universe.gc_interface);
@@ -42,13 +42,13 @@ fn new(_: &mut Interpreter, universe: &mut Universe, receiver: GCRef<Class>) -> 
     Ok(instance)
 }
 
-fn name(_: &mut Interpreter, universe: &mut Universe, receiver: GCRef<Class>) -> Result<Interned, Error> {
+fn name(_: &mut Interpreter, universe: &mut Universe, receiver: Gc<Class>) -> Result<Interned, Error> {
     const _: &str = "Class>>#name";
 
     Ok(universe.intern_symbol(receiver.name()))
 }
 
-fn methods(_: &mut Interpreter, universe: &mut Universe, receiver: GCRef<Class>) -> Result<GCRef<VecValue>, Error> {
+fn methods(_: &mut Interpreter, universe: &mut Universe, receiver: Gc<Class>) -> Result<Gc<VecValue>, Error> {
     const _: &str = "Class>>#methods";
 
     let methods = receiver.methods.values().copied().map(Value::Invokable).collect();
@@ -56,7 +56,7 @@ fn methods(_: &mut Interpreter, universe: &mut Universe, receiver: GCRef<Class>)
     Ok(universe.gc_interface.alloc(VecValue(methods)))
 }
 
-fn fields(_: &mut Interpreter, universe: &mut Universe, receiver: GCRef<Class>) -> Result<GCRef<VecValue>, Error> {
+fn fields(_: &mut Interpreter, universe: &mut Universe, receiver: Gc<Class>) -> Result<Gc<VecValue>, Error> {
     const _: &str = "Class>>#fields";
 
     let fields = receiver.locals.keys().copied().map(Value::Symbol).collect();

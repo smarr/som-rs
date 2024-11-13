@@ -1,5 +1,5 @@
 use rstest::{fixture, rstest};
-use som_gc::gcref::GCRef;
+use som_gc::gcref::Gc;
 use som_interpreter_bc::frame::Frame;
 use som_interpreter_bc::method::Method;
 use som_interpreter_bc::universe::Universe;
@@ -36,7 +36,7 @@ pub fn universe<'a>() -> &'a mut Universe {
     }
 }
 
-fn get_method(method_txt: &str, method_name: &str, universe: &mut Universe) -> GCRef<Method> {
+fn get_method(method_txt: &str, method_name: &str, universe: &mut Universe) -> Gc<Method> {
     let method_name_interned = universe.intern_symbol(method_name);
 
     let class_txt = format!("Foo = ( {} )", method_txt);
@@ -58,7 +58,7 @@ fn get_method(method_txt: &str, method_name: &str, universe: &mut Universe) -> G
 fn frame_basic_local_access(universe: &mut Universe) {
     let method_ref = get_method("foo = ( | a b c | ^ false )", "foo", universe);
 
-    let mut frame = Frame::alloc_from_method(method_ref, &[], GCRef::default(), &mut universe.gc_interface);
+    let mut frame = Frame::alloc_from_method(method_ref, &[], Gc::default(), &mut universe.gc_interface);
 
     frame.assign_local(0, Value::Integer(42));
     assert_eq!(frame.lookup_local(0).as_integer(), Some(42));
@@ -84,7 +84,7 @@ fn frame_basic_arg_access(universe: &mut Universe) {
     let mut frame = Frame::alloc_from_method(
         method_ref,
         &[Value::NIL, Value::INTEGER_ZERO, Value::INTEGER_ONE],
-        GCRef::default(),
+        Gc::default(),
         &mut universe.gc_interface,
     );
 
@@ -103,7 +103,7 @@ fn frame_mixed_local_and_arg_access(universe: &mut Universe) {
     let mut frame = Frame::alloc_from_method(
         method_ref,
         &[Value::Double(1000.0), Value::SYSTEM],
-        GCRef::default(),
+        Gc::default(),
         &mut universe.gc_interface,
     );
 
@@ -133,7 +133,7 @@ fn frame_stack_accesses(universe: &mut Universe) {
     let frame_ptr = Frame::alloc_from_method(
         method_ref,
         &[Value::Double(1000.0), Value::SYSTEM],
-        GCRef::default(),
+        Gc::default(),
         &mut universe.gc_interface,
     );
     let mut frame = frame_ptr;
@@ -163,7 +163,7 @@ fn frame_stack_split_off(universe: &mut Universe) {
     let frame_ptr = Frame::alloc_from_method(
         method_ref,
         &[Value::Double(1000.0), Value::SYSTEM],
-        GCRef::default(),
+        Gc::default(),
         &mut universe.gc_interface,
     );
     let mut frame = frame_ptr;

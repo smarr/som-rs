@@ -12,13 +12,13 @@ use crate::value::Value;
 
 #[cfg(feature = "frame-debug-info")]
 use som_core::ast::BlockDebugInfo;
-use som_gc::gcref::GCRef;
+use som_gc::gcref::Gc;
 
 #[derive(Clone)]
 pub struct MethodEnv {
     pub literals: Vec<Literal>,
     pub body: Vec<Bytecode>,
-    pub inline_cache: RefCell<Vec<Option<(GCRef<Class>, GCRef<Method>)>>>,
+    pub inline_cache: RefCell<Vec<Option<(Gc<Class>, Gc<Method>)>>>,
     pub nbr_locals: usize,
     pub max_stack_size: u8,
     #[cfg(feature = "frame-debug-info")]
@@ -45,12 +45,12 @@ impl MethodKind {
 #[derive(Clone)]
 pub struct Method {
     pub kind: MethodKind,
-    pub holder: GCRef<Class>,
+    pub holder: Gc<Class>,
     pub signature: String,
 }
 
 impl Method {
-    pub fn class(&self, universe: &Universe) -> GCRef<Class> {
+    pub fn class(&self, universe: &Universe) -> Gc<Class> {
         if self.is_primitive() {
             universe.primitive_class()
         } else {
@@ -62,7 +62,7 @@ impl Method {
         &self.kind
     }
 
-    pub fn holder(&self) -> &GCRef<Class> {
+    pub fn holder(&self) -> &Gc<Class> {
         &self.holder
     }
 
@@ -80,7 +80,7 @@ pub trait Invoke {
     fn invoke(&self, interpreter: &mut Interpreter, universe: &mut Universe, receiver: Value, args: Vec<Value>);
 }
 
-impl Invoke for GCRef<Method> {
+impl Invoke for Gc<Method> {
     fn invoke(&self, interpreter: &mut Interpreter, universe: &mut Universe, receiver: Value, mut args: Vec<Value>) {
         match self.kind() {
             MethodKind::Defined(_) => {

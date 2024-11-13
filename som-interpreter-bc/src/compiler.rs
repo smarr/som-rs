@@ -22,17 +22,17 @@ use som_core::ast::{Expression, MethodBody};
 use som_core::bytecode::Bytecode;
 use som_core::interner::{Interned, Interner};
 use som_gc::gc_interface::GCInterface;
-use som_gc::gcref::GCRef;
+use som_gc::gcref::Gc;
 
 #[derive(Debug, Clone)]
 pub enum Literal {
     Symbol(Interned),
-    String(GCRef<String>),
+    String(Gc<String>),
     Double(f64),
     Integer(i32),
-    BigInteger(GCRef<BigInt>),
-    Array(GCRef<Vec<u8>>),
-    Block(GCRef<Block>),
+    BigInteger(Gc<BigInt>),
+    Array(Gc<Vec<u8>>),
+    Block(Gc<Block>),
 }
 
 impl PartialEq for Literal {
@@ -622,7 +622,7 @@ impl MethodCodegen for ast::Expression {
 struct ClassGenCtxt<'a> {
     pub name: String,
     pub fields: IndexSet<Interned>,
-    pub methods: IndexMap<Interned, GCRef<Method>>,
+    pub methods: IndexMap<Interned, Gc<Method>>,
     pub interner: &'a mut Interner,
 }
 
@@ -770,7 +770,7 @@ fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::MethodDef, mutator: &mut 
                 })
             }
         },
-        holder: GCRef::default(),
+        holder: Gc::default(),
         signature: ctxt.signature,
     };
 
@@ -905,12 +905,12 @@ fn get_max_stack_size(body: &Vec<Bytecode>) -> u8 {
 pub fn compile_class(
     interner: &mut Interner,
     defn: &ast::ClassDef,
-    super_class: Option<&GCRef<Class>>,
+    super_class: Option<&Gc<Class>>,
     gc_interface: &mut GCInterface,
-) -> Option<GCRef<Class>> {
+) -> Option<Gc<Class>> {
     let mut locals = IndexSet::new();
 
-    fn collect_static_locals(interner: &mut Interner, class: &GCRef<Class>, locals: &mut IndexSet<Interned>) {
+    fn collect_static_locals(interner: &mut Interner, class: &Gc<Class>, locals: &mut IndexSet<Interned>) {
         if let Some(class) = class.super_class() {
             collect_static_locals(interner, &class, locals);
         }
@@ -932,7 +932,7 @@ pub fn compile_class(
 
     let static_class = Class {
         name: static_class_ctxt.name.clone(),
-        class: GCRef::default(),
+        class: Gc::default(),
         super_class: None,
         locals: IndexMap::new(),
         methods: IndexMap::new(),
@@ -976,7 +976,7 @@ pub fn compile_class(
 
     let mut locals = IndexSet::new();
 
-    fn collect_instance_locals(interner: &mut Interner, class: &GCRef<Class>, locals: &mut IndexSet<Interned>) {
+    fn collect_instance_locals(interner: &mut Interner, class: &Gc<Class>, locals: &mut IndexSet<Interned>) {
         if let Some(class) = class.super_class() {
             collect_instance_locals(interner, &class, locals);
         }
