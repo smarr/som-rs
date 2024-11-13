@@ -1,3 +1,4 @@
+use super::PrimInfo;
 use crate::convert::{Primitive, StringLike};
 use crate::gc::VecValue;
 use crate::primitives::PrimitiveFn;
@@ -10,7 +11,7 @@ use som_gc::gcref::Gc;
 use std::convert::TryFrom;
 use std::fs;
 
-pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| {
+pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
     Box::new([
         ("loadFile:", self::load_file.into_func(), true),
         ("printString:", self::print_string.into_func(), true),
@@ -29,7 +30,7 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> 
         ("printStackTrace", self::print_stack_trace.into_func(), true),
     ])
 });
-pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| Box::new([]));
+pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([]));
 
 fn load_file(universe: &mut Universe, _: Value, path: StringLike) -> Result<Value, Error> {
     let path = match path {

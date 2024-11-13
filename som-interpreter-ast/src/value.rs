@@ -194,9 +194,11 @@ impl AstNaNBoxedVal {
     /// Assign a value to a local binding within this value.
     pub fn assign_local(&mut self, idx: u8, value: Self) -> Option<()> {
         if let Some(mut instance) = self.as_instance() {
-            Some(instance.assign_local(idx, value))
+            instance.assign_local(idx, value);
+            Some(())
         } else if let Some(mut class) = self.as_class() {
-            Some(class.assign_field(idx, value))
+            class.assign_field(idx, value);
+            Some(())
         } else {
             None
         }
@@ -462,7 +464,7 @@ impl PartialEq for ValueEnum {
             (Self::Integer(a), Self::Double(b)) | (Self::Double(b), Self::Integer(a)) => (*a as f64).eq(b),
             (Self::Double(a), Self::Double(b)) => a.eq(b),
             (Self::BigInteger(a), Self::BigInteger(b)) => a.eq(b),
-            (Self::BigInteger(a), Self::Integer(b)) | (Self::Integer(b), Self::BigInteger(a)) => (&**a).eq(&BigInt::from(*b)),
+            (Self::BigInteger(a), Self::Integer(b)) | (Self::Integer(b), Self::BigInteger(a)) => (**a).eq(&BigInt::from(*b)),
             (Self::Symbol(a), Self::Symbol(b)) => a.eq(b),
             (Self::String(a), Self::String(b)) => a == b,
             (Self::Array(a), Self::Array(b)) => a == b,

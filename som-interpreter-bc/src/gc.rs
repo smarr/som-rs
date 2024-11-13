@@ -80,9 +80,8 @@ impl HasTypeInfoForGC for Frame {
 // --- Scanning
 
 pub fn visit_value<'a>(val: &Value, slot_visitor: &'a mut (dyn SlotVisitor<SOMSlot> + 'a)) {
-    match val.is_ptr_type() {
-        true => slot_visitor.visit_slot(SOMSlot::from_value(val.payload())),
-        false => {}
+    if val.is_ptr_type() {
+        slot_visitor.visit_slot(SOMSlot::from_value(val.payload()))
     }
 }
 

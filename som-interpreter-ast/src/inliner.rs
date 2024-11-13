@@ -69,7 +69,7 @@ impl PrimMessageInliner for AstMethodCompilerCtxt<'_> {
 
                 let var_type = match expression {
                     Expression::LocalVarRead(..) | Expression::NonLocalVarRead(..) => VarType::Read,
-                    Expression::LocalVarWrite(_, expr) | Expression::NonLocalVarWrite(_, _, expr) => VarType::Write(&**expr),
+                    Expression::LocalVarWrite(_, expr) | Expression::NonLocalVarWrite(_, _, expr) => VarType::Write(expr),
                     _ => unreachable!(),
                 };
 
@@ -93,7 +93,7 @@ impl PrimMessageInliner for AstMethodCompilerCtxt<'_> {
                         name
                     )
                 }
-                match self.class.unwrap().get_field_offset_by_name(&name) {
+                match self.class.unwrap().get_field_offset_by_name(name) {
                     Some(offset) => AstExpression::FieldWrite(offset as u8, Box::new(self.parse_expression_with_inlining(expr))),
                     _ => panic!(
                         "can't turn the GlobalWrite `{}` into a FieldWrite, and GlobalWrite shouldn't exist at runtime",
@@ -271,7 +271,7 @@ impl PrimMessageInliner for AstMethodCompilerCtxt<'_> {
 
                 let var_type = match input_expr {
                     Expression::ArgRead(..) => VarType::Read,
-                    Expression::ArgWrite(_, _, expr) => VarType::Write(&*expr),
+                    Expression::ArgWrite(_, _, expr) => VarType::Write(expr),
                     _ => unreachable!(),
                 };
 
@@ -385,9 +385,9 @@ impl AstMethodCompilerCtxt<'_> {
     fn var_from_coords(&mut self, up_idx: u8, idx: u8, var_type: VarType) -> AstExpression {
         match (up_idx, var_type) {
             (0, VarType::Read) => AstExpression::LocalVarRead(idx),
-            (0, VarType::Write(expr)) => AstExpression::LocalVarWrite(idx, Box::new(self.parse_expression_with_inlining(&expr))),
+            (0, VarType::Write(expr)) => AstExpression::LocalVarWrite(idx, Box::new(self.parse_expression_with_inlining(expr))),
             (_, VarType::Read) => AstExpression::NonLocalVarRead(up_idx, idx),
-            (_, VarType::Write(expr)) => AstExpression::NonLocalVarWrite(up_idx, idx, Box::new(self.parse_expression_with_inlining(&expr))),
+            (_, VarType::Write(expr)) => AstExpression::NonLocalVarWrite(up_idx, idx, Box::new(self.parse_expression_with_inlining(expr))),
         }
     }
 

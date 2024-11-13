@@ -3,6 +3,7 @@ use crate::convert::Primitive;
 use crate::gc::VecValue;
 use crate::instance::Instance;
 use crate::interpreter::Interpreter;
+use crate::primitives::PrimInfo;
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
 use crate::value::Value;
@@ -11,7 +12,7 @@ use once_cell::sync::Lazy;
 use som_core::interner::Interned;
 use som_gc::gcref::Gc;
 
-pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| {
+pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
     Box::new({
         [
             ("new", self::new.into_func(), true),
@@ -22,13 +23,13 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> 
         ]
     })
 });
-pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| Box::new([]));
+pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([]));
 
 fn superclass(interpreter: &mut Interpreter, _: &mut Universe, receiver: Gc<Class>) -> Result<(), Error> {
     const _: &str = "Class>>#superclass";
 
     let super_class = receiver.super_class();
-    let super_class = super_class.map_or(Value::NIL, |it| Value::Class(it));
+    let super_class = super_class.map_or(Value::NIL, Value::Class);
     interpreter.current_frame.stack_push(super_class);
 
     Ok(())
@@ -37,7 +38,7 @@ fn superclass(interpreter: &mut Interpreter, _: &mut Universe, receiver: Gc<Clas
 fn new(_: &mut Interpreter, universe: &mut Universe, receiver: Gc<Class>) -> Result<Gc<Instance>, Error> {
     const _: &str = "Class>>#new";
 
-    let instance = Instance::from_class(receiver, &mut universe.gc_interface);
+    let instance = Instance::from_class(receiver, universe.gc_interface);
 
     Ok(instance)
 }

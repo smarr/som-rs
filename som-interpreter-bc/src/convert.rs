@@ -109,10 +109,9 @@ impl TryFrom<Value> for DoubleLike {
 
     fn try_from(value: Value) -> Result<Self, Self::Error> {
         value
-            .clone()
             .as_double()
             .map(Self::Double)
-            .or_else(|| value.clone().as_integer().map(Self::Integer))
+            .or_else(|| value.as_integer().map(Self::Integer))
             .or_else(|| value.as_big_integer().map(Self::BigInteger))
             .context("could not resolve `Value` as `Double`, `Integer`, or `BigInteger`")
     }
@@ -332,10 +331,10 @@ macro_rules! derive_stuff {
             fn into_value(&self, gc_interface: &mut GCInterface) -> $crate::value::Value {
                 #[allow(non_snake_case)]
                 let ($($ty),*,) = self;
-                let mut values = Vec::default();
+                let values = vec![
                 $(
-                    values.push($crate::convert::IntoValue::into_value($ty, gc_interface));
-                )*
+                    $crate::convert::IntoValue::into_value($ty, gc_interface),
+                )*];
                 let allocated = gc_interface.alloc(VecValue(values));
                 $crate::value::Value::Array(allocated)
             }
@@ -375,7 +374,7 @@ impl<T: IntoValue> IntoReturn for T {
 
 impl IntoValue for Value {
     fn into_value(&self, _: &mut GCInterface) -> Value {
-        self.clone()
+        *self
     }
 }
 

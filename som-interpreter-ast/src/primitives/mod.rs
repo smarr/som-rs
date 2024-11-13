@@ -33,7 +33,9 @@ use crate::value::Value;
 // pub type PrimitiveFn = dyn Fn(&mut UniverseAST, Vec<Value>) -> Result<Return, Error>
 pub type PrimitiveFn = dyn Fn(&mut Universe, Vec<Value>) -> Return + Send + Sync + 'static;
 
-pub fn get_class_primitives(class_name: &str) -> Option<&'static [(&'static str, &'static PrimitiveFn, bool)]> {
+pub type PrimInfo = (&'static str, &'static PrimitiveFn, bool);
+
+pub fn get_class_primitives(class_name: &str) -> Option<&'static [PrimInfo]> {
     match class_name {
         "Array" => Some(self::array::CLASS_PRIMITIVES.as_ref()),
         "Block1" => Some(self::block1::CLASS_PRIMITIVES.as_ref()),
@@ -52,7 +54,7 @@ pub fn get_class_primitives(class_name: &str) -> Option<&'static [(&'static str,
     }
 }
 
-pub fn get_instance_primitives(class_name: &str) -> Option<&'static [(&'static str, &'static PrimitiveFn, bool)]> {
+pub fn get_instance_primitives(class_name: &str) -> Option<&'static [PrimInfo]> {
     match class_name {
         "Array" => Some(self::array::INSTANCE_PRIMITIVES.as_ref()),
         "Block1" => Some(self::block1::INSTANCE_PRIMITIVES.as_ref()),

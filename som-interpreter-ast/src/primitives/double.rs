@@ -1,3 +1,4 @@
+use super::PrimInfo;
 use crate::convert::{DoubleLike, Primitive, StringLike};
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
@@ -6,7 +7,7 @@ use anyhow::{bail, Error};
 use num_traits::ToPrimitive;
 use once_cell::sync::Lazy;
 
-pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| {
+pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
     Box::new([
         ("+", self::plus.into_func(), true),
         ("-", self::minus.into_func(), true),
@@ -23,7 +24,7 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> 
         ("asInteger", self::as_integer.into_func(), true),
     ])
 });
-pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| {
+pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
     Box::new([
         ("fromString:", self::from_string.into_func(), true),
         ("PositiveInfinity", self::positive_infinity.into_func(), true),

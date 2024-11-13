@@ -2,6 +2,7 @@ use std::convert::{TryFrom, TryInto};
 
 use crate::convert::{DoubleLike, IntegerLike, Primitive, StringLike};
 use crate::interpreter::Interpreter;
+use crate::primitives::PrimInfo;
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
 use crate::value::Value;
@@ -13,7 +14,7 @@ use rand::distributions::Uniform;
 use rand::Rng;
 use som_gc::gcref::Gc;
 
-pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| {
+pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
     Box::new([
         ("<", self::lt.into_func(), true),
         ("=", self::eq.into_func(), true),
@@ -41,8 +42,7 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> 
         // ("timesRepeat:", self::times_repeat.into_func(), true),
     ])
 });
-pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> =
-    Lazy::new(|| Box::new([("fromString:", self::from_string.into_func(), true)]));
+pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([("fromString:", self::from_string.into_func(), true)]));
 
 macro_rules! demote {
     ($heap:expr, $expr:expr) => {{
@@ -398,12 +398,12 @@ fn lt(_: &mut Interpreter, _: &mut Universe, a: DoubleLike, b: DoubleLike) -> Re
 
     let value = match (a, b) {
         (DoubleLike::Integer(a), DoubleLike::Integer(b)) => Value::Boolean(a < b),
-        (DoubleLike::BigInteger(a), DoubleLike::BigInteger(b)) => Value::Boolean(&*a < &*b),
+        (DoubleLike::BigInteger(a), DoubleLike::BigInteger(b)) => Value::Boolean(*a < *b),
         (DoubleLike::Double(a), DoubleLike::Double(b)) => Value::Boolean(a < b),
         (DoubleLike::Integer(a), DoubleLike::Double(b)) => Value::Boolean((a as f64) < b),
         (DoubleLike::Double(a), DoubleLike::Integer(b)) => Value::Boolean(a < (b as f64)),
-        (DoubleLike::BigInteger(a), DoubleLike::Integer(b)) => Value::Boolean(&*a < &BigInt::from(b)),
-        (DoubleLike::Integer(a), DoubleLike::BigInteger(b)) => Value::Boolean(&BigInt::from(a) < &*b),
+        (DoubleLike::BigInteger(a), DoubleLike::Integer(b)) => Value::Boolean(*a < BigInt::from(b)),
+        (DoubleLike::Integer(a), DoubleLike::BigInteger(b)) => Value::Boolean(BigInt::from(a) < *b),
         _ => {
             bail!("'{SIGNATURE}': wrong types");
         }

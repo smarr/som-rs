@@ -4,6 +4,7 @@ use std::hash::Hasher;
 
 use crate::convert::{Primitive, StringLike};
 use crate::interpreter::Interpreter;
+use crate::primitives::PrimInfo;
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
 use crate::value::Value;
@@ -13,7 +14,7 @@ use once_cell::sync::Lazy;
 use som_core::interner::Interned;
 use som_gc::gcref::Gc;
 
-pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| {
+pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
     Box::new([
         ("length", self::length.into_func(), true),
         ("hashcode", self::hashcode.into_func(), true),
@@ -27,7 +28,7 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> 
         ("charAt:", self::char_at.into_func(), true),
     ])
 });
-pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| Box::new([]));
+pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([]));
 
 fn length(_: &mut Interpreter, universe: &mut Universe, receiver: StringLike) -> Result<Value, Error> {
     const _: &str = "String>>#length";

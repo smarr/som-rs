@@ -7,6 +7,7 @@ use crate::convert::Primitive;
 use crate::gc::VecValue;
 use crate::interpreter::Interpreter;
 use crate::method::Invoke;
+use crate::primitives::PrimInfo;
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
 use crate::value::Value;
@@ -15,7 +16,7 @@ use once_cell::sync::Lazy;
 use som_core::interner::Interned;
 use som_gc::gcref::Gc;
 
-pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| {
+pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
     Box::new([
         ("class", self::class.into_func(), true),
         ("objectSize", self::object_size.into_func(), true),
@@ -33,14 +34,14 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> 
         ("==", self::eq.into_func(), true),
     ])
 });
-pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| Box::new([]));
+pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([]));
 
 fn class(_: &mut Interpreter, universe: &mut Universe, receiver: Value) -> Result<Gc<Class>, Error> {
     Ok(receiver.class(universe))
 }
 
 fn object_size(_: &mut Interpreter, _: &mut Universe, receiver: Value) -> Result<i32, Error> {
-    const SIGNATURE: &'static str = "Object>>#objectSize";
+    const SIGNATURE: &str = "Object>>#objectSize";
 
     core::mem::size_of_val(&receiver)
         .try_into()
@@ -63,9 +64,9 @@ fn perform(interpreter: &mut Interpreter, universe: &mut Universe, receiver: Val
 
     let Some(invokable) = receiver.lookup_method(universe, signature) else {
         let signature_str = universe.lookup_symbol(signature).to_owned();
-        let args = vec![receiver.clone()];
+        let args = vec![receiver];
         return universe
-            .does_not_understand(interpreter, receiver.clone(), signature, args)
+            .does_not_understand(interpreter, receiver, signature, args)
             .with_context(|| format!("`{SIGNATURE}`: method `{signature_str}` not found for `{}`", receiver.to_string(universe),));
     };
 
@@ -80,13 +81,13 @@ fn perform_with_arguments(
     signature: Interned,
     arguments: Gc<VecValue>,
 ) -> Result<(), Error> {
-    const SIGNATURE: &'static str = "Object>>#perform:withArguments:";
+    const SIGNATURE: &str = "Object>>#perform:withArguments:";
 
     let Some(invokable) = receiver.lookup_method(universe, signature) else {
         let signature_str = universe.lookup_symbol(signature).to_owned();
-        let args = std::iter::once(receiver.clone()).chain(arguments.0.clone()).collect(); // lame clone
+        let args = std::iter::once(receiver).chain(arguments.0.clone()).collect(); // lame clone
         return universe
-            .does_not_understand(interpreter, receiver.clone(), signature, args)
+            .does_not_understand(interpreter, receiver, signature, args)
             .with_context(|| format!("`{SIGNATURE}`: method `{signature_str}` not found for `{}`", receiver.to_string(universe)));
     };
 
@@ -101,11 +102,11 @@ fn perform_in_super_class(
     signature: Interned,
     class: Gc<Class>,
 ) -> Result<(), Error> {
-    const SIGNATURE: &'static str = "Object>>#perform:inSuperclass:";
+    const SIGNATURE: &str = "Object>>#perform:inSuperclass:";
 
     let Some(invokable) = class.lookup_method(signature) else {
         let signature_str = universe.lookup_symbol(signature).to_owned();
-        let args = vec![receiver.clone()];
+        let args = vec![receiver];
         return universe
             .does_not_understand(interpreter, Value::Class(class), signature, args)
             .with_context(|| format!("`{SIGNATURE}`: method `{signature_str}` not found for `{}`", receiver.to_string(universe)));
@@ -123,13 +124,13 @@ fn perform_with_arguments_in_super_class(
     arguments: Gc<VecValue>,
     class: Gc<Class>,
 ) -> Result<(), Error> {
-    const SIGNATURE: &'static str = "Object>>#perform:withArguments:inSuperclass:";
+    const SIGNATURE: &str = "Object>>#perform:withArguments:inSuperclass:";
 
     let method = class.lookup_method(signature);
 
     let Some(invokable) = method else {
         let signature_str = universe.lookup_symbol(signature).to_owned();
-        let args = std::iter::once(receiver.clone()).chain(arguments.0.clone()).collect(); // lame to clone args, right?
+        let args = std::iter::once(receiver).chain(arguments.0.clone()).collect(); // lame to clone args, right?
         return universe
             .does_not_understand(interpreter, Value::Class(class), signature, args)
             .with_context(|| format!("`{SIGNATURE}`: method `{signature_str}` not found for `{}`", receiver.to_string(universe)));
@@ -156,21 +157,14 @@ fn inst_var_at(_: &mut Interpreter, _: &mut Universe, receiver: Value, index: i3
     // };
     //
     // interpreter.stack.push(local);
-
-    const _: &'static str = "Object>>#instVarAt:";
-
     let index = usize::try_from(index.saturating_sub(1))?;
 
     Ok(Some(receiver.lookup_local(index)))
 }
 
 fn inst_var_at_put(_: &mut Interpreter, _: &mut Universe, mut receiver: Value, index: i32, value: Value) -> Result<Option<Value>, Error> {
-    const _: &'static str = "Object>>#instVarAt:put:";
-
     let index = usize::try_from(index.saturating_sub(1))?;
-
-    receiver.assign_local(index, value.clone());
-
+    receiver.assign_local(index, value);
     Ok(Some(value))
 }
 

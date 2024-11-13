@@ -125,7 +125,7 @@ impl<'a> AstMethodCompilerCtxt<'a> {
                 let mut ctxt = AstMethodCompilerCtxt {
                     class,
                     scopes: vec![AstScopeCtxt::init(args_nbr, *locals_nbr, false)],
-                    gc_interface: gc_interface,
+                    gc_interface,
                 };
 
                 (ctxt.parse_body(body), ctxt.scopes.last().unwrap().get_nbr_locals() as u8)
@@ -219,7 +219,6 @@ impl<'a> AstMethodCompilerCtxt<'a> {
                     .class
                     .unwrap()
                     .super_class
-                    .clone()
                     .unwrap_or_else(|| panic!("no super class set, even though the method has a super call?")),
                 signature: msg.signature.clone(),
                 values: msg.values.iter().map(|e| expr_parsing_func(self, e)).collect(),
@@ -227,41 +226,39 @@ impl<'a> AstMethodCompilerCtxt<'a> {
         }
 
         let receiver = expr_parsing_func(self, &msg.receiver);
-        match receiver {
-            _ => match msg.values.len() {
-                0 => AstExpression::UnaryDispatch(Box::new(AstUnaryDispatch {
-                    dispatch_node: AstDispatchNode {
-                        receiver,
-                        signature: msg.signature.clone(),
-                        inline_cache: None,
-                    },
-                })),
-                1 => AstExpression::BinaryDispatch(Box::new(AstBinaryDispatch {
-                    dispatch_node: AstDispatchNode {
-                        receiver,
-                        signature: msg.signature.clone(),
-                        inline_cache: None,
-                    },
-                    arg: expr_parsing_func(self, msg.values.first().unwrap()),
-                })),
-                2 => AstExpression::TernaryDispatch(Box::new(AstTernaryDispatch {
-                    dispatch_node: AstDispatchNode {
-                        receiver,
-                        signature: msg.signature.clone(),
-                        inline_cache: None,
-                    },
-                    arg1: expr_parsing_func(self, msg.values.first().unwrap()),
-                    arg2: expr_parsing_func(self, msg.values.get(1).unwrap()),
-                })),
-                _ => AstExpression::NAryDispatch(Box::new(AstNAryDispatch {
-                    dispatch_node: AstDispatchNode {
-                        receiver,
-                        signature: msg.signature.clone(),
-                        inline_cache: None,
-                    },
-                    values: msg.values.iter().map(|e| expr_parsing_func(self, e)).collect(),
-                })),
-            },
+        match msg.values.len() {
+            0 => AstExpression::UnaryDispatch(Box::new(AstUnaryDispatch {
+                dispatch_node: AstDispatchNode {
+                    receiver,
+                    signature: msg.signature.clone(),
+                    inline_cache: None,
+                },
+            })),
+            1 => AstExpression::BinaryDispatch(Box::new(AstBinaryDispatch {
+                dispatch_node: AstDispatchNode {
+                    receiver,
+                    signature: msg.signature.clone(),
+                    inline_cache: None,
+                },
+                arg: expr_parsing_func(self, msg.values.first().unwrap()),
+            })),
+            2 => AstExpression::TernaryDispatch(Box::new(AstTernaryDispatch {
+                dispatch_node: AstDispatchNode {
+                    receiver,
+                    signature: msg.signature.clone(),
+                    inline_cache: None,
+                },
+                arg1: expr_parsing_func(self, msg.values.first().unwrap()),
+                arg2: expr_parsing_func(self, msg.values.get(1).unwrap()),
+            })),
+            _ => AstExpression::NAryDispatch(Box::new(AstNAryDispatch {
+                dispatch_node: AstDispatchNode {
+                    receiver,
+                    signature: msg.signature.clone(),
+                    inline_cache: None,
+                },
+                values: msg.values.iter().map(|e| expr_parsing_func(self, e)).collect(),
+            })),
         }
     }
 
@@ -288,7 +285,7 @@ impl<'a> AstMethodCompilerCtxt<'a> {
             );
         }
 
-        match self.class.unwrap().get_field_offset_by_name(&name) {
+        match self.class.unwrap().get_field_offset_by_name(name) {
             Some(offset) => AstExpression::FieldWrite(offset as u8, Box::new(self.parse_expression(expr))),
             _ => panic!(
                 "can't turn the GlobalWrite `{}` into a FieldWrite, and GlobalWrite shouldn't exist at runtime",

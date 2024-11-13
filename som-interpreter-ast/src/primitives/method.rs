@@ -1,3 +1,4 @@
+use super::PrimInfo;
 use crate::convert::Primitive;
 use crate::gc::VecValue;
 use crate::invokable::{Invoke, Return};
@@ -9,14 +10,14 @@ use anyhow::Error;
 use once_cell::sync::Lazy;
 use som_gc::gcref::Gc;
 
-pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| {
+pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
     Box::new([
         ("holder", self::holder.into_func(), true),
         ("signature", self::signature.into_func(), true),
         ("invokeOn:with:", self::invoke_on_with.into_func(), true),
     ])
 });
-pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| Box::new([]));
+pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([]));
 
 fn holder(_: &mut Universe, invokable: Gc<Method>) -> Result<Value, Error> {
     let holder = invokable.holder();
@@ -37,7 +38,7 @@ fn signature(universe: &mut Universe, invokable: Gc<Method>) -> Result<Value, Er
 }
 
 fn invoke_on_with(universe: &mut Universe, mut invokable: Gc<Method>, receiver: Value, arguments: Gc<VecValue>) -> Result<Return, Error> {
-    let args = std::iter::once(receiver.clone()).chain(arguments.iter().cloned()).collect();
+    let args = std::iter::once(receiver).chain(arguments.iter().cloned()).collect();
 
     Ok(invokable.invoke(universe, args))
 }

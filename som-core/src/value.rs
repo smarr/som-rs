@@ -313,31 +313,38 @@ macro_rules! nan_boxed_val_base_impl {
             // ----------------
 
             // these are all for backwards compatibility (i.e.: i don't want to do massive amounts of refactoring), but also maybe clever-ish replacement with normal Value enums
+
+            #[allow(non_snake_case)]
             #[inline(always)]
             pub fn Boolean(value: bool) -> Self {
                 Self::new_boolean(value)
             }
 
+            #[allow(non_snake_case)]
             #[inline(always)]
             pub fn Integer(value: i32) -> Self {
                 Self::new_integer(value)
             }
 
+            #[allow(non_snake_case)]
             #[inline(always)]
             pub fn Double(value: f64) -> Self {
                 Self::new_double(value)
             }
 
+            #[allow(non_snake_case)]
             #[inline(always)]
             pub fn Symbol(value: Interned) -> Self {
                 Self::new_symbol(value)
             }
 
+            #[allow(non_snake_case)]
             #[inline(always)]
             pub fn BigInteger(value: Gc<BigInt>) -> Self {
                 Self::new_big_integer(value)
             }
 
+            #[allow(non_snake_case)]
             #[inline(always)]
             pub fn String(value: Gc<String>) -> Self {
                 Self::new_string(value)

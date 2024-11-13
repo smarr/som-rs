@@ -1,3 +1,4 @@
+use super::PrimInfo;
 use crate::class::Class;
 use crate::convert::Primitive;
 use crate::gc::VecValue;
@@ -9,7 +10,7 @@ use anyhow::Error;
 use once_cell::sync::Lazy;
 use som_gc::gcref::Gc;
 
-pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| {
+pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
     Box::new({
         [
             ("new", self::new.into_func(), true),
@@ -20,7 +21,7 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> 
         ]
     })
 });
-pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| Box::new([]));
+pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([]));
 
 fn superclass(_: &mut Universe, receiver: Gc<Class>) -> Result<Value, Error> {
     let super_class = receiver.super_class();
@@ -39,7 +40,7 @@ fn name(universe: &mut Universe, receiver: Gc<Class>) -> Result<Value, Error> {
 }
 
 fn methods(universe: &mut Universe, receiver: Gc<Class>) -> Result<Value, Error> {
-    let methods = receiver.methods.values().map(|invokable| Value::Invokable(invokable.clone())).collect();
+    let methods = receiver.methods.values().map(|invokable| Value::Invokable(*invokable)).collect();
 
     Ok(Value::Array(universe.gc_interface.alloc(VecValue(methods))))
 }

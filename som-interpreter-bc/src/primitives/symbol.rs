@@ -4,13 +4,13 @@ use som_gc::gcref::Gc;
 
 use crate::convert::Primitive;
 use crate::interpreter::Interpreter;
+use crate::primitives::PrimInfo;
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
 use som_core::interner::Interned;
 
-pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> =
-    Lazy::new(|| Box::new([("asString", self::as_string.into_func(), true)]));
-pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| Box::new([]));
+pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([("asString", self::as_string.into_func(), true)]));
+pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([]));
 
 fn as_string(_: &mut Interpreter, universe: &mut Universe, symbol: Interned) -> Result<Gc<String>, Error> {
     const _: &str = "Symbol>>#asString";

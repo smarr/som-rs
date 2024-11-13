@@ -1,3 +1,4 @@
+use super::PrimInfo;
 use crate::convert::Primitive;
 use crate::gc::VecValue;
 use crate::primitives::PrimitiveFn;
@@ -8,7 +9,7 @@ use once_cell::sync::Lazy;
 use som_gc::gcref::Gc;
 use std::convert::TryFrom;
 
-pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| {
+pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
     Box::new([
         ("at:", self::at.into_func(), true),
         ("at:put:", self::at_put.into_func(), true),
@@ -16,7 +17,7 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> 
     ])
 });
 
-pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| Box::new([("new:", self::new.into_func(), true)]));
+pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([("new:", self::new.into_func(), true)]));
 
 fn at(_: &mut Universe, values: Gc<VecValue>, index: i32) -> Result<Value, Error> {
     const SIGNATURE: &str = "Array>>#at:";

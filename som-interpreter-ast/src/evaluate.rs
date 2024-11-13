@@ -96,17 +96,15 @@ impl Evaluate for AstExpression {
             Self::NonLocalVarRead(scope, idx) => Return::Local(universe.lookup_non_local(*idx, *scope)),
             Self::FieldRead(idx) => Return::Local(universe.lookup_field(*idx)),
             Self::ArgRead(scope, idx) => Return::Local(universe.lookup_arg(*idx, *scope)),
-            Self::GlobalRead(name) => match name.as_str() {
-                _ => universe
-                    .lookup_global(name.as_str())
-                    .map(Return::Local)
-                    .or_else(|| {
-                        let frame = universe.current_frame;
-                        let self_value = frame.get_self();
-                        universe.unknown_global(self_value, name.as_str())
-                    })
-                    .unwrap_or_else(|| panic!("global not found and unknown_global call failed somehow?")),
-            },
+            Self::GlobalRead(name) => universe
+                .lookup_global(name.as_str())
+                .map(Return::Local)
+                .or_else(|| {
+                    let frame = universe.current_frame;
+                    let self_value = frame.get_self();
+                    universe.unknown_global(self_value, name.as_str())
+                })
+                .unwrap_or_else(|| panic!("global not found and unknown_global call failed somehow?")),
             Self::UnaryDispatch(un_op) => un_op.evaluate(universe),
             Self::BinaryDispatch(bin_op) => bin_op.evaluate(universe),
             Self::TernaryDispatch(ter_op) => ter_op.evaluate(universe),
@@ -189,7 +187,7 @@ impl AstDispatchNode {
             Some(mut invokable) => match is_cache_hit {
                 true => invokable.invoke(universe, args),
                 false => {
-                    let receiver = args.first().unwrap().clone();
+                    let receiver = *args.first().unwrap();
                     let invoke_ret = invokable.invoke(universe, args);
 
                     let class_ref = receiver.class(universe);
@@ -202,7 +200,7 @@ impl AstDispatchNode {
                 let mut args = args;
                 let receiver = args.remove(0);
                 universe
-                    .does_not_understand(receiver.clone(), &self.signature, args)
+                    .does_not_understand(receiver, &self.signature, args)
                     .unwrap_or_else(|| panic!("could not find method '{}>>#{}'", receiver.class(universe).name(), self.signature))
             }
         }
@@ -247,7 +245,7 @@ impl Evaluate for AstNAryDispatch {
 
         let args = {
             let mut output = Vec::with_capacity(self.values.len() + 1);
-            output.push(receiver.clone());
+            output.push(receiver);
             for expr in &mut self.values {
                 let value = propagate!(expr.evaluate(universe));
                 output.push(value);
@@ -270,7 +268,7 @@ impl Evaluate for AstSuperMessage {
         let receiver = universe.current_frame.get_self();
         let args = {
             let mut output = Vec::with_capacity(self.values.len() + 1);
-            output.push(receiver.clone());
+            output.push(receiver);
             for expr in &mut self.values {
                 let value = propagate!(expr.evaluate(universe));
                 output.push(value);
@@ -278,19 +276,17 @@ impl Evaluate for AstSuperMessage {
             output
         };
 
-        let value = match invokable {
+        match invokable {
             Some(mut invokable) => invokable.invoke(universe, args),
             None => {
                 let mut args = args;
                 args.remove(0);
-                universe.does_not_understand(receiver.clone(), &self.signature, args).unwrap_or_else(|| {
+                universe.does_not_understand(receiver, &self.signature, args).unwrap_or_else(|| {
                     panic!("could not find method '{}>>#{}'", receiver.class(universe).name(), self.signature)
                     // Return::Local(Value::Nil)
                 })
             }
-        };
-
-        value
+        }
     }
 }
 
@@ -308,19 +304,17 @@ impl Evaluate for AstMethodDef {
     fn evaluate(&mut self, universe: &mut Universe) -> Return {
         let current_frame = universe.current_frame;
 
-        loop {
-            match self.body.evaluate(universe) {
-                Return::NonLocal(value, frame) => {
-                    if current_frame == frame {
-                        break Return::Local(value);
-                    } else {
-                        break Return::NonLocal(value, frame);
-                    }
+        match self.body.evaluate(universe) {
+            Return::NonLocal(value, frame) => {
+                if current_frame == frame {
+                    Return::Local(value)
+                } else {
+                    Return::NonLocal(value, frame)
                 }
-                Return::Local(_) => break Return::Local(current_frame.get_self()),
-                #[cfg(feature = "inlining-disabled")]
-                Return::Restart => continue,
             }
+            Return::Local(_) => Return::Local(current_frame.get_self()),
+            #[cfg(feature = "inlining-disabled")]
+            Return::Restart => continue,
         }
     }
 }

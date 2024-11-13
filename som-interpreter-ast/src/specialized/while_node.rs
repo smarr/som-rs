@@ -14,7 +14,7 @@ impl Invoke for WhileNode {
         let body_block_arg = unsafe { args.get_unchecked(1) };
 
         let (mut cond_block, mut body_block) = match (cond_block_val.as_block(), body_block_arg.as_block()) {
-            (Some(b), Some(c)) => (b.clone(), c.clone()),
+            (Some(b), Some(c)) => (b, c),
             _ => panic!("while[True|False] was not given two blocks as arguments"),
         };
 

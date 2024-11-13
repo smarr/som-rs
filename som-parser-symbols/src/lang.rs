@@ -310,13 +310,12 @@ pub fn primary<'a>() -> impl Parser<Expression, &'a [Token], AstGenCtxt<'a>> {
 }
 
 pub fn assignment<'a>() -> impl Parser<Expression, &'a [Token], AstGenCtxt<'a>> {
-    move |input: &'a [Token], genctxt: AstGenCtxt<'a>| match identifier()
-        .and_left(exact(Token::Assign))
-        .and(opaque!(statement()))
-        .parse(input, genctxt)
-    {
-        Some(((name, expr), input, genctxt)) => Some((genctxt.borrow().get_var_write(&name, Box::new(expr.clone())), input, Rc::clone(&genctxt))),
-        None => None,
+    move |input: &'a [Token], genctxt: AstGenCtxt<'a>| {
+        identifier()
+            .and_left(exact(Token::Assign))
+            .and(opaque!(statement()))
+            .parse(input, genctxt)
+            .map(|((name, expr), input, genctxt)| (genctxt.borrow().get_var_write(&name, Box::new(expr.clone())), input, Rc::clone(&genctxt)))
     }
 }
 
@@ -380,7 +379,7 @@ pub fn operator_method_def<'a>() -> impl Parser<MethodDef, &'a [Token], AstGenCt
     move |input: &'a [Token], genctxt: AstGenCtxt<'a>| {
         let ((op, rhs), input, genctxt) = operator().and(identifier()).and_left(exact(Token::Equal)).parse(input, genctxt)?;
 
-        genctxt.borrow_mut().add_params(&vec![rhs.clone()]);
+        genctxt.borrow_mut().add_params(&[rhs.clone()]);
 
         primitive().or(method_body()).map(|body| MethodDef { signature: op.clone(), body }).parse(input, genctxt)
     }

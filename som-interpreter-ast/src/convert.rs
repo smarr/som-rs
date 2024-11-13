@@ -331,7 +331,7 @@ impl IntoReturn for Return {
 
 impl IntoValue for Value {
     fn into_value(&self, _: &mut GCInterface) -> Value {
-        self.clone()
+        *self
     }
 }
 

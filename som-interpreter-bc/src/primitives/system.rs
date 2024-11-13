@@ -6,6 +6,7 @@ use crate::class::Class;
 use crate::convert::{Nil, Primitive, StringLike, System};
 use crate::gc::VecValue;
 use crate::interpreter::Interpreter;
+use crate::primitives::PrimInfo;
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
 use crate::value::Value;
@@ -14,7 +15,7 @@ use once_cell::sync::Lazy;
 use som_core::interner::Interned;
 use som_gc::gcref::Gc;
 
-pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| {
+pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
     Box::new([
         ("loadFile:", self::load_file.into_func(), true),
         ("printString:", self::print_string.into_func(), true),
@@ -33,7 +34,7 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> 
         ("printStackTrace", self::print_stack_trace.into_func(), true),
     ])
 });
-pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| Box::new([]));
+pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([]));
 
 fn load_file(_: &mut Interpreter, universe: &mut Universe, _: Value, path: StringLike) -> Result<Option<Gc<String>>, Error> {
     const _: &str = "System>>#loadFie:";
@@ -65,10 +66,7 @@ fn print_string(_: &mut Interpreter, universe: &mut Universe, _: Value, string: 
 }
 
 fn print_newline(_: &mut Interpreter, _: &mut Universe, _: Value) -> Result<Nil, Error> {
-    const _: &'static str = "System>>#printNewline";
-
     println!();
-
     Ok(Nil)
 }
 
@@ -123,7 +121,7 @@ fn global(_: &mut Interpreter, universe: &mut Universe, _: Value, name: Interned
 fn global_put(_: &mut Interpreter, universe: &mut Universe, _: Value, name: Interned, value: Value) -> Result<Option<Value>, Error> {
     const _: &str = "System>>#global:put:";
 
-    Ok(universe.assign_global(name, value.clone()).map(|_| value))
+    Ok(universe.assign_global(name, value).map(|_| value))
 }
 
 fn exit(_: &mut Interpreter, _: &mut Universe, status: i32) -> Result<(), Error> {

@@ -1,4 +1,4 @@
-use crate::block::Block;
+use crate::block::{Block, BodyInlineCache};
 use crate::class::Class;
 use crate::compiler::Literal;
 use crate::method::{Method, MethodKind};
@@ -7,7 +7,6 @@ use core::mem::size_of;
 use som_core::bytecode::Bytecode;
 use som_gc::gc_interface::GCInterface;
 use som_gc::gcref::Gc;
-use std::cell::RefCell;
 use std::marker::PhantomData;
 
 const OFFSET_TO_STACK: usize = size_of::<Frame>();
@@ -22,8 +21,8 @@ pub struct Frame {
     pub bytecodes: *const Vec<Bytecode>,
     /// Literals/constants associated with the frame.
     pub literals: *const Vec<Literal>,
-    /// Inline cache associated with the frame. TODO - do we keep the refcell really?
-    pub inline_cache: *const RefCell<Vec<Option<(Gc<Class>, Gc<Method>)>>>,
+    /// Inline cache associated with the frame.
+    pub inline_cache: *const BodyInlineCache,
     /// Bytecode index.
     pub bytecode_idx: usize,
 
@@ -262,7 +261,7 @@ impl Frame {
     }
 
     #[inline(always)]
-    pub fn stack_last_mut(&self) -> &mut Value {
+    pub fn stack_last_mut(&mut self) -> &mut Value {
         unsafe { &mut *self.stack_ptr.sub(1) }
     }
 

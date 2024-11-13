@@ -151,7 +151,7 @@ impl InnerGenCtxt for BlockGenCtxt<'_> {
     }
 
     fn push_instr(&mut self, instr: Bytecode) {
-        let body = self.body.get_or_insert_with(|| vec![]);
+        let body = self.body.get_or_insert_with(Vec::new);
         body.push(instr);
     }
 
@@ -478,10 +478,7 @@ impl MethodCodegen for ast::Expression {
                 Some(())
             }
             ast::Expression::Message(message) => {
-                let is_super_call = match &message.receiver {
-                    _super if _super == &Expression::GlobalRead(String::from("super")) => true,
-                    _ => false,
-                };
+                let is_super_call = matches!(&message.receiver, _super if _super == &Expression::GlobalRead(String::from("super")));
 
                 message.receiver.codegen(ctxt, mutator)?;
 
@@ -493,7 +490,7 @@ impl MethodCodegen for ast::Expression {
                 if (message.signature == "+" || message.signature == "-")
                     && !is_super_call
                     && message.values.len() == 1
-                    && message.values.get(0)? == &Expression::Literal(ast::Literal::Integer(1))
+                    && message.values.first()? == &Expression::Literal(ast::Literal::Integer(1))
                 {
                     match message.signature.as_str() {
                         "+" => ctxt.push_instr(Bytecode::Inc), // also i was considering handling the "+ X" arbitrary case, maybe.,
@@ -910,15 +907,15 @@ pub fn compile_class(
 ) -> Option<Gc<Class>> {
     let mut locals = IndexSet::new();
 
-    fn collect_static_locals(interner: &mut Interner, class: &Gc<Class>, locals: &mut IndexSet<Interned>) {
+    fn collect_static_locals(class: &Gc<Class>, locals: &mut IndexSet<Interned>) {
         if let Some(class) = class.super_class() {
-            collect_static_locals(interner, &class, locals);
+            collect_static_locals(&class, locals);
         }
         locals.extend(class.locals.keys().copied());
     }
 
     if let Some(super_class) = super_class {
-        collect_static_locals(interner, &super_class.class(), &mut locals);
+        collect_static_locals(&super_class.class(), &mut locals);
     }
 
     locals.extend(defn.static_locals.iter().map(|name| interner.intern(name.as_str())));
@@ -976,15 +973,15 @@ pub fn compile_class(
 
     let mut locals = IndexSet::new();
 
-    fn collect_instance_locals(interner: &mut Interner, class: &Gc<Class>, locals: &mut IndexSet<Interned>) {
+    fn collect_instance_locals(class: &Gc<Class>, locals: &mut IndexSet<Interned>) {
         if let Some(class) = class.super_class() {
-            collect_instance_locals(interner, &class, locals);
+            collect_instance_locals(&class, locals);
         }
         locals.extend(class.locals.keys());
     }
 
     if let Some(super_class) = super_class {
-        collect_instance_locals(interner, super_class, &mut locals);
+        collect_instance_locals(super_class, &mut locals);
     }
 
     locals.extend(defn.instance_locals.iter().map(|name| interner.intern(name.as_str())));

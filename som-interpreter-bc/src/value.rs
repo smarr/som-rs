@@ -166,9 +166,11 @@ impl BCNaNBoxedVal {
     /// Assign a value to a local binding within this value.
     pub fn assign_local(&mut self, idx: usize, value: Value) -> Option<()> {
         if let Some(mut instance) = self.as_instance() {
-            Some(instance.assign_local(idx, value))
+            instance.assign_local(idx, value);
+            Some(())
         } else if let Some(mut class) = self.as_class() {
-            Some(class.assign_local(idx, value))
+            class.assign_local(idx, value);
+            Some(())
         } else {
             None
         }
@@ -446,7 +448,7 @@ impl PartialEq for ValueEnum {
             (Self::BigInteger(a), Self::BigInteger(b)) => a.eq(b),
             (Self::BigInteger(a), Self::Integer(b)) | (Self::Integer(b), Self::BigInteger(a)) => {
                 // a.eq(&BigInt::from(*b))
-                (&**a).eq(&BigInt::from(*b)) // not sure that's entirely correct
+                (**a).eq(&BigInt::from(*b))
             }
             (Self::Symbol(a), Self::Symbol(b)) => a.eq(b),
             (Self::String(a), Self::String(b)) => a == b,

@@ -5,12 +5,13 @@ use once_cell::sync::Lazy;
 use rand::distributions::Uniform;
 use rand::Rng;
 
+use super::PrimInfo;
 use crate::convert::{DoubleLike, IntegerLike, Primitive, StringLike};
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
 use crate::value::Value;
 
-pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| {
+pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
     Box::new([
         ("<", self::lt.into_func(), true),
         ("=", self::eq.into_func(), true),
@@ -34,8 +35,7 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> 
     ])
 });
 
-pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> =
-    Lazy::new(|| Box::new([("fromString:", self::from_string.into_func(), true)]));
+pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([("fromString:", self::from_string.into_func(), true)]));
 
 macro_rules! demote {
     ($gc_interface:expr, $expr:expr) => {{
@@ -315,11 +315,11 @@ fn lt(_: &mut Universe, a: DoubleLike, b: DoubleLike) -> Result<bool, Error> {
 
     match (a, b) {
         (DoubleLike::Integer(a), DoubleLike::Integer(b)) => Ok(a < b),
-        (DoubleLike::BigInteger(a), DoubleLike::BigInteger(b)) => Ok(&*a < &*b),
+        (DoubleLike::BigInteger(a), DoubleLike::BigInteger(b)) => Ok(*a < *b),
         (DoubleLike::Double(a), DoubleLike::Double(b)) => Ok(a < b),
         (DoubleLike::Integer(a), DoubleLike::Double(b)) | (DoubleLike::Double(b), DoubleLike::Integer(a)) => Ok((a as f64) < b),
-        (DoubleLike::BigInteger(a), DoubleLike::Integer(b)) => Ok(&*a < &BigInt::from(b)),
-        (DoubleLike::Integer(a), DoubleLike::BigInteger(b)) => Ok(&BigInt::from(a) < &*b),
+        (DoubleLike::BigInteger(a), DoubleLike::Integer(b)) => Ok(*a < BigInt::from(b)),
+        (DoubleLike::Integer(a), DoubleLike::BigInteger(b)) => Ok(BigInt::from(a) < *b),
         _ => bail!(format!("'{}': wrong types", SIGNATURE)),
     }
 }
@@ -348,7 +348,7 @@ fn eq(_: &mut Universe, a: Value, b: Value) -> Result<bool, Error> {
 
     let value = match (a, b) {
         (DoubleLike::Integer(a), DoubleLike::Integer(b)) => a == b,
-        (DoubleLike::BigInteger(a), DoubleLike::BigInteger(b)) => &*a == &*b,
+        (DoubleLike::BigInteger(a), DoubleLike::BigInteger(b)) => *a == *b,
         (DoubleLike::Double(a), DoubleLike::Double(b)) => a == b,
         (DoubleLike::Integer(a), DoubleLike::Double(b)) => (a as f64) == b,
         (DoubleLike::Double(a), DoubleLike::Integer(b)) => a == (b as f64),

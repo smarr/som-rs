@@ -61,10 +61,10 @@ impl Invoke for TrivialSetterMethod {
         let rcvr = args.first().unwrap();
 
         if let Some(cls) = rcvr.as_class() {
-            cls.class().assign_field(self.field_idx, val.clone());
+            cls.class().assign_field(self.field_idx, *val);
             Return::Local(Value::Class(cls))
         } else if let Some(mut instance) = rcvr.as_instance() {
-            instance.assign_local(self.field_idx, val.clone());
+            instance.assign_local(self.field_idx, *val);
             Return::Local(Value::Instance(instance))
         } else {
             panic!("trivial getter not called on a class/instance?")

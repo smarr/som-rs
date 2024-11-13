@@ -11,6 +11,9 @@ use som_gc::gcref::Gc;
 use std::cell::RefCell;
 use std::fmt;
 
+// TODO - is that refcell still needed?
+pub type BodyInlineCache = RefCell<Vec<Option<(Gc<Class>, Gc<Method>)>>>;
+
 #[derive(Clone)]
 pub struct BlockInfo {
     // pub locals: Vec<Interned>,
@@ -18,7 +21,7 @@ pub struct BlockInfo {
     pub body: Vec<Bytecode>,
     pub nb_locals: usize,
     pub nb_params: usize,
-    pub inline_cache: RefCell<Vec<Option<(Gc<Class>, Gc<Method>)>>>,
+    pub inline_cache: BodyInlineCache,
     pub max_stack_size: u8,
     #[cfg(feature = "frame-debug-info")]
     pub block_debug_info: BlockDebugInfo,

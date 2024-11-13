@@ -162,7 +162,7 @@ pub fn scan_object<'a>(object: ObjectReference, slot_visitor: &'a mut (dyn SlotV
 
                 slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(&class.class)));
 
-                if let Some(_) = class.super_class {
+                if class.super_class.is_some() {
                     slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(class.super_class.as_ref().unwrap())));
                 }
 
@@ -199,7 +199,7 @@ pub fn scan_object<'a>(object: ObjectReference, slot_visitor: &'a mut (dyn SlotV
                 slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(&instance.class)));
 
                 for val in &instance.locals {
-                    visit_value(&val, slot_visitor)
+                    visit_value(val, slot_visitor)
                 }
             }
             AstObjMagicId::Block => {
@@ -224,7 +224,7 @@ pub fn scan_object<'a>(object: ObjectReference, slot_visitor: &'a mut (dyn SlotV
             AstObjMagicId::ArrayVal => {
                 let array_val: &mut Vec<Value> = object.to_raw_address().as_mut_ref();
                 for val in array_val {
-                    visit_value(&val, slot_visitor)
+                    visit_value(val, slot_visitor)
                 }
             }
             AstObjMagicId::String | AstObjMagicId::BigInt | AstObjMagicId::ArrayU8 => {} // leaf nodes
@@ -233,9 +233,8 @@ pub fn scan_object<'a>(object: ObjectReference, slot_visitor: &'a mut (dyn SlotV
 }
 
 fn visit_value<'a>(val: &Value, slot_visitor: &'a mut (dyn SlotVisitor<SOMSlot> + 'a)) {
-    match val.is_ptr_type() {
-        true => slot_visitor.visit_slot(SOMSlot::from_value(val.payload())),
-        false => {}
+    if val.is_ptr_type() {
+        slot_visitor.visit_slot(SOMSlot::from_value(val.payload()))
     }
 }
 
@@ -292,7 +291,7 @@ fn visit_expr(expr: &AstExpression, slot_visitor: &mut dyn SlotVisitor<SOMSlot>)
                 visit_expr(&to_do_inlined.start, slot_visitor);
                 visit_expr(&to_do_inlined.end, slot_visitor);
                 for expr in &to_do_inlined.body.exprs {
-                    visit_expr(&expr, slot_visitor);
+                    visit_expr(expr, slot_visitor);
                 }
             }
         },

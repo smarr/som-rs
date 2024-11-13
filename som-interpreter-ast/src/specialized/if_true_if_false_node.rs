@@ -27,7 +27,7 @@ impl Invoke for IfTrueIfFalseNode {
                 let nbr_locals = b.block.nbr_locals;
                 universe.with_frame(nbr_locals, vec![Value::Block(b)], |universe| b.evaluate(universe))
             }
-            None => Return::Local(block_to_evaluate.clone()),
+            None => Return::Local(*block_to_evaluate),
         }
     }
 }

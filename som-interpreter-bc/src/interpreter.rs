@@ -84,7 +84,7 @@ impl Interpreter {
     /// Creates and allocates a new frame corresponding to a method.
     /// nbr_args is the number of arguments, including the self value, which it takes from the previous frame.
     pub fn push_method_frame(&mut self, method: Gc<Method>, nbr_args: usize, mutator: &mut GCInterface) -> Gc<Frame> {
-        let mut frame_copy = self.current_frame.clone();
+        let mut frame_copy = self.current_frame;
         let args = frame_copy.stack_n_last_elements(nbr_args);
 
         let frame_ptr = Frame::alloc_from_method(method, args, self.current_frame, mutator);
@@ -157,7 +157,7 @@ impl Interpreter {
 
             match bytecode {
                 Bytecode::Dup2 => {
-                    let second_to_last = self.current_frame.stack_nth_back(1).clone();
+                    let second_to_last = *self.current_frame.stack_nth_back(1);
                     self.current_frame.stack_push(second_to_last)
                 }
                 Bytecode::JumpIfGreater(offset) => {
@@ -184,7 +184,7 @@ impl Interpreter {
                     return Some(Value::NIL);
                 }
                 Bytecode::Dup => {
-                    let value = self.current_frame.stack_last().clone();
+                    let value = *self.current_frame.stack_last();
                     self.current_frame.stack_push(value);
                 }
                 Bytecode::Inc => {
@@ -212,18 +212,18 @@ impl Interpreter {
                     }
                 }
                 Bytecode::PushLocal(idx) => {
-                    let value = self.current_frame.lookup_local(idx as usize).clone();
+                    let value = *self.current_frame.lookup_local(idx as usize);
                     self.current_frame.stack_push(value);
                 }
                 Bytecode::PushNonLocal(up_idx, idx) => {
                     debug_assert_ne!(up_idx, 0);
                     let from = Frame::nth_frame_back(&self.current_frame, up_idx);
-                    let value = from.lookup_local(idx as usize).clone();
+                    let value = *from.lookup_local(idx as usize);
                     self.current_frame.stack_push(value);
                 }
                 Bytecode::PushArg(idx) => {
                     debug_assert_ne!(idx, 0); // that's a ReturnSelf case.
-                    let value = self.current_frame.lookup_argument(idx as usize).clone();
+                    let value = *self.current_frame.lookup_argument(idx as usize);
                     self.current_frame.stack_push(value);
                 }
                 Bytecode::PushNonLocalArg(up_idx, idx) => {
@@ -231,7 +231,7 @@ impl Interpreter {
                     debug_assert_ne!((up_idx, idx), (0, 0)); // that's a ReturnSelf case.
                     let from = Frame::nth_frame_back(&self.current_frame, up_idx);
                     let value = from.lookup_argument(idx as usize);
-                    self.current_frame.stack_push(value.clone());
+                    self.current_frame.stack_push(*value);
                 }
                 Bytecode::PushField(idx) => {
                     let self_val = self.current_frame.get_self();
@@ -257,22 +257,22 @@ impl Interpreter {
                 }
                 Bytecode::PushConstant(idx) => {
                     let literal = self.current_frame.lookup_constant(idx as usize);
-                    let value = convert_literal(&self.current_frame, literal, &mut universe.gc_interface);
+                    let value = convert_literal(&self.current_frame, literal, universe.gc_interface);
                     self.current_frame.stack_push(value);
                 }
                 Bytecode::PushConstant0 => {
                     let literal = self.current_frame.lookup_constant(0);
-                    let value = convert_literal(&self.current_frame, literal, &mut universe.gc_interface);
+                    let value = convert_literal(&self.current_frame, literal, universe.gc_interface);
                     self.current_frame.stack_push(value);
                 }
                 Bytecode::PushConstant1 => {
                     let literal = self.current_frame.lookup_constant(1);
-                    let value = convert_literal(&self.current_frame, literal, &mut universe.gc_interface);
+                    let value = convert_literal(&self.current_frame, literal, universe.gc_interface);
                     self.current_frame.stack_push(value);
                 }
                 Bytecode::PushConstant2 => {
                     let literal = self.current_frame.lookup_constant(2);
-                    let value = convert_literal(&self.current_frame, literal, &mut universe.gc_interface);
+                    let value = convert_literal(&self.current_frame, literal, universe.gc_interface);
                     self.current_frame.stack_push(value);
                 }
                 Bytecode::PushGlobal(idx) => {
@@ -298,7 +298,7 @@ impl Interpreter {
                     self.current_frame.stack_push(Value::NIL);
                 }
                 Bytecode::PushSelf => {
-                    let self_val = self.current_frame.lookup_argument(0).clone();
+                    let self_val = *self.current_frame.lookup_argument(0);
                     self.current_frame.stack_push(self_val);
                 }
                 Bytecode::Pop => {
@@ -350,7 +350,7 @@ impl Interpreter {
                     super_send! {self, universe, &self.current_frame, idx, None}
                 }
                 Bytecode::ReturnSelf => {
-                    let self_val = self.current_frame.lookup_argument(0).clone();
+                    let self_val = *self.current_frame.lookup_argument(0);
                     self.pop_frame();
                     // if self.current_frame.is_empty() {
                     //     return Some(self.stack.pop().unwrap_or(Value::NIL));
@@ -469,14 +469,14 @@ impl Interpreter {
             interpreter.current_frame.bytecode_idx = interpreter.bytecode_idx;
 
             let Some(method) = method else {
-                let mut frame_copy = interpreter.current_frame.clone();
+                let mut frame_copy = interpreter.current_frame;
                 let args = frame_copy.stack_n_last_elements(nb_params);
                 interpreter.current_frame.remove_n_last_elements(nb_params);
                 let self_value = interpreter.current_frame.clone().stack_pop();
 
                 // could be avoided by passing args slice directly...
                 // ...but A) DNU is a very rare path and B) i guess we allocate a new args arr in the DNU call anyway
-                let args = args.iter().map(|v| v.clone()).collect();
+                let args = args.to_vec();
 
                 universe
                     .does_not_understand(interpreter, self_value, symbol, args)
@@ -499,7 +499,7 @@ impl Interpreter {
                     // if !SYSTEM_CLASS_NAMES.contains(&name.as_str()) {
                     // }
 
-                    interpreter.push_method_frame(method, nb_params + 1, &mut universe.gc_interface);
+                    interpreter.push_method_frame(method, nb_params + 1, universe.gc_interface);
                 }
                 MethodKind::Primitive(func) => {
                     // eprintln!("Invoking prim {:?} (in {:?})", &method.signature, &method.holder.name);
@@ -522,7 +522,7 @@ impl Interpreter {
                 Some((receiver, method)) if receiver.ptr == class.ptr => Some(*method),
                 place @ None => {
                     let found = class.lookup_method(signature);
-                    *place = found.clone().map(|method| (class.clone(), method));
+                    *place = found.map(|method| (*class, method));
                     found
                 }
                 _ => class.lookup_method(signature),
@@ -530,29 +530,28 @@ impl Interpreter {
         }
 
         fn convert_literal(frame: &Gc<Frame>, literal: Literal, gc_interface: &mut GCInterface) -> Value {
-            let value = match literal {
+            match literal {
                 Literal::Symbol(sym) => Value::Symbol(sym),
                 Literal::String(val) => Value::String(val),
                 Literal::Double(val) => Value::Double(val),
                 Literal::Integer(val) => Value::Integer(val),
                 Literal::BigInteger(val) => Value::BigInteger(val),
                 Literal::Array(val) => {
-                    let arr = (&*val)
-                        .into_iter()
+                    let arr = &val
+                        .iter()
                         .map(|idx| {
                             let lit = frame.lookup_constant(*idx as usize);
                             convert_literal(frame, lit, gc_interface)
                         })
                         .collect::<Vec<_>>();
-                    Value::Array(gc_interface.alloc(VecValue(arr)))
+                    Value::Array(gc_interface.alloc(VecValue(arr.to_vec())))
                 }
                 Literal::Block(val) => Value::Block(val),
-            };
-            value
+            }
         }
 
         fn nb_params(signature: &str) -> usize {
-            match signature.chars().nth(0) {
+            match signature.chars().next() {
                 Some(ch) if !ch.is_alphabetic() => 1,
                 _ => signature.chars().filter(|ch| *ch == ':').count(),
             }

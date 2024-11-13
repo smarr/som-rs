@@ -1,3 +1,4 @@
+use super::PrimInfo;
 use crate::invokable::Return;
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
@@ -13,9 +14,9 @@ pub mod block1 {
     use anyhow::Error;
     use som_gc::gcref::Gc;
 
-    pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> =
+    pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> =
         Lazy::new(|| Box::new([("value", self::value.into_func(), true), ("restart", self::restart.into_func(), false)]));
-    pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| Box::new([]));
+    pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([]));
 
     fn value(universe: &mut Universe, mut block: Gc<Block>) -> Result<Return, Error> {
         let nbr_locals = block.block.nbr_locals;
@@ -48,9 +49,8 @@ pub mod block2 {
     use anyhow::Error;
     use som_gc::gcref::Gc;
 
-    pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> =
-        Lazy::new(|| Box::new([("value:", self::value.into_func(), true)]));
-    pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| Box::new([]));
+    pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([("value:", self::value.into_func(), true)]));
+    pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([]));
 
     fn value(universe: &mut Universe, mut block: Gc<Block>, argument: Value) -> Result<Return, Error> {
         let nbr_locals = block.block.nbr_locals;
@@ -78,9 +78,8 @@ pub mod block3 {
     use anyhow::Error;
     use som_gc::gcref::Gc;
 
-    pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> =
-        Lazy::new(|| Box::new([("value:with:", self::value_with.into_func(), true)]));
-    pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| Box::new([]));
+    pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([("value:with:", self::value_with.into_func(), true)]));
+    pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([]));
 
     fn value_with(universe: &mut Universe, mut receiver: Gc<Block>, argument1: Value, argument2: Value) -> Result<Return, Error> {
         let nbr_locals = receiver.block.nbr_locals;

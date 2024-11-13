@@ -1,8 +1,8 @@
-use std::cell::RefCell;
 use std::fmt;
 
 use som_core::bytecode::Bytecode;
 
+use crate::block::BodyInlineCache;
 use crate::class::Class;
 use crate::compiler::Literal;
 use crate::interpreter::Interpreter;
@@ -18,7 +18,7 @@ use som_gc::gcref::Gc;
 pub struct MethodEnv {
     pub literals: Vec<Literal>,
     pub body: Vec<Bytecode>,
-    pub inline_cache: RefCell<Vec<Option<(Gc<Class>, Gc<Method>)>>>,
+    pub inline_cache: BodyInlineCache,
     pub nbr_locals: usize,
     pub max_stack_size: u8,
     #[cfg(feature = "frame-debug-info")]
@@ -86,14 +86,14 @@ impl Invoke for Gc<Method> {
             MethodKind::Defined(_) => {
                 let mut frame_args = vec![receiver];
                 frame_args.append(&mut args);
-                interpreter.push_method_frame_with_args(*self, frame_args.as_slice(), &mut universe.gc_interface);
+                interpreter.push_method_frame_with_args(*self, frame_args.as_slice(), universe.gc_interface);
             }
             MethodKind::Primitive(func) => {
                 interpreter.current_frame.stack_push(receiver);
                 for arg in args {
                     interpreter.current_frame.stack_push(arg)
                 }
-                func(interpreter, universe).expect(&format!("invoking func {} failed", &self.signature))
+                func(interpreter, universe).unwrap_or_else(|_| panic!("invoking func {} failed", &self.signature))
             }
         }
     }

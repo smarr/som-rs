@@ -1,3 +1,4 @@
+use super::PrimInfo;
 use crate::convert::{Primitive, StringLike};
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
@@ -8,7 +9,7 @@ use std::collections::hash_map::DefaultHasher;
 use std::convert::TryFrom;
 use std::hash::Hasher;
 
-pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| {
+pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
     Box::new([
         ("length", self::length.into_func(), true),
         ("hashcode", self::hashcode.into_func(), true),
@@ -22,7 +23,7 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> 
         ("charAt:", self::char_at.into_func(), true),
     ])
 });
-pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| Box::new([]));
+pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([]));
 
 fn length(universe: &mut Universe, value: StringLike) -> Result<Value, Error> {
     const SIGNATURE: &str = "String>>#length";

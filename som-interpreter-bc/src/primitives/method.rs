@@ -3,6 +3,7 @@ use crate::convert::Primitive;
 use crate::gc::VecValue;
 use crate::interpreter::Interpreter;
 use crate::method::{Invoke, Method};
+use crate::primitives::PrimInfo;
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
 use crate::value::Value;
@@ -11,14 +12,14 @@ use once_cell::sync::Lazy;
 use som_core::interner::Interned;
 use som_gc::gcref::Gc;
 
-pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| {
+pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
     Box::new([
         ("holder", self::holder.into_func(), true),
         ("signature", self::signature.into_func(), true),
         ("invokeOn:with:", self::invoke_on_with.into_func(), true),
     ])
 });
-pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| Box::new([]));
+pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([]));
 
 fn holder(_: &mut Interpreter, _: &mut Universe, invokable: Gc<Method>) -> Result<Gc<Class>, Error> {
     const _: &str = "Method>>#holder";

@@ -154,7 +154,7 @@ impl FrameAccess for Gc<Frame> {
         let maybe_self_arg = self.lookup_argument(0);
         match maybe_self_arg.as_block() {
             Some(blk) => blk.frame.get_self(),
-            None => maybe_self_arg.clone(), // it is self, we've reached the root
+            None => maybe_self_arg, // it is self, we've reached the root
         }
     }
 
@@ -204,9 +204,9 @@ impl FrameAccess for Gc<Frame> {
     fn assign_field(&self, idx: u8, value: &Value) {
         let self_ = self.get_self();
         if let Some(mut instance) = self_.as_instance() {
-            instance.assign_local(idx, value.clone())
+            instance.assign_local(idx, *value)
         } else if let Some(cls) = self_.as_class() {
-            cls.class().assign_field(idx, value.clone())
+            cls.class().assign_field(idx, *value)
         } else {
             panic!("{:?}", &self_)
         }

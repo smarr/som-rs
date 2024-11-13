@@ -106,30 +106,30 @@ impl Universe {
         let interner = Interner::with_capacity(100);
         let mut globals = HashMap::new();
 
-        let mut gc_interface = GCInterface::init(heap_size, get_callbacks_for_gc());
+        let gc_interface = GCInterface::init(heap_size, get_callbacks_for_gc());
 
-        let object_class = Self::load_system_class(classpath.as_slice(), "Object", None, &mut gc_interface)?;
-        let mut class_class = Self::load_system_class(classpath.as_slice(), "Class", Some(object_class.clone()), &mut gc_interface)?;
-        let metaclass_class = Self::load_system_class(classpath.as_slice(), "Metaclass", Some(class_class.clone()), &mut gc_interface)?;
+        let object_class = Self::load_system_class(classpath.as_slice(), "Object", None, gc_interface)?;
+        let mut class_class = Self::load_system_class(classpath.as_slice(), "Class", Some(object_class), gc_interface)?;
+        let metaclass_class = Self::load_system_class(classpath.as_slice(), "Metaclass", Some(class_class), gc_interface)?;
 
-        let mut nil_class = Self::load_system_class(classpath.as_slice(), "Nil", Some(object_class.clone()), &mut gc_interface)?;
-        let mut integer_class = Self::load_system_class(classpath.as_slice(), "Integer", Some(object_class.clone()), &mut gc_interface)?;
-        let mut array_class = Self::load_system_class(classpath.as_slice(), "Array", Some(object_class.clone()), &mut gc_interface)?;
-        let mut method_class = Self::load_system_class(classpath.as_slice(), "Method", Some(object_class.clone()), &mut gc_interface)?; // was array_class in original code?
-        let mut string_class = Self::load_system_class(classpath.as_slice(), "String", Some(object_class.clone()), &mut gc_interface)?;
-        let mut symbol_class = Self::load_system_class(classpath.as_slice(), "Symbol", Some(string_class.clone()), &mut gc_interface)?;
-        let mut primitive_class = Self::load_system_class(classpath.as_slice(), "Primitive", Some(object_class.clone()), &mut gc_interface)?;
-        let mut system_class = Self::load_system_class(classpath.as_slice(), "System", Some(object_class.clone()), &mut gc_interface)?;
-        let mut double_class = Self::load_system_class(classpath.as_slice(), "Double", Some(object_class.clone()), &mut gc_interface)?;
+        let mut nil_class = Self::load_system_class(classpath.as_slice(), "Nil", Some(object_class), gc_interface)?;
+        let mut integer_class = Self::load_system_class(classpath.as_slice(), "Integer", Some(object_class), gc_interface)?;
+        let mut array_class = Self::load_system_class(classpath.as_slice(), "Array", Some(object_class), gc_interface)?;
+        let mut method_class = Self::load_system_class(classpath.as_slice(), "Method", Some(object_class), gc_interface)?; // was array_class in original code?
+        let mut string_class = Self::load_system_class(classpath.as_slice(), "String", Some(object_class), gc_interface)?;
+        let mut symbol_class = Self::load_system_class(classpath.as_slice(), "Symbol", Some(string_class), gc_interface)?;
+        let mut primitive_class = Self::load_system_class(classpath.as_slice(), "Primitive", Some(object_class), gc_interface)?;
+        let mut system_class = Self::load_system_class(classpath.as_slice(), "System", Some(object_class), gc_interface)?;
+        let mut double_class = Self::load_system_class(classpath.as_slice(), "Double", Some(object_class), gc_interface)?;
 
-        let mut block_class = Self::load_system_class(classpath.as_slice(), "Block", Some(object_class.clone()), &mut gc_interface)?;
-        let mut block1_class = Self::load_system_class(classpath.as_slice(), "Block1", Some(block_class.clone()), &mut gc_interface)?;
-        let mut block2_class = Self::load_system_class(classpath.as_slice(), "Block2", Some(block_class.clone()), &mut gc_interface)?;
-        let mut block3_class = Self::load_system_class(classpath.as_slice(), "Block3", Some(block_class.clone()), &mut gc_interface)?;
+        let mut block_class = Self::load_system_class(classpath.as_slice(), "Block", Some(object_class), gc_interface)?;
+        let mut block1_class = Self::load_system_class(classpath.as_slice(), "Block1", Some(block_class), gc_interface)?;
+        let mut block2_class = Self::load_system_class(classpath.as_slice(), "Block2", Some(block_class), gc_interface)?;
+        let mut block3_class = Self::load_system_class(classpath.as_slice(), "Block3", Some(block_class), gc_interface)?;
 
-        let mut boolean_class = Self::load_system_class(classpath.as_slice(), "Boolean", Some(object_class.clone()), &mut gc_interface)?;
-        let mut true_class = Self::load_system_class(classpath.as_slice(), "True", Some(boolean_class.clone()), &mut gc_interface)?;
-        let mut false_class = Self::load_system_class(classpath.as_slice(), "False", Some(boolean_class.clone()), &mut gc_interface)?;
+        let mut boolean_class = Self::load_system_class(classpath.as_slice(), "Boolean", Some(object_class), gc_interface)?;
+        let mut true_class = Self::load_system_class(classpath.as_slice(), "True", Some(boolean_class), gc_interface)?;
+        let mut false_class = Self::load_system_class(classpath.as_slice(), "False", Some(boolean_class), gc_interface)?;
 
         // initializeSystemClass(objectClass, null, "Object");
         // set_super_class(&object_class, &nil_class, &metaclass_class);
@@ -168,25 +168,25 @@ impl Universe {
         set_super_class(&mut true_class, &boolean_class, &metaclass_class);
         set_super_class(&mut false_class, &boolean_class, &metaclass_class);
 
-        globals.insert("Object".into(), Value::Class(object_class.clone()));
-        globals.insert("Class".into(), Value::Class(class_class.clone()));
-        globals.insert("Metaclass".into(), Value::Class(metaclass_class.clone()));
-        globals.insert("Nil".into(), Value::Class(nil_class.clone()));
-        globals.insert("Integer".into(), Value::Class(integer_class.clone()));
-        globals.insert("Array".into(), Value::Class(array_class.clone()));
-        globals.insert("Method".into(), Value::Class(method_class.clone()));
-        globals.insert("Symbol".into(), Value::Class(symbol_class.clone()));
-        globals.insert("Primitive".into(), Value::Class(primitive_class.clone()));
-        globals.insert("String".into(), Value::Class(string_class.clone()));
-        globals.insert("System".into(), Value::Class(system_class.clone()));
-        globals.insert("Double".into(), Value::Class(double_class.clone()));
-        globals.insert("Boolean".into(), Value::Class(boolean_class.clone()));
-        globals.insert("True".into(), Value::Class(true_class.clone()));
-        globals.insert("False".into(), Value::Class(false_class.clone()));
-        globals.insert("Block".into(), Value::Class(block_class.clone()));
-        globals.insert("Block1".into(), Value::Class(block1_class.clone()));
-        globals.insert("Block2".into(), Value::Class(block2_class.clone()));
-        globals.insert("Block3".into(), Value::Class(block3_class.clone()));
+        globals.insert("Object".into(), Value::Class(object_class));
+        globals.insert("Class".into(), Value::Class(class_class));
+        globals.insert("Metaclass".into(), Value::Class(metaclass_class));
+        globals.insert("Nil".into(), Value::Class(nil_class));
+        globals.insert("Integer".into(), Value::Class(integer_class));
+        globals.insert("Array".into(), Value::Class(array_class));
+        globals.insert("Method".into(), Value::Class(method_class));
+        globals.insert("Symbol".into(), Value::Class(symbol_class));
+        globals.insert("Primitive".into(), Value::Class(primitive_class));
+        globals.insert("String".into(), Value::Class(string_class));
+        globals.insert("System".into(), Value::Class(system_class));
+        globals.insert("Double".into(), Value::Class(double_class));
+        globals.insert("Boolean".into(), Value::Class(boolean_class));
+        globals.insert("True".into(), Value::Class(true_class));
+        globals.insert("False".into(), Value::Class(false_class));
+        globals.insert("Block".into(), Value::Class(block_class));
+        globals.insert("Block1".into(), Value::Class(block1_class));
+        globals.insert("Block2".into(), Value::Class(block2_class));
+        globals.insert("Block3".into(), Value::Class(block3_class));
 
         globals.insert("true".into(), Value::Boolean(true));
         globals.insert("false".into(), Value::Boolean(false));
@@ -252,32 +252,29 @@ impl Universe {
             }
 
             let super_class = if let Some(ref super_class) = defn.super_class {
-                self.lookup_global(super_class)
-                    .and_then(Value::as_class)
-                    .and_then(|cls| Some(cls))
-                    .unwrap_or_else(|| self.load_class(super_class).unwrap())
+                self.lookup_global(super_class).and_then(Value::as_class).unwrap_or_else(|| self.load_class(super_class).unwrap())
             } else {
-                self.core.object_class.clone()
+                self.core.object_class
             };
 
-            let mut class = Class::from_class_def(defn, Some(super_class), &mut self.gc_interface).map_err(Error::msg)?;
+            let mut class = Class::from_class_def(defn, Some(super_class), self.gc_interface).map_err(Error::msg)?;
             set_super_class(&mut class, &super_class, &self.core.metaclass_class);
 
             /*fn has_duplicated_field(class: &SOMRef<Class>) -> Option<(String, (String, String))> {
-                let super_class_iterator = std::iter::successors(Some(class.clone()), |class| {
+                let super_class_iterator = std::iter::successors(Some(class), |class| {
                     class.borrow().super_class()
                 });
                 let mut map = HashMap::<String, String>::new();
                 for class in super_class_iterator {
                     let class_name = class.borrow().name().to_string();
                     for (field, _) in class.borrow().locals.iter() {
-                        let field_name = field.clone();
-                        match map.entry(field_name.clone()) {
+                        let field_name = field;
+                        match map.entry(field_name) {
                             Entry::Occupied(entry) => {
-                                return Some((field_name, (class_name, entry.get().clone())))
+                                return Some((field_name, (class_name, entry.get())))
                             }
                             Entry::Vacant(v) => {
-                                v.insert(class_name.clone());
+                                v.insert(class_name);
                             }
                         }
                     }
@@ -299,7 +296,7 @@ impl Universe {
                 ));
             }*/
 
-            self.globals.insert(class.name().to_string(), Value::Class(class.clone()));
+            self.globals.insert(class.name().to_string(), Value::Class(class));
 
             return Ok(class);
         }
@@ -347,78 +344,78 @@ impl Universe {
 
     /// Get the **Object** class.
     pub fn object_class(&self) -> Gc<Class> {
-        self.core.object_class.clone()
+        self.core.object_class
     }
 
     /// Get the **Nil** class.
     pub fn nil_class(&self) -> Gc<Class> {
-        self.core.nil_class.clone()
+        self.core.nil_class
     }
     /// Get the **System** class.
     pub fn system_class(&self) -> Gc<Class> {
-        self.core.system_class.clone()
+        self.core.system_class
     }
 
     /// Get the **Symbol** class.
     pub fn symbol_class(&self) -> Gc<Class> {
-        self.core.symbol_class.clone()
+        self.core.symbol_class
     }
     /// Get the **String** class.
     pub fn string_class(&self) -> Gc<Class> {
-        self.core.string_class.clone()
+        self.core.string_class
     }
     /// Get the **Array** class.
     pub fn array_class(&self) -> Gc<Class> {
-        self.core.array_class.clone()
+        self.core.array_class
     }
 
     /// Get the **Integer** class.
     pub fn integer_class(&self) -> Gc<Class> {
-        self.core.integer_class.clone()
+        self.core.integer_class
     }
     /// Get the **Double** class.
     pub fn double_class(&self) -> Gc<Class> {
-        self.core.double_class.clone()
+        self.core.double_class
     }
 
     /// Get the **Block** class.
     pub fn block_class(&self) -> Gc<Class> {
-        self.core.block_class.clone()
+        self.core.block_class
     }
     /// Get the **Block1** class.
     pub fn block1_class(&self) -> Gc<Class> {
-        self.core.block1_class.clone()
+        self.core.block1_class
     }
     /// Get the **Block2** class.
     pub fn block2_class(&self) -> Gc<Class> {
-        self.core.block2_class.clone()
+        self.core.block2_class
     }
     /// Get the **Block3** class.
     pub fn block3_class(&self) -> Gc<Class> {
-        self.core.block3_class.clone()
+        self.core.block3_class
     }
 
     /// Get the **True** class.
     pub fn true_class(&self) -> Gc<Class> {
-        self.core.true_class.clone()
+        self.core.true_class
     }
     /// Get the **False** class.
     pub fn false_class(&self) -> Gc<Class> {
-        self.core.false_class.clone()
+        self.core.false_class
     }
 
     /// Get the **Metaclass** class.
     pub fn metaclass_class(&self) -> Gc<Class> {
-        self.core.metaclass_class.clone()
+        self.core.metaclass_class
     }
 
     /// Get the **Method** class.
     pub fn method_class(&self) -> Gc<Class> {
-        self.core.method_class.clone()
+        self.core.method_class
     }
     /// Get the **Primitive** class.
     pub fn primitive_class(&self) -> Gc<Class> {
-        self.core.primitive_class.clone()
+        self.core.primitive_class
     }
 }
 
@@ -433,7 +430,7 @@ impl Universe {
     // }
 
     pub fn with_frame<T>(&mut self, nbr_locals: u8, args: Vec<Value>, func: impl FnOnce(&mut Self) -> T) -> T {
-        let frame = Frame::alloc_new_frame(nbr_locals, args, self.current_frame, &mut self.gc_interface);
+        let frame = Frame::alloc_new_frame(nbr_locals, args, self.current_frame, self.gc_interface);
         self.current_frame = frame;
         let ret = func(self);
         self.current_frame = frame.prev_frame;
@@ -483,11 +480,11 @@ impl Universe {
 
     /// Assign a value to a local binding.
     pub fn assign_local(&mut self, idx: u8, value: &Value) {
-        self.current_frame.assign_local(idx, value.clone())
+        self.current_frame.assign_local(idx, *value)
     }
 
     pub fn assign_non_local(&mut self, idx: u8, scope: u8, value: &Value) {
-        Frame::nth_frame_back(&self.current_frame, scope).assign_local(idx, value.clone())
+        Frame::nth_frame_back(&self.current_frame, scope).assign_local(idx, *value)
     }
 
     pub fn assign_field(&mut self, idx: u8, value: &Value) {
@@ -496,12 +493,12 @@ impl Universe {
     }
 
     pub fn assign_arg(&mut self, idx: u8, scope: u8, value: &Value) {
-        Frame::nth_frame_back(&self.current_frame, scope).assign_arg(idx, value.clone())
+        Frame::nth_frame_back(&self.current_frame, scope).assign_arg(idx, *value)
     }
 
     /// Assign a value to a global binding.
     pub fn assign_global(&mut self, name: impl AsRef<str>, value: &Value) -> Option<()> {
-        self.globals.insert(name.as_ref().to_string(), value.clone()).map(|_| ())
+        self.globals.insert(name.as_ref().to_string(), *value).map(|_| ())
     }
 }
 

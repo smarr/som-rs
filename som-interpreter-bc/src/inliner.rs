@@ -29,13 +29,7 @@ pub trait PrimMessageInliner {
     /// Inlines a compiled block into the current scope.
     fn inline_compiled_block(&self, ctxt: &mut dyn InnerGenCtxt, block: &BlockInfo, mutator: &mut GCInterface) -> Option<()>;
     /// When inlining a block, adapt its potential children blocks to account for the inlining changes.
-    fn adapt_block_after_outer_inlined(
-        &self,
-        ctxt: &mut dyn InnerGenCtxt,
-        block_body: Gc<Block>,
-        adjust_scope_by: usize,
-        mutator: &mut GCInterface,
-    ) -> Block;
+    fn adapt_block_after_outer_inlined(&self, block_body: Gc<Block>, adjust_scope_by: usize, mutator: &mut GCInterface) -> Block;
     /// Inlines `ifTrue:` and `ifFalse:`.
     fn inline_if_true_or_if_false(&self, ctxt: &mut dyn InnerGenCtxt, jump_type: JumpType, mutator: &mut GCInterface) -> Option<()>;
     /// Inlines `ifTrue:ifFalse:`.
@@ -81,12 +75,12 @@ impl PrimMessageInliner for ast::Message {
         ctxt.pop_instr(); // removing the PUSH_BLOCK
 
         let cond_block_ref = match ctxt.get_literal(block_idx as usize)? {
-            Literal::Block(val) => val.clone(),
+            Literal::Block(val) => *val,
             _ => return None,
         };
         ctxt.remove_literal(block_idx as usize);
 
-        match self.inline_compiled_block(ctxt, &*((*cond_block_ref).blk_info), mutator) {
+        match self.inline_compiled_block(ctxt, &(cond_block_ref.blk_info), mutator) {
             None => panic!("Inlining a compiled block failed!"),
             _ => Some(()),
         }
@@ -151,7 +145,7 @@ impl PrimMessageInliner for ast::Message {
                     Bytecode::PushBlock(block_idx) => {
                         match block.literals.get(*block_idx as usize)? {
                             Literal::Block(inner_block) => {
-                                let new_block = self.adapt_block_after_outer_inlined(ctxt, *inner_block, 1, gc_interface);
+                                let new_block = self.adapt_block_after_outer_inlined(*inner_block, 1, gc_interface);
                                 let idx = ctxt.push_literal(Literal::Block(gc_interface.alloc(new_block)));
                                 ctxt.push_instr(Bytecode::PushBlock(idx as u8));
                             }
@@ -159,12 +153,9 @@ impl PrimMessageInliner for ast::Message {
                         };
                     }
                     Bytecode::PushGlobal(global_idx) => {
-                        match block.literals.get(*global_idx as usize)? {
-                            lit => {
-                                let lit_idx = ctxt.push_literal(lit.clone());
-                                ctxt.push_instr(Bytecode::PushGlobal(lit_idx as u8));
-                            }
-                        };
+                        let lit = block.literals.get(*global_idx as usize)?;
+                        let lit_idx = ctxt.push_literal(lit.clone());
+                        ctxt.push_instr(Bytecode::PushGlobal(lit_idx as u8));
                     }
                     Bytecode::PushConstant(_) | Bytecode::PushConstant0 | Bytecode::PushConstant1 | Bytecode::PushConstant2 => {
                         let constant_idx = match block_bc {
@@ -175,18 +166,15 @@ impl PrimMessageInliner for ast::Message {
                             _ => unreachable!(),
                         };
 
-                        match block.literals.get(constant_idx as usize)? {
-                            lit => {
-                                let lit_idx = ctxt.push_literal(lit.clone());
-                                match lit_idx {
-                                    // maybe create a function just for translating "constant_id (usize) <-> Bytecode" that to avoid duplication
-                                    0 => ctxt.push_instr(Bytecode::PushConstant0),
-                                    1 => ctxt.push_instr(Bytecode::PushConstant1),
-                                    2 => ctxt.push_instr(Bytecode::PushConstant2),
-                                    _ => ctxt.push_instr(Bytecode::PushConstant(lit_idx as u8)),
-                                }
-                            }
-                        };
+                        let lit = block.literals.get(constant_idx as usize)?;
+                        let lit_idx = ctxt.push_literal(lit.clone());
+                        match lit_idx {
+                            // maybe create a function just for translating "constant_id (usize) <-> Bytecode" that to avoid duplication
+                            0 => ctxt.push_instr(Bytecode::PushConstant0),
+                            1 => ctxt.push_instr(Bytecode::PushConstant1),
+                            2 => ctxt.push_instr(Bytecode::PushConstant2),
+                            _ => ctxt.push_instr(Bytecode::PushConstant(lit_idx as u8)),
+                        }
                     }
                     Bytecode::ReturnNonLocal(scope) => match scope - 1 {
                         0 => ctxt.push_instr(Bytecode::ReturnLocal),
@@ -226,15 +214,7 @@ impl PrimMessageInliner for ast::Message {
         Some(())
     }
 
-    fn adapt_block_after_outer_inlined(
-        &self,
-        ctxt: &mut dyn InnerGenCtxt,
-        orig_block: Gc<Block>,
-        adjust_scope_by: usize,
-        gc_interface: &mut GCInterface,
-    ) -> Block {
-        let orig_block = orig_block;
-
+    fn adapt_block_after_outer_inlined(&self, orig_block: Gc<Block>, adjust_scope_by: usize, gc_interface: &mut GCInterface) -> Block {
         let mut block_literals_to_patch = vec![];
         let new_body = orig_block
             .blk_info
@@ -287,13 +267,13 @@ impl PrimMessageInliner for ast::Message {
                         _ => panic!("PushBlock is not actually pushing a block somehow"),
                     };
 
-                    let new_block = self.adapt_block_after_outer_inlined(ctxt, *inner_block, adjust_scope_by, gc_interface);
+                    let new_block = self.adapt_block_after_outer_inlined(*inner_block, adjust_scope_by, gc_interface);
 
                     block_literals_to_patch.push((block_idx, gc_interface.alloc(new_block)));
 
                     Bytecode::PushBlock(*block_idx)
                 }
-                _ => b.clone(),
+                _ => *b,
             })
             .collect();
 
@@ -303,7 +283,7 @@ impl PrimMessageInliner for ast::Message {
         // though if we ever want to do some runtime bytecode rewriting, it'll have to be an Rc<RefCell<>> and this code will be refactorable (not so many individual calls to .clone())
         // TODO: we now pass a mutable pointer to a Block actually, so this is all avoidable!
         Block {
-            frame: orig_block.frame.clone(),
+            frame: orig_block.frame,
             blk_info: gc_interface.alloc(BlockInfo {
                 nb_locals: orig_block.blk_info.nb_locals,
                 literals: orig_block
@@ -312,10 +292,10 @@ impl PrimMessageInliner for ast::Message {
                     .iter()
                     .enumerate()
                     .map(|(idx, l)| {
-                        let block_ptr = block_literals_to_patch.iter().find_map(|(block_idx, blk)| (**block_idx == idx as u8).then(|| blk));
+                        let block_ptr = block_literals_to_patch.iter().find_map(|(block_idx, blk)| (**block_idx == idx as u8).then_some(blk));
 
-                        if block_ptr.is_some() {
-                            Literal::Block(*block_ptr.unwrap())
+                        if let Some(block_ptr) = block_ptr {
+                            Literal::Block(*block_ptr)
                         } else {
                             l.clone()
                         }
@@ -333,7 +313,7 @@ impl PrimMessageInliner for ast::Message {
 
     fn inline_if_true_or_if_false(&self, ctxt: &mut dyn InnerGenCtxt, jump_type: JumpType, mutator: &mut GCInterface) -> Option<()> {
         // TODO opt: we only inline when it's a block (see BooleanTest:testIfTrueWithValueBlock to see why), but we could easily only inline when it's any expression that's safe to be inlined. Most fall under that category
-        if self.values.len() != 1 || !matches!(self.values.get(0)?, ast::Expression::Block(_)) {
+        if self.values.len() != 1 || !matches!(self.values.first()?, ast::Expression::Block(_)) {
             return None;
         }
 
@@ -343,7 +323,7 @@ impl PrimMessageInliner for ast::Message {
             JumpOnTrue => ctxt.push_instr(Bytecode::JumpOnTrueTopNil(0)),
         }
 
-        self.inline_expression(ctxt, self.values.get(0)?, mutator);
+        self.inline_expression(ctxt, self.values.first()?, mutator);
 
         ctxt.backpatch_jump_to_current(jump_idx);
 
@@ -352,7 +332,7 @@ impl PrimMessageInliner for ast::Message {
 
     fn inline_if_true_if_false(&self, ctxt: &mut dyn InnerGenCtxt, jump_type: JumpType, mutator: &mut GCInterface) -> Option<()> {
         if self.values.len() != 2
-            || !matches!(self.values.get(0)?, ast::Expression::Block(_))
+            || !matches!(self.values.first()?, ast::Expression::Block(_))
             || !matches!(self.values.get(1)?, ast::Expression::Block(_))
         {
             return None;
@@ -364,7 +344,7 @@ impl PrimMessageInliner for ast::Message {
             JumpOnTrue => ctxt.push_instr(Bytecode::JumpOnTruePop(0)),
         }
 
-        self.inline_expression(ctxt, self.values.get(0)?, mutator);
+        self.inline_expression(ctxt, self.values.first()?, mutator);
 
         let middle_jump_idx = ctxt.get_cur_instr_idx();
         ctxt.push_instr(Bytecode::Jump(0));
@@ -379,7 +359,7 @@ impl PrimMessageInliner for ast::Message {
     }
 
     fn inline_while(&self, ctxt: &mut dyn InnerGenCtxt, jump_type: JumpType, mutator: &mut GCInterface) -> Option<()> {
-        if self.values.len() != 1 || !matches!(self.values.get(0)?, ast::Expression::Block(_)) {
+        if self.values.len() != 1 || !matches!(self.values.first()?, ast::Expression::Block(_)) {
             // I guess it doesn't have to be a block, but really, it is in all our benchmarks
             return None;
         }
@@ -395,7 +375,7 @@ impl PrimMessageInliner for ast::Message {
             JumpOnTrue => ctxt.push_instr(Bytecode::JumpOnTruePop(0)),
         }
 
-        self.inline_expression(ctxt, self.values.get(0)?, mutator);
+        self.inline_expression(ctxt, self.values.first()?, mutator);
 
         ctxt.push_instr(Bytecode::Pop);
 
@@ -408,7 +388,7 @@ impl PrimMessageInliner for ast::Message {
     }
 
     fn inline_or_and(&self, ctxt: &mut dyn InnerGenCtxt, or_and_choice: OrAndChoice, mutator: &mut GCInterface) -> Option<()> {
-        if self.values.len() != 1 || !matches!(self.values.get(0)?, ast::Expression::Block(_)) {
+        if self.values.len() != 1 || !matches!(self.values.first()?, ast::Expression::Block(_)) {
             return None;
         }
 
@@ -419,7 +399,7 @@ impl PrimMessageInliner for ast::Message {
             And => ctxt.push_instr(Bytecode::JumpOnFalsePop(0)),
         }
 
-        self.inline_expression(ctxt, self.values.get(0)?, mutator);
+        self.inline_expression(ctxt, self.values.first()?, mutator);
 
         let skip_return_true_idx = ctxt.get_cur_instr_idx();
         ctxt.push_instr(Bytecode::Jump(0));

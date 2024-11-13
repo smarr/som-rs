@@ -8,17 +8,19 @@ use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
 use crate::value::Value;
 
+use crate::primitives::PrimInfo;
+
 /// Primitives for the **Block** and **Block1** class.
 pub mod block1 {
     use super::*;
     use som_gc::gcref::Gc;
 
-    pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> =
+    pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> =
         Lazy::new(|| Box::new([("value", self::value.into_func(), true), ("restart", self::restart.into_func(), false)]));
-    pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| Box::new([]));
+    pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([]));
 
     fn value(interpreter: &mut Interpreter, universe: &mut Universe, receiver: Gc<Block>) -> Result<(), Error> {
-        interpreter.push_block_frame_with_args(receiver, &[Value::Block(receiver)], &mut universe.gc_interface);
+        interpreter.push_block_frame_with_args(receiver, &[Value::Block(receiver)], universe.gc_interface);
 
         Ok(())
     }
@@ -46,12 +48,11 @@ pub mod block2 {
     use super::*;
     use som_gc::gcref::Gc;
 
-    pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> =
-        Lazy::new(|| Box::new([("value:", self::value.into_func(), true)]));
-    pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| Box::new([]));
+    pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([("value:", self::value.into_func(), true)]));
+    pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([]));
 
     fn value(interpreter: &mut Interpreter, universe: &mut Universe, receiver: Gc<Block>, argument: Value) -> Result<(), Error> {
-        interpreter.push_block_frame_with_args(receiver, &[Value::Block(receiver), argument], &mut universe.gc_interface);
+        interpreter.push_block_frame_with_args(receiver, &[Value::Block(receiver), argument], universe.gc_interface);
 
         Ok(())
     }
@@ -72,9 +73,8 @@ pub mod block3 {
     use super::*;
     use som_gc::gcref::Gc;
 
-    pub static INSTANCE_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> =
-        Lazy::new(|| Box::new([("value:with:", self::value_with.into_func(), true)]));
-    pub static CLASS_PRIMITIVES: Lazy<Box<[(&str, &'static PrimitiveFn, bool)]>> = Lazy::new(|| Box::new([]));
+    pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([("value:with:", self::value_with.into_func(), true)]));
+    pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([]));
 
     fn value_with(
         interpreter: &mut Interpreter,
@@ -85,7 +85,7 @@ pub mod block3 {
     ) -> Result<(), Error> {
         const _: &str = "Block3>>#value:with:";
 
-        interpreter.push_block_frame_with_args(receiver, &[Value::Block(receiver), argument1, argument2], &mut universe.gc_interface);
+        interpreter.push_block_frame_with_args(receiver, &[Value::Block(receiver), argument1, argument2], universe.gc_interface);
 
         Ok(())
     }

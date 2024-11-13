@@ -15,7 +15,7 @@ pub fn disassemble_method_body(universe: &Universe, class: &Class, env: &MethodE
 fn disassemble_body(universe: &Universe, class: &Class, level: usize, env: &mut Vec<&dyn FrameEnv>) {
     let padding = "  |".repeat(level);
     let current = env.last().copied().unwrap();
-    for (cur_idx, bytecode) in current.get_body().into_iter().copied().enumerate() {
+    for (cur_idx, bytecode) in current.get_body().iter().copied().enumerate() {
         let extra_spaces_nbr = if cur_idx >= 100 {
             0
         } else if (10..=99).contains(&cur_idx) {
@@ -46,7 +46,7 @@ fn disassemble_body(universe: &Universe, class: &Class, level: usize, env: &mut 
             }
             Bytecode::PushNonLocal(up_idx, idx) | Bytecode::PopLocal(up_idx, idx) => {
                 print!(" {up_idx}, {idx}");
-                let local_str = env.iter().rev().nth(usize::from(up_idx)).and_then(|env| Some(env.resolve_local(idx)));
+                let local_str = env.iter().rev().nth(usize::from(up_idx)).map(|env| env.resolve_local(idx));
                 println!(" (`{0}`)", local_str.unwrap()); // code's kinda all over the place, it was a quick and easy refactor. could/should be cleaned
             }
             Bytecode::PushField(idx) | Bytecode::PopField(idx) => {
@@ -64,7 +64,7 @@ fn disassemble_body(universe: &Universe, class: &Class, level: usize, env: &mut 
             }
             Bytecode::PushNonLocalArg(up_idx, idx) => {
                 print!(" {up_idx}, {idx}");
-                let arg_str = (env.iter().rev().nth(usize::from(up_idx))).and_then(|env| Some(env.resolve_argument(idx)));
+                let arg_str = (env.iter().rev().nth(usize::from(up_idx))).map(|env| env.resolve_argument(idx));
                 println!(" (`{0}`)", arg_str.unwrap());
             }
             Bytecode::PushBlock(idx) => {
@@ -117,7 +117,7 @@ fn disassemble_body(universe: &Universe, class: &Class, level: usize, env: &mut 
             }
             Bytecode::PopArg(up_idx, idx) => {
                 print!(" {up_idx}, {idx}");
-                let arg_str = (env.iter().rev().nth(usize::from(up_idx))).and_then(|env| Some(env.resolve_argument(idx)));
+                let arg_str = (env.iter().rev().nth(usize::from(up_idx))).map(|env| env.resolve_argument(idx));
                 println!(" (`{0}`)", arg_str.unwrap());
             }
             Bytecode::Send1(idx)
@@ -180,7 +180,7 @@ impl FrameEnv for MethodEnv {
 
     #[cfg(not(feature = "frame-debug-info"))]
     fn resolve_local(&self, _idx: u8) -> String {
-        return String::from("(unknown local - no debug info)");
+        String::from("(unknown local - no debug info)")
     }
 
     fn resolve_literal(&self, idx: u8) -> Option<&Literal> {
@@ -197,7 +197,7 @@ impl FrameEnv for MethodEnv {
 
     #[cfg(not(feature = "frame-debug-info"))]
     fn resolve_argument(&self, _idx: u8) -> String {
-        return String::from("(unknown argument - no debug info)");
+        String::from("(unknown argument - no debug info)")
     }
 }
 
@@ -215,7 +215,7 @@ impl FrameEnv for Block {
 
     #[cfg(not(feature = "frame-debug-info"))]
     fn resolve_local(&self, _idx: u8) -> String {
-        return String::from("(unknown local)");
+        String::from("(unknown local)")
     }
 
     fn resolve_literal(&self, idx: u8) -> Option<&Literal> {
@@ -232,6 +232,6 @@ impl FrameEnv for Block {
 
     #[cfg(not(feature = "frame-debug-info"))]
     fn resolve_argument(&self, _idx: u8) -> String {
-        return String::from("(unknown argument - no debug info)");
+        String::from("(unknown argument - no debug info)")
     }
 }

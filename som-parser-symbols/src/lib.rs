@@ -104,12 +104,12 @@ impl<'a> AstGenCtxtData<'a> {
         }
     }
 
-    pub fn add_locals(&mut self, new_locals_names: &Vec<String>) {
+    pub fn add_locals(&mut self, new_locals_names: &[String]) {
         debug_assert_ne!(self.kind, AstGenCtxtType::Class);
         self.local_names.extend(new_locals_names.iter().cloned());
     }
 
-    pub fn add_params(&mut self, parameters: &Vec<String>) {
+    pub fn add_params(&mut self, parameters: &[String]) {
         debug_assert_ne!(self.kind, AstGenCtxtType::Class);
         self.param_names.extend(parameters.iter().cloned());
     }
@@ -172,7 +172,7 @@ impl<'a> AstGenCtxtData<'a> {
 
     fn get_var_write(&self, name: &String, expr: Box<Expression>) -> Expression {
         match self.find_var(name) {
-            None => return Expression::GlobalWrite(name.clone(), expr),
+            None => Expression::GlobalWrite(name.clone(), expr),
             Some(v) => {
                 match v {
                     FoundVar::Local(up_idx, idx) => match up_idx {
@@ -227,7 +227,7 @@ where
     P: Parser<A, &'a [Token], AstGenCtxt<'a>>,
 {
     match parser.parse(input, Rc::new(RefCell::new(AstGenCtxtData::init()))) {
-        Some((output, tail, _)) if tail.is_empty() => Some(output),
+        Some((output, [], _)) => Some(output),
         Some(_) | None => None,
     }
 }
