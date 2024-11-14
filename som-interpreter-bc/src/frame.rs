@@ -22,7 +22,7 @@ pub struct Frame {
     /// Literals/constants associated with the frame.
     pub literals: *const Vec<Literal>,
     /// Inline cache associated with the frame.
-    pub inline_cache: *const BodyInlineCache,
+    pub inline_cache: *mut BodyInlineCache,
     /// Bytecode index.
     pub bytecode_idx: usize,
 
@@ -102,7 +102,7 @@ impl Frame {
 
     // Creates a frame from a block. Meant to only be called by the alloc_from_block function
     fn from_block(block: Gc<Block>, nbr_args: usize, current_method: Gc<Method>, prev_frame: Gc<Frame>) -> Self {
-        let block_obj = block;
+        let mut block_obj = block;
         Self {
             prev_frame,
             current_method,
@@ -111,7 +111,7 @@ impl Frame {
             literals: &block_obj.blk_info.literals,
             bytecodes: &block_obj.blk_info.body,
             bytecode_idx: 0,
-            inline_cache: std::ptr::addr_of!(block_obj.blk_info.inline_cache),
+            inline_cache: std::ptr::addr_of_mut!(block_obj.blk_info.inline_cache),
             stack_ptr: std::ptr::null_mut(),
             args_ptr: std::ptr::null_mut(),
             locals_ptr: std::ptr::null_mut(),
@@ -122,24 +122,27 @@ impl Frame {
     }
 
     // Creates a frame from a block. Meant to only be called by the alloc_from_method function
-    fn from_method(method: Gc<Method>, nbr_args: usize, prev_frame: Gc<Frame>) -> Self {
-        match method.kind() {
-            MethodKind::Defined(env) => Self {
-                prev_frame,
-                nbr_locals: env.nbr_locals,
-                nbr_args,
-                literals: &env.literals,
-                bytecodes: &env.body,
-                current_method: method,
-                bytecode_idx: 0,
-                stack_ptr: std::ptr::null_mut(),
-                args_ptr: std::ptr::null_mut(),
-                locals_ptr: std::ptr::null_mut(),
-                inline_cache: std::ptr::addr_of!(env.inline_cache),
-                args_marker: PhantomData,
-                locals_marker: PhantomData,
-                stack_marker: PhantomData,
-            },
+    fn from_method(mut method: Gc<Method>, nbr_args: usize, prev_frame: Gc<Frame>) -> Self {
+        match &mut method.kind {
+            MethodKind::Defined(env) => {
+                let inline_cache = std::ptr::addr_of_mut!(env.inline_cache);
+                Self {
+                    prev_frame,
+                    nbr_locals: env.nbr_locals,
+                    nbr_args,
+                    literals: &env.literals,
+                    bytecodes: &env.body,
+                    current_method: method,
+                    bytecode_idx: 0,
+                    stack_ptr: std::ptr::null_mut(),
+                    args_ptr: std::ptr::null_mut(),
+                    locals_ptr: std::ptr::null_mut(),
+                    inline_cache,
+                    args_marker: PhantomData,
+                    locals_marker: PhantomData,
+                    stack_marker: PhantomData,
+                }
+            }
             _ => unreachable!(),
         }
     }

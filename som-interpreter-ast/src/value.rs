@@ -37,6 +37,7 @@ pub type Value = AstNaNBoxedVal;
 // pub type Value = ValueEnum;
 
 /// Represents an SOM value.
+#[allow(clippy::derived_hash_with_manual_eq)] // TODO: manually implement Hash instead...
 #[derive(Clone, Copy, Eq, Hash)]
 pub struct AstNaNBoxedVal {
     /// The 64-bit value that is used to store SOM values using NaN-boxing.

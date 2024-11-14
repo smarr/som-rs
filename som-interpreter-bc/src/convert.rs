@@ -21,6 +21,7 @@ use som_gc::gc_interface::GCInterface;
 use som_gc::gcref::Gc;
 
 pub trait IntoValue {
+    #[allow(clippy::wrong_self_convention)] // though i guess we could/should rename it
     fn into_value(&self, gc_interface: &mut GCInterface) -> Value;
 }
 

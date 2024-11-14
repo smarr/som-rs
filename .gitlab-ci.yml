@@ -22,6 +22,7 @@ build-and-test-interpreters:
 
     - cargo +$CARGO_VERSION clean
     - cargo +$CARGO_VERSION build --release
+    - cargo clippy
 
     - RUST_TEST_THREADS=1 cargo test
 

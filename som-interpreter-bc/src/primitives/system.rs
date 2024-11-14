@@ -120,13 +120,11 @@ fn global(_: &mut Interpreter, universe: &mut Universe, _: Value, name: Interned
 
 fn global_put(_: &mut Interpreter, universe: &mut Universe, _: Value, name: Interned, value: Value) -> Result<Option<Value>, Error> {
     const _: &str = "System>>#global:put:";
-
-    Ok(universe.assign_global(name, value).map(|_| value))
+    universe.assign_global(name, value);
+    Ok(Some(value))
 }
 
 fn exit(_: &mut Interpreter, _: &mut Universe, status: i32) -> Result<(), Error> {
-    const _: &str = "System>>#exit:";
-
     std::process::exit(status);
 }
 

@@ -27,6 +27,7 @@ const INSTANCE_TAG: u64 = 0b110 | CELL_BASE_TAG;
 const INVOKABLE_TAG: u64 = 0b111 | CELL_BASE_TAG;
 
 /// Represents an SOM value.
+#[allow(clippy::derived_hash_with_manual_eq)] // TODO: manually implement Hash instead...
 #[derive(Clone, Copy, Eq, Hash)]
 #[repr(transparent)]
 pub struct BCNaNBoxedVal {
@@ -164,15 +165,13 @@ impl BCNaNBoxedVal {
     }
 
     /// Assign a value to a local binding within this value.
-    pub fn assign_local(&mut self, idx: usize, value: Value) -> Option<()> {
+    pub fn assign_local(&mut self, idx: usize, value: Value) {
         if let Some(mut instance) = self.as_instance() {
             instance.assign_local(idx, value);
-            Some(())
         } else if let Some(mut class) = self.as_class() {
             class.assign_local(idx, value);
-            Some(())
         } else {
-            None
+            panic!("Assigning a field not to an instance/class, but to a {:?}", value)
         }
     }
 

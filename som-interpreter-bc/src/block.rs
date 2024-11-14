@@ -8,11 +8,10 @@ use crate::universe::Universe;
 use som_core::ast::BlockDebugInfo;
 use som_core::bytecode::Bytecode;
 use som_gc::gcref::Gc;
-use std::cell::RefCell;
 use std::fmt;
 
 // TODO - is that refcell still needed?
-pub type BodyInlineCache = RefCell<Vec<Option<(Gc<Class>, Gc<Method>)>>>;
+pub type BodyInlineCache = Vec<Option<(Gc<Class>, Gc<Method>)>>;
 
 #[derive(Clone)]
 pub struct BlockInfo {

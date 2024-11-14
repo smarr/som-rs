@@ -396,9 +396,8 @@ impl Universe {
     }
 
     /// Assign a value to a global binding.
-    pub fn assign_global(&mut self, name: Interned, value: Value) -> Option<()> {
+    pub fn assign_global(&mut self, name: Interned, value: Value) {
         self.globals.push((name, value));
-        Some(())
     }
 }
 

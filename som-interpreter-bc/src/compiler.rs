@@ -3,7 +3,6 @@
 //!
 use indexmap::{IndexMap, IndexSet};
 use num_bigint::BigInt;
-use std::cell::RefCell;
 use std::hash::{Hash, Hasher};
 use std::str::FromStr;
 
@@ -750,7 +749,7 @@ fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::MethodDef, mutator: &mut 
                 let nbr_locals = ctxt.inner.locals_nbr;
                 let body = ctxt.inner.body.unwrap_or_default();
                 let literals = ctxt.inner.literals.into_iter().collect();
-                let inline_cache = RefCell::new(vec![None; body.len()]);
+                let inline_cache = vec![None; body.len()];
                 #[cfg(feature = "frame-debug-info")]
                 let dbg_info = ctxt.inner.debug_info;
 
@@ -818,7 +817,7 @@ fn compile_block(outer: &mut dyn GenCtxt, defn: &ast::Block, gc_interface: &mut 
     let body = ctxt.body.unwrap_or_default();
     let nb_locals = ctxt.locals_nbr;
     let nb_params = ctxt.args_nbr;
-    let inline_cache = RefCell::new(vec![None; body.len()]);
+    let inline_cache = vec![None; body.len()];
     let max_stack_size = get_max_stack_size(&body);
 
     let block = Block {

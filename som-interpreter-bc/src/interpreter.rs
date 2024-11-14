@@ -326,28 +326,29 @@ impl Interpreter {
                     }
                 }
                 Bytecode::Send1(idx) => {
-                    send! {self, universe, &self.current_frame, idx, Some(0)} // Send1 => receiver + 0 args, so we pass Some(0)
+                    send! {self, universe, &mut self.current_frame, idx, Some(0)}
+                    // Send1 => receiver + 0 args, so we pass Some(0)
                 }
                 Bytecode::Send2(idx) => {
-                    send! {self, universe, &self.current_frame, idx, Some(1)}
+                    send! {self, universe, &mut self.current_frame, idx, Some(1)}
                 }
                 Bytecode::Send3(idx) => {
-                    send! {self, universe, &self.current_frame, idx, Some(2)}
+                    send! {self, universe, &mut self.current_frame, idx, Some(2)}
                 }
                 Bytecode::SendN(idx) => {
-                    send! {self, universe, &self.current_frame, idx, None}
+                    send! {self, universe, &mut self.current_frame, idx, None}
                 }
                 Bytecode::SuperSend1(idx) => {
-                    super_send! {self, universe, &self.current_frame, idx, Some(0)}
+                    super_send! {self, universe, &mut self.current_frame, idx, Some(0)}
                 }
                 Bytecode::SuperSend2(idx) => {
-                    super_send! {self, universe, &self.current_frame, idx, Some(1)}
+                    super_send! {self, universe, &mut self.current_frame, idx, Some(1)}
                 }
                 Bytecode::SuperSend3(idx) => {
-                    super_send! {self, universe, &self.current_frame, idx, Some(2)}
+                    super_send! {self, universe, &mut self.current_frame, idx, Some(2)}
                 }
                 Bytecode::SuperSendN(idx) => {
-                    super_send! {self, universe, &self.current_frame, idx, None}
+                    super_send! {self, universe, &mut self.current_frame, idx, None}
                 }
                 Bytecode::ReturnSelf => {
                     let self_val = *self.current_frame.lookup_argument(0);
@@ -510,13 +511,11 @@ impl Interpreter {
             }
         }
 
-        fn resolve_method(frame: &Gc<Frame>, class: &Gc<Class>, signature: Interned, bytecode_idx: usize) -> Option<Gc<Method>> {
-            let mut inline_cache = unsafe { (*frame.inline_cache).borrow_mut() };
-
+        fn resolve_method(frame: &mut Gc<Frame>, class: &Gc<Class>, signature: Interned, bytecode_idx: usize) -> Option<Gc<Method>> {
             // SAFETY: this access is actually safe because the bytecode compiler
             // makes sure the cache has as many entries as there are bytecode instructions,
             // therefore we can avoid doing any redundant bounds checks here.
-            let maybe_found = unsafe { inline_cache.get_unchecked_mut(bytecode_idx) };
+            let maybe_found = unsafe { (*frame.inline_cache).get_unchecked_mut(bytecode_idx) };
 
             match maybe_found {
                 Some((receiver, method)) if receiver.ptr == class.ptr => Some(*method),
