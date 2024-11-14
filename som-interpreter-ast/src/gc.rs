@@ -353,5 +353,7 @@ pub fn get_callbacks_for_gc() -> MMTKtoVMCallbacks {
     MMTKtoVMCallbacks {
         scan_object_fn: scan_object,
         get_roots_in_mutator_thread_fn: get_roots_in_mutator_thread,
+        store_in_value_fn: todo!(),
+        get_object_size_fn: todo!(),
     }
 }

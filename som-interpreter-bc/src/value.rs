@@ -43,6 +43,12 @@ impl From<BaseValue> for Value {
     }
 }
 
+impl From<u64> for Value {
+    fn from(value: u64) -> Self {
+        Value(BaseValue::from(value))
+    }
+}
+
 #[allow(non_snake_case)]
 impl Value {
     pub const TRUE: Self = Value(BaseValue::TRUE);

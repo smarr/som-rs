@@ -8,7 +8,7 @@ use crate::slot::SOMSlot;
 use crate::{MMTK_SINGLETON, MMTK_TO_VM_INTERFACE, MUTATOR_WRAPPER, SOMVM};
 use core::mem::size_of;
 use log::debug;
-use mmtk::util::alloc::{Allocator, FreeListAllocator};
+use mmtk::util::alloc::{Allocator, BumpAllocator};
 use mmtk::util::constants::MIN_OBJECT_SIZE;
 use mmtk::util::{Address, ObjectReference, OpaquePointer, VMMutatorThread, VMThread};
 use mmtk::vm::SlotVisitor;
@@ -26,7 +26,7 @@ static GC_ALIGN: usize = 8;
 /// TODO rename, maybe MutatorWrapper
 pub struct GCInterface {
     mutator: Box<Mutator<SOMVM>>,
-    default_allocator: *mut FreeListAllocator<SOMVM>,
+    default_allocator: *mut BumpAllocator<SOMVM>,
     mutator_thread: VMMutatorThread,
     start_the_world_count: usize,
     total_gc_time: std::time::Duration,
@@ -41,7 +41,9 @@ impl Drop for GCInterface {
 
 pub struct MMTKtoVMCallbacks {
     pub scan_object_fn: fn(ObjectReference, &mut dyn SlotVisitor<SOMSlot>),
-    pub get_roots_in_mutator_thread_fn: fn(_mutator: &mut Mutator<SOMVM>) -> Vec<SOMSlot>,
+    pub get_roots_in_mutator_thread_fn: fn(&mut Mutator<SOMVM>) -> Vec<SOMSlot>,
+    pub store_in_value_fn: fn(u64, ObjectReference),
+    pub get_object_size_fn: fn(ObjectReference) -> usize,
 }
 
 impl GCInterface {
@@ -74,7 +76,7 @@ impl GCInterface {
     }
 
     /// Initialize MMTk, and get from it all the info we need to initialize our interface
-    fn init_mmtk(heap_size: usize) -> (VMMutatorThread, Box<Mutator<SOMVM>>, *mut FreeListAllocator<SOMVM>) {
+    fn init_mmtk(heap_size: usize) -> (VMMutatorThread, Box<Mutator<SOMVM>>, *mut BumpAllocator<SOMVM>) {
         let builder: MMTKBuilder = {
             let mut builder = MMTKBuilder::new();
 
@@ -82,8 +84,8 @@ impl GCInterface {
             assert!(heap_success, "Couldn't set MMTk fixed heap size");
 
             // let gc_success = builder.set_option("plan", "NoGC");
-            let gc_success = builder.set_option("plan", "MarkSweep");
-            // let gc_success = builder.set_option("plan", "SemiSpace");
+            // let gc_success = builder.set_option("plan", "MarkSweep");
+            let gc_success = builder.set_option("plan", "SemiSpace");
             assert!(gc_success, "Couldn't set GC plan");
 
             #[cfg(feature = "stress_test")]
@@ -110,7 +112,7 @@ impl GCInterface {
         let default_allocator_offset = Mutator::<SOMVM>::get_allocator_base_offset(selector);
 
         // At run time: allocate with the default semantics without resolving allocator
-        let default_allocator: *mut FreeListAllocator<SOMVM> = {
+        let default_allocator: *mut BumpAllocator<SOMVM> = {
             let mutator_addr = Address::from_ref(&*mutator);
             unsafe {
                 let ptr = mutator_addr + default_allocator_offset;

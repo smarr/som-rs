@@ -39,7 +39,6 @@ impl Instance {
 
     /// Assign a value to a field binding.
     pub fn assign_field(&mut self, idx: u8, value: Value) {
-        // dbg!(&idx);
         *self.fields.get_mut(idx as usize).unwrap() = value;
     }
 }

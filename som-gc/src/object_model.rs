@@ -1,4 +1,4 @@
-use crate::SOMVM;
+use crate::{MMTK_TO_VM_INTERFACE, SOMVM};
 use log::debug;
 use mmtk::util::copy::{CopySemantics, GCWorkerCopyContext};
 use mmtk::util::{Address, ObjectReference};
@@ -38,57 +38,40 @@ impl ObjectModel<SOMVM> for VMObjectModel {
 
     const OBJECT_REF_OFFSET_LOWER_BOUND: isize = OBJECT_REF_OFFSET as isize;
 
-    fn copy(_from: ObjectReference, _semantics: CopySemantics, _copy_context: &mut GCWorkerCopyContext<SOMVM>) -> ObjectReference {
-        debug!("invoking copy (unfinished...)");
-        todo!()
-        /*
+    fn copy(from: ObjectReference, semantics: CopySemantics, copy_context: &mut GCWorkerCopyContext<SOMVM>) -> ObjectReference {
+        debug!("invoking copy");
+
         // dbg!(&from);
-        // let _from_ptr: *mut usize = unsafe { from.to_raw_address().as_mut_ref() };
-
-        // let bytes = size_of::<Frame>(); // we only ever handle frames with GC at the moment!..
-        let align = 8; // todo is that correct?
+        let align = 8;
         let offset = 0;
+        let mut bytes = Self::get_current_size(from);
 
-        // let from_addr = from.to_raw_address();
-        let from_start = Self::ref_to_object_start(from);
-        // let _header_offset = from_addr - from_start;
-
-        let from_and_header = unsafe {ObjectReference::from_raw_address_unchecked(from_start)};
-        //dbg!(header_offset);
-
+        bytes += 8;
+        let from_and_header = unsafe { ObjectReference::from_raw_address_unchecked(Self::ref_to_object_start(from)) };
         let dst = copy_context.alloc_copy(from_and_header, bytes, align, offset, semantics);
         debug_assert!(!dst.is_zero());
 
-        // dbg!(&dst);
-        // unsafe {
-        //     let frame: &mut Frame = dst.as_mut_ref();
-        //     dbg!(&(*(frame.current_method)).signature);
-        //     dbg!(&(*(frame.current_method)).signature);
-        // }
+        let moved_obj = unsafe { ObjectReference::from_raw_address_unchecked(dst) };
 
-        // let to_obj = unsafe { ObjectReference::from_raw_address_unchecked(dst + header_offset) };
-        let to_obj = unsafe { ObjectReference::from_raw_address_unchecked(dst) };
+        copy_context.post_copy(moved_obj, bytes, semantics);
 
-        let _dst_addr: *mut usize = unsafe { dst.as_mut_ref() };
+        debug!("Copied object {} into {}", from, moved_obj);
 
-        copy_context.post_copy(to_obj, bytes, semantics);
-
-        debug!("Copied object {} into {}", from, to_obj);
-
-        to_obj*/
+        moved_obj
     }
 
     fn copy_to(_from: ObjectReference, _to: ObjectReference, _region: Address) -> Address {
         unimplemented!()
     }
 
-    fn get_current_size(_object: ObjectReference) -> usize {
-        unimplemented!()
+    fn get_current_size(object: ObjectReference) -> usize {
+        unsafe { (MMTK_TO_VM_INTERFACE.get().unwrap().get_object_size_fn)(object) }
     }
 
-    fn get_size_when_copied(object: ObjectReference) -> usize {
+    fn get_size_when_copied(_object: ObjectReference) -> usize {
         // FIXME: This assumes the object size is unchanged during copying.
-        Self::get_current_size(object)
+        panic!("does this one ever get invoked?")
+        // Self::get_current_size(object)
     }
 
     fn get_align_when_copied(_object: ObjectReference) -> usize {

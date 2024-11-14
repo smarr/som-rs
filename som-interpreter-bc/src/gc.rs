@@ -11,6 +11,7 @@ use log::debug;
 use mmtk::util::{Address, ObjectReference};
 use mmtk::vm::{ObjectModel, SlotVisitor};
 use mmtk::Mutator;
+use num_bigint::BigInt;
 use som_gc::gc_interface::{HasTypeInfoForGC, MMTKtoVMCallbacks, BIGINT_MAGIC_ID, STRING_MAGIC_ID, VECU8_MAGIC_ID};
 use som_gc::gcref::Gc;
 use som_gc::object_model::VMObjectModel;
@@ -226,9 +227,67 @@ fn get_roots_in_mutator_thread(_mutator: &mut Mutator<SOMVM>) -> Vec<SOMSlot> {
     }
 }
 
+fn get_object_size(object: ObjectReference) -> usize {
+    let gc_id: &BCObjMagicId = unsafe { VMObjectModel::ref_to_header(object).as_ref() };
+    // let gc_id: &BCObjMagicId = unsafe { object.to_raw_address().as_ref() };
+
+    // dbg!(&gc_id);
+
+    let obj_size = {
+        match gc_id {
+            BCObjMagicId::String => size_of::<String>(),
+            BCObjMagicId::BigInt => size_of::<BigInt>(),
+            BCObjMagicId::ArrayU8 => size_of::<Vec<u8>>(),
+            BCObjMagicId::Frame => unsafe {
+                let frame: &mut Frame = object.to_raw_address().as_mut_ref();
+
+                let max_stack_size = match &frame.current_method.kind {
+                    MethodKind::Defined(e) => e.max_stack_size as usize,
+                    MethodKind::Primitive(_) => 0,
+                };
+
+                size_of::<Frame>() + (frame.nbr_locals + frame.nbr_args + max_stack_size) * size_of::<Value>()
+            },
+            BCObjMagicId::BlockInfo => size_of::<BlockInfo>(),
+            BCObjMagicId::ArrayVal => size_of::<Vec<Value>>(),
+            BCObjMagicId::Method => size_of::<Method>(),
+            BCObjMagicId::Block => size_of::<Block>(),
+            BCObjMagicId::Class => size_of::<Class>(),
+            BCObjMagicId::Instance => unsafe {
+                let instance: &mut Instance = object.to_raw_address().as_mut_ref();
+                size_of::<Instance>() + instance.class.fields.len() * size_of::<Value>()
+            },
+        }
+    };
+
+    obj_size
+}
+
+fn store_in_value(_value: u64, object: ObjectReference) {
+    // let other_gc_id: &BCObjMagicId = unsafe {object.to_raw_address().as_ref()};
+    // let gc_id: &BCObjMagicId = unsafe { VMObjectModel::ref_to_header(object).as_ref() };
+    let reified_val = Value::from(_value);
+
+    // dbg!(object.to_raw_address().as_usize());
+
+    assert!(reified_val.is_ptr_type());
+
+    let val_ptr: Gc<()> = reified_val.extract_gc_cell();
+
+    let ptr: *mut usize = val_ptr.ptr as *mut usize;
+
+    unsafe {
+        *ptr = object.to_raw_address().as_usize();
+    }
+
+    debug!("store_in_value OK")
+}
+
 pub fn get_callbacks_for_gc() -> MMTKtoVMCallbacks {
     MMTKtoVMCallbacks {
         scan_object_fn: scan_object,
         get_roots_in_mutator_thread_fn: get_roots_in_mutator_thread,
+        get_object_size_fn: get_object_size,
+        store_in_value_fn: store_in_value,
     }
 }

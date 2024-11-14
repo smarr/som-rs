@@ -386,6 +386,12 @@ impl PartialEq for BaseValue {
     }
 }
 
+impl From<u64> for BaseValue {
+    fn from(value: u64) -> Self {
+        BaseValue { encoded: value }
+    }
+}
+
 #[macro_export]
 /// Macro used to make AST-specific and BC-specific Value type "inherit" behavior from the base value type.
 /// Rust *could* avoid this by inferring that a BaseValue and a Value are the same.

@@ -1,7 +1,7 @@
 use crate::gcref::Gc;
+use crate::MMTK_TO_VM_INTERFACE;
 use mmtk::util::{Address, ObjectReference};
 use mmtk::vm::slot::{SimpleSlot, Slot};
-
 // pub type SOMSlot = mmtk::vm::slot::SimpleSlot;
 
 // because of NaN boxing, we make a new slot specifically for accessing values, which contain internally a GCRef
@@ -52,13 +52,11 @@ unsafe impl Send for ValueSlot {}
 
 impl Slot for ValueSlot {
     fn load(&self) -> Option<ObjectReference> {
-        // debug_assert!(self.value.is_ptr_type());
-        // let gcref: GCRef<()> = self.value.extract_gc_cell();
         let gcref: Gc<()> = Gc::from_u64((((self.value << 16) as i64) >> 16) as u64);
         unsafe { ObjectReference::from_raw_address(Address::from_usize(gcref.ptr)) }
     }
 
-    fn store(&self, _object: ObjectReference) {
-        unimplemented!()
+    fn store(&self, object: ObjectReference) {
+        unsafe { (MMTK_TO_VM_INTERFACE.get().unwrap().store_in_value_fn)(self.value, object) }
     }
 }
