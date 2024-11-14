@@ -43,7 +43,7 @@ impl Invoke for TrivialGetterMethod {
         if let Some(cls) = arg.as_class() {
             Return::Local(cls.class().lookup_field(self.field_idx))
         } else if let Some(instance) = arg.as_instance() {
-            Return::Local(instance.lookup_local(self.field_idx))
+            Return::Local(instance.lookup_field(self.field_idx))
         } else {
             panic!("trivial getter not called on a class/instance?")
         }
@@ -64,7 +64,7 @@ impl Invoke for TrivialSetterMethod {
             cls.class().assign_field(self.field_idx, *val);
             Return::Local(Value::Class(cls))
         } else if let Some(mut instance) = rcvr.as_instance() {
-            instance.assign_local(self.field_idx, *val);
+            instance.assign_field(self.field_idx, *val);
             Return::Local(Value::Instance(instance))
         } else {
             panic!("trivial getter not called on a class/instance?")

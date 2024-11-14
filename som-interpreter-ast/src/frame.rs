@@ -193,7 +193,7 @@ impl FrameAccess for Gc<Frame> {
     fn lookup_field(&self, idx: u8) -> Value {
         let self_ = self.get_self();
         if let Some(instance) = self_.as_instance() {
-            instance.lookup_local(idx)
+            instance.lookup_field(idx)
         } else if let Some(cls) = self_.as_class() {
             cls.class().lookup_field(idx)
         } else {
@@ -204,7 +204,7 @@ impl FrameAccess for Gc<Frame> {
     fn assign_field(&self, idx: u8, value: &Value) {
         let self_ = self.get_self();
         if let Some(mut instance) = self_.as_instance() {
-            instance.assign_local(idx, *value)
+            instance.assign_field(idx, *value)
         } else if let Some(cls) = self_.as_class() {
             cls.class().assign_field(idx, *value)
         } else {

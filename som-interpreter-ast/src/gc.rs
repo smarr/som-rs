@@ -198,7 +198,7 @@ pub fn scan_object<'a>(object: ObjectReference, slot_visitor: &'a mut (dyn SlotV
 
                 slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(&instance.class)));
 
-                for val in &instance.locals {
+                for val in &instance.fields {
                     visit_value(val, slot_visitor)
                 }
             }

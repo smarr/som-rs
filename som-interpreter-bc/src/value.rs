@@ -156,7 +156,7 @@ impl BCNaNBoxedVal {
     /// Search for a local binding within this value.
     pub fn lookup_local(&self, idx: usize) -> Value {
         if let Some(instance) = self.as_instance() {
-            instance.lookup_local(idx)
+            instance.lookup_field(idx)
         } else if let Some(class) = self.as_class() {
             class.lookup_local(idx)
         } else {
@@ -165,11 +165,11 @@ impl BCNaNBoxedVal {
     }
 
     /// Assign a value to a local binding within this value.
-    pub fn assign_local(&mut self, idx: usize, value: Value) {
+    pub fn assign_field(&mut self, idx: usize, value: Value) {
         if let Some(mut instance) = self.as_instance() {
-            instance.assign_local(idx, value);
+            instance.assign_field(idx, value);
         } else if let Some(mut class) = self.as_class() {
-            class.assign_local(idx, value);
+            class.assign_field(idx, value);
         } else {
             panic!("Assigning a field not to an instance/class, but to a {:?}", value)
         }
@@ -180,7 +180,7 @@ impl BCNaNBoxedVal {
     /// But those prims are free to be used and abused by devs, so they CAN fail, and we need to check that they won't fail before we invoke them. Hence this `has_local`.
     pub fn has_local(&self, idx: usize) -> bool {
         if let Some(instance) = self.as_instance() {
-            instance.has_local(idx)
+            instance.has_field(idx)
         } else if let Some(class) = self.as_class() {
             class.has_local(idx)
         } else {
@@ -386,7 +386,7 @@ impl ValueEnum {
     #[inline(always)]
     pub fn lookup_local(&self, idx: usize) -> Self {
         match self {
-            Self::Instance(instance_ptr) => instance_ptr.lookup_local(idx).into(),
+            Self::Instance(instance_ptr) => instance_ptr.lookup_field(idx).into(),
             Self::Class(class) => class.lookup_local(idx).into(),
             v => unreachable!("Attempting to look up a local in {:?}", v),
         }
@@ -395,8 +395,8 @@ impl ValueEnum {
     /// Assign a value to a local binding within this value.
     pub fn assign_local(&mut self, idx: usize, value: Self) {
         match self {
-            Self::Instance(instance_ptr) => instance_ptr.assign_local(idx, value.into()),
-            Self::Class(class) => class.assign_local(idx, value.into()),
+            Self::Instance(instance_ptr) => instance_ptr.assign_field(idx, value.into()),
+            Self::Class(class) => class.assign_field(idx, value.into()),
             v => unreachable!("Attempting to assign a local in {:?}", v),
         }
     }
@@ -760,7 +760,7 @@ impl ValueEnum {
     /// But those prims are free to be used and abused by devs, so they CAN fail, and we need to check that they won't fail before we invoke them. Hence this `has_local`.
     pub fn has_local(&self, idx: usize) -> bool {
         if let Some(instance) = self.as_instance() {
-            instance.has_local(idx)
+            instance.has_field(idx)
         } else if let Some(class) = self.as_class() {
             class.has_local(idx)
         } else {

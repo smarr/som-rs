@@ -181,30 +181,6 @@ impl AstNaNBoxedVal {
         self.class(universe).lookup_method(signature)
     }
 
-    /// Search for a local binding within this value.
-    pub fn lookup_local(&self, idx: u8) -> Self {
-        if let Some(instance) = self.as_instance() {
-            instance.lookup_local(idx)
-        } else if let Some(class) = self.as_class() {
-            class.lookup_field(idx)
-        } else {
-            panic!("looking up a local not from an instance or a class")
-        }
-    }
-
-    /// Assign a value to a local binding within this value.
-    pub fn assign_local(&mut self, idx: u8, value: Self) -> Option<()> {
-        if let Some(mut instance) = self.as_instance() {
-            instance.assign_local(idx, value);
-            Some(())
-        } else if let Some(mut class) = self.as_class() {
-            class.assign_field(idx, value);
-            Some(())
-        } else {
-            None
-        }
-    }
-
     /// Get the string representation of this value.
     pub fn to_string(&self, universe: &Universe) -> String {
         match self.tag() {
@@ -404,10 +380,10 @@ impl ValueEnum {
 
     /// Search for a local binding within this value.
     #[inline(always)]
-    pub fn lookup_local(&self, idx: u8) -> Option<Self> {
+    pub fn lookup_local(&self, idx: u8) -> Self {
         match self {
-            Self::Instance(instance_ptr) => Some(instance_ptr.lookup_local(idx).into()),
-            Self::Class(class) => Some(class.lookup_field(idx).into()),
+            Self::Instance(instance_ptr) => instance_ptr.lookup_field(idx).into(),
+            Self::Class(class) => class.lookup_field(idx).into(),
             v => unreachable!("Attempting to look up a local in {:?}", v),
         }
     }
@@ -415,7 +391,7 @@ impl ValueEnum {
     /// Assign a value to a local binding within this value.
     pub fn assign_local(&mut self, idx: u8, value: Self) {
         match self {
-            Self::Instance(instance_ptr) => instance_ptr.assign_local(idx, value.into()),
+            Self::Instance(instance_ptr) => instance_ptr.assign_field(idx, value.into()),
             Self::Class(class) => class.assign_field(idx, value.into()),
             v => unreachable!("Attempting to assign a local in {:?}", v),
         }

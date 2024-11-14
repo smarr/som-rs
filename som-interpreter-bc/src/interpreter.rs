@@ -237,7 +237,7 @@ impl Interpreter {
                     let self_val = self.current_frame.get_self();
                     let val = {
                         if let Some(instance) = self_val.as_instance() {
-                            instance.lookup_local(idx as usize)
+                            instance.lookup_field(idx as usize)
                         } else if let Some(cls) = self_val.as_class() {
                             cls.class().lookup_local(idx as usize)
                         } else {
@@ -318,9 +318,9 @@ impl Interpreter {
                     let value = self.current_frame.stack_pop();
                     let self_val = self.current_frame.get_self();
                     if let Some(mut instance) = self_val.as_instance() {
-                        instance.assign_local(idx as usize, value)
+                        instance.assign_field(idx as usize, value)
                     } else if let Some(cls) = self_val.as_class() {
-                        cls.class().assign_local(idx as usize, value)
+                        cls.class().assign_field(idx as usize, value)
                     } else {
                         panic!("trying to assign a field to a {:?}?", &self_val)
                     }

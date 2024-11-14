@@ -176,7 +176,7 @@ fn inst_var_at(_: &mut Universe, object: Value, index: i32) -> Result<Value, Err
 
     let local = {
         if let Some(instance) = object.as_instance() {
-            instance.locals.get(index).cloned().unwrap_or(Value::NIL)
+            instance.fields.get(index).cloned().unwrap_or(Value::NIL)
         } else if let Some(cls) = object.as_class() {
             cls.fields.get(index).cloned().unwrap_or(Value::NIL)
         } else {
@@ -196,8 +196,8 @@ fn inst_var_at_put(_: &mut Universe, object: Value, index: i32, value: Value) ->
     };
 
     if let Some(mut instance) = object.as_instance() {
-        if instance.locals.len() as u8 > index {
-            instance.assign_local(index, value)
+        if instance.fields.len() as u8 > index {
+            instance.assign_field(index, value)
         }
     } else if let Some(mut cls) = object.as_class() {
         if cls.fields.len() as u8 > index {

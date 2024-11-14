@@ -14,14 +14,14 @@ pub struct Instance {
     /// will be used for packed repr of locals
     pub nbr_fields: usize,
     /// This instance's locals. Contiguous "Value" instances in memory
-    pub locals_marker: PhantomData<Vec<Value>>,
+    pub fields_marker: PhantomData<Vec<Value>>,
 }
 
 impl Instance {
     /// Construct an instance for a given class.
     pub fn from_class(class: Gc<Class>, mutator: &mut GCInterface) -> Gc<Instance> {
         fn get_nbr_fields(class: &Gc<Class>) -> usize {
-            let mut nbr_locals = class.locals.len();
+            let mut nbr_locals = class.fields.len();
             if let Some(super_class) = class.super_class() {
                 nbr_locals += get_nbr_fields(&super_class)
             }
@@ -33,7 +33,7 @@ impl Instance {
         let instance = Self {
             class,
             nbr_fields,
-            locals_marker: PhantomData,
+            fields_marker: PhantomData,
         };
         Instance::alloc(instance, mutator)
     }
@@ -59,7 +59,7 @@ impl Instance {
     // }
 
     /// Checks whether there exists a local binding of a given index.
-    pub fn has_local(&self, idx: usize) -> bool {
+    pub fn has_field(&self, idx: usize) -> bool {
         idx < self.nbr_fields
     }
 }
@@ -89,8 +89,8 @@ impl CustomAlloc<Instance> for Instance {
 pub trait InstanceAccess {
     // technically internally works with an MMTk Address type, and should return it. but Address is just a usize newtype, and we don't want to depend on MMTk, so we say usize.
     fn get_field_addr(&self, idx: usize) -> usize;
-    fn lookup_local(&self, idx: usize) -> Value;
-    fn assign_local(&mut self, idx: usize, value: Value);
+    fn lookup_field(&self, idx: usize) -> Value;
+    fn assign_field(&mut self, idx: usize, value: Value);
 }
 
 impl InstanceAccess for Gc<Instance> {
@@ -98,14 +98,14 @@ impl InstanceAccess for Gc<Instance> {
         self.ptr + size_of::<Instance>() + (idx * size_of::<Value>())
     }
 
-    fn lookup_local(&self, idx: usize) -> Value {
+    fn lookup_field(&self, idx: usize) -> Value {
         unsafe {
             let local_ref: &Value = &*(self.get_field_addr(idx) as *const Value);
             *local_ref
         }
     }
 
-    fn assign_local(&mut self, idx: usize, value: Value) {
+    fn assign_field(&mut self, idx: usize, value: Value) {
         unsafe {
             let ptr_to_local = self.get_field_addr(idx) as *mut Value;
             *ptr_to_local = value

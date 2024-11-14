@@ -14,7 +14,7 @@ use crate::method::Method;
 impl Hash for Class {
     fn hash<H: Hasher>(&self, hasher: &mut H) {
         self.name.hash(hasher);
-        self.locals.iter().for_each(|value| {
+        self.fields.iter().for_each(|value| {
             value.hash(hasher);
         });
     }

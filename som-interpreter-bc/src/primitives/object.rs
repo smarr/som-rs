@@ -164,7 +164,7 @@ fn inst_var_at(_: &mut Interpreter, _: &mut Universe, receiver: Value, index: i3
 
 fn inst_var_at_put(_: &mut Interpreter, _: &mut Universe, mut receiver: Value, index: i32, value: Value) -> Result<Option<Value>, Error> {
     let index = usize::try_from(index.saturating_sub(1))?;
-    receiver.assign_local(index, value);
+    receiver.assign_field(index, value);
     Ok(Some(value))
 }
 

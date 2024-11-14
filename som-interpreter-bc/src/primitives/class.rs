@@ -60,7 +60,7 @@ fn methods(_: &mut Interpreter, universe: &mut Universe, receiver: Gc<Class>) ->
 fn fields(_: &mut Interpreter, universe: &mut Universe, receiver: Gc<Class>) -> Result<Gc<VecValue>, Error> {
     const _: &str = "Class>>#fields";
 
-    let fields = receiver.locals.keys().copied().map(Value::Symbol).collect();
+    let fields = receiver.fields.keys().copied().map(Value::Symbol).collect();
 
     Ok(universe.gc_interface.alloc(VecValue(fields)))
 }

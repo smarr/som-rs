@@ -23,8 +23,8 @@ pub struct Class {
     pub class: Gc<Class>,
     /// The superclass of this class.
     pub super_class: Option<Gc<Class>>,
-    /// The class' locals.
-    pub locals: IndexMap<Interned, Value>,
+    /// The class' fields.
+    pub fields: IndexMap<Interned, Value>,
     /// The class' methods/invokables.
     pub methods: IndexMap<Interned, Gc<Method>>,
     /// Is this class a static one ?
@@ -69,28 +69,28 @@ impl Class {
 
     /// Search for a local binding.
     pub fn lookup_local(&self, idx: usize) -> Value {
-        self.locals.values().nth(idx).cloned().unwrap_or_else(|| {
+        self.fields.values().nth(idx).cloned().unwrap_or_else(|| {
             let super_class = self.super_class().unwrap();
             super_class.lookup_local(idx)
         })
     }
 
     /// Assign a value to a local binding.
-    pub fn assign_local(&mut self, idx: usize, value: Value) {
-        match self.locals.values_mut().nth(idx) {
+    pub fn assign_field(&mut self, idx: usize, value: Value) {
+        match self.fields.values_mut().nth(idx) {
             Some(local) => {
                 *local = value;
             }
             None => {
                 let mut super_class = self.super_class().unwrap();
-                super_class.assign_local(idx, value);
+                super_class.assign_field(idx, value);
             }
         }
     }
 
     /// Checks whether there exists a local binding of a given index.
     pub fn has_local(&self, idx: usize) -> bool {
-        idx < self.locals.len()
+        idx < self.fields.len()
     }
 }
 
