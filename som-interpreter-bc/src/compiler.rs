@@ -910,7 +910,7 @@ pub fn compile_class(
         if let Some(class) = class.super_class() {
             collect_static_locals(&class, locals);
         }
-        locals.extend(class.fields.keys().copied());
+        locals.extend(&class.field_names);
     }
 
     if let Some(super_class) = super_class {
@@ -930,7 +930,8 @@ pub fn compile_class(
         name: static_class_ctxt.name.clone(),
         class: Gc::default(),
         super_class: None,
-        fields: IndexMap::new(),
+        fields: vec![],
+        field_names: vec![],
         methods: IndexMap::new(),
         is_static: true,
     };
@@ -962,7 +963,8 @@ pub fn compile_class(
     }
 
     let mut static_class_mut = static_class_gc_ptr; // todo couldn't we have done that before
-    static_class_mut.fields = static_class_ctxt.fields.into_iter().map(|name| (name, Value::NIL)).collect();
+    static_class_mut.fields = vec![Value::NIL; static_class_ctxt.fields.len()];
+    static_class_mut.field_names = static_class_ctxt.fields.into_iter().collect();
     static_class_mut.methods = static_class_ctxt.methods;
     // drop(static_class_mut);
 
@@ -976,7 +978,7 @@ pub fn compile_class(
         if let Some(class) = class.super_class() {
             collect_instance_locals(&class, locals);
         }
-        locals.extend(class.fields.keys());
+        locals.extend(&class.field_names);
     }
 
     if let Some(super_class) = super_class {
@@ -996,7 +998,8 @@ pub fn compile_class(
         name: instance_class_ctxt.name.clone(),
         class: static_class_gc_ptr,
         super_class: None,
-        fields: IndexMap::new(),
+        fields: vec![],
+        field_names: vec![],
         methods: IndexMap::new(),
         is_static: false,
     };
@@ -1028,7 +1031,9 @@ pub fn compile_class(
     }
 
     let mut instance_class_mut = instance_class_gc_ptr;
-    instance_class_mut.fields = instance_class_ctxt.fields.into_iter().map(|name| (name, Value::NIL)).collect();
+    // instance_class_mut.fields = instance_class_ctxt.fields.into_iter().map(|name| (name, Value::NIL)).collect();
+    instance_class_mut.fields = vec![Value::NIL; instance_class_ctxt.fields.len()];
+    instance_class_mut.field_names = instance_class_ctxt.fields.into_iter().collect();
     instance_class_mut.methods = instance_class_ctxt.methods;
     // drop(instance_class_mut);
 

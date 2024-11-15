@@ -157,9 +157,21 @@ fn inst_var_at(_: &mut Interpreter, _: &mut Universe, receiver: Value, index: i3
     // };
     //
     // interpreter.stack.push(local);
-    let index = usize::try_from(index.saturating_sub(1))?;
+    let idx = usize::try_from(index.saturating_sub(1))?;
 
-    Ok(Some(receiver.lookup_local(index)))
+    if let Some(instance) = receiver.as_instance() {
+        match idx < instance.get_nbr_fields() {
+            true => Ok(Some(instance.lookup_field(idx))),
+            false => Ok(None),
+        }
+    } else if let Some(class) = receiver.as_class() {
+        match idx < class.get_nbr_fields() {
+            true => Ok(Some(class.lookup_field(idx))),
+            false => Ok(None),
+        }
+    } else {
+        panic!("looking up a local not from an instance or a class")
+    }
 }
 
 fn inst_var_at_put(_: &mut Interpreter, _: &mut Universe, mut receiver: Value, index: i32, value: Value) -> Result<Option<Value>, Error> {

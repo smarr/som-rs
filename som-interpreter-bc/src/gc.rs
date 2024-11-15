@@ -2,7 +2,7 @@ use crate::block::{Block, BlockInfo};
 use crate::class::Class;
 use crate::compiler::Literal;
 use crate::frame::Frame;
-use crate::instance::{Instance, InstanceAccess};
+use crate::instance::Instance;
 use crate::method::{Method, MethodKind};
 use crate::value::Value;
 use crate::{INTERPRETER_RAW_PTR_CONST, UNIVERSE_RAW_PTR_CONST};
@@ -159,7 +159,7 @@ pub fn scan_object<'a>(object: ObjectReference, slot_visitor: &'a mut (dyn SlotV
                     slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(method_ref)))
                 }
 
-                for (_, field_ref) in class.fields.iter() {
+                for field_ref in class.fields.iter() {
                     visit_value(field_ref, slot_visitor)
                 }
             }
@@ -178,7 +178,7 @@ pub fn scan_object<'a>(object: ObjectReference, slot_visitor: &'a mut (dyn SlotV
 
                 // not the cleanest, to be frank
                 let gcref_instance: Gc<Instance> = Gc::from_u64(object.to_raw_address().as_usize() as u64);
-                for i in 0..instance.nbr_fields {
+                for i in 0..instance.class().get_nbr_fields() {
                     let val: Value = gcref_instance.lookup_field(i);
                     visit_value(&val, slot_visitor)
                 }

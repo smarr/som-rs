@@ -1,7 +1,7 @@
 use crate::block::Block;
 use crate::class::Class;
 use crate::gc::VecValue;
-use crate::instance::{Instance, InstanceAccess};
+use crate::instance::Instance;
 use crate::method::Method;
 use crate::universe::Universe;
 use num_bigint::BigInt;
@@ -153,17 +153,6 @@ impl BCNaNBoxedVal {
         self.class(universe).lookup_method(signature)
     }
 
-    /// Search for a local binding within this value.
-    pub fn lookup_local(&self, idx: usize) -> Value {
-        if let Some(instance) = self.as_instance() {
-            instance.lookup_field(idx)
-        } else if let Some(class) = self.as_class() {
-            class.lookup_local(idx)
-        } else {
-            panic!("looking up a local not from an instance or a class")
-        }
-    }
-
     /// Assign a value to a local binding within this value.
     pub fn assign_field(&mut self, idx: usize, value: Value) {
         if let Some(mut instance) = self.as_instance() {
@@ -172,19 +161,6 @@ impl BCNaNBoxedVal {
             class.assign_field(idx, value);
         } else {
             panic!("Assigning a field not to an instance/class, but to a {:?}", value)
-        }
-    }
-
-    /// Checks if a value has a local variable (field) at the given index. Used by the instVarAt and instVarAtPut primitives.
-    /// Basically, we want normal field lookups/assignments to not be able to fail (through unsafe) to be fast, since we know the bytecode we emitted that needs them is sound.
-    /// But those prims are free to be used and abused by devs, so they CAN fail, and we need to check that they won't fail before we invoke them. Hence this `has_local`.
-    pub fn has_local(&self, idx: usize) -> bool {
-        if let Some(instance) = self.as_instance() {
-            instance.has_field(idx)
-        } else if let Some(class) = self.as_class() {
-            class.has_local(idx)
-        } else {
-            false
         }
     }
 
@@ -387,7 +363,7 @@ impl ValueEnum {
     pub fn lookup_local(&self, idx: usize) -> Self {
         match self {
             Self::Instance(instance_ptr) => instance_ptr.lookup_field(idx).into(),
-            Self::Class(class) => class.lookup_local(idx).into(),
+            Self::Class(class) => class.lookup_field(idx).into(),
             v => unreachable!("Attempting to look up a local in {:?}", v),
         }
     }
@@ -753,18 +729,5 @@ impl ValueEnum {
     #[inline(always)]
     pub fn new_invokable(value: Gc<Method>) -> Self {
         ValueEnum::Invokable(value)
-    }
-
-    /// Checks if a value has a local variable (field) at the given index. Used by the instVarAt and instVarAtPut primitives.
-    /// Basically, we want normal field lookups/assignments to not be able to fail (through unsafe) to be fast, since we know the bytecode we emitted that needs them is sound.
-    /// But those prims are free to be used and abused by devs, so they CAN fail, and we need to check that they won't fail before we invoke them. Hence this `has_local`.
-    pub fn has_local(&self, idx: usize) -> bool {
-        if let Some(instance) = self.as_instance() {
-            instance.has_field(idx)
-        } else if let Some(class) = self.as_class() {
-            class.has_local(idx)
-        } else {
-            false
-        }
     }
 }

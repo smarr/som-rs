@@ -2,41 +2,58 @@ use crate::class::Class;
 use crate::value::Value;
 use core::mem::size_of;
 use som_gc::gc_interface::GCInterface;
-use som_gc::gcref::{CustomAlloc, Gc};
+use som_gc::gcref::Gc;
 use std::fmt;
-use std::marker::PhantomData;
 
 /// Represents a generic (non-primitive) class instance.
 #[derive(Clone, PartialEq)]
 pub struct Instance {
     /// The class of which this is an instance from.
     pub class: Gc<Class>,
-    /// will be used for packed repr of locals
-    pub nbr_fields: usize,
-    /// This instance's locals. Contiguous "Value" instances in memory
-    pub fields_marker: PhantomData<Vec<Value>>,
+    /// Pointer to the fields of this instance
+    pub fields_ptr: *mut Value,
 }
 
 impl Instance {
     /// Construct an instance for a given class.
     pub fn from_class(class: Gc<Class>, mutator: &mut GCInterface) -> Gc<Instance> {
-        fn get_nbr_fields(class: &Gc<Class>) -> usize {
-            let mut nbr_locals = class.fields.len();
-            if let Some(super_class) = class.super_class() {
-                nbr_locals += get_nbr_fields(&super_class)
-            }
-            nbr_locals
-        }
-
-        let nbr_fields = get_nbr_fields(&class);
+        let nbr_fields = class.get_nbr_fields();
 
         let instance = Self {
             class,
-            nbr_fields,
-            fields_marker: PhantomData,
+            fields_ptr: std::ptr::null_mut(),
         };
-        Instance::alloc(instance, mutator)
+
+        // TODO: this all belongs in a `CustomAlloc`, that takes in a closure to do post-processing on the data
+        let size = size_of::<Instance>() + (nbr_fields * size_of::<Value>());
+
+        let mut instance_ref = mutator.alloc_with_size(instance, size);
+
+        unsafe {
+            let mut values_addr = (instance_ref.ptr + size_of::<Instance>()) as *mut Value;
+            instance_ref.fields_ptr = values_addr;
+            for _ in 0..nbr_fields {
+                *values_addr = Value::NIL;
+                values_addr = values_addr.wrapping_add(1);
+            }
+        };
+
+        instance_ref
     }
+
+    // /// Construct an instance for a given class.
+    // pub fn from_static_class(class: Gc<Class>, mutator: &mut GCInterface) -> Gc<Instance> {
+    //     let instance = Self {
+    //         class,
+    //         fields_ptr: std::ptr::null_mut(),
+    //     };
+    //
+    //     let mut instance_ref = mutator.alloc(instance);
+    //
+    //     // instance_ref.fields_ptr = class.fields.as_mut_slice();
+    //
+    //     instance_ref
+    // }
 
     /// Get the class of which this is an instance from.
     pub fn class(&self) -> Gc<Class> {
@@ -58,58 +75,22 @@ impl Instance {
     //     unsafe { *self.locals.get_unchecked_mut(idx) = value; }
     // }
 
-    /// Checks whether there exists a local binding of a given index.
-    pub fn has_field(&self, idx: usize) -> bool {
-        idx < self.nbr_fields
-    }
-}
-
-impl CustomAlloc<Instance> for Instance {
-    fn alloc(instance: Instance, gc_interface: &mut GCInterface) -> Gc<Self> {
-        let size = size_of::<Instance>() + (instance.nbr_fields * size_of::<Value>());
-
-        let nbr_fields = instance.nbr_fields;
-
-        let instance_ref = gc_interface.alloc_with_size(instance, size);
-
+    pub(crate) fn lookup_field(&self, idx: usize) -> Value {
         unsafe {
-            let mut values_addr = (instance_ref.ptr + size_of::<Instance>()) as *mut Value;
-            for _ in 0..nbr_fields {
-                *values_addr = Value::NIL;
-                values_addr = values_addr.wrapping_add(1);
-            }
-        };
-
-        // println!("instance allocation OK");
-
-        instance_ref
-    }
-}
-
-pub trait InstanceAccess {
-    // technically internally works with an MMTk Address type, and should return it. but Address is just a usize newtype, and we don't want to depend on MMTk, so we say usize.
-    fn get_field_addr(&self, idx: usize) -> usize;
-    fn lookup_field(&self, idx: usize) -> Value;
-    fn assign_field(&mut self, idx: usize, value: Value);
-}
-
-impl InstanceAccess for Gc<Instance> {
-    fn get_field_addr(&self, idx: usize) -> usize {
-        self.ptr + size_of::<Instance>() + (idx * size_of::<Value>())
-    }
-
-    fn lookup_field(&self, idx: usize) -> Value {
-        unsafe {
-            let local_ref: &Value = &*(self.get_field_addr(idx) as *const Value);
+            let local_ref = self.fields_ptr.add(idx);
             *local_ref
         }
     }
 
-    fn assign_field(&mut self, idx: usize, value: Value) {
+    pub(crate) fn assign_field(&mut self, idx: usize, value: Value) {
         unsafe {
-            let ptr_to_local = self.get_field_addr(idx) as *mut Value;
+            let ptr_to_local = self.fields_ptr.add(idx);
             *ptr_to_local = value
         }
+    }
+
+    pub fn get_nbr_fields(&self) -> usize {
+        self.class.get_nbr_fields()
     }
 }
 

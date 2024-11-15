@@ -24,7 +24,9 @@ pub struct Class {
     /// The superclass of this class.
     pub super_class: Option<Gc<Class>>,
     /// The class' fields.
-    pub fields: IndexMap<Interned, Value>,
+    pub fields: Vec<Value>,
+    /// The class' fields' names, in the same order as the fields array
+    pub field_names: Vec<Interned>,
     /// The class' methods/invokables.
     pub methods: IndexMap<Interned, Gc<Method>>,
     /// Is this class a static one ?
@@ -68,16 +70,16 @@ impl Class {
     }
 
     /// Search for a local binding.
-    pub fn lookup_local(&self, idx: usize) -> Value {
-        self.fields.values().nth(idx).cloned().unwrap_or_else(|| {
+    pub fn lookup_field(&self, idx: usize) -> Value {
+        self.fields.get(idx).copied().unwrap_or_else(|| {
             let super_class = self.super_class().unwrap();
-            super_class.lookup_local(idx)
+            super_class.lookup_field(idx)
         })
     }
 
     /// Assign a value to a local binding.
     pub fn assign_field(&mut self, idx: usize, value: Value) {
-        match self.fields.values_mut().nth(idx) {
+        match self.fields.get_mut(idx) {
             Some(local) => {
                 *local = value;
             }
@@ -91,6 +93,15 @@ impl Class {
     /// Checks whether there exists a local binding of a given index.
     pub fn has_local(&self, idx: usize) -> bool {
         idx < self.fields.len()
+    }
+
+    /// Get the total number of fields, counting the superclasses.
+    pub fn get_nbr_fields(&self) -> usize {
+        let mut nbr_locals = self.fields.len();
+        if let Some(super_class) = self.super_class() {
+            nbr_locals += super_class.get_nbr_fields()
+        }
+        nbr_locals
     }
 }
 

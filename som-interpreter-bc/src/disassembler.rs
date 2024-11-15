@@ -51,7 +51,7 @@ fn disassemble_body(universe: &Universe, class: &Class, level: usize, env: &mut 
             }
             Bytecode::PushField(idx) | Bytecode::PopField(idx) => {
                 print!(" {idx}");
-                let Some((name, _)) = class.fields.get_index(usize::from(idx)) else {
+                let Some(name) = class.field_names.get(usize::from(idx)) else {
                     println!(" (invalid field)");
                     continue;
                 };

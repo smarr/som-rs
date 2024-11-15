@@ -23,7 +23,6 @@ impl Hash for Class {
 impl Hash for Instance {
     fn hash<H: Hasher>(&self, hasher: &mut H) {
         self.class.hash(hasher);
-        self.nbr_fields.hash(hasher);
         // todo better hash that actually reads the values
         // self.locals.iter().for_each(|value| {
         //     value.hash(hasher);

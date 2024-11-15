@@ -3,7 +3,6 @@ use crate::class::Class;
 use crate::compiler::Literal;
 use crate::frame::Frame;
 use crate::gc::VecValue;
-use crate::instance::InstanceAccess;
 use crate::method::{Method, MethodKind};
 use crate::universe::Universe;
 use crate::value::Value;
@@ -239,7 +238,7 @@ impl Interpreter {
                         if let Some(instance) = self_val.as_instance() {
                             instance.lookup_field(idx as usize)
                         } else if let Some(cls) = self_val.as_class() {
-                            cls.class().lookup_local(idx as usize)
+                            cls.class().lookup_field(idx as usize)
                         } else {
                             panic!("trying to read a field from a {:?}?", &self_val)
                         }
