@@ -16,7 +16,7 @@ pub struct Instance {
 
 impl Instance {
     /// Construct an instance for a given class.
-    pub fn from_class(class: Gc<Class>, mutator: &mut GCInterface) -> Gc<Instance> {
+    pub fn from_class(class: Gc<Class>, gc_interface: &mut GCInterface) -> Gc<Instance> {
         let nbr_fields = class.get_nbr_fields();
 
         let instance = Self {
@@ -24,21 +24,19 @@ impl Instance {
             fields_ptr: std::ptr::null_mut(),
         };
 
-        // TODO: this all belongs in a `CustomAlloc`, that takes in a closure to do post-processing on the data
-        let size = size_of::<Instance>() + (nbr_fields * size_of::<Value>());
-
-        let mut instance_ref = mutator.alloc_with_size(instance, size);
-
-        unsafe {
-            let mut values_addr = (instance_ref.ptr + size_of::<Instance>()) as *mut Value;
-            instance_ref.fields_ptr = values_addr;
-            for _ in 0..nbr_fields {
-                *values_addr = Value::NIL;
-                values_addr = values_addr.wrapping_add(1);
-            }
+        let post_alloc_closure = |mut instance_ref: Gc<Instance>| {
+            unsafe {
+                let mut values_addr = (instance_ref.ptr + size_of::<Instance>()) as *mut Value;
+                instance_ref.fields_ptr = values_addr;
+                for _ in 0..nbr_fields {
+                    *values_addr = Value::NIL;
+                    values_addr = values_addr.wrapping_add(1);
+                }
+            };
         };
 
-        instance_ref
+        let size = size_of::<Instance>() + (nbr_fields * size_of::<Value>());
+        gc_interface.alloc_with_post_init(instance, size, post_alloc_closure)
     }
 
     // /// Construct an instance for a given class.

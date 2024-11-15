@@ -1,11 +1,10 @@
 use mmtk::util::Address;
+use std::fmt::{Debug, Formatter};
 
-use crate::gc_interface::GCInterface;
 use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
 
 /// A pointer to the heap for GC.
-#[derive(Debug)]
 #[repr(transparent)]
 pub struct Gc<T> {
     pub ptr: usize,
@@ -19,6 +18,15 @@ impl<T> Clone for Gc<T> {
 }
 
 impl<T> Copy for Gc<T> {}
+
+impl<T: Debug> Debug for Gc<T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match !self.is_empty() {
+            true => (**self).fmt(f),
+            false => f.write_str("(empty)"),
+        }
+    }
+}
 
 const GCREF_EMPTY_VALUE: usize = 0;
 // Occasionally we want a placeholder. Code definitely refactorable to never need this (we could just use `Option<GCRef>`), but it would likely be a minor perf hit.
@@ -90,13 +98,4 @@ impl<T> Gc<T> {
             _phantom: PhantomData,
         }
     }
-}
-
-/// Custom alloc function.
-///
-/// Exists for that traits to be able to choose how to allocate their data.
-/// Must call GCRef::<T>::alloc(_with_size) internally to get a GCRef, but I can't strictly enforce that with Rust's type system.
-/// In practice, that's usually allowing for more memory than Rust might be able to infer from the struct size, and filling it with our own data.
-pub trait CustomAlloc<T> {
-    fn alloc(obj: T, mutator: &mut GCInterface) -> Gc<T>;
 }

@@ -157,6 +157,17 @@ impl GCInterface {
         Gc::from_address(obj_addr.to_raw_address())
     }
 
+    /// Custom alloc function, for traits to be able to choose how to allocate their data.
+    /// In practice, that's usually allowing for more memory than Rust might be able to infer from the struct size, and filling it with our own data.
+    pub fn alloc_with_post_init<T: HasTypeInfoForGC, F>(&mut self, obj: T, size: usize, mut post_alloc_init_closure: F) -> Gc<T>
+    where
+        F: FnMut(Gc<T>),
+    {
+        let instance_ref = self.alloc_with_size(obj, size);
+        post_alloc_init_closure(instance_ref);
+        instance_ref
+    }
+
     /// Dispatches a manual collection request to MMTk.
     pub fn full_gc_request(&self) {
         mmtk_handle_user_collection_request(self.mutator_thread);

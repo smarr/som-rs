@@ -2,7 +2,8 @@ use crate::value::Value;
 use crate::FRAME_ARGS_PTR;
 use core::mem::size_of;
 use som_gc::gc_interface::GCInterface;
-use som_gc::gcref::{CustomAlloc, Gc};
+use som_gc::gcref::Gc;
+use std::fmt::{Debug, Formatter};
 use std::marker::PhantomData;
 use std::ptr::NonNull;
 
@@ -27,7 +28,6 @@ use std::ptr::NonNull;
 // }
 
 /// Represents a stack frame.
-#[derive(Debug)]
 pub struct Frame {
     pub prev_frame: Gc<Frame>,
     /// This frame's kind.
@@ -65,13 +65,24 @@ impl Frame {
         unsafe {
             FRAME_ARGS_PTR = NonNull::new(&mut params);
         }
-        let mut frame_ptr = Frame::alloc(frame, gc_interface);
+
+        let post_alloc_closure = |mut frame_ptr: Gc<Frame>| {
+            unsafe {
+                let mut locals_addr = (frame_ptr.ptr + size_of::<Frame>() + (params.len() * size_of::<Value>())) as *mut Value;
+                for _ in 0..nbr_locals {
+                    *locals_addr = Value::NIL;
+                    locals_addr = locals_addr.wrapping_add(1);
+                }
+                for i in (0..params.len()).rev() {
+                    frame_ptr.assign_arg(i as u8, params.pop().unwrap())
+                }
+            };
+        };
+        let size = size_of::<Frame>() + ((frame.nbr_args + frame.nbr_locals) as usize * size_of::<Value>());
+        let frame_ptr = gc_interface.alloc_with_post_init(frame, size, post_alloc_closure);
+
         unsafe {
             FRAME_ARGS_PTR = None;
-        }
-
-        for i in (0..params.len()).rev() {
-            frame_ptr.assign_arg(i as u8, params.pop().unwrap())
         }
 
         frame_ptr
@@ -213,25 +224,8 @@ impl FrameAccess for Gc<Frame> {
     }
 }
 
-// this is a duplicate of the BC logic. they need unifying somehow, though it's easier said than done
-impl CustomAlloc<Frame> for Frame {
-    fn alloc(frame: Frame, gc_interface: &mut GCInterface) -> Gc<Frame> {
-        let nbr_locals = frame.nbr_locals;
-        let nbr_args = frame.nbr_args;
-        let size = size_of::<Frame>() + ((nbr_args + nbr_locals) as usize * size_of::<Value>());
-
-        let frame_ptr = gc_interface.alloc_with_size(frame, size);
-
-        unsafe {
-            let mut locals_addr = (frame_ptr.ptr + size_of::<Frame>() + (nbr_args as usize * size_of::<Value>())) as *mut Value;
-            for _ in 0..nbr_locals {
-                *locals_addr = Value::NIL;
-                locals_addr = locals_addr.wrapping_add(1);
-            }
-        };
-
-        // println!("frame allocation ok");
-
-        frame_ptr
+impl Debug for Frame {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Frame").field("nbr_args", &self.nbr_args).field("nbr_locals", &self.nbr_locals).finish()
     }
 }
