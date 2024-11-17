@@ -4,7 +4,6 @@ use crate::frame::FrameAccess;
 use crate::invokable::{Invoke, Return};
 use crate::universe::Universe;
 use crate::value::Value;
-
 #[derive(Debug, Clone, PartialEq)]
 pub struct TrivialLiteralMethod {
     pub(crate) literal: AstLiteral,

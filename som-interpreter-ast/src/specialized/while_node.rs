@@ -2,7 +2,6 @@ use crate::evaluate::Evaluate;
 use crate::invokable::{Invoke, Return};
 use crate::universe::Universe;
 use crate::value::Value;
-
 #[derive(Debug, Clone, PartialEq)]
 pub struct WhileNode {
     pub(crate) expected_bool: bool,

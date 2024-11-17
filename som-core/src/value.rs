@@ -1,3 +1,7 @@
+use crate::interner::Interned;
+use num_bigint::BigInt;
+use som_gc::gcref::Gc;
+
 static_assertions::const_assert_eq!(size_of::<f64>(), 8);
 static_assertions::assert_eq_size!(f64, u64, *const ());
 
@@ -94,286 +98,290 @@ pub const TAG_EXTRACTION: u64 = 0xFFFF << TAG_SHIFT;
 /// Bit pattern used to quickly check if a given 64-bit value houses a pointer-type value.
 pub const IS_PTR_PATTERN: u64 = CELL_BASE_TAG << TAG_SHIFT;
 
-/// Macro to declare a base implementation for NaN boxed values.
-/// This exists to be able to avoid code duplication between the AST and BC, which share a large base pool of possible types (integer, double, string, big integer...)
-/// But this is a hack. Ideally, we'd leverage the Rust type system for this...
-/// Ideas to make it work: making `struct BCNanBoxedVal(NanBoxedVal)`, and adding the `Deref` trait. Issue: any method defined on NanBoxedVal not accessible directly from BCNanBoxedVal (I THINK because of:...
-/// ...the fact that it might not play that well either with the fact that in each interp, we store a `type Value = BCNanBoxedVal` since we want to be able to replace it with `ValueEnum` for debugging. I think that complicates things for Rust...
-#[macro_export]
-macro_rules! nan_boxed_val_base_impl {
-    ($ty:ty) => {
-        impl $ty {
-            pub const NIL: Self = Self::new(NIL_TAG, 0);
-            /// The `system` value.
-            pub const SYSTEM: Self = Self::new(SYSTEM_TAG, 0);
-            /// The boolean `true` value.
-            pub const TRUE: Self = Self::new(BOOLEAN_TAG, 1);
-            /// The boolean `false` value.
-            pub const FALSE: Self = Self::new(BOOLEAN_TAG, 0);
+#[repr(transparent)]
+#[allow(clippy::derived_hash_with_manual_eq)] // TODO: manually implement Hash instead...
+#[derive(Copy, Clone, Hash)]
+pub struct BaseValue {
+    encoded: u64,
+}
 
-            /// The integer `0` value.
-            pub const INTEGER_ZERO: Self = Self::new(INTEGER_TAG, 0);
-            /// The integer `1` value.
-            pub const INTEGER_ONE: Self = Self::new(INTEGER_TAG, 1);
+impl BaseValue {
+    /// The boolean `true` value.
+    pub const TRUE: BaseValue = Self::new(BOOLEAN_TAG, 1);
+    /// The boolean `false` value.
+    pub const FALSE: BaseValue = Self::new(BOOLEAN_TAG, 0);
+    /// The `nil` value.
+    pub const NIL: BaseValue = Self::new(NIL_TAG, 0);
+    /// The `system` value.
+    pub const SYSTEM: Self = Self::new(SYSTEM_TAG, 0);
+    /// The integer `0` value.
+    pub const INTEGER_ZERO: Self = Self::new(INTEGER_TAG, 0);
+    /// The integer `1` value.
+    pub const INTEGER_ONE: Self = Self::new(INTEGER_TAG, 1);
 
-            /// Returns whether this value is a pointer type value.
-            #[inline(always)]
-            pub fn is_ptr_type(self) -> bool {
-                (self.encoded & IS_PTR_PATTERN) == IS_PTR_PATTERN
-            }
-
-            /// Return the value as its internal representation: a u64 type.
-            #[inline(always)]
-            pub fn as_u64(self) -> u64 {
-                self.encoded
-            }
-
-            /// Returns the tag bits of the value.
-            #[inline(always)]
-            pub fn tag(self) -> u64 {
-                (self.encoded & TAG_EXTRACTION) >> TAG_SHIFT
-            }
-            /// Returns the payload bits of the value.
-            #[inline(always)]
-            pub fn payload(self) -> u64 {
-                self.encoded & !TAG_EXTRACTION
-            }
-
-            #[inline(always)]
-            pub fn extract_gc_cell<T>(self) -> Gc<T> {
-                let ptr = self.extract_pointer_bits();
-                Gc::from_u64(ptr) // i doubt the compiler isn't making this conversion free
-            }
-
-            #[inline(always)]
-            fn extract_pointer_bits(self) -> u64 {
-                // For x86_64 the top 16 bits should be sign extending the "real" top bit (47th).
-                // So first shift the top 16 bits away then using the right shift it sign extends the top 16 bits.
-                (((self.encoded << 16) as i64) >> 16) as u64
-            }
-
-            #[inline(always)]
-            pub const fn new(tag: u64, value: u64) -> Self {
-                // NOTE: Pointers in x86-64 use just 48 bits however are supposed to be
-                //       sign extended up from the 47th bit.
-                //       This means that all bits above the 47th should be the same as
-                //       the 47th. When storing a pointer we thus drop the top 16 bits as
-                //       we can recover it when extracting the pointer again.
-                //       See also: Value::extract_pointer.
-                Self {
-                    encoded: CANON_NAN_BITS | ((tag << TAG_SHIFT) & TAG_EXTRACTION) | (value & !TAG_EXTRACTION),
-                }
-            }
-
-            /// Returns a new boolean value.
-            #[inline(always)]
-            pub fn new_boolean(value: bool) -> Self {
-                if value {
-                    Self::TRUE
-                } else {
-                    Self::FALSE
-                }
-            }
-
-            /// Returns a new integer value.
-            #[inline(always)]
-            pub fn new_integer(value: i32) -> Self {
-                Self::new(INTEGER_TAG, value as u64)
-            }
-
-            /// Returns a new double value.
-            #[inline(always)]
-            pub fn new_double(value: f64) -> Self {
-                Self {
-                    encoded: if value.is_nan() {
-                        // To represent an actual `NaN`, we canonicalize it to `CANON_NAN_BITS`.
-                        CANON_NAN_BITS
-                    } else {
-                        value.to_bits()
-                    },
-                }
-            }
-
-            /// Returns a new symbol value.
-            #[inline(always)]
-            pub fn new_symbol(value: Interned) -> Self {
-                Self::new(SYMBOL_TAG, value.0.into())
-            }
-
-            /// Returns a new big integer value.
-            #[inline(always)]
-            pub fn new_big_integer(value: Gc<BigInt>) -> Self {
-                Self::new(BIG_INTEGER_TAG, u64::from(value))
-            }
-            /// Returns a new string value.
-            #[inline(always)]
-            pub fn new_string(value: Gc<String>) -> Self {
-                Self::new(STRING_TAG, u64::from(value))
-            }
-
-            // --------
-
-            /// Returns whether this value is a big integer.
-            #[inline(always)]
-            pub fn is_big_integer(self) -> bool {
-                self.tag() == BIG_INTEGER_TAG
-            }
-            /// Returns whether this value is a string.
-            #[inline(always)]
-            pub fn is_string(self) -> bool {
-                self.tag() == STRING_TAG
-            }
-
-            /// Returns whether this value is `nil``.
-            #[inline(always)]
-            pub fn is_nil(self) -> bool {
-                self.tag() == NIL_TAG
-            }
-            /// Returns whether this value is `system`.
-            #[inline(always)]
-            pub fn is_system(self) -> bool {
-                self.tag() == SYSTEM_TAG
-            }
-            /// Returns whether this value is an integer.
-            #[inline(always)]
-            pub fn is_integer(self) -> bool {
-                self.tag() == INTEGER_TAG
-            }
-
-            /// Returns whether this value is a double.
-            #[inline(always)]
-            pub fn is_double(self) -> bool {
-                // A double is any value which does not have the full exponent and top mantissa bit set or has
-                // exactly only those bits set.
-                (self.encoded & CANON_NAN_BITS) != CANON_NAN_BITS || (self.encoded == CANON_NAN_BITS)
-            }
-
-            /// Returns whether this value is a boolean.
-            #[inline(always)]
-            pub fn is_boolean(self) -> bool {
-                self.tag() == BOOLEAN_TAG
-            }
-
-            /// Returns whether or not it's a boolean corresponding to true. NB: does NOT check if the type actually is a boolean.
-            #[inline(always)]
-            pub fn is_boolean_true(self) -> bool {
-                self.payload() == 1
-            }
-
-            /// Returns whether or not it's a boolean corresponding to false. NB: does NOT check if the type actually is a boolean.
-            #[inline(always)]
-            pub fn is_boolean_false(self) -> bool {
-                self.payload() == 0
-            }
-
-            /// Returns whether this value is a symbol.
-            #[inline(always)]
-            pub fn is_symbol(self) -> bool {
-                self.tag() == SYMBOL_TAG
-            }
-
-            // ----------------
-
-            /// Returns this value as a big integer, if such is its type.
-            #[inline(always)]
-            pub fn as_big_integer(self) -> Option<Gc<BigInt>> {
-                self.is_big_integer().then(|| self.extract_gc_cell())
-            }
-            /// Returns this value as a string, if such is its type.
-            #[inline(always)]
-            pub fn as_string(self) -> Option<Gc<String>> {
-                self.is_string().then(|| self.extract_gc_cell())
-            }
-
-            // `as_*` for non pointer types
-
-            /// Returns this value as an integer, if such is its type.
-            #[inline(always)]
-            pub fn as_integer(self) -> Option<i32> {
-                self.is_integer().then(|| (self.encoded & 0xFFFFFFFF) as i32)
-            }
-
-            /// Returns this value as a double, if such is its type.
-            #[inline(always)]
-            pub fn as_double(self) -> Option<f64> {
-                self.is_double().then(|| f64::from_bits(self.encoded))
-            }
-
-            /// Returns this value as a boolean, if such is its type.
-            #[inline(always)]
-            pub fn as_boolean(self) -> Option<bool> {
-                self.is_boolean().then(|| (self.encoded & 0x1) == 0x1)
-            }
-            /// Returns this value as a symbol, if such is its type.
-            #[inline(always)]
-            pub fn as_symbol(self) -> Option<Interned> {
-                self.is_symbol().then(|| Interned((self.encoded & 0xFFFFFFFF) as u32))
-            }
-
-            // ----------------
-
-            // these are all for backwards compatibility (i.e.: i don't want to do massive amounts of refactoring), but also maybe clever-ish replacement with normal Value enums
-
-            #[allow(non_snake_case)]
-            #[inline(always)]
-            pub fn Boolean(value: bool) -> Self {
-                Self::new_boolean(value)
-            }
-
-            #[allow(non_snake_case)]
-            #[inline(always)]
-            pub fn Integer(value: i32) -> Self {
-                Self::new_integer(value)
-            }
-
-            #[allow(non_snake_case)]
-            #[inline(always)]
-            pub fn Double(value: f64) -> Self {
-                Self::new_double(value)
-            }
-
-            #[allow(non_snake_case)]
-            #[inline(always)]
-            pub fn Symbol(value: Interned) -> Self {
-                Self::new_symbol(value)
-            }
-
-            #[allow(non_snake_case)]
-            #[inline(always)]
-            pub fn BigInteger(value: Gc<BigInt>) -> Self {
-                Self::new_big_integer(value)
-            }
-
-            #[allow(non_snake_case)]
-            #[inline(always)]
-            pub fn String(value: Gc<String>) -> Self {
-                Self::new_string(value)
-            }
+    #[inline(always)]
+    pub const fn new(tag: u64, value: u64) -> Self {
+        // NOTE: Pointers in x86-64 use just 48 bits however are supposed to be
+        //       sign extended up from the 47th bit.
+        //       This means that all bits above the 47th should be the same as
+        //       the 47th. When storing a pointer we thus drop the top 16 bits as
+        //       we can recover it when extracting the pointer again.
+        //       See also: Value::extract_pointer.
+        Self {
+            encoded: CANON_NAN_BITS | ((tag << TAG_SHIFT) & TAG_EXTRACTION) | (value & !TAG_EXTRACTION),
         }
+    }
 
-        impl PartialEq for $ty {
-            fn eq(&self, other: &Self) -> bool {
-                if self.as_u64() == other.as_u64() {
-                    // this encapsulates every comparison between values of the same primitive type, e.g. comparing two i32s or two booleans
-                    true
-                } else if let (Some(a), Some(b)) = (self.as_double(), other.as_double()) {
-                    a == b
-                } else if let (Some(a), Some(b)) = (self.as_integer(), other.as_double()) {
-                    (a as f64) == b
-                } else if let (Some(a), Some(b)) = (self.as_double(), other.as_integer()) {
-                    (b as f64) == a
-                } else if let (Some(a), Some(b)) = (self.as_big_integer(), other.as_big_integer()) {
-                    a == b
-                } else if let (Some(a), Some(b)) = (self.as_big_integer(), other.as_integer()) {
-                    (&*a).eq(&BigInt::from(b))
-                } else if let (Some(a), Some(b)) = (self.as_integer(), other.as_big_integer()) {
-                    BigInt::from(a).eq(&*b)
-                } else if let (Some(a), Some(b)) = (self.as_string(), other.as_string()) {
-                    a == b
-                } else {
-                    false
-                }
-            }
+    /// Returns a new boolean value.
+    #[inline(always)]
+    pub fn new_boolean(value: bool) -> Self {
+        if value {
+            Self::TRUE
+        } else {
+            Self::FALSE
         }
-    };
+    }
+
+    /// Returns whether this value is a pointer type value.
+    #[inline(always)]
+    pub fn is_ptr_type(self) -> bool {
+        (self.encoded & IS_PTR_PATTERN) == IS_PTR_PATTERN
+    }
+
+    /// Return the value as its internal representation: a u64 type.
+    #[inline(always)]
+    pub fn as_u64(self) -> u64 {
+        self.encoded
+    }
+
+    /// Returns the tag bits of the value.
+    #[inline(always)]
+    pub fn tag(self) -> u64 {
+        (self.encoded & TAG_EXTRACTION) >> TAG_SHIFT
+    }
+    /// Returns the payload bits of the value.
+    #[inline(always)]
+    pub fn payload(self) -> u64 {
+        self.encoded & !TAG_EXTRACTION
+    }
+
+    #[inline(always)]
+    pub fn extract_gc_cell<T>(self) -> Gc<T> {
+        let ptr = self.extract_pointer_bits();
+        Gc::from_u64(ptr) // i doubt the compiler isn't making this conversion free
+    }
+
+    #[inline(always)]
+    pub fn extract_pointer_bits(self) -> u64 {
+        // For x86_64 the top 16 bits should be sign extending the "real" top bit (47th).
+        // So first shift the top 16 bits away then using the right shift it sign extends the top 16 bits.
+        (((self.encoded << 16) as i64) >> 16) as u64
+    }
+
+    /// Returns a new integer value.
+    #[inline(always)]
+    pub fn new_integer(value: i32) -> Self {
+        Self::new(INTEGER_TAG, value as u64)
+    }
+
+    /// Returns a new double value.
+    #[inline(always)]
+    pub fn new_double(value: f64) -> Self {
+        Self {
+            encoded: if value.is_nan() {
+                // To represent an actual `NaN`, we canonicalize it to `CANON_NAN_BITS`.
+                CANON_NAN_BITS
+            } else {
+                value.to_bits()
+            },
+        }
+    }
+
+    /// Returns a new symbol value.
+    #[inline(always)]
+    pub fn new_symbol(value: Interned) -> Self {
+        Self::new(SYMBOL_TAG, value.0.into())
+    }
+
+    /// Returns a new big integer value.
+    #[inline(always)]
+    pub fn new_big_integer(value: Gc<BigInt>) -> Self {
+        Self::new(BIG_INTEGER_TAG, u64::from(value))
+    }
+    /// Returns a new string value.
+    #[inline(always)]
+    pub fn new_string(value: Gc<String>) -> Self {
+        Self::new(STRING_TAG, u64::from(value))
+    }
+
+    // --------
+
+    /// Returns whether this value is a big integer.
+    #[inline(always)]
+    pub fn is_big_integer(self) -> bool {
+        self.tag() == BIG_INTEGER_TAG
+    }
+    /// Returns whether this value is a string.
+    #[inline(always)]
+    pub fn is_string(self) -> bool {
+        self.tag() == STRING_TAG
+    }
+
+    /// Returns whether this value is `nil``.
+    #[inline(always)]
+    pub fn is_nil(self) -> bool {
+        self.tag() == NIL_TAG
+    }
+    /// Returns whether this value is `system`.
+    #[inline(always)]
+    pub fn is_system(self) -> bool {
+        self.tag() == SYSTEM_TAG
+    }
+    /// Returns whether this value is an integer.
+    #[inline(always)]
+    pub fn is_integer(self) -> bool {
+        self.tag() == INTEGER_TAG
+    }
+
+    /// Returns whether this value is a double.
+    #[inline(always)]
+    pub fn is_double(self) -> bool {
+        // A double is any value which does not have the full exponent and top mantissa bit set or has
+        // exactly only those bits set.
+        (self.encoded & CANON_NAN_BITS) != CANON_NAN_BITS || (self.encoded == CANON_NAN_BITS)
+    }
+
+    /// Returns whether this value is a boolean.
+    #[inline(always)]
+    pub fn is_boolean(self) -> bool {
+        self.tag() == BOOLEAN_TAG
+    }
+
+    /// Returns whether or not it's a boolean corresponding to true. NB: does NOT check if the type actually is a boolean.
+    #[inline(always)]
+    pub fn is_boolean_true(self) -> bool {
+        self.payload() == 1
+    }
+
+    /// Returns whether or not it's a boolean corresponding to false. NB: does NOT check if the type actually is a boolean.
+    #[inline(always)]
+    pub fn is_boolean_false(self) -> bool {
+        self.payload() == 0
+    }
+
+    /// Returns whether this value is a symbol.
+    #[inline(always)]
+    pub fn is_symbol(self) -> bool {
+        self.tag() == SYMBOL_TAG
+    }
+
+    // ----------------
+
+    /// Returns this value as a big integer, if such is its type.
+    #[inline(always)]
+    pub fn as_big_integer(self) -> Option<Gc<BigInt>> {
+        self.is_big_integer().then(|| self.extract_gc_cell())
+    }
+    /// Returns this value as a string, if such is its type.
+    #[inline(always)]
+    pub fn as_string(self) -> Option<Gc<String>> {
+        self.is_string().then(|| self.extract_gc_cell())
+    }
+
+    // `as_*` for non pointer types
+
+    /// Returns this value as an integer, if such is its type.
+    #[inline(always)]
+    pub fn as_integer(self) -> Option<i32> {
+        self.is_integer().then_some((self.encoded & 0xFFFFFFFF) as i32)
+    }
+
+    /// Returns this value as a double, if such is its type.
+    #[inline(always)]
+    pub fn as_double(self) -> Option<f64> {
+        self.is_double().then(|| f64::from_bits(self.encoded))
+    }
+
+    /// Returns this value as a boolean, if such is its type.
+    #[inline(always)]
+    pub fn as_boolean(self) -> Option<bool> {
+        self.is_boolean().then_some((self.encoded & 0x1) == 0x1)
+    }
+
+    /// Returns this value as a boolean, but without checking whether or not it really is one.
+    #[inline(always)]
+    pub fn as_boolean_unchecked(self) -> bool {
+        self.payload() != 0
+    }
+
+    /// Returns this value as a symbol, if such is its type.
+    #[inline(always)]
+    pub fn as_symbol(self) -> Option<Interned> {
+        self.is_symbol().then_some(Interned((self.encoded & 0xFFFFFFFF) as u32))
+    }
+
+    // ----------------
+
+    // these are all for backwards compatibility (i.e.: i don't want to do massive amounts of refactoring), but also maybe clever-ish replacement with normal Value enums
+
+    #[allow(non_snake_case)]
+    #[inline(always)]
+    pub fn Boolean(value: bool) -> Self {
+        Self::new_boolean(value)
+    }
+
+    #[allow(non_snake_case)]
+    #[inline(always)]
+    pub fn Integer(value: i32) -> Self {
+        Self::new_integer(value)
+    }
+
+    #[allow(non_snake_case)]
+    #[inline(always)]
+    pub fn Double(value: f64) -> Self {
+        Self::new_double(value)
+    }
+
+    #[allow(non_snake_case)]
+    #[inline(always)]
+    pub fn Symbol(value: Interned) -> Self {
+        Self::new_symbol(value)
+    }
+
+    #[allow(non_snake_case)]
+    #[inline(always)]
+    pub fn BigInteger(value: Gc<BigInt>) -> Self {
+        Self::new_big_integer(value)
+    }
+
+    #[allow(non_snake_case)]
+    #[inline(always)]
+    pub fn String(value: Gc<String>) -> Self {
+        Self::new_string(value)
+    }
+}
+
+impl PartialEq for BaseValue {
+    fn eq(&self, other: &Self) -> bool {
+        if self.as_u64() == other.as_u64() {
+            // this encapsulates every comparison between values of the same primitive type, e.g. comparing two i32s or two booleans
+            true
+        } else if let (Some(a), Some(b)) = (self.as_double(), other.as_double()) {
+            a == b
+        } else if let (Some(a), Some(b)) = (self.as_integer(), other.as_double()) {
+            (a as f64) == b
+        } else if let (Some(a), Some(b)) = (self.as_double(), other.as_integer()) {
+            (b as f64) == a
+        } else if let (Some(a), Some(b)) = (self.as_big_integer(), other.as_big_integer()) {
+            a == b
+        } else if let (Some(a), Some(b)) = (self.as_big_integer(), other.as_integer()) {
+            (*a).eq(&BigInt::from(b))
+        } else if let (Some(a), Some(b)) = (self.as_integer(), other.as_big_integer()) {
+            BigInt::from(a).eq(&*b)
+        } else if let (Some(a), Some(b)) = (self.as_string(), other.as_string()) {
+            a == b
+        } else {
+            false
+        }
+    }
 }

@@ -1,5 +1,3 @@
-use std::fmt;
-
 use crate::block::Block;
 use crate::class::Class;
 use crate::gc::VecValue;
@@ -8,19 +6,11 @@ use crate::method::Method;
 use crate::universe::Universe;
 use num_bigint::BigInt;
 use som_core::interner::Interned;
-use som_core::nan_boxed_val_base_impl;
-use som_core::value::{BIG_INTEGER_TAG, BOOLEAN_TAG, CANON_NAN_BITS, CELL_BASE_TAG, INTEGER_TAG, NIL_TAG, STRING_TAG, SYMBOL_TAG, SYSTEM_TAG};
-use som_core::value::{IS_PTR_PATTERN, TAG_EXTRACTION, TAG_SHIFT};
+use som_core::value::*;
 use som_gc::gcref::Gc;
-
-// The following non-pointer type tags are still available (maybe useful for optimisations ?):
-
-// /// Tag bits for the `???` type.
-// const RESERVED1_TAG: u64 = 0b110 | BASE_TAG;
-// /// Tag bits for the `???` type.
-// const RESERVED2_TAG: u64 = 0b111 | BASE_TAG;
-
-// Tags for pointer types
+use std::convert::Into;
+use std::fmt;
+use std::ops::Deref;
 
 /// Tag bits for the `Array` type.
 const ARRAY_TAG: u64 = 0b010 | CELL_BASE_TAG;
@@ -33,21 +23,50 @@ const INSTANCE_TAG: u64 = 0b110 | CELL_BASE_TAG;
 /// Tag bits for the `Invokable` type.
 const INVOKABLE_TAG: u64 = 0b111 | CELL_BASE_TAG;
 
-pub type Value = AstNaNBoxedVal;
-// pub type Value = ValueEnum;
+#[derive(Clone, Copy, PartialEq, Hash)]
+pub struct Value(BaseValue);
 
-/// Represents an SOM value.
-#[allow(clippy::derived_hash_with_manual_eq)] // TODO: manually implement Hash instead...
-#[derive(Clone, Copy, Eq, Hash)]
-pub struct AstNaNBoxedVal {
-    /// The 64-bit value that is used to store SOM values using NaN-boxing.
-    encoded: u64,
+impl Deref for Value {
+    type Target = BaseValue;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 
-nan_boxed_val_base_impl!(AstNaNBoxedVal);
+impl From<BaseValue> for Value {
+    fn from(value: BaseValue) -> Self {
+        Value(value)
+    }
+}
 
-impl AstNaNBoxedVal {
-    /// Returns whether this value is an array.
+impl Value {
+    /// Returns a new array value.
+    #[inline(always)]
+    pub fn new_array(value: Gc<VecValue>) -> Self {
+        BaseValue::new(ARRAY_TAG, u64::from(value)).into()
+    }
+    /// Returns a new block value.
+    #[inline(always)]
+    pub fn new_block(value: Gc<Block>) -> Self {
+        BaseValue::new(BLOCK_TAG, u64::from(value)).into()
+    }
+    /// Returns a new class value.
+    #[inline(always)]
+    pub fn new_class(value: Gc<Class>) -> Self {
+        BaseValue::new(CLASS_TAG, u64::from(value)).into()
+    }
+    /// Returns a new instance value.
+    #[inline(always)]
+    pub fn new_instance(value: Gc<Instance>) -> Self {
+        BaseValue::new(INSTANCE_TAG, u64::from(value)).into()
+    }
+    /// Returns a new invokable value.
+    #[inline(always)]
+    pub fn new_invokable(value: Gc<Method>) -> Self {
+        BaseValue::new(INVOKABLE_TAG, u64::from(value)).into()
+    }
+
     #[inline(always)]
     pub fn is_array(self) -> bool {
         self.tag() == ARRAY_TAG
@@ -57,6 +76,7 @@ impl AstNaNBoxedVal {
     pub fn is_block(self) -> bool {
         self.tag() == BLOCK_TAG
     }
+
     /// Returns whether this value is a class.
     #[inline(always)]
     pub fn is_class(self) -> bool {
@@ -73,10 +93,6 @@ impl AstNaNBoxedVal {
         self.tag() == INVOKABLE_TAG
     }
 
-    // `is_*` methods for pointer types
-
-    // `as_*` for pointer types
-
     /// Returns this value as an array, if such is its type.
     #[inline(always)]
     pub fn as_array(self) -> Option<Gc<VecValue>> {
@@ -87,7 +103,6 @@ impl AstNaNBoxedVal {
     pub fn as_block(self) -> Option<Gc<Block>> {
         self.is_block().then(|| self.extract_gc_cell())
     }
-
     /// Returns this value as a class, if such is its type.
     #[inline(always)]
     pub fn as_class(self) -> Option<Gc<Class>> {
@@ -103,47 +118,65 @@ impl AstNaNBoxedVal {
     pub fn as_invokable(self) -> Option<Gc<Method>> {
         self.is_invocable().then(|| self.extract_gc_cell())
     }
-
-    // `as_*` for non pointer types
-
-    /// Returns the value as a boolean, but without checking if it actually is one.
+    #[allow(non_snake_case)]
+    pub fn Array(value: Gc<VecValue>) -> Self {
+        Self::new_array(value)
+    }
+    #[allow(non_snake_case)]
     #[inline(always)]
-    pub fn as_boolean_unchecked(self) -> bool {
-        self.payload() != 0
+    pub fn Block(value: Gc<Block>) -> Self {
+        Self::new_block(value)
     }
 
-    /// Returns a new array value.
-    #[inline(always)]
-    pub fn new_array(value: Gc<VecValue>) -> Self {
-        Self::new(ARRAY_TAG, u64::from(value))
-    }
-    /// Returns a new block value.
-    #[inline(always)]
-    pub fn new_block(value: Gc<Block>) -> Self {
-        Self::new(BLOCK_TAG, u64::from(value))
-    }
-    /// Returns a new class value.
-    #[inline(always)]
-    pub fn new_class(value: Gc<Class>) -> Self {
-        Self::new(CLASS_TAG, u64::from(value))
-    }
-    /// Returns a new instance value.
-    #[inline(always)]
-    pub fn new_instance(value: Gc<Instance>) -> Self {
-        Self::new(INSTANCE_TAG, u64::from(value))
-    }
-    /// Returns a new invocable value.
-    #[inline(always)]
-    pub fn new_invokable(value: Gc<Method>) -> Self {
-        Self::new(INVOKABLE_TAG, u64::from(value))
+    #[allow(non_snake_case)]
+    pub fn Class(value: Gc<Class>) -> Self {
+        Self::new_class(value)
     }
 
-    // #[inline(always)]
-    // fn extract_gc_cell<T: Trace>(self) -> GCRef<T> {
-    //     let ptr: *const GcBox<T> = self.extract_pointer::<GcBox<T>>();
-    //     let ptr = NonNull::new(ptr as *mut _).unwrap();
-    //     Gc::from_raw(ptr)
-    // }
+    #[allow(non_snake_case)]
+    pub fn Instance(value: Gc<Instance>) -> Self {
+        Self::new_instance(value)
+    }
+
+    #[allow(non_snake_case)]
+    pub fn Invokable(value: Gc<Method>) -> Self {
+        Self::new_invokable(value)
+    }
+}
+
+macro_rules! delegate_base_value {
+    ($($fn_name:ident($($arg:ident : $arg_ty:ty),*) -> $ret:ty),* $(,)?) => {
+        $(
+            pub fn $fn_name($($arg: $arg_ty),*) -> $ret {
+                BaseValue::$fn_name($($arg),*).into()
+            }
+        )*
+    };
+}
+
+#[allow(non_snake_case)]
+impl Value {
+    pub const TRUE: Self = Value(BaseValue::TRUE);
+    pub const FALSE: Self = Value(BaseValue::FALSE);
+    pub const NIL: Self = Value(BaseValue::NIL);
+    pub const SYSTEM: Self = Value(BaseValue::SYSTEM);
+    pub const INTEGER_ZERO: Self = Value(BaseValue::INTEGER_ZERO);
+    pub const INTEGER_ONE: Self = Value(BaseValue::INTEGER_ONE);
+
+    delegate_base_value!(
+        new_boolean(value: bool) -> Self,
+        new_integer(value: i32) -> Self,
+        new_double(value: f64) -> Self,
+        new_symbol(value: Interned) -> Self,
+        new_big_integer(value: Gc<BigInt>) -> Self,
+        new_string(value: Gc<String>) -> Self,
+        Boolean(value: bool) -> Self,
+        Integer(value: i32) -> Self,
+        Double(value: f64) -> Self,
+        Symbol(value: Interned) -> Self,
+        BigInteger(value: Gc<BigInt>) -> Self,
+        String(value: Gc<String>) -> Self,
+    );
 
     /// Get the class of the current value.
     #[inline(always)]
@@ -222,43 +255,10 @@ impl AstNaNBoxedVal {
             }
         }
     }
-
-    // pub fn dbg_get_bits(&self) -> u64 {
-    //     self.encoded
-    // }
 }
 
-// TODO: remove all these. it's for backwards compatibility (i.e.: i don't want to do massive amounts of refactoring)
-#[allow(non_snake_case)]
-impl AstNaNBoxedVal {
-    #[inline(always)]
-    pub fn Array(value: Gc<VecValue>) -> Self {
-        AstNaNBoxedVal::new_array(value)
-    }
-
-    #[inline(always)]
-    pub fn Block(value: Gc<Block>) -> Self {
-        AstNaNBoxedVal::new_block(value)
-    }
-
-    #[inline(always)]
-    pub fn Class(value: Gc<Class>) -> Self {
-        AstNaNBoxedVal::new_class(value)
-    }
-
-    #[inline(always)]
-    pub fn Instance(value: Gc<Instance>) -> Self {
-        AstNaNBoxedVal::new_instance(value)
-    }
-
-    #[inline(always)]
-    pub fn Invokable(value: Gc<Method>) -> Self {
-        AstNaNBoxedVal::new_invokable(value)
-    }
-}
-
-impl From<AstNaNBoxedVal> for ValueEnum {
-    fn from(value: AstNaNBoxedVal) -> Self {
+impl From<Value> for ValueEnum {
+    fn from(value: Value) -> Self {
         if let Some(value) = value.as_double() {
             Self::Double(value)
         } else if value.is_nil() {
@@ -293,7 +293,7 @@ impl From<AstNaNBoxedVal> for ValueEnum {
     }
 }
 
-impl From<ValueEnum> for AstNaNBoxedVal {
+impl From<ValueEnum> for Value {
     fn from(value: ValueEnum) -> Self {
         match value {
             ValueEnum::Nil => Self::NIL,
@@ -314,7 +314,7 @@ impl From<ValueEnum> for AstNaNBoxedVal {
     }
 }
 
-impl fmt::Debug for AstNaNBoxedVal {
+impl fmt::Debug for Value {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         ValueEnum::from(*self).fmt(f)
     }
@@ -340,7 +340,7 @@ pub enum ValueEnum {
     /// A string value.
     String(Gc<String>),
     /// An array of values.
-    Array(Gc<Vec<AstNaNBoxedVal>>),
+    Array(Gc<Vec<Value>>),
     /// A block value, ready to be evaluated.
     Block(Gc<Block>),
     /// A generic (non-primitive) class instance.

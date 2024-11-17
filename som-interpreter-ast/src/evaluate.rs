@@ -8,7 +8,7 @@ use crate::gc::VecValue;
 use crate::invokable::{Invoke, Return};
 use crate::method::Method;
 use crate::universe::Universe;
-use crate::value::Value;
+use crate::Value;
 use som_gc::gcref::Gc;
 
 /// The trait for evaluating AST nodes.

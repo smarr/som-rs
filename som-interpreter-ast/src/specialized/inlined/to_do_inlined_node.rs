@@ -1,10 +1,9 @@
-use std::fmt::{Display, Formatter};
-
 use crate::ast::{AstBody, AstExpression};
 use crate::evaluate::Evaluate;
 use crate::invokable::Return;
 use crate::universe::Universe;
 use crate::value::Value;
+use std::fmt::{Display, Formatter};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ToDoInlinedNode {

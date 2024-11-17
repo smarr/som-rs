@@ -1,13 +1,12 @@
 use std::fmt::Write;
 use std::fmt::{Display, Formatter};
 
-use indenter::indented;
-
 use crate::ast::AstBody;
 use crate::evaluate::Evaluate;
 use crate::invokable::Return;
 use crate::universe::Universe;
 use crate::value::Value;
+use indenter::indented;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct WhileInlinedNode {

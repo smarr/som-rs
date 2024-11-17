@@ -2,11 +2,9 @@
 //! This is the interpreter for the Simple Object Machine.
 //!
 
-use std::ptr::NonNull;
-
-use value::Value;
-
 use crate::universe::Universe;
+use crate::value::Value;
+use std::ptr::NonNull;
 
 macro_rules! propagate {
     ($expr:expr) => {

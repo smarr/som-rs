@@ -1,15 +1,14 @@
+use super::PrimInfo;
+use crate::convert::{DoubleLike, IntegerLike, Primitive, StringLike};
+use crate::primitives::PrimitiveFn;
+use crate::universe::Universe;
+use crate::value::Value;
 use anyhow::{bail, Error};
 use num_bigint::{BigInt, BigUint, Sign, ToBigInt};
 use num_traits::{Signed, ToPrimitive};
 use once_cell::sync::Lazy;
 use rand::distributions::Uniform;
 use rand::Rng;
-
-use super::PrimInfo;
-use crate::convert::{DoubleLike, IntegerLike, Primitive, StringLike};
-use crate::primitives::PrimitiveFn;
-use crate::universe::Universe;
-use crate::value::Value;
 
 pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
     Box::new([
