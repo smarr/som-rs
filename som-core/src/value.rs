@@ -385,3 +385,17 @@ impl PartialEq for BaseValue {
         }
     }
 }
+
+#[macro_export]
+/// Macro used to make AST-specific and BC-specific Value type "inherit" behavior from the base value type.
+/// Rust *could* avoid this by inferring that a BaseValue and a Value are the same.
+/// ...but I'm not sure there's a way for me to inform it. Maybe in a future version.
+macro_rules! delegate_to_base_value {
+    ($($fn_name:ident($($arg:ident : $arg_ty:ty),*) -> $ret:ty),* $(,)?) => {
+        $(
+            pub fn $fn_name($(value: $arg_ty),*) -> $ret {
+                BaseValue::$fn_name(value).into()
+            }
+        )*
+    };
+}

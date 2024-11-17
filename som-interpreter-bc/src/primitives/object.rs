@@ -174,9 +174,15 @@ fn inst_var_at(_: &mut Interpreter, _: &mut Universe, receiver: Value, index: i3
     }
 }
 
-fn inst_var_at_put(_: &mut Interpreter, _: &mut Universe, mut receiver: Value, index: i32, value: Value) -> Result<Option<Value>, Error> {
+fn inst_var_at_put(_: &mut Interpreter, _: &mut Universe, receiver: Value, index: i32, value: Value) -> Result<Option<Value>, Error> {
     let index = usize::try_from(index.saturating_sub(1))?;
-    receiver.assign_field(index, value);
+    if let Some(mut instance) = receiver.as_instance() {
+        instance.assign_field(index, value);
+    } else if let Some(mut class) = receiver.as_class() {
+        class.assign_field(index, value);
+    } else {
+        panic!("Assigning a field not to an instance/class, but to a {:?}", value)
+    }
     Ok(Some(value))
 }
 

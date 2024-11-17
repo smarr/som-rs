@@ -5,6 +5,7 @@ use crate::instance::Instance;
 use crate::method::Method;
 use crate::universe::Universe;
 use num_bigint::BigInt;
+use som_core::delegate_to_base_value;
 use som_core::interner::Interned;
 use som_core::value::*;
 use som_gc::gcref::Gc;
@@ -144,16 +145,6 @@ impl Value {
     }
 }
 
-macro_rules! delegate_base_value {
-    ($($fn_name:ident($($arg:ident : $arg_ty:ty),*) -> $ret:ty),* $(,)?) => {
-        $(
-            pub fn $fn_name($($arg: $arg_ty),*) -> $ret {
-                BaseValue::$fn_name($($arg),*).into()
-            }
-        )*
-    };
-}
-
 #[allow(non_snake_case)]
 impl Value {
     pub const TRUE: Self = Value(BaseValue::TRUE);
@@ -163,7 +154,7 @@ impl Value {
     pub const INTEGER_ZERO: Self = Value(BaseValue::INTEGER_ZERO);
     pub const INTEGER_ONE: Self = Value(BaseValue::INTEGER_ONE);
 
-    delegate_base_value!(
+    delegate_to_base_value!(
         new_boolean(value: bool) -> Self,
         new_integer(value: i32) -> Self,
         new_double(value: f64) -> Self,

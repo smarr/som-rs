@@ -5,15 +5,13 @@ use crate::instance::Instance;
 use crate::method::Method;
 use crate::universe::Universe;
 use num_bigint::BigInt;
+use som_core::delegate_to_base_value;
 use som_core::interner::Interned;
-use som_core::nan_boxed_val_base_impl;
-use som_core::value::{BIG_INTEGER_TAG, BOOLEAN_TAG, CELL_BASE_TAG, INTEGER_TAG, NIL_TAG, STRING_TAG, SYMBOL_TAG, SYSTEM_TAG};
-use som_core::value::{CANON_NAN_BITS, IS_PTR_PATTERN, TAG_EXTRACTION, TAG_SHIFT};
+use som_core::value::*;
 use som_gc::gcref::Gc;
 use std::fmt;
 use std::fmt::{Debug, Formatter};
-
-pub type Value = BCNaNBoxedVal;
+use std::ops::Deref;
 
 /// Tag bits for the `Array` type.
 const ARRAY_TAG: u64 = 0b010 | CELL_BASE_TAG;
@@ -27,41 +25,72 @@ const INSTANCE_TAG: u64 = 0b110 | CELL_BASE_TAG;
 const INVOKABLE_TAG: u64 = 0b111 | CELL_BASE_TAG;
 
 /// Represents an SOM value.
-#[allow(clippy::derived_hash_with_manual_eq)] // TODO: manually implement Hash instead...
-#[derive(Clone, Copy, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Hash)]
 #[repr(transparent)]
-pub struct BCNaNBoxedVal {
-    /// The 64-bit value that is used to store SOM values using NaN-boxing.
-    pub encoded: u64,
+pub struct Value(BaseValue);
+
+impl Deref for Value {
+    type Target = BaseValue;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 
-nan_boxed_val_base_impl!(BCNaNBoxedVal);
+impl From<BaseValue> for Value {
+    fn from(value: BaseValue) -> Self {
+        Value(value)
+    }
+}
 
-impl BCNaNBoxedVal {
+#[allow(non_snake_case)]
+impl Value {
+    pub const TRUE: Self = Value(BaseValue::TRUE);
+    pub const FALSE: Self = Value(BaseValue::FALSE);
+    pub const NIL: Self = Value(BaseValue::NIL);
+    pub const SYSTEM: Self = Value(BaseValue::SYSTEM);
+    pub const INTEGER_ZERO: Self = Value(BaseValue::INTEGER_ZERO);
+    pub const INTEGER_ONE: Self = Value(BaseValue::INTEGER_ONE);
+
+    delegate_to_base_value!(
+        new_boolean(value: bool) -> Self,
+        new_integer(value: i32) -> Self,
+        new_double(value: f64) -> Self,
+        new_symbol(value: Interned) -> Self,
+        new_big_integer(value: Gc<BigInt>) -> Self,
+        new_string(value: Gc<String>) -> Self,
+        Boolean(value: bool) -> Self,
+        Integer(value: i32) -> Self,
+        Double(value: f64) -> Self,
+        Symbol(value: Interned) -> Self,
+        BigInteger(value: Gc<BigInt>) -> Self,
+        String(value: Gc<String>) -> Self,
+    );
+
     /// Returns a new array value.
     #[inline(always)]
     pub fn new_array(value: Gc<VecValue>) -> Self {
-        Self::new(ARRAY_TAG, u64::from(value))
+        BaseValue::new(ARRAY_TAG, u64::from(value)).into()
     }
     /// Returns a new block value.
     #[inline(always)]
     pub fn new_block(value: Gc<Block>) -> Self {
-        Self::new(BLOCK_TAG, u64::from(value))
+        BaseValue::new(BLOCK_TAG, u64::from(value)).into()
     }
     /// Returns a new class value.
     #[inline(always)]
     pub fn new_class(value: Gc<Class>) -> Self {
-        Self::new(CLASS_TAG, u64::from(value))
+        BaseValue::new(CLASS_TAG, u64::from(value)).into()
     }
     /// Returns a new instance value.
     #[inline(always)]
     pub fn new_instance(value: Gc<Instance>) -> Self {
-        Self::new(INSTANCE_TAG, u64::from(value))
+        BaseValue::new(INSTANCE_TAG, u64::from(value)).into()
     }
     /// Returns a new invocable value.
     #[inline(always)]
     pub fn new_invokable(value: Gc<Method>) -> Self {
-        Self::new(INVOKABLE_TAG, u64::from(value))
+        BaseValue::new(INVOKABLE_TAG, u64::from(value)).into()
     }
 
     /// Returns whether this value is an array.
@@ -153,17 +182,6 @@ impl BCNaNBoxedVal {
         self.class(universe).lookup_method(signature)
     }
 
-    /// Assign a value to a local binding within this value.
-    pub fn assign_field(&mut self, idx: usize, value: Value) {
-        if let Some(mut instance) = self.as_instance() {
-            instance.assign_field(idx, value);
-        } else if let Some(mut class) = self.as_class() {
-            class.assign_field(idx, value);
-        } else {
-            panic!("Assigning a field not to an instance/class, but to a {:?}", value)
-        }
-    }
-
     /// Get the string representation of this value.
     pub fn to_string(&self, universe: &Universe) -> String {
         match self.tag() {
@@ -209,41 +227,41 @@ impl BCNaNBoxedVal {
 
 // for backwards compatibility with current code... and maybe easy replacement with ValueEnum?
 #[allow(non_snake_case)]
-impl BCNaNBoxedVal {
+impl Value {
     #[inline(always)]
     pub fn Array(value: Gc<VecValue>) -> Self {
-        BCNaNBoxedVal::new_array(value)
+        Value::new_array(value)
     }
 
     #[inline(always)]
     pub fn Block(value: Gc<Block>) -> Self {
-        BCNaNBoxedVal::new_block(value)
+        Value::new_block(value)
     }
 
     #[inline(always)]
     pub fn Class(value: Gc<Class>) -> Self {
-        BCNaNBoxedVal::new_class(value)
+        Value::new_class(value)
     }
 
     #[inline(always)]
     pub fn Instance(value: Gc<Instance>) -> Self {
-        BCNaNBoxedVal::new_instance(value)
+        Value::new_instance(value)
     }
 
     #[inline(always)]
     pub fn Invokable(value: Gc<Method>) -> Self {
-        BCNaNBoxedVal::new_invokable(value)
+        Value::new_invokable(value)
     }
 }
 
-impl Debug for BCNaNBoxedVal {
+impl Debug for Value {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         ValueEnum::from(*self).fmt(f)
     }
 }
 
-impl From<BCNaNBoxedVal> for ValueEnum {
-    fn from(value: BCNaNBoxedVal) -> Self {
+impl From<Value> for ValueEnum {
+    fn from(value: Value) -> Self {
         if let Some(value) = value.as_double() {
             Self::Double(value)
         } else if value.is_nil() {
@@ -278,7 +296,7 @@ impl From<BCNaNBoxedVal> for ValueEnum {
     }
 }
 
-impl From<ValueEnum> for BCNaNBoxedVal {
+impl From<ValueEnum> for Value {
     fn from(value: ValueEnum) -> Self {
         match value {
             ValueEnum::Nil => Self::NIL,
