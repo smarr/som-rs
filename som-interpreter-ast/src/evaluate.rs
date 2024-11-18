@@ -92,7 +92,7 @@ impl Evaluate for AstExpression {
                 }
             }
             Self::Literal(literal) => literal.evaluate(universe),
-            Self::LocalVarRead(idx) => Return::Local(universe.lookup_local(*idx)),
+            Self::LocalVarRead(idx) => Return::Local(*universe.lookup_local(*idx)),
             Self::NonLocalVarRead(scope, idx) => Return::Local(universe.lookup_non_local(*idx, *scope)),
             Self::FieldRead(idx) => Return::Local(universe.lookup_field(*idx)),
             Self::ArgRead(scope, idx) => Return::Local(universe.lookup_arg(*idx, *scope)),

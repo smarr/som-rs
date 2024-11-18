@@ -98,7 +98,8 @@ pub const TAG_EXTRACTION: u64 = 0xFFFF << TAG_SHIFT;
 /// Bit pattern used to quickly check if a given 64-bit value houses a pointer-type value.
 pub const IS_PTR_PATTERN: u64 = CELL_BASE_TAG << TAG_SHIFT;
 
-#[repr(transparent)]
+// #[repr(transparent)]
+#[repr(C)]
 #[allow(clippy::derived_hash_with_manual_eq)] // TODO: manually implement Hash instead...
 #[derive(Copy, Clone, Hash)]
 pub struct BaseValue {
@@ -168,7 +169,7 @@ impl BaseValue {
     #[inline(always)]
     pub fn extract_gc_cell<T>(self) -> Gc<T> {
         let ptr = self.extract_pointer_bits();
-        Gc::from_u64(ptr) // i doubt the compiler isn't making this conversion free
+        Gc::from(ptr) // i doubt the compiler isn't making this conversion free
     }
 
     #[inline(always)]

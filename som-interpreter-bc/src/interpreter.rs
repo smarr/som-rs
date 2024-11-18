@@ -236,7 +236,7 @@ impl Interpreter {
                     let self_val = self.current_frame.get_self();
                     let val = {
                         if let Some(instance) = self_val.as_instance() {
-                            instance.lookup_field(idx as usize)
+                            *instance.lookup_field(idx as usize)
                         } else if let Some(cls) = self_val.as_class() {
                             cls.class().lookup_field(idx as usize)
                         } else {

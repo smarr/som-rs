@@ -30,10 +30,10 @@ impl Instance {
     }
 
     /// Search for a field binding.
-    pub fn lookup_field(&self, idx: u8) -> Value {
+    pub fn lookup_field(&self, idx: u8) -> &Value {
         match cfg!(debug_assertions) {
-            true => *self.fields.get(idx as usize).unwrap(),
-            false => unsafe { *self.fields.get_unchecked(idx as usize) },
+            true => self.fields.get(idx as usize).unwrap(),
+            false => unsafe { self.fields.get_unchecked(idx as usize) },
         }
     }
 

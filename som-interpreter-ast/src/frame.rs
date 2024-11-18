@@ -151,9 +151,9 @@ impl Frame {
 pub trait FrameAccess {
     const ARG_OFFSET: usize = size_of::<Frame>();
     fn get_self(&self) -> Value;
-    fn lookup_argument(&self, idx: u8) -> Value;
+    fn lookup_argument(&self, idx: u8) -> &Value;
     fn assign_arg(&mut self, idx: u8, value: Value);
-    fn lookup_local(&self, idx: u8) -> Value;
+    fn lookup_local(&self, idx: u8) -> &Value;
     fn assign_local(&mut self, idx: u8, value: Value);
     fn lookup_field(&self, idx: u8) -> Value;
     fn assign_field(&self, idx: u8, value: &Value);
@@ -162,17 +162,17 @@ pub trait FrameAccess {
 impl FrameAccess for Gc<Frame> {
     /// Get the self value for this frame.
     fn get_self(&self) -> Value {
-        let maybe_self_arg = self.lookup_argument(0);
+        let maybe_self_arg = *self.lookup_argument(0);
         match maybe_self_arg.as_block() {
             Some(blk) => blk.frame.get_self(),
             None => maybe_self_arg, // it is self, we've reached the root
         }
     }
 
-    fn lookup_argument(&self, idx: u8) -> Value {
+    fn lookup_argument(&self, idx: u8) -> &Value {
         unsafe {
             let arg_ptr = (self.ptr + Self::ARG_OFFSET + idx as usize * size_of::<Value>()) as *const Value;
-            *arg_ptr
+            &*arg_ptr
         }
     }
 
@@ -185,11 +185,11 @@ impl FrameAccess for Gc<Frame> {
     }
 
     #[inline] // not sure if necessary
-    fn lookup_local(&self, idx: u8) -> Value {
+    fn lookup_local(&self, idx: u8) -> &Value {
         let nbr_args = self.nbr_args;
         unsafe {
             let value_ptr = (self.ptr + Self::ARG_OFFSET + ((nbr_args + idx) as usize * size_of::<Value>())) as *const Value;
-            *value_ptr
+            &*value_ptr
         }
     }
 
@@ -204,7 +204,7 @@ impl FrameAccess for Gc<Frame> {
     fn lookup_field(&self, idx: u8) -> Value {
         let self_ = self.get_self();
         if let Some(instance) = self_.as_instance() {
-            instance.lookup_field(idx)
+            *instance.lookup_field(idx)
         } else if let Some(cls) = self_.as_class() {
             cls.class().lookup_field(idx)
         } else {

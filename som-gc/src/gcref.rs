@@ -72,6 +72,26 @@ impl<T> From<Gc<T>> for u64 {
     }
 }
 
+impl<T> From<u64> for Gc<T> {
+    fn from(ptr: u64) -> Self {
+        debug_assert!(ptr != 0);
+        Gc {
+            ptr: ptr as usize,
+            _phantom: PhantomData,
+        }
+    }
+}
+
+/// Convert an MMTk address into a GCRef.
+impl<T> From<Address> for Gc<T> {
+    fn from(ptr: Address) -> Self {
+        Gc {
+            ptr: ptr.as_usize(),
+            _phantom: PhantomData,
+        }
+    }
+}
+
 impl<T> Gc<T> {
     /// Checks if a frame is "empty", i.e. contains the default value
     #[inline(always)]
@@ -79,23 +99,19 @@ impl<T> Gc<T> {
         self.ptr == GCREF_EMPTY_VALUE
     }
 
-    /// Convert an MMTk address into a GCRef.
-    #[inline(always)]
-    pub fn from_address(ptr: Address) -> Gc<T> {
-        debug_assert!(!ptr.is_zero());
-        Gc {
-            ptr: ptr.as_usize(),
-            _phantom: PhantomData,
-        }
+    /// Get a const pointer to the underlying data.
+    pub fn to_ptr(&self) -> *const T {
+        self.ptr as *const T
     }
 
-    /// Convert a u64 into an address. Useful since we use NaN boxing, which returns values as 64 bits.
-    #[inline(always)]
-    pub fn from_u64(ptr: u64) -> Gc<T> {
-        debug_assert!(ptr != 0);
-        Gc {
-            ptr: ptr as usize,
-            _phantom: PhantomData,
-        }
+    /// Get a mutable pointer to the underlying data.
+    pub fn to_mut_ptr(&self) -> *mut T {
+        self.ptr as *mut T
+    }
+
+    /// Return a mutable pointer to the underlying data as an arbitrary type.
+    /// Usage discouraged, and would be better off going unused entirely. TODO: consider removing.
+    pub unsafe fn unsafe_cast<U>(&self) -> *mut U {
+        self.ptr as *mut U
     }
 }

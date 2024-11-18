@@ -8,7 +8,7 @@ use crate::slot::SOMSlot;
 use crate::{MMTK_SINGLETON, MMTK_TO_VM_INTERFACE, MUTATOR_WRAPPER, SOMVM};
 use core::mem::size_of;
 use log::debug;
-use mmtk::util::alloc::{Allocator, BumpAllocator};
+use mmtk::util::alloc::{Allocator, BumpAllocator, FreeListAllocator};
 use mmtk::util::constants::MIN_OBJECT_SIZE;
 use mmtk::util::{Address, ObjectReference, OpaquePointer, VMMutatorThread, VMThread};
 use mmtk::vm::SlotVisitor;
@@ -26,7 +26,7 @@ static GC_ALIGN: usize = 8;
 /// TODO rename, maybe MutatorWrapper
 pub struct GCInterface {
     mutator: Box<Mutator<SOMVM>>,
-    default_allocator: *mut BumpAllocator<SOMVM>,
+    default_allocator: *mut FreeListAllocator<SOMVM>,
     mutator_thread: VMMutatorThread,
     start_the_world_count: usize,
     total_gc_time: std::time::Duration,
@@ -76,7 +76,7 @@ impl GCInterface {
     }
 
     /// Initialize MMTk, and get from it all the info we need to initialize our interface
-    fn init_mmtk(heap_size: usize) -> (VMMutatorThread, Box<Mutator<SOMVM>>, *mut BumpAllocator<SOMVM>) {
+    fn init_mmtk(heap_size: usize) -> (VMMutatorThread, Box<Mutator<SOMVM>>, *mut FreeListAllocator<SOMVM>) {
         let builder: MMTKBuilder = {
             let mut builder = MMTKBuilder::new();
 
@@ -84,8 +84,8 @@ impl GCInterface {
             assert!(heap_success, "Couldn't set MMTk fixed heap size");
 
             // let gc_success = builder.set_option("plan", "NoGC");
-            // let gc_success = builder.set_option("plan", "MarkSweep");
-            let gc_success = builder.set_option("plan", "SemiSpace");
+            let gc_success = builder.set_option("plan", "MarkSweep");
+            // let gc_success = builder.set_option("plan", "SemiSpace");
             assert!(gc_success, "Couldn't set GC plan");
 
             #[cfg(feature = "stress_test")]
@@ -112,7 +112,7 @@ impl GCInterface {
         let default_allocator_offset = Mutator::<SOMVM>::get_allocator_base_offset(selector);
 
         // At run time: allocate with the default semantics without resolving allocator
-        let default_allocator: *mut BumpAllocator<SOMVM> = {
+        let default_allocator: *mut FreeListAllocator<SOMVM> = {
             let mutator_addr = Address::from_ref(&*mutator);
             unsafe {
                 let ptr = mutator_addr + default_allocator_offset;
@@ -136,15 +136,15 @@ impl GCInterface {
     // (e.g. Value arrays stored directly in the heap - see BC Frame)
     pub fn alloc_with_size<T: HasTypeInfoForGC>(&mut self, obj: T, mut size: usize) -> Gc<T> {
         debug_assert!(size >= MIN_OBJECT_SIZE);
-        let allocator = unsafe { &mut (*self.default_allocator) };
 
         // adding VM header size (type info) to amount we allocate
         size += OBJECT_REF_OFFSET;
 
         // slow path, if needed for experimenting/debugging
-        // let header_addr = mmtk_alloc(&mut *self.mutator, size, GC_ALIGN, GC_OFFSET, AllocationSemantics::Default);
+        // let header_addr = crate::api::mmtk_alloc(&mut *self.mutator, size, GC_ALIGN, GC_OFFSET, AllocationSemantics::Default);
+        let allocator = unsafe { &mut (*self.default_allocator) };
+        let header_addr = unsafe { &mut (*self.default_allocator) }.alloc(size, GC_ALIGN, GC_OFFSET);
 
-        let header_addr = allocator.alloc(size, GC_ALIGN, GC_OFFSET);
         debug_assert!(!header_addr.is_zero());
         let obj_addr = SOMVM::object_start_to_ref(header_addr);
 
@@ -156,7 +156,7 @@ impl GCInterface {
             *(obj_addr.to_raw_address().as_mut_ref()) = obj;
         }
 
-        Gc::from_address(obj_addr.to_raw_address())
+        Gc::from(obj_addr.to_raw_address())
     }
 
     /// Custom alloc function, for traits to be able to choose how to allocate their data.

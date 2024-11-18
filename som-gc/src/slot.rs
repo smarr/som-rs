@@ -1,5 +1,3 @@
-use crate::gcref::Gc;
-use crate::MMTK_TO_VM_INTERFACE;
 use mmtk::util::{Address, ObjectReference};
 use mmtk::vm::slot::{SimpleSlot, Slot};
 // pub type SOMSlot = mmtk::vm::slot::SimpleSlot;
@@ -8,7 +6,7 @@ use mmtk::vm::slot::{SimpleSlot, Slot};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum SOMSlot {
     Simple(SimpleSlot),
-    Value(ValueSlot),
+    RefValueSlot(RefValueSlot),
 }
 
 impl SOMSlot {
@@ -16,8 +14,8 @@ impl SOMSlot {
         SOMSlot::Simple(SimpleSlot::from_address(addr))
     }
 
-    pub fn from_value(value: u64) -> SOMSlot {
-        SOMSlot::Value(ValueSlot::from_value(value))
+    pub fn from_ref(value: *mut u64) -> SOMSlot {
+        SOMSlot::RefValueSlot(RefValueSlot::from_ref(value))
     }
 }
 
@@ -25,38 +23,43 @@ impl Slot for SOMSlot {
     fn load(&self) -> Option<ObjectReference> {
         match self {
             SOMSlot::Simple(e) => e.load(),
-            SOMSlot::Value(e) => e.load(),
+            SOMSlot::RefValueSlot(e) => e.load(),
         }
     }
 
     fn store(&self, object: ObjectReference) {
         match self {
             SOMSlot::Simple(e) => e.store(object),
-            SOMSlot::Value(e) => e.store(object),
+            SOMSlot::RefValueSlot(e) => e.store(object),
         }
     }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct ValueSlot {
-    value: u64, // should be a pointer instead, probably (but that might be slower?). using the non nan boxed val makes slots MASSIVE otherwise.
+pub struct RefValueSlot {
+    value: *mut u64,
 }
 
-impl ValueSlot {
-    pub fn from_value(value: u64) -> Self {
+impl RefValueSlot {
+    pub fn from_ref(value: *mut u64) -> Self {
         Self { value }
     }
 }
 
-unsafe impl Send for ValueSlot {}
+unsafe impl Send for RefValueSlot {}
 
-impl Slot for ValueSlot {
+impl Slot for RefValueSlot {
     fn load(&self) -> Option<ObjectReference> {
-        let gcref: Gc<()> = Gc::from_u64((((self.value << 16) as i64) >> 16) as u64);
-        unsafe { ObjectReference::from_raw_address(Address::from_usize(gcref.ptr)) }
+        unsafe {
+            let a = (((*self.value << 16) as i64) >> 16) as usize;
+            ObjectReference::from_raw_address(Address::from_usize(a))
+        }
     }
 
     fn store(&self, object: ObjectReference) {
-        unsafe { (MMTK_TO_VM_INTERFACE.get().unwrap().store_in_value_fn)(self.value, object) }
+        unsafe {
+            *(self.value) = object.to_raw_address().as_usize() as u64;
+        }
+        // unsafe { (MMTK_TO_VM_INTERFACE.get().unwrap().store_in_value_fn)(self.value, object) }
     }
 }

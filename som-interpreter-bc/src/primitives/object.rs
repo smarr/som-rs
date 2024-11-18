@@ -161,7 +161,7 @@ fn inst_var_at(_: &mut Interpreter, _: &mut Universe, receiver: Value, index: i3
 
     if let Some(instance) = receiver.as_instance() {
         match idx < instance.get_nbr_fields() {
-            true => Ok(Some(instance.lookup_field(idx))),
+            true => Ok(Some(*instance.lookup_field(idx))),
             false => Ok(None),
         }
     } else if let Some(class) = receiver.as_class() {

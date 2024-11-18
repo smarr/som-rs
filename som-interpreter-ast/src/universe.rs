@@ -448,13 +448,13 @@ impl Universe {
     }
 
     /// Search for a local binding.
-    pub fn lookup_local(&self, idx: u8) -> Value {
+    pub fn lookup_local(&self, idx: u8) -> &Value {
         self.current_frame.lookup_local(idx)
     }
 
     /// Look up a variable we know to have been defined in another scope.
     pub fn lookup_non_local(&self, idx: u8, target_scope: u8) -> Value {
-        Frame::nth_frame_back(&self.current_frame, target_scope).lookup_local(idx)
+        *Frame::nth_frame_back(&self.current_frame, target_scope).lookup_local(idx)
     }
 
     /// Look up a field.
@@ -463,7 +463,7 @@ impl Universe {
     }
 
     pub fn lookup_arg(&self, idx: u8, scope: u8) -> Value {
-        Frame::nth_frame_back(&self.current_frame, scope).lookup_argument(idx)
+        *Frame::nth_frame_back(&self.current_frame, scope).lookup_argument(idx)
     }
 
     /// Returns whether a global binding of the specified name exists.

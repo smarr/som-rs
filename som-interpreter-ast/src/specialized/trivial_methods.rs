@@ -42,7 +42,7 @@ impl Invoke for TrivialGetterMethod {
         if let Some(cls) = arg.as_class() {
             Return::Local(cls.class().lookup_field(self.field_idx))
         } else if let Some(instance) = arg.as_instance() {
-            Return::Local(instance.lookup_field(self.field_idx))
+            Return::Local(*instance.lookup_field(self.field_idx))
         } else {
             panic!("trivial getter not called on a class/instance?")
         }

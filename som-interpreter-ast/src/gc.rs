@@ -13,7 +13,7 @@ use mmtk::Mutator;
 use som_gc::gc_interface::{HasTypeInfoForGC, MMTKtoVMCallbacks, BIGINT_MAGIC_ID, STRING_MAGIC_ID, VECU8_MAGIC_ID};
 use som_gc::gcref::Gc;
 use som_gc::object_model::VMObjectModel;
-use som_gc::slot::{SOMSlot, ValueSlot};
+use som_gc::slot::SOMSlot;
 use som_gc::SOMVM;
 use std::ops::Deref;
 
@@ -111,15 +111,17 @@ fn get_roots_in_mutator_thread(_mutator: &mut Mutator<SOMVM>) -> Vec<SOMSlot> {
         debug!("scanning roots: globals");
         for (_name, val) in UNIVERSE_RAW_PTR_CONST.unwrap().as_ref().globals.iter() {
             if val.is_ptr_type() {
-                to_process.push(SOMSlot::from_value(val.as_u64()));
+                let val_ptr = std::mem::transmute::<&Value, *mut u64>(val);
+                to_process.push(SOMSlot::from_ref(val_ptr))
             }
         }
 
         if let Some(frame_args) = FRAME_ARGS_PTR {
             debug!("scanning roots: frame arguments (frame allocation triggered a GC)");
-            for arg in frame_args.as_ref() {
-                if arg.is_ptr_type() {
-                    to_process.push(SOMSlot::Value(ValueSlot::from_value(arg.as_u64())))
+            for val in frame_args.as_ref() {
+                if val.is_ptr_type() {
+                    let val_ptr = std::mem::transmute::<&Value, *mut u64>(val);
+                    to_process.push(SOMSlot::from_ref(val_ptr))
                 }
             }
         }
@@ -145,16 +147,16 @@ pub fn scan_object<'a>(object: ObjectReference, slot_visitor: &'a mut (dyn SlotV
                 }
 
                 // ew
-                let gcref_frame: Gc<Frame> = Gc::from_u64(object.to_raw_address().as_usize() as u64);
+                let gcref_frame: Gc<Frame> = Gc::from(object.to_raw_address());
 
                 for i in 0..frame.nbr_locals {
-                    let val: Value = gcref_frame.lookup_local(i);
-                    visit_value(&val, slot_visitor)
+                    let val: &Value = gcref_frame.lookup_local(i);
+                    visit_value(val, slot_visitor)
                 }
 
                 for i in 0..frame.nbr_args {
-                    let val: Value = gcref_frame.lookup_argument(i);
-                    visit_value(&val, slot_visitor)
+                    let val: &Value = gcref_frame.lookup_argument(i);
+                    visit_value(val, slot_visitor)
                 }
             }
             AstObjMagicId::Class => {
@@ -234,7 +236,10 @@ pub fn scan_object<'a>(object: ObjectReference, slot_visitor: &'a mut (dyn SlotV
 
 fn visit_value<'a>(val: &Value, slot_visitor: &'a mut (dyn SlotVisitor<SOMSlot> + 'a)) {
     if val.is_ptr_type() {
-        slot_visitor.visit_slot(SOMSlot::from_value(val.payload()))
+        unsafe {
+            let val_ptr = std::mem::transmute::<&Value, *mut u64>(val);
+            slot_visitor.visit_slot(SOMSlot::from_ref(val_ptr))
+        }
     }
 }
 
@@ -349,11 +354,19 @@ fn visit_expr(expr: &AstExpression, slot_visitor: &mut dyn SlotVisitor<SOMSlot>)
     }
 }
 
+fn store_in_value(_: u64, _: ObjectReference) {
+    todo!()
+}
+
+fn get_object_size(_: ObjectReference) -> usize {
+    todo!()
+}
+
 pub fn get_callbacks_for_gc() -> MMTKtoVMCallbacks {
     MMTKtoVMCallbacks {
         scan_object_fn: scan_object,
         get_roots_in_mutator_thread_fn: get_roots_in_mutator_thread,
-        store_in_value_fn: todo!(),
-        get_object_size_fn: todo!(),
+        store_in_value_fn: store_in_value,
+        get_object_size_fn: get_object_size,
     }
 }

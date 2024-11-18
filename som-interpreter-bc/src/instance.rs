@@ -73,10 +73,10 @@ impl Instance {
     //     unsafe { *self.locals.get_unchecked_mut(idx) = value; }
     // }
 
-    pub(crate) fn lookup_field(&self, idx: usize) -> Value {
+    pub(crate) fn lookup_field(&self, idx: usize) -> &Value {
         unsafe {
             let local_ref = self.fields_ptr.add(idx);
-            *local_ref
+            &*local_ref
         }
     }
 
