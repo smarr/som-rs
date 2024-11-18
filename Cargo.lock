@@ -700,9 +700,9 @@ dependencies = [
 
 [[package]]
 name = "mmtk"
-version = "0.28.0"
+version = "0.29.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "352ece934c2fd0ce47ba660ec043beb468458870a6d31c751ecd6a78dfcedb58"
+checksum = "125ef57dfafedea263d98d44b6868c10f7d56aa7fb5e35514b7f36ae89653808"
 dependencies = [
  "atomic",
  "atomic-traits",
@@ -737,9 +737,9 @@ dependencies = [
 
 [[package]]
 name = "mmtk-macros"
-version = "0.28.0"
+version = "0.29.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8a4f1ae58b785f9e115fbdcf08627ae9c5c6ce94ff81aa09aeaf3897cbe89903"
+checksum = "1df090d2cd20dc5c41ef3cdd3364413f2f70fc7dce183f42c2074bb559bf3532"
 dependencies = [
  "proc-macro-error",
  "proc-macro2",

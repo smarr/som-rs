@@ -15,7 +15,7 @@ som-parser = { package = "som-parser-symbols", path = "../som-parser-symbols", v
 som-gc = { path = "../som-gc", version = "0.1.0" }
 
 #mmtk = { path = "../mmtk-core", version = "0.28.0" }
-mmtk = "0.28.0"
+mmtk = "0.29.0"
 
 # CLI interface
 structopt = "0.3.25"
