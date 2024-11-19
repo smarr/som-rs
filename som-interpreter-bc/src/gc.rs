@@ -102,7 +102,7 @@ pub fn scan_object<'a>(object: ObjectReference, slot_visitor: &'a mut (dyn SlotV
         // let _ptr: *mut usize = unsafe { obj_addr.as_mut_ref() };
         let gc_id: &BCObjMagicId = VMObjectModel::ref_to_header(object).as_ref();
 
-        // debug!("entering scan_object (type: {:?})", gc_id);
+        debug!("entering scan_object (type: {:?})", gc_id);
 
         match gc_id {
             BCObjMagicId::Frame => {
@@ -261,37 +261,80 @@ fn get_object_size(object: ObjectReference) -> usize {
         }
     };
 
+    // debug!("get object size invoked ({:?}), and returning {}", gc_id, obj_size);
+
     obj_size
 }
 
-fn store_in_value(_value: u64, _object: ObjectReference) {
-    // // let other_gc_id: &BCObjMagicId = unsafe {object.to_raw_address().as_ref()};
-    // // let gc_id: &BCObjMagicId = unsafe { VMObjectModel::ref_to_header(object).as_ref() };
-    //
-    // let reified_val = Value::from(value);
-    //
-    // // dbg!(object.to_raw_address().as_usize());
-    //
-    // debug_assert!(reified_val.is_ptr_type());
-    // dbg!(reified_val);
-    //
-    // if let Some(cls) = reified_val.as_class() {
-    //     dbg!(&cls);
-    //
-    //     // let ptr: *mut usize = val_gc.to_mut_ptr();
-    //     let a = object.to_raw_address();
-    //
-    //     unsafe {
-    //         let ptr = cls.to_mut_ptr();
-    //         // *ptr = object.to_raw_address().as_usize();
-    //         // **ptr = 0;
-    //     }
-    //     dbg!(&reified_val);
-    //
-    //     debug!("store_in_value OK")
-    // } else {
-    //     panic!()
-    // }
+fn adapt_post_copy(object: ObjectReference) {
+    let gc_id: &BCObjMagicId = unsafe { object.to_raw_address().as_ref() };
+
+    // dbg!(gc_id);
+    match gc_id {
+        BCObjMagicId::Frame => unsafe {
+            debug!("adapt_post_copy: frame");
+
+            let frame_ptr: *mut Frame = object.to_raw_address().add(8).to_mut_ptr();
+            let frame: &Frame = &*frame_ptr;
+
+            (*frame_ptr).stack_ptr = frame_ptr.byte_add(crate::frame::OFFSET_TO_STACK) as *mut Value;
+
+            let stack_size = match &frame.current_method.kind {
+                MethodKind::Defined(e) => e.max_stack_size as usize,
+                MethodKind::Primitive(_) => 0,
+            };
+
+            (*frame_ptr).args_ptr = (*frame_ptr).stack_ptr.add(stack_size);
+            (*frame_ptr).locals_ptr = (*frame_ptr).args_ptr.add(frame.nbr_args);
+            // TODO: inline cache, also.
+        },
+        BCObjMagicId::Class => unsafe {
+            let class_ptr: *mut Class = object.to_raw_address().add(8).to_mut_ptr();
+            let class = &*class_ptr;
+            let class_gc_ptr: Gc<Class> = Gc::from(object.to_raw_address().add(8));
+            let universe_ref = UNIVERSE_RAW_PTR_CONST.unwrap().as_mut();
+
+            eprintln!("class name: {}", &class.name);
+            if !class.name.ends_with(" class") {
+                universe_ref.swap_global_by_name(&class.name, Value::Class(class_gc_ptr));
+            } else {
+                let class_name = class.name.split_whitespace().next().unwrap();
+                let global = universe_ref.lookup_global_by_name(class_name);
+                let mut lol = global.unwrap().as_class().unwrap();
+                lol.class = class_gc_ptr;
+            }
+
+            match &mut (*class_ptr).super_class {
+                None => {}
+                Some(super_cls) => {
+                    if !super_cls.name.ends_with(" class") {
+                        let super_cls_global = universe_ref.lookup_global_by_name(&super_cls.name);
+                        *super_cls = super_cls_global.unwrap().as_class().unwrap();
+                    } else {
+                        let class_name = class.name.split_whitespace().next().unwrap();
+                        let global = universe_ref.lookup_global_by_name(class_name);
+                        *super_cls = global.unwrap().as_class().unwrap().super_class.unwrap();
+                    }
+                }
+            }
+
+            debug!("adapt_post_copy: class OK");
+        },
+        BCObjMagicId::Instance => unsafe {
+            debug!("adapt_post_copy: instance");
+
+            let instance_ptr: *mut Instance = object.to_raw_address().add(8).to_mut_ptr();
+
+            (*instance_ptr).fields_ptr = instance_ptr.byte_add(size_of::<Instance>()) as *mut Value;
+
+            let global_cls = UNIVERSE_RAW_PTR_CONST.unwrap().as_mut().lookup_global_by_name(&(*instance_ptr).class.name);
+            let global_ptr = &global_cls.unwrap().extract_gc_cell::<Class>().ptr;
+            debug_assert_ne!((*instance_ptr).class.ptr, *global_ptr); // i.e.: check that we put the new, moved class pointer in the instance
+            (*instance_ptr).class = global_cls.unwrap().as_class().unwrap();
+            debug!("adapt_post_copy: instance OK");
+        },
+        _ => {}
+    }
 }
 
 pub fn get_callbacks_for_gc() -> MMTKtoVMCallbacks {
@@ -299,6 +342,6 @@ pub fn get_callbacks_for_gc() -> MMTKtoVMCallbacks {
         scan_object_fn: scan_object,
         get_roots_in_mutator_thread_fn: get_roots_in_mutator_thread,
         get_object_size_fn: get_object_size,
-        store_in_value_fn: store_in_value,
+        adapt_post_copy,
     }
 }

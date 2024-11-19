@@ -9,7 +9,7 @@ use som_gc::gc_interface::GCInterface;
 use som_gc::gcref::Gc;
 use std::marker::PhantomData;
 
-const OFFSET_TO_STACK: usize = size_of::<Frame>();
+pub(crate) const OFFSET_TO_STACK: usize = size_of::<Frame>();
 
 /// Represents a stack frame.
 pub struct Frame {

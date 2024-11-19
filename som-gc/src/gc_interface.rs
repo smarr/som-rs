@@ -8,7 +8,7 @@ use crate::slot::SOMSlot;
 use crate::{MMTK_SINGLETON, MMTK_TO_VM_INTERFACE, MUTATOR_WRAPPER, SOMVM};
 use core::mem::size_of;
 use log::debug;
-use mmtk::util::alloc::{Allocator, BumpAllocator, FreeListAllocator};
+use mmtk::util::alloc::{Allocator, FreeListAllocator};
 use mmtk::util::constants::MIN_OBJECT_SIZE;
 use mmtk::util::{Address, ObjectReference, OpaquePointer, VMMutatorThread, VMThread};
 use mmtk::vm::SlotVisitor;
@@ -26,7 +26,7 @@ static GC_ALIGN: usize = 8;
 /// TODO rename, maybe MutatorWrapper
 pub struct GCInterface {
     mutator: Box<Mutator<SOMVM>>,
-    default_allocator: *mut FreeListAllocator<SOMVM>,
+    _default_allocator: *mut FreeListAllocator<SOMVM>,
     mutator_thread: VMMutatorThread,
     start_the_world_count: usize,
     total_gc_time: std::time::Duration,
@@ -42,18 +42,20 @@ impl Drop for GCInterface {
 pub struct MMTKtoVMCallbacks {
     pub scan_object_fn: fn(ObjectReference, &mut dyn SlotVisitor<SOMSlot>),
     pub get_roots_in_mutator_thread_fn: fn(&mut Mutator<SOMVM>) -> Vec<SOMSlot>,
-    pub store_in_value_fn: fn(u64, ObjectReference),
+    pub adapt_post_copy: fn(ObjectReference),
     pub get_object_size_fn: fn(ObjectReference) -> usize,
 }
 
 impl GCInterface {
     /// Initialize the GCInterface. Internally inits MMTk and fetches everything needed to actually communicate with the GC.
     pub fn init<'a>(heap_size: usize, vm_callbacks: MMTKtoVMCallbacks) -> &'a mut Self {
-        let (mutator_thread, mutator, default_allocator) = Self::init_mmtk(heap_size);
+        let strategy = "SemiSpace";
+        let (mutator_thread, mutator) = Self::init_mmtk(heap_size, strategy);
+        let default_allocator = Self::get_default_allocator::<FreeListAllocator<SOMVM>>(mutator.as_ref());
         let mut self_ = Box::new(Self {
             mutator_thread,
             mutator,
-            default_allocator,
+            _default_allocator: default_allocator,
             start_the_world_count: 0,
             total_gc_time: Duration::new(0, 0),
         });
@@ -76,16 +78,14 @@ impl GCInterface {
     }
 
     /// Initialize MMTk, and get from it all the info we need to initialize our interface
-    fn init_mmtk(heap_size: usize) -> (VMMutatorThread, Box<Mutator<SOMVM>>, *mut FreeListAllocator<SOMVM>) {
+    fn init_mmtk(heap_size: usize, strategy: &str) -> (VMMutatorThread, Box<Mutator<SOMVM>>) {
         let builder: MMTKBuilder = {
             let mut builder = MMTKBuilder::new();
 
             let heap_success = mmtk_set_fixed_heap_size(&mut builder, heap_size);
             assert!(heap_success, "Couldn't set MMTk fixed heap size");
 
-            // let gc_success = builder.set_option("plan", "NoGC");
-            let gc_success = builder.set_option("plan", "MarkSweep");
-            // let gc_success = builder.set_option("plan", "SemiSpace");
+            let gc_success = builder.set_option("plan", strategy);
             assert!(gc_success, "Couldn't set GC plan");
 
             #[cfg(feature = "stress_test")]
@@ -108,12 +108,19 @@ impl GCInterface {
         let tls = VMMutatorThread(VMThread(OpaquePointer::UNINITIALIZED));
         let mutator = mmtk_bind_mutator(tls);
 
+        (tls, mutator)
+    }
+
+    fn get_default_allocator<T>(mutator: &Mutator<SOMVM>) -> *mut T
+    where
+        T: Allocator<SOMVM>,
+    {
         let selector = memory_manager::get_allocator_mapping(MMTK_SINGLETON.get().unwrap(), AllocationSemantics::Default);
         let default_allocator_offset = Mutator::<SOMVM>::get_allocator_base_offset(selector);
 
         // At run time: allocate with the default semantics without resolving allocator
-        let default_allocator: *mut FreeListAllocator<SOMVM> = {
-            let mutator_addr = Address::from_ref(&*mutator);
+        let default_allocator: *mut T = {
+            let mutator_addr = Address::from_ref(mutator);
             unsafe {
                 let ptr = mutator_addr + default_allocator_offset;
                 ptr.as_mut_ref()
@@ -121,8 +128,7 @@ impl GCInterface {
             }
         };
 
-        // (tls, mutator)
-        (tls, mutator, default_allocator)
+        default_allocator
     }
 }
 
@@ -141,9 +147,8 @@ impl GCInterface {
         size += OBJECT_REF_OFFSET;
 
         // slow path, if needed for experimenting/debugging
-        // let header_addr = crate::api::mmtk_alloc(&mut *self.mutator, size, GC_ALIGN, GC_OFFSET, AllocationSemantics::Default);
-        let allocator = unsafe { &mut (*self.default_allocator) };
-        let header_addr = unsafe { &mut (*self.default_allocator) }.alloc(size, GC_ALIGN, GC_OFFSET);
+        let header_addr = crate::api::mmtk_alloc(&mut self.mutator, size, GC_ALIGN, GC_OFFSET, AllocationSemantics::Default);
+        // let header_addr = unsafe { &mut (*self._default_allocator) }.alloc(size, GC_ALIGN, GC_OFFSET);
 
         debug_assert!(!header_addr.is_zero());
         let obj_addr = SOMVM::object_start_to_ref(header_addr);

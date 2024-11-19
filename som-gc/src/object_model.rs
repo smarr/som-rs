@@ -39,25 +39,40 @@ impl ObjectModel<SOMVM> for VMObjectModel {
     const OBJECT_REF_OFFSET_LOWER_BOUND: isize = OBJECT_REF_OFFSET as isize;
 
     fn copy(from: ObjectReference, semantics: CopySemantics, copy_context: &mut GCWorkerCopyContext<SOMVM>) -> ObjectReference {
-        debug!("invoking copy");
+        // debug!("invoking copy");
 
-        // dbg!(&from);
         let align = 8;
         let offset = 0;
         let mut bytes = Self::get_current_size(from);
+        bytes += OBJECT_REF_OFFSET; // for the header
 
-        bytes += 8;
-        let from_and_header = unsafe { ObjectReference::from_raw_address_unchecked(Self::ref_to_object_start(from)) };
-        let dst = copy_context.alloc_copy(from_and_header, bytes, align, offset, semantics);
-        debug_assert!(!dst.is_zero());
+        let _og_ptr = unsafe { from.to_raw_address().as_ref::<usize>() }; // for debugging by looking at memory directly
 
-        let moved_obj = unsafe { ObjectReference::from_raw_address_unchecked(dst) };
+        let from_header = unsafe { ObjectReference::from_raw_address_unchecked(Self::ref_to_object_start(from)) };
+        let _from_header_gc_id = unsafe { from_header.to_raw_address().as_ref::<u8>() };
 
-        copy_context.post_copy(moved_obj, bytes, semantics);
+        let header_dst = copy_context.alloc_copy(from_header, bytes, align, offset, semantics);
+        debug_assert!(!header_dst.is_zero());
 
-        debug!("Copied object {} into {}", from, moved_obj);
+        let _dest_ptr = unsafe { header_dst.as_ref::<usize>() }; // for debugging by looking at memory directly
 
-        moved_obj
+        unsafe {
+            std::ptr::copy_nonoverlapping::<u8>(from_header.to_raw_address().to_ptr(), header_dst.to_mut_ptr(), bytes);
+        }
+
+        let header_dst_obj = unsafe { ObjectReference::from_raw_address_unchecked(header_dst) };
+
+        // TODO: is mutably modifying the contents of the destination enough? or should we perhaps also modify the original? SURELY it's fine and copy means the original goes unused
+        unsafe { (MMTK_TO_VM_INTERFACE.get_mut().unwrap().adapt_post_copy)(header_dst_obj) }
+
+        copy_context.post_copy(header_dst_obj, bytes, semantics);
+
+        debug_assert_eq!(_from_header_gc_id, unsafe { header_dst.as_ref::<u8>() });
+
+        debug!("Copied object {} into {}", from, header_dst_obj);
+
+        let moved_obj_addr = header_dst_obj.to_raw_address().add(OBJECT_REF_OFFSET);
+        ObjectReference::from_raw_address(moved_obj_addr).unwrap()
     }
 
     fn copy_to(_from: ObjectReference, _to: ObjectReference, _region: Address) -> Address {

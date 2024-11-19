@@ -352,19 +352,20 @@ fn visit_expr(expr: &AstExpression, slot_visitor: &mut dyn SlotVisitor<SOMSlot>)
     }
 }
 
-fn store_in_value(_: u64, _: ObjectReference) {
+fn adapt_post_copy(obj: *mut u8) {
     todo!()
 }
 
 fn get_object_size(_: ObjectReference) -> usize {
-    todo!()
+    debug!("get object size invoked");
+    42
 }
 
 pub fn get_callbacks_for_gc() -> MMTKtoVMCallbacks {
     MMTKtoVMCallbacks {
         scan_object_fn: scan_object,
         get_roots_in_mutator_thread_fn: get_roots_in_mutator_thread,
-        store_in_value_fn: store_in_value,
+        adapt_post_copy: adapt_post_copy,
         get_object_size_fn: get_object_size,
     }
 }
