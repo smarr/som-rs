@@ -109,9 +109,9 @@ impl<T> Gc<T> {
         self.ptr as *mut T
     }
 
-    /// Return a mutable pointer to the underlying data as an arbitrary type.
-    /// Usage discouraged, and would be better off going unused entirely. TODO: consider removing.
-    pub unsafe fn unsafe_cast<U>(&self) -> *mut U {
-        self.ptr as *mut U
-    }
+    // /// Return a mutable pointer to the underlying data as an arbitrary type.
+    // /// Usage discouraged, and would be better off going unused entirely.
+    // pub unsafe fn unsafe_cast<U>(&self) -> *mut U {
+    //     self.ptr as *mut U
+    // }
 }

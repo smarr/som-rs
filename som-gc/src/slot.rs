@@ -58,7 +58,8 @@ impl Slot for RefValueSlot {
 
     fn store(&self, object: ObjectReference) {
         unsafe {
-            *(self.value) = object.to_raw_address().as_usize() as u64;
+            let a = (((*self.value << 16) as i64) >> 16) as usize as *mut usize;
+            *a = object.to_raw_address().as_usize();
         }
         // unsafe { (MMTK_TO_VM_INTERFACE.get().unwrap().store_in_value_fn)(self.value, object) }
     }

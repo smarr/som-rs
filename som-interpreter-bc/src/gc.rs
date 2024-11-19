@@ -17,7 +17,6 @@ use som_gc::gcref::Gc;
 use som_gc::object_model::VMObjectModel;
 use som_gc::slot::SOMSlot;
 use som_gc::SOMVM;
-use std::ptr;
 
 // Mine. to put in GC headers
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -83,11 +82,8 @@ impl HasTypeInfoForGC for Frame {
 
 pub fn visit_value<'a>(val: &Value, slot_visitor: &'a mut (dyn SlotVisitor<SOMSlot> + 'a)) {
     if val.is_ptr_type() {
-        unsafe {
-            let val_ptr = std::mem::transmute::<&Value, *mut u64>(val);
-            slot_visitor.visit_slot(SOMSlot::from_ref(val_ptr))
-        }
-        // slot_visitor.visit_slot(SOMSlot::from_value(val.payload()))
+        let val_ptr = unsafe { val.as_u64_ptr() };
+        slot_visitor.visit_slot(SOMSlot::from_ref(val_ptr))
     }
 }
 
@@ -208,10 +204,6 @@ pub fn scan_object<'a>(object: ObjectReference, slot_visitor: &'a mut (dyn SlotV
     }
 }
 
-fn cast_to_static<'a, T>(r: &'a T) -> &'static T {
-    unsafe { &*(r as *const T) }
-}
-
 fn get_roots_in_mutator_thread(_mutator: &mut Mutator<SOMVM>) -> Vec<SOMSlot> {
     debug!("calling scan_roots_in_mutator_thread");
     unsafe {
@@ -226,7 +218,7 @@ fn get_roots_in_mutator_thread(_mutator: &mut Mutator<SOMVM>) -> Vec<SOMSlot> {
         debug!("scanning roots: globals");
         for (_name, val) in UNIVERSE_RAW_PTR_CONST.unwrap().as_mut().globals.iter_mut() {
             if val.is_ptr_type() {
-                let val_ptr = std::mem::transmute::<&mut Value, *mut u64>(val);
+                let val_ptr = val.as_u64_ptr();
                 to_process.push(SOMSlot::from_ref(val_ptr));
             }
         }
@@ -272,34 +264,34 @@ fn get_object_size(object: ObjectReference) -> usize {
     obj_size
 }
 
-fn store_in_value(value: u64, object: ObjectReference) {
-    // let other_gc_id: &BCObjMagicId = unsafe {object.to_raw_address().as_ref()};
-    // let gc_id: &BCObjMagicId = unsafe { VMObjectModel::ref_to_header(object).as_ref() };
-
-    let reified_val = Value::from(value);
-
-    // dbg!(object.to_raw_address().as_usize());
-
-    debug_assert!(reified_val.is_ptr_type());
-    dbg!(reified_val);
-
-    if let Some(cls) = reified_val.as_class() {
-        dbg!(&cls);
-
-        // let ptr: *mut usize = val_gc.to_mut_ptr();
-        let a = object.to_raw_address();
-
-        unsafe {
-            let ptr = cls.to_mut_ptr();
-            // *ptr = object.to_raw_address().as_usize();
-            // **ptr = 0;
-        }
-        dbg!(&reified_val);
-
-        debug!("store_in_value OK")
-    } else {
-        panic!()
-    }
+fn store_in_value(_value: u64, _object: ObjectReference) {
+    // // let other_gc_id: &BCObjMagicId = unsafe {object.to_raw_address().as_ref()};
+    // // let gc_id: &BCObjMagicId = unsafe { VMObjectModel::ref_to_header(object).as_ref() };
+    //
+    // let reified_val = Value::from(value);
+    //
+    // // dbg!(object.to_raw_address().as_usize());
+    //
+    // debug_assert!(reified_val.is_ptr_type());
+    // dbg!(reified_val);
+    //
+    // if let Some(cls) = reified_val.as_class() {
+    //     dbg!(&cls);
+    //
+    //     // let ptr: *mut usize = val_gc.to_mut_ptr();
+    //     let a = object.to_raw_address();
+    //
+    //     unsafe {
+    //         let ptr = cls.to_mut_ptr();
+    //         // *ptr = object.to_raw_address().as_usize();
+    //         // **ptr = 0;
+    //     }
+    //     dbg!(&reified_val);
+    //
+    //     debug!("store_in_value OK")
+    // } else {
+    //     panic!()
+    // }
 }
 
 pub fn get_callbacks_for_gc() -> MMTKtoVMCallbacks {

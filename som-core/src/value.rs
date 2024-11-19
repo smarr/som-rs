@@ -360,6 +360,17 @@ impl BaseValue {
     pub fn String(value: Gc<String>) -> Self {
         Self::new_string(value)
     }
+
+    /// Returns a pointer to the underlying data, given a reference to a Value type.
+    /// Not actually unsafe in itself, but considered as such because it's VERY dangerous unless used correctly.
+    /// Why does it exist? Because GC does not know about the `BaseValue`/`Value` type (we'd get a circular dependency otherwise), and it knowing of it as a `u64` is enough to work with it.
+    /// So treating a `Value` like `u64` is fine. And if we need to get the GC access to a pointer to a value, this function is the way to go.
+    /// # Safety
+    /// The value used as a reference must be long-lived: if it is dropped at any point before invoking this function, we'll get undefined behavior.
+    /// In practice for our cases, this means any reference passed to this function must be A POINTER TO THE GC HEAP.
+    pub unsafe fn as_u64_ptr(&self) -> *mut u64 {
+        self as *const Self as *mut u64
+    }
 }
 
 impl PartialEq for BaseValue {
