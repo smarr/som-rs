@@ -1,7 +1,7 @@
 use crate::block::{Block, BlockInfo};
 use crate::class::Class;
 use crate::compiler::Literal;
-use crate::frame::Frame;
+use crate::frame::{Frame, OFFSET_TO_STACK};
 use crate::instance::Instance;
 use crate::method::{Method, MethodKind};
 use crate::value::Value;
@@ -223,6 +223,29 @@ fn get_roots_in_mutator_thread(_mutator: &mut Mutator<SOMVM>) -> Vec<SOMSlot> {
             }
         }
 
+        {
+            let core_classes = &UNIVERSE_RAW_PTR_CONST.unwrap().as_mut().core;
+            to_process.push(SOMSlot::from_address(Address::from_ref(&core_classes.class_class)));
+            to_process.push(SOMSlot::from_address(Address::from_ref(&core_classes.object_class)));
+            to_process.push(SOMSlot::from_address(Address::from_ref(&core_classes.metaclass_class)));
+            to_process.push(SOMSlot::from_address(Address::from_ref(&core_classes.nil_class)));
+            to_process.push(SOMSlot::from_address(Address::from_ref(&core_classes.integer_class)));
+            to_process.push(SOMSlot::from_address(Address::from_ref(&core_classes.double_class)));
+            to_process.push(SOMSlot::from_address(Address::from_ref(&core_classes.array_class)));
+            to_process.push(SOMSlot::from_address(Address::from_ref(&core_classes.method_class)));
+            to_process.push(SOMSlot::from_address(Address::from_ref(&core_classes.primitive_class)));
+            to_process.push(SOMSlot::from_address(Address::from_ref(&core_classes.symbol_class)));
+            to_process.push(SOMSlot::from_address(Address::from_ref(&core_classes.string_class)));
+            to_process.push(SOMSlot::from_address(Address::from_ref(&core_classes.system_class)));
+            to_process.push(SOMSlot::from_address(Address::from_ref(&core_classes.block_class)));
+            to_process.push(SOMSlot::from_address(Address::from_ref(&core_classes.block1_class)));
+            to_process.push(SOMSlot::from_address(Address::from_ref(&core_classes.block2_class)));
+            to_process.push(SOMSlot::from_address(Address::from_ref(&core_classes.block3_class)));
+            to_process.push(SOMSlot::from_address(Address::from_ref(&core_classes.boolean_class)));
+            to_process.push(SOMSlot::from_address(Address::from_ref(&core_classes.true_class)));
+            to_process.push(SOMSlot::from_address(Address::from_ref(&core_classes.false_class)));
+        }
+
         debug!("scanning roots: finished");
         to_process
     }
@@ -266,74 +289,164 @@ fn get_object_size(object: ObjectReference) -> usize {
     obj_size
 }
 
-fn adapt_post_copy(object: ObjectReference) {
+fn adapt_post_copy(object: ObjectReference, original_obj: ObjectReference) {
     let gc_id: &BCObjMagicId = unsafe { object.to_raw_address().as_ref() };
 
+    let obj_addr = object.to_raw_address().add(8);
     // dbg!(gc_id);
     match gc_id {
         BCObjMagicId::Frame => unsafe {
             debug!("adapt_post_copy: frame");
 
-            let frame_ptr: *mut Frame = object.to_raw_address().add(8).to_mut_ptr();
-            let frame: &Frame = &*frame_ptr;
+            let frame: &mut Frame = obj_addr.as_mut_ref();
 
-            (*frame_ptr).stack_ptr = frame_ptr.byte_add(crate::frame::OFFSET_TO_STACK) as *mut Value;
+            // let og_frame: &mut Frame = original_obj.to_raw_address().as_mut_ref();
+
+            // let size_of_frame = size_of::<Frame>();
+            let old_stack_len = frame.stack_ptr.byte_sub(original_obj.to_raw_address().as_usize()).byte_sub(size_of::<Frame>()) as usize / 8;
+
+            // dbg!(old_stack_len);
+            frame.stack_ptr = obj_addr.add(OFFSET_TO_STACK).add(old_stack_len * size_of::<Value>()).to_mut_ptr();
 
             let stack_size = match &frame.current_method.kind {
                 MethodKind::Defined(e) => e.max_stack_size as usize,
                 MethodKind::Primitive(_) => 0,
             };
 
-            (*frame_ptr).args_ptr = (*frame_ptr).stack_ptr.add(stack_size);
-            (*frame_ptr).locals_ptr = (*frame_ptr).args_ptr.add(frame.nbr_args);
-            // TODO: inline cache, also.
+            frame.args_ptr = frame.stack_ptr.add(stack_size);
+            frame.locals_ptr = frame.args_ptr.add(frame.nbr_args);
+
+            // TODO: inline cache, also?
+
+            // let frame_stack_start_addr: Address = obj_addr.add(OFFSET_TO_STACK);
+            // let mut stack_ptr = frame.stack_ptr;
+            // while !std::ptr::eq(stack_ptr, frame_stack_start_addr.to_ptr()) {
+            //     stack_ptr = stack_ptr.sub(1);
+            //     let stack_val = &*stack_ptr;
+            //     if stack_val.is_ptr_type() {
+            //         if let Some(mut instance_ptr) = stack_val.as_instance() {
+            //             instance_ptr.fields_ptr = (instance_ptr.ptr + size_of::<Instance>()) as *mut Value;
+            //
+            //             let forwarded_addr =
+            //                 ObjectReference::from_raw_address(Address::from_usize(instance_ptr.class.ptr)).unwrap().get_forwarded_object();
+            //             instance_ptr.class = Gc::from(forwarded_addr.unwrap().to_raw_address());
+            //         }
+            //     }
+            //     // dbg!(&stack_val);
+            // }
+            //
+            // for i in 0..frame.nbr_args {
+            //     let arg = frame.lookup_argument(i);
+            //     if let Some(mut instance_ptr) = arg.as_instance() {
+            //         instance_ptr.fields_ptr = (instance_ptr.ptr + size_of::<Instance>()) as *mut Value;
+            //         let forwarded_addr =
+            //             ObjectReference::from_raw_address(Address::from_usize(instance_ptr.class.ptr)).unwrap().get_forwarded_object();
+            //         if forwarded_addr.is_some() {
+            //             instance_ptr.class = Gc::from(forwarded_addr.unwrap().to_raw_address());
+            //         }
+            //     }
+            // }
+            //
+            // for i in 0..frame.nbr_locals {
+            //     let arg = frame.lookup_local(i);
+            //     if let Some(mut instance_ptr) = arg.as_instance() {
+            //         instance_ptr.fields_ptr = (instance_ptr.ptr + size_of::<Instance>()) as *mut Value;
+            //         let forwarded_addr =
+            //             ObjectReference::from_raw_address(Address::from_usize(instance_ptr.class.ptr)).unwrap().get_forwarded_object();
+            //         if forwarded_addr.is_some() {
+            //             instance_ptr.class = Gc::from(forwarded_addr.unwrap().to_raw_address());
+            //         }
+            //     }
+            // }
         },
-        BCObjMagicId::Class => unsafe {
-            let class_ptr: *mut Class = object.to_raw_address().add(8).to_mut_ptr();
-            let class = &*class_ptr;
-            let class_gc_ptr: Gc<Class> = Gc::from(object.to_raw_address().add(8));
-            let universe_ref = UNIVERSE_RAW_PTR_CONST.unwrap().as_mut();
-
-            eprintln!("class name: {}", &class.name);
-            if !class.name.ends_with(" class") {
-                universe_ref.swap_global_by_name(&class.name, Value::Class(class_gc_ptr));
-            } else {
-                let class_name = class.name.split_whitespace().next().unwrap();
-                let global = universe_ref.lookup_global_by_name(class_name);
-                let mut lol = global.unwrap().as_class().unwrap();
-                lol.class = class_gc_ptr;
-            }
-
-            match &mut (*class_ptr).super_class {
-                None => {}
-                Some(super_cls) => {
-                    if !super_cls.name.ends_with(" class") {
-                        let super_cls_global = universe_ref.lookup_global_by_name(&super_cls.name);
-                        *super_cls = super_cls_global.unwrap().as_class().unwrap();
-                    } else {
-                        let class_name = class.name.split_whitespace().next().unwrap();
-                        let global = universe_ref.lookup_global_by_name(class_name);
-                        *super_cls = global.unwrap().as_class().unwrap().super_class.unwrap();
-                    }
-                }
-            }
-
-            debug!("adapt_post_copy: class OK");
-        },
+        BCObjMagicId::Class => {
+            // let class_ptr: *mut Class = object.to_raw_address().add(8).to_mut_ptr();
+            // let class = &*class_ptr;
+            // let class_gc_ptr: Gc<Class> = Gc::from(object.to_raw_address().add(8));
+            // let universe_ref = UNIVERSE_RAW_PTR_CONST.unwrap().as_mut();
+            //
+            // // eprintln!("class name: {}", &class.name);
+            // if !class.name.ends_with(" class") {
+            //     universe_ref.swap_global_by_name(&class.name, Value::Class(class_gc_ptr));
+            // } else {
+            //     let class_name = class.name.split_whitespace().next().unwrap();
+            //     let mut cls_global = universe_ref.lookup_global_by_name(class_name).unwrap().as_class().unwrap();
+            //     cls_global.class = class_gc_ptr;
+            // }
+            //
+            // match &mut (*class_ptr).super_class {
+            //     None => {}
+            //     Some(super_cls) => {
+            //         if !super_cls.name.ends_with(" class") {
+            //             let super_cls_global = universe_ref.lookup_global_by_name(&super_cls.name);
+            //             *super_cls = super_cls_global.unwrap().as_class().unwrap();
+            //         } else {
+            //             let class_name = class.name.split_whitespace().next().unwrap();
+            //             let global = universe_ref.lookup_global_by_name(class_name);
+            //             *super_cls = global.unwrap().as_class().unwrap().super_class.unwrap();
+            //         }
+            //     }
+            // }
+            //
+            // debug!("adapt_post_copy: class OK");
+        }
         BCObjMagicId::Instance => unsafe {
             debug!("adapt_post_copy: instance");
 
-            let instance_ptr: *mut Instance = object.to_raw_address().add(8).to_mut_ptr();
+            let instance_ptr: &mut Instance = obj_addr.as_mut_ref();
 
-            (*instance_ptr).fields_ptr = instance_ptr.byte_add(size_of::<Instance>()) as *mut Value;
+            instance_ptr.fields_ptr = obj_addr.add(size_of::<Instance>()).to_mut_ptr();
 
-            let global_cls = UNIVERSE_RAW_PTR_CONST.unwrap().as_mut().lookup_global_by_name(&(*instance_ptr).class.name);
-            let global_ptr = &global_cls.unwrap().extract_gc_cell::<Class>().ptr;
-            debug_assert_ne!((*instance_ptr).class.ptr, *global_ptr); // i.e.: check that we put the new, moved class pointer in the instance
-            (*instance_ptr).class = global_cls.unwrap().as_class().unwrap();
-            debug!("adapt_post_copy: instance OK");
+            // let forwarded_addr = ObjectReference::from_raw_address(Address::from_usize(instance_ptr.class.ptr)).unwrap().get_forwarded_object();
+            // instance_ptr.class = Gc::from(forwarded_addr.unwrap().to_raw_address());
+
+            // let global_cls = UNIVERSE_RAW_PTR_CONST.unwrap().as_mut().lookup_global_by_name(&(*instance_ptr).class.name);
+            // let global_ptr = &global_cls.unwrap().extract_gc_cell::<Class>().ptr;
+            // // debug_assert_ne!((*instance_ptr).class.ptr, *global_ptr); // i.e.: check that we put the new, moved class pointer in the instance
+            // (*instance_ptr).class = global_cls.unwrap().as_class().unwrap();
+            // debug!("adapt_post_copy: instance OK");
         },
-        _ => {}
+        BCObjMagicId::Method => {
+            // debug!("adapt_post_copy: method");
+            //
+            // let method_ptr: *mut Method = object.to_raw_address().add(8).to_mut_ptr();
+            // // match &(*method_ptr).kind {
+            // //     MethodKind::Defined(env) => {
+            // //         env.
+            // //     }
+            // //     MethodKind::Primitive(_) => {}
+            // // }
+            // let cls_name = &(*method_ptr).holder.name;
+            //
+            // if !cls_name.ends_with(" class") {
+            //     let global_cls = UNIVERSE_RAW_PTR_CONST.unwrap().as_mut().lookup_global_by_name(cls_name);
+            //     (*method_ptr).holder = global_cls.unwrap().as_class().unwrap();
+            // } else {
+            //     let class_name = cls_name.split_whitespace().next().unwrap();
+            //     let global = UNIVERSE_RAW_PTR_CONST.unwrap().as_mut().lookup_global_by_name(class_name);
+            //     (*method_ptr).holder = global.unwrap().as_class().unwrap().super_class.unwrap();
+            // }
+        }
+        BCObjMagicId::Block => {
+            // debug!("adapt_post_copy: block");
+            //
+            // let block_ptr: *mut Block = object.to_raw_address().add(8).to_mut_ptr();
+            // // match &(*method_ptr).kind {
+            // //     MethodKind::Defined(env) => {
+            // //         env.
+            // //     }
+            // //     MethodKind::Primitive(_) => {}
+            // // }
+            // block_ptr.
+            // let global_cls = UNIVERSE_RAW_PTR_CONST.unwrap().as_mut().lookup_global_by_name(&(*block_ptr).holder.name);
+            // (*block_ptr).holder = global_cls.unwrap().as_class().unwrap();
+        }
+        BCObjMagicId::BlockInfo => {}
+        BCObjMagicId::String => {}
+        BCObjMagicId::ArrayVal => {} // we don't need to visit each value, correct?
+        gc_id => {
+            todo!("{:?}", gc_id)
+        }
     }
 }
 

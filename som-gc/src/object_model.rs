@@ -62,10 +62,10 @@ impl ObjectModel<SOMVM> for VMObjectModel {
 
         let header_dst_obj = unsafe { ObjectReference::from_raw_address_unchecked(header_dst) };
 
-        // TODO: is mutably modifying the contents of the destination enough? or should we perhaps also modify the original? SURELY it's fine and copy means the original goes unused
-        unsafe { (MMTK_TO_VM_INTERFACE.get_mut().unwrap().adapt_post_copy)(header_dst_obj) }
-
         copy_context.post_copy(header_dst_obj, bytes, semantics);
+
+        // TODO: is mutably modifying the contents of the destination enough? or should we perhaps also modify the original? SURELY it's fine and copy means the original goes unused
+        unsafe { (MMTK_TO_VM_INTERFACE.get_mut().unwrap().adapt_post_copy)(header_dst_obj, from) }
 
         debug_assert_eq!(_from_header_gc_id, unsafe { header_dst.as_ref::<u8>() });
 

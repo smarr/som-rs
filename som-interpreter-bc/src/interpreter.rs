@@ -152,6 +152,8 @@ impl Interpreter {
             // dbg!(&self.current_frame.stack);
             // dbg!(&bytecode);
 
+            // dbg!(&self.current_frame.ptr);
+
             self.bytecode_idx += 1;
 
             match bytecode {
@@ -217,6 +219,7 @@ impl Interpreter {
                 Bytecode::PushNonLocal(up_idx, idx) => {
                     debug_assert_ne!(up_idx, 0);
                     let from = Frame::nth_frame_back(&self.current_frame, up_idx);
+                    let _frame = &*from;
                     let value = *from.lookup_local(idx as usize);
                     self.current_frame.stack_push(value);
                 }
@@ -325,8 +328,24 @@ impl Interpreter {
                     }
                 }
                 Bytecode::Send1(idx) => {
-                    send! {self, universe, &mut self.current_frame, idx, Some(0)}
-                    // Send1 => receiver + 0 args, so we pass Some(0)
+                    let Literal::Symbol(symbol) = self.current_frame.lookup_constant(idx as usize) else {
+                        unreachable!()
+                    };
+                    let nb_params = 0;
+                    let method = {
+                        // dbg!($universe.lookup_symbol(symbol));
+                        let receiver = self.current_frame.stack_nth_back(nb_params);
+                        let receiver_class = receiver.class(universe);
+                        // if let Some(instance) = receiver.as_instance() {
+                        //     let a = &*instance;
+                        //     dbg!("wo");
+                        //     println!("{}", format!("{:x}", instance.ptr));
+                        //     println!("{}", format!("{:x}", a.class.ptr));
+                        //     dbg!(&receiver);
+                        // }
+                        resolve_method(&mut self.current_frame, &receiver_class, symbol, self.bytecode_idx)
+                    };
+                    do_send(self, universe, method, symbol, nb_params as usize);
                 }
                 Bytecode::Send2(idx) => {
                     send! {self, universe, &mut self.current_frame, idx, Some(1)}
@@ -513,6 +532,11 @@ impl Interpreter {
         // TODO: re-enable inline caching.
         #[allow(unused)]
         fn resolve_method(frame: &mut Gc<Frame>, class: &Gc<Class>, signature: Interned, bytecode_idx: usize) -> Option<Gc<Method>> {
+            // for i in 0..frame.nbr_args {
+            //     let arg = frame.lookup_argument(i);
+            //     dbg!(arg);
+            // }
+            // let _frame = &**frame;
             return class.lookup_method(signature);
 
             // SAFETY: this access is actually safe because the bytecode compiler

@@ -42,7 +42,7 @@ impl Drop for GCInterface {
 pub struct MMTKtoVMCallbacks {
     pub scan_object_fn: fn(ObjectReference, &mut dyn SlotVisitor<SOMSlot>),
     pub get_roots_in_mutator_thread_fn: fn(&mut Mutator<SOMVM>) -> Vec<SOMSlot>,
-    pub adapt_post_copy: fn(ObjectReference),
+    pub adapt_post_copy: fn(ObjectReference, ObjectReference),
     pub get_object_size_fn: fn(ObjectReference) -> usize,
 }
 

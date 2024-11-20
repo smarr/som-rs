@@ -168,8 +168,7 @@ impl BaseValue {
 
     #[inline(always)]
     pub fn extract_gc_cell<T>(self) -> Gc<T> {
-        let ptr = self.extract_pointer_bits();
-        Gc::from(ptr) // i doubt the compiler isn't making this conversion free
+        Gc::from(self.extract_pointer_bits())
     }
 
     #[inline(always)]

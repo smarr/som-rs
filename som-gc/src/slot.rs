@@ -1,3 +1,4 @@
+use log::debug;
 use mmtk::util::{Address, ObjectReference};
 use mmtk::vm::slot::{SimpleSlot, Slot};
 
@@ -42,6 +43,13 @@ pub struct RefValueSlot {
 }
 
 impl RefValueSlot {
+    const BASE_TAG: u64 = 0x7FF8;
+    const CELL_BASE_TAG: u64 = 0x8000 | Self::BASE_TAG;
+    const TAG_SHIFT: u64 = 48;
+    const IS_PTR_PATTERN: u64 = Self::CELL_BASE_TAG << Self::TAG_SHIFT;
+    const TAG_EXTRACTION: u64 = 0xFFFF << Self::TAG_SHIFT;
+    const CANON_NAN_BITS: u64 = 0x7FF8000000000000;
+
     pub fn from_ref(value: *mut u64) -> Self {
         Self { value }
     }
@@ -52,12 +60,19 @@ impl RefValueSlot {
 
     /// For debugging purposes. Copies code from som-core/value.rs, naively
     pub fn is_ptr_type(val: u64) -> bool {
-        const BASE_TAG: u64 = 0x7FF8;
-        const CELL_BASE_TAG: u64 = 0x8000 | BASE_TAG;
-        const TAG_SHIFT: u64 = 48;
-        const IS_PTR_PATTERN: u64 = CELL_BASE_TAG << TAG_SHIFT;
+        (val & Self::IS_PTR_PATTERN) == Self::IS_PTR_PATTERN
+    }
 
-        (val & IS_PTR_PATTERN) == IS_PTR_PATTERN
+    fn extract_pointer_bits(val: u64) -> u64 {
+        (((val << 16) as i64) >> 16) as u64
+    }
+
+    fn tag(val: u64) -> u64 {
+        (val & Self::TAG_EXTRACTION) >> Self::TAG_SHIFT
+    }
+
+    fn new_val(tag: u64, value: u64) -> u64 {
+        Self::CANON_NAN_BITS | ((tag << Self::TAG_SHIFT) & Self::TAG_EXTRACTION) | (value & !Self::TAG_EXTRACTION)
     }
 }
 
@@ -72,12 +87,20 @@ impl Slot for RefValueSlot {
     }
 
     fn store(&self, object: ObjectReference) {
-        // debug!("refvalueslot store ok");
-        // debug_assert!(Self::is_ptr_type(object.to_raw_address().as_usize() as u64))
-        let addr = self.to_address();
-        unsafe { debug_assert!(Self::is_ptr_type(*self.value)) }
         unsafe {
-            *addr.to_mut_ptr() = object.to_raw_address().as_usize();
+            debug_assert!(Self::is_ptr_type(*self.value));
+
+            // let addr = self.to_address();
+            let tag = Self::tag(*self.value);
+
+            dbg!(format!("{:x}", Self::extract_pointer_bits(*self.value)));
+
+            // *addr.to_mut_ptr() = Self::new_val(tag, object.to_raw_address().as_usize() as u64);
+            *self.value = Self::new_val(tag, object.to_raw_address().as_usize() as u64);
+
+            dbg!(format!("{:x}", Self::extract_pointer_bits(*self.value)));
+            debug_assert!(Self::is_ptr_type(*self.value))
         }
+        debug!("refvalueslot store ok");
     }
 }
