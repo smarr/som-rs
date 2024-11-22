@@ -7,6 +7,7 @@ use core::mem::size_of;
 use som_core::bytecode::Bytecode;
 use som_gc::gc_interface::GCInterface;
 use som_gc::gcref::Gc;
+use std::fmt::{Debug, Formatter};
 use std::marker::PhantomData;
 
 pub(crate) const OFFSET_TO_STACK: usize = size_of::<Frame>();
@@ -45,18 +46,16 @@ pub struct Frame {
 }
 
 impl Frame {
-    pub fn alloc_from_method(method: Gc<Method>, args: &[Value], prev_frame: Gc<Frame>, gc_interface: &mut GCInterface) -> Gc<Frame> {
-        let frame = Frame::from_method(method, args.len(), prev_frame);
+    pub fn alloc_from_method(method: Gc<Method>, args: &[Value], prev_frame: &Gc<Frame>, gc_interface: &mut GCInterface) -> Gc<Frame> {
+        let frame = Frame::from_method(method, args.len());
         let max_stack_size = match &method.kind {
             MethodKind::Defined(m_env) => m_env.max_stack_size as usize,
             _ => unreachable!("if we're allocating a method frame, it has to be defined."),
         };
 
-        // TODO: be nice to wrap this size calculation bit + allocation into its own alloc trait somehow, like CustomAlloc. since the block logic is very similar
-        let size = size_of::<Frame>() + ((max_stack_size + frame.nbr_args + frame.nbr_locals) * size_of::<Value>());
-
+        let size = frame.get_true_size(max_stack_size);
         let frame_ptr = gc_interface.alloc_with_size(frame, size);
-        Frame::init_frame_post_alloc(frame_ptr, args, max_stack_size);
+        Frame::init_frame_post_alloc(frame_ptr, args, max_stack_size, *prev_frame);
         frame_ptr
     }
 
@@ -64,19 +63,19 @@ impl Frame {
         block: Gc<Block>,
         args: &[Value],
         current_method: Gc<Method>,
-        prev_frame: Gc<Frame>,
+        prev_frame: &Gc<Frame>,
         gc_interface: &mut GCInterface,
     ) -> Gc<Frame> {
-        let frame = Frame::from_block(block, args.len(), current_method, prev_frame);
+        let frame = Frame::from_block(block, args.len(), current_method);
         let max_stack_size = block.blk_info.max_stack_size as usize;
-        let size = size_of::<Frame>() + ((max_stack_size + frame.nbr_args + frame.nbr_locals) * size_of::<Value>());
+        let size = frame.get_true_size(max_stack_size);
 
         let frame_ptr = gc_interface.alloc_with_size(frame, size);
-        Frame::init_frame_post_alloc(frame_ptr, args, max_stack_size);
+        Frame::init_frame_post_alloc(frame_ptr, args, max_stack_size, *prev_frame);
         frame_ptr
     }
 
-    fn init_frame_post_alloc(frame_ptr: Gc<Frame>, args: &[Value], stack_size: usize) {
+    fn init_frame_post_alloc(frame_ptr: Gc<Frame>, args: &[Value], stack_size: usize, prev_frame: Gc<Frame>) {
         unsafe {
             let mut frame = frame_ptr;
 
@@ -97,14 +96,16 @@ impl Frame {
             for idx in 0..frame.nbr_locals {
                 *frame.locals_ptr.add(idx) = Value::NIL;
             }
+
+            frame.prev_frame = prev_frame; // because GC can have moved the previous frame!
         }
     }
 
     // Creates a frame from a block. Meant to only be called by the alloc_from_block function
-    fn from_block(block: Gc<Block>, nbr_args: usize, current_method: Gc<Method>, prev_frame: Gc<Frame>) -> Self {
+    fn from_block(block: Gc<Block>, nbr_args: usize, current_method: Gc<Method>) -> Self {
         let mut block_obj = block;
         Self {
-            prev_frame,
+            prev_frame: Gc::default(),
             current_method,
             nbr_locals: block_obj.blk_info.nb_locals,
             nbr_args,
@@ -122,12 +123,12 @@ impl Frame {
     }
 
     // Creates a frame from a block. Meant to only be called by the alloc_from_method function
-    fn from_method(mut method: Gc<Method>, nbr_args: usize, prev_frame: Gc<Frame>) -> Self {
+    fn from_method(mut method: Gc<Method>, nbr_args: usize) -> Self {
         match &mut method.kind {
             MethodKind::Defined(env) => {
                 let inline_cache = std::ptr::addr_of_mut!(env.inline_cache);
                 Self {
-                    prev_frame,
+                    prev_frame: Gc::default(),
                     nbr_locals: env.nbr_locals,
                     nbr_args,
                     literals: &env.literals,
@@ -145,6 +146,13 @@ impl Frame {
             }
             _ => unreachable!(),
         }
+    }
+
+    /// Returns the true size of the `Frame`, counting the extra memory needed for its stack/locals/arguments.
+    /// Takes in the maximum stack size, but could also fetch it from its methodenv.
+    /// But it's currently only invoked in contexts where we need the max stack size for other calculations, so it takes it to not have to re-compute it.
+    pub fn get_true_size(&self, max_stack_size: usize) -> usize {
+        size_of::<Frame>() + ((max_stack_size + self.nbr_args + self.nbr_locals) * size_of::<Value>())
     }
 
     /// Get the self value for this frame.
@@ -288,7 +296,37 @@ impl Frame {
     }
 
     /// Gets the total number of elements on the stack. Only used for debugging.
+    #[cfg(test)]
     pub fn stack_len(frame_ptr: Gc<Frame>) -> usize {
         ((frame_ptr.stack_ptr as usize) - (frame_ptr.ptr + OFFSET_TO_STACK)) / size_of::<Value>()
+    }
+}
+
+impl Debug for Frame {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        // TODO: an iter on Frame instead..
+        unsafe fn stack_printer(frame: &Frame) -> String {
+            let mut stack_elements = vec![];
+            let frame_stack_start_addr = (frame as *const Frame).byte_add(OFFSET_TO_STACK) as *const Value;
+            let mut backwards_stack_ptr = frame_stack_start_addr;
+            while !std::ptr::eq(backwards_stack_ptr, frame.stack_ptr) {
+                let stack_val = &*backwards_stack_ptr;
+                stack_elements.push(format!("{:?}", &stack_val));
+                backwards_stack_ptr = backwards_stack_ptr.add(1);
+            }
+
+            format!("[{}]", stack_elements.join(", "))
+        }
+
+        f.debug_struct("Frame")
+            .field(
+                "current method",
+                &format!("{}::>{}", self.current_method.holder.name(), self.current_method.signature()),
+            )
+            .field("bc idx", &self.bytecode_idx)
+            .field("nbr args", &self.nbr_args)
+            .field("nbr locals", &self.nbr_locals)
+            .field("stack", unsafe { &stack_printer(self) })
+            .finish()
     }
 }

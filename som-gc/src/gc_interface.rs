@@ -194,8 +194,8 @@ impl GCInterface {
     }
 
     pub(crate) fn block_for_gc(&mut self, _tls: VMMutatorThread) {
+        debug!("block_for_gc: stopping the world!");
         AtomicBool::store(&IS_WORLD_STOPPED, true, Ordering::SeqCst);
-        debug!("block_for_gc: stopped the world!");
         let time_pre_gc = Instant::now();
         while AtomicBool::load(&IS_WORLD_STOPPED, Ordering::SeqCst) {}
         debug!("block_for_gc: world no longer stopped.");
