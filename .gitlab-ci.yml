@@ -17,8 +17,8 @@ build-and-test-interpreters:
     # Setup
 
     # when we build mmtk from source locally to debug it
-    #- git clone https://github.com/mmtk/mmtk-core
-    #- cd mmtk-core && git checkout v0.28.0 && cd ..
+    - git clone https://github.com/mmtk/mmtk-core
+    - cd mmtk-core && git checkout v0.29.0 && cd ..
 
     - cargo +$CARGO_VERSION clean
     - cargo +$CARGO_VERSION build --release

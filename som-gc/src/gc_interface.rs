@@ -8,7 +8,11 @@ use crate::slot::SOMSlot;
 use crate::{MMTK_SINGLETON, MMTK_TO_VM_INTERFACE, MUTATOR_WRAPPER, SOMVM};
 use core::mem::size_of;
 use log::debug;
-use mmtk::util::alloc::{Allocator, FreeListAllocator};
+use mmtk::util::alloc::Allocator;
+#[cfg(feature = "strategy-semispace")]
+use mmtk::util::alloc::BumpAllocator;
+#[cfg(feature = "strategy-marksweep")]
+use mmtk::util::alloc::FreeListAllocator;
 use mmtk::util::constants::MIN_OBJECT_SIZE;
 use mmtk::util::{Address, ObjectReference, OpaquePointer, VMMutatorThread, VMThread};
 use mmtk::vm::SlotVisitor;
@@ -26,7 +30,10 @@ static GC_ALIGN: usize = 8;
 /// TODO rename, maybe MutatorWrapper
 pub struct GCInterface {
     mutator: Box<Mutator<SOMVM>>,
-    _default_allocator: *mut FreeListAllocator<SOMVM>,
+    #[cfg(feature = "strategy-marksweep")]
+    default_allocator: *mut FreeListAllocator<SOMVM>,
+    #[cfg(feature = "strategy-semispace")]
+    default_allocator: *mut mmtk::util::alloc::BumpAllocator<SOMVM>,
     mutator_thread: VMMutatorThread,
     start_the_world_count: usize,
     total_gc_time: std::time::Duration,
@@ -49,13 +56,16 @@ pub struct MMTKtoVMCallbacks {
 impl GCInterface {
     /// Initialize the GCInterface. Internally inits MMTk and fetches everything needed to actually communicate with the GC.
     pub fn init<'a>(heap_size: usize, vm_callbacks: MMTKtoVMCallbacks) -> &'a mut Self {
-        let strategy = "SemiSpace";
-        let (mutator_thread, mutator) = Self::init_mmtk(heap_size, strategy);
+        let (mutator_thread, mutator) = Self::init_mmtk(heap_size);
+        #[cfg(feature = "strategy-marksweep")]
         let default_allocator = Self::get_default_allocator::<FreeListAllocator<SOMVM>>(mutator.as_ref());
+        #[cfg(feature = "strategy-semispace")]
+        let default_allocator = Self::get_default_allocator::<BumpAllocator<SOMVM>>(mutator.as_ref());
+
         let mut self_ = Box::new(Self {
             mutator_thread,
             mutator,
-            _default_allocator: default_allocator,
+            default_allocator,
             start_the_world_count: 0,
             total_gc_time: Duration::new(0, 0),
         });
@@ -78,15 +88,23 @@ impl GCInterface {
     }
 
     /// Initialize MMTk, and get from it all the info we need to initialize our interface
-    fn init_mmtk(heap_size: usize, strategy: &str) -> (VMMutatorThread, Box<Mutator<SOMVM>>) {
+    fn init_mmtk(heap_size: usize) -> (VMMutatorThread, Box<Mutator<SOMVM>>) {
         let builder: MMTKBuilder = {
             let mut builder = MMTKBuilder::new();
 
             let heap_success = mmtk_set_fixed_heap_size(&mut builder, heap_size);
             assert!(heap_success, "Couldn't set MMTk fixed heap size");
 
-            let gc_success = builder.set_option("plan", strategy);
-            assert!(gc_success, "Couldn't set GC plan");
+            #[cfg(all(feature = "strategy-semispace", feature = "strategy-marksweep"))]
+            compile_error!("Several GC strategies enabled: only one is allowed at a time.");
+
+            if cfg!(feature = "strategy-marksweep") {
+                assert!(builder.set_option("plan", "MarkSweep"));
+            } else if cfg!(feature = "strategy-semispace") {
+                assert!(builder.set_option("plan", "SemiSpace"));
+            } else {
+                panic!("No GC plan set!")
+            }
 
             #[cfg(feature = "stress_test")]
             assert!(builder.set_option("stress_factor", "1000000"));
@@ -146,9 +164,12 @@ impl GCInterface {
         // adding VM header size (type info) to amount we allocate
         size += OBJECT_REF_OFFSET;
 
-        // slow path, if needed for experimenting/debugging
+        #[cfg(feature = "strategy-marksweep")]
+        let header_addr = unsafe { &mut (*self.default_allocator) }.alloc(size, GC_ALIGN, GC_OFFSET);
+
+        // TODO: make it use fast path, also
+        #[cfg(feature = "strategy-semispace")]
         let header_addr = crate::api::mmtk_alloc(&mut self.mutator, size, GC_ALIGN, GC_OFFSET, AllocationSemantics::Default);
-        // let header_addr = unsafe { &mut (*self._default_allocator) }.alloc(size, GC_ALIGN, GC_OFFSET);
 
         debug_assert!(!header_addr.is_zero());
         let obj_addr = SOMVM::object_start_to_ref(header_addr);

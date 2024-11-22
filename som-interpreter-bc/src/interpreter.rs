@@ -531,11 +531,6 @@ impl Interpreter {
         // TODO: re-enable inline caching.
         #[allow(unused)]
         fn resolve_method(frame: &mut Gc<Frame>, class: &Gc<Class>, signature: Interned, bytecode_idx: usize) -> Option<Gc<Method>> {
-            // for i in 0..frame.nbr_args {
-            //     let arg = frame.lookup_argument(i);
-            //     dbg!(arg);
-            // }
-            // let _frame = &**frame;
             return class.lookup_method(signature);
 
             // SAFETY: this access is actually safe because the bytecode compiler

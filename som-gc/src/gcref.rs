@@ -51,15 +51,13 @@ impl<T> Deref for Gc<T> {
     fn deref(&self) -> &T {
         unsafe {
             let ptr = self.ptr as *const T;
-            #[cfg(debug_assertions)]
+            #[cfg(feature = "strategy-semispace")]
             {
                 // checking we're not holding onto references from the old space
-                let x = &**crate::MUTATOR_WRAPPER.get().unwrap();
-                if x.get_nbr_collections() % 2 == 1 {
-                    if self.ptr.to_string().chars().nth(0).unwrap() == '2' {
-                        dbg!(ptr as usize);
-                        dbg!("BREAKPOINT");
-                    }
+                let gc_interface = &**crate::MUTATOR_WRAPPER.get().unwrap();
+                if gc_interface.get_nbr_collections() % 2 == 1 && self.ptr.to_string().chars().nth(0).unwrap() == '2' {
+                    dbg!(ptr as usize);
+                    dbg!("BREAKPOINT");
                 }
             }
             &*ptr
@@ -71,14 +69,13 @@ impl<T> DerefMut for Gc<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         unsafe {
             let ptr = self.ptr as *mut T;
+            #[cfg(feature = "strategy-semispace")]
             {
                 // checking we're not holding onto references from the old space
-                let x = &**crate::MUTATOR_WRAPPER.get().unwrap();
-                if x.get_nbr_collections() % 2 == 1 {
-                    if self.ptr.to_string().chars().nth(0).unwrap() == '2' {
-                        dbg!(ptr as usize);
-                        dbg!("BREAKPOINT");
-                    }
+                let gc_interface = &**crate::MUTATOR_WRAPPER.get().unwrap();
+                if gc_interface.get_nbr_collections() % 2 == 1 && self.ptr.to_string().chars().nth(0).unwrap() == '2' {
+                    dbg!(ptr as usize);
+                    dbg!("BREAKPOINT");
                 }
             }
             &mut *ptr

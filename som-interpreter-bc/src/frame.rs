@@ -299,7 +299,6 @@ impl Frame {
     }
 
     /// Gets the total number of elements on the stack. Only used for debugging.
-    #[cfg(test)]
     pub fn stack_len(frame_ptr: Gc<Frame>) -> usize {
         ((frame_ptr.stack_ptr as usize) - (frame_ptr.ptr + OFFSET_TO_STACK)) / size_of::<Value>()
     }
