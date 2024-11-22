@@ -399,25 +399,6 @@ impl Universe {
     pub fn assign_global(&mut self, name: Interned, value: Value) {
         self.globals.push((name, value));
     }
-
-    /// TODO doc. Used by moving GCs
-    pub fn swap_global_by_name(&mut self, name: &str, value: Value) {
-        let id_class_name = self.interner.reverse_lookup(name).unwrap_or_else(|| panic!("global not found with name {:?}", name));
-
-        let global_with_name_mut = self
-            .globals
-            .iter_mut()
-            .find(|e| e.0 == id_class_name)
-            .unwrap_or_else(|| panic!("global not found with name {:?}", name));
-
-        global_with_name_mut.1 = value;
-    }
-
-    /// TODO doc, also for moving GC
-    pub fn lookup_global_by_name(&self, name: &str) -> Option<Value> {
-        let id_class_name = self.interner.reverse_lookup(name).unwrap_or_else(|| panic!("global not found with name {:?}", name));
-        self.lookup_global(id_class_name)
-    }
 }
 
 impl Universe {

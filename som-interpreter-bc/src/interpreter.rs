@@ -327,24 +327,7 @@ impl Interpreter {
                     }
                 }
                 Bytecode::Send1(idx) => {
-                    let Literal::Symbol(symbol) = self.current_frame.lookup_constant(idx as usize) else {
-                        unreachable!()
-                    };
-                    let nb_params = 0;
-                    let method = {
-                        // dbg!($universe.lookup_symbol(symbol));
-                        let receiver = self.current_frame.stack_nth_back(nb_params);
-                        let receiver_class = receiver.class(universe);
-                        // if let Some(instance) = receiver.as_instance() {
-                        //     let a = &*instance;
-                        //     dbg!("wo");
-                        //     println!("{}", format!("{:x}", instance.ptr));
-                        //     println!("{}", format!("{:x}", a.class.ptr));
-                        //     dbg!(&receiver);
-                        // }
-                        resolve_method(&mut self.current_frame, &receiver_class, symbol, self.bytecode_idx)
-                    };
-                    do_send(self, universe, method, symbol, nb_params);
+                    send! {self, universe, &mut self.current_frame, idx, Some(0)}
                 }
                 Bytecode::Send2(idx) => {
                     send! {self, universe, &mut self.current_frame, idx, Some(1)}

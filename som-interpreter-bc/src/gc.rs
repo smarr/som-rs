@@ -107,7 +107,7 @@ pub fn scan_object<'a>(object: ObjectReference, slot_visitor: &'a mut (dyn SlotV
         match gc_id {
             BCObjMagicId::Frame => {
                 let frame: &mut Frame = object.to_raw_address().as_mut_ref();
-                eprintln!("frame (method: {})", &frame.current_method.signature);
+                // eprintln!("frame (method: {})", &frame.current_method.signature);
 
                 // debug!("(frame method is: {})", &frame.current_method.signature);
 

@@ -26,7 +26,7 @@ const INVOKABLE_TAG: u64 = 0b111 | CELL_BASE_TAG;
 
 /// Represents an SOM value.
 #[derive(Clone, Copy, PartialEq, Hash)]
-#[repr(C)]
+#[repr(transparent)]
 pub struct Value(BaseValue);
 
 impl Deref for Value {
