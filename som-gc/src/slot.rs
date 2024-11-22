@@ -63,9 +63,9 @@ impl RefValueSlot {
         (val & Self::IS_PTR_PATTERN) == Self::IS_PTR_PATTERN
     }
 
-    fn extract_pointer_bits(val: u64) -> u64 {
-        (((val << 16) as i64) >> 16) as u64
-    }
+    // fn extract_pointer_bits(val: u64) -> u64 {
+    //     (((val << 16) as i64) >> 16) as u64
+    // }
 
     fn tag(val: u64) -> u64 {
         (val & Self::TAG_EXTRACTION) >> Self::TAG_SHIFT
@@ -93,12 +93,12 @@ impl Slot for RefValueSlot {
             // let addr = self.to_address();
             let tag = Self::tag(*self.value);
 
-            dbg!(format!("{:x}", Self::extract_pointer_bits(*self.value)));
+            // dbg!(format!("{:x}", Self::extract_pointer_bits(*self.value)));
 
             // *addr.to_mut_ptr() = Self::new_val(tag, object.to_raw_address().as_usize() as u64);
             *self.value = Self::new_val(tag, object.to_raw_address().as_usize() as u64);
 
-            dbg!(format!("{:x}", Self::extract_pointer_bits(*self.value)));
+            // dbg!(format!("{:x}", Self::extract_pointer_bits(*self.value)));
             debug_assert!(Self::is_ptr_type(*self.value))
         }
         debug!("refvalueslot store ok");

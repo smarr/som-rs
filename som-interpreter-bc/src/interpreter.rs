@@ -88,7 +88,7 @@ impl Interpreter {
 
         let frame_ptr = Frame::alloc_from_method(method, args, &self.current_frame, mutator);
 
-        frame_copy.remove_n_last_elements(nbr_args);
+        self.current_frame.remove_n_last_elements(nbr_args);
 
         self.bytecode_idx = 0;
         self.current_bytecodes = frame_ptr.bytecodes;
@@ -112,7 +112,7 @@ impl Interpreter {
     /// Always passes arguments directly since we don't take them as a slice off the previous frame, like we do for methods.
     /// ...which would likely be faster, actually. TODO.
     pub fn push_block_frame_with_args(&mut self, block: Gc<Block>, args: &[Value], mutator: &mut GCInterface) -> Gc<Frame> {
-        let current_method = self.current_frame.current_method;
+        let current_method = &self.current_frame.current_method;
         let frame_ptr = Frame::alloc_from_block(block, args, current_method, &self.current_frame, mutator);
         self.bytecode_idx = 0;
         self.current_bytecodes = frame_ptr.bytecodes;
@@ -149,16 +149,9 @@ impl Interpreter {
             // Actually safe, there's always a reference to the current bytecodes. Need unsafe because we want to store a ref for quick access in perf-critical code
             let bytecode = *(unsafe { (*self.current_bytecodes).get_unchecked(self.bytecode_idx) });
 
-            // dbg!(&self.current_frame);
-
             self.bytecode_idx += 1;
 
-            // let mut f = self.current_frame;
-            // while !f.is_empty() {
-            //     eprintln!("{}", f.ptr);
-            //     f = f.prev_frame;
-            // }
-            // eprintln!();
+            // dbg!(&self.current_frame);
 
             match bytecode {
                 Bytecode::Dup2 => {
@@ -248,6 +241,7 @@ impl Interpreter {
                             cls.class().lookup_field(idx as usize)
                         } else {
                             dbg!(self.current_frame);
+                            dbg!(self.current_frame.current_method.ptr);
                             panic!("trying to read a field from a {:?}?", &self_val)
                         }
                     };
@@ -350,7 +344,7 @@ impl Interpreter {
                         // }
                         resolve_method(&mut self.current_frame, &receiver_class, symbol, self.bytecode_idx)
                     };
-                    do_send(self, universe, method, symbol, nb_params as usize);
+                    do_send(self, universe, method, symbol, nb_params);
                 }
                 Bytecode::Send2(idx) => {
                     send! {self, universe, &mut self.current_frame, idx, Some(1)}

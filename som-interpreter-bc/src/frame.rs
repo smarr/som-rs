@@ -54,24 +54,27 @@ impl Frame {
         };
 
         let size = frame.get_true_size(max_stack_size);
-        let frame_ptr = gc_interface.alloc_with_size(frame, size);
+        let mut frame_ptr = gc_interface.alloc_with_size(frame, size);
         Frame::init_frame_post_alloc(frame_ptr, args, max_stack_size, *prev_frame);
+        frame_ptr.current_method = method; // TODO: this is INVALID for semispace! we need to pass it a REFERENCE directly to the method, in case it gets moved during GC..
         frame_ptr
     }
 
     pub fn alloc_from_block(
         block: Gc<Block>,
         args: &[Value],
-        current_method: Gc<Method>,
+        current_method: &Gc<Method>,
         prev_frame: &Gc<Frame>,
         gc_interface: &mut GCInterface,
     ) -> Gc<Frame> {
-        let frame = Frame::from_block(block, args.len(), current_method);
+        let frame = Frame::from_block(block, args.len(), *current_method);
         let max_stack_size = block.blk_info.max_stack_size as usize;
         let size = frame.get_true_size(max_stack_size);
 
-        let frame_ptr = gc_interface.alloc_with_size(frame, size);
+        let mut frame_ptr = gc_interface.alloc_with_size(frame, size);
         Frame::init_frame_post_alloc(frame_ptr, args, max_stack_size, *prev_frame);
+        frame_ptr.current_method = *current_method;
+
         frame_ptr
     }
 
@@ -324,8 +327,14 @@ impl Debug for Frame {
                 &format!("{}::>{}", self.current_method.holder.name(), self.current_method.signature()),
             )
             .field("bc idx", &self.bytecode_idx)
-            .field("nbr args", &self.nbr_args)
-            .field("nbr locals", &self.nbr_locals)
+            .field("args", {
+                let args: Vec<String> = (0..self.nbr_args).map(|idx| format!("{:?}", self.lookup_argument(idx))).collect();
+                &format!("[{}]", args.join(", "))
+            })
+            .field("locals", {
+                let locals: Vec<String> = (0..self.nbr_locals).map(|idx| format!("{:?}", self.lookup_local(idx))).collect();
+                &format!("[{}]", locals.join(", "))
+            })
             .field("stack", unsafe { &stack_printer(self) })
             .finish()
     }
