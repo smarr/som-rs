@@ -111,10 +111,8 @@ impl Frame {
         //
         // frame_ptr
 
-        let (max_stack_size, nbr_locals) = match &current_method.kind {
-            MethodKind::Defined(m_env) => (m_env.max_stack_size as usize, m_env.nbr_locals),
-            _ => unreachable!("if we're allocating a method frame, it has to be defined."),
-        };
+        let max_stack_size = block.blk_info.max_stack_size as usize;
+        let nbr_locals = block.blk_info.nb_locals;
 
         let size = Frame::get_true_size(max_stack_size, args.len(), nbr_locals);
 
