@@ -14,7 +14,7 @@ pub struct VMScanning {}
 impl Scanning<SOMVM> for VMScanning {
     fn scan_object<SV: SlotVisitor<SOMSlot>>(_tls: VMWorkerThread, object: ObjectReference, slot_visitor: &mut SV) {
         let vm_callbacks = unsafe { MMTK_TO_VM_INTERFACE.get().unwrap() };
-        (vm_callbacks.scan_object_fn)(object, slot_visitor)
+        (vm_callbacks.scan_object)(object, slot_visitor)
     }
 
     fn scan_object_and_trace_edges<OT: ObjectTracer>(_tls: VMWorkerThread, _object: ObjectReference, _object_tracer: &mut OT) {
@@ -27,7 +27,7 @@ impl Scanning<SOMVM> for VMScanning {
 
     fn scan_roots_in_mutator_thread(_tls: VMWorkerThread, mutator: &'static mut Mutator<SOMVM>, mut factory: impl RootsWorkFactory<SOMSlot>) {
         unsafe {
-            let callback = MMTK_TO_VM_INTERFACE.get().unwrap().get_roots_in_mutator_thread_fn;
+            let callback = MMTK_TO_VM_INTERFACE.get().unwrap().get_roots_in_mutator_thread;
             let slots = callback(mutator);
             factory.create_process_roots_work(slots);
         }

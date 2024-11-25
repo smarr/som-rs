@@ -75,7 +75,7 @@ impl<T> DerefMut for Gc<T> {
                 let gc_interface = &**crate::MUTATOR_WRAPPER.get().unwrap();
                 if gc_interface.get_nbr_collections() % 2 == 1 && self.ptr.to_string().chars().nth(0).unwrap() == '2' {
                     dbg!(ptr as usize);
-                    dbg!("BREAKPOINT");
+                    dbg!("BREAKPOINT MUT");
                 }
             }
             &mut *ptr
@@ -107,6 +107,12 @@ impl<T> From<Address> for Gc<T> {
             ptr: ptr.as_usize(),
             _phantom: PhantomData,
         }
+    }
+}
+
+impl<T> From<&Gc<T>> for Address {
+    fn from(ptr: &Gc<T>) -> Self {
+        Address::from_ref(ptr)
     }
 }
 

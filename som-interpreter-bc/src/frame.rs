@@ -3,10 +3,12 @@ use crate::class::Class;
 use crate::compiler::Literal;
 use crate::method::{Method, MethodKind};
 use crate::value::Value;
+use crate::{HACK_FRAME_CURRENT_BLOCK_PTR, HACK_FRAME_CURRENT_METHOD_PTR, HACK_FRAME_FRAME_ARGS_PTR};
 use core::mem::size_of;
 use som_core::bytecode::Bytecode;
-use som_gc::gc_interface::GCInterface;
+use som_gc::gc_interface::{GCInterface, HasTypeInfoForGC};
 use som_gc::gcref::Gc;
+use som_gc::object_model::OBJECT_REF_OFFSET;
 use std::fmt::{Debug, Formatter};
 use std::marker::PhantomData;
 
@@ -26,6 +28,8 @@ pub struct Frame {
     pub inline_cache: *mut BodyInlineCache,
     /// Bytecode index.
     pub bytecode_idx: usize,
+
+    pub max_stack_size: usize,
 
     pub nbr_args: usize, // todo u8 instead?
     pub nbr_locals: usize,
@@ -47,16 +51,46 @@ pub struct Frame {
 
 impl Frame {
     pub fn alloc_from_method(method: Gc<Method>, args: &[Value], prev_frame: &Gc<Frame>, gc_interface: &mut GCInterface) -> Gc<Frame> {
-        let frame = Frame::from_method(method, args.len());
-        let max_stack_size = match &method.kind {
-            MethodKind::Defined(m_env) => m_env.max_stack_size as usize,
+        let (max_stack_size, nbr_locals) = match &method.kind {
+            MethodKind::Defined(m_env) => (m_env.max_stack_size as usize, m_env.nbr_locals),
             _ => unreachable!("if we're allocating a method frame, it has to be defined."),
         };
 
-        let size = frame.get_true_size(max_stack_size);
-        let mut frame_ptr = gc_interface.alloc_with_size(frame, size);
-        Frame::init_frame_post_alloc(frame_ptr, args, max_stack_size, *prev_frame);
-        frame_ptr.current_method = method; // TODO: this is INVALID for semispace! we need to pass it a REFERENCE directly to the method, in case it gets moved during GC..
+        let size = Frame::get_true_size(max_stack_size, args.len(), nbr_locals);
+
+        unsafe {
+            HACK_FRAME_CURRENT_METHOD_PTR = Some(method);
+            HACK_FRAME_FRAME_ARGS_PTR = Some(Vec::from(args));
+        }
+
+        // dbg!(prev_frame);
+        let mut frame_ptr: Gc<Frame> = gc_interface.request_bytes(size + OBJECT_REF_OFFSET).into();
+        // dbg!(prev_frame);
+        let header_ptr: *mut u8 = frame_ptr.to_mut_ptr() as *mut u8;
+        unsafe {
+            *header_ptr = Frame::get_magic_gc_id();
+        }
+
+        frame_ptr.ptr += OBJECT_REF_OFFSET;
+        unsafe {
+            *frame_ptr = Frame::from_method(HACK_FRAME_CURRENT_METHOD_PTR.unwrap(), args.len());
+        }
+        unsafe {
+            Frame::init_frame_post_alloc(
+                frame_ptr,
+                HACK_FRAME_FRAME_ARGS_PTR.as_ref().unwrap().as_slice(),
+                max_stack_size,
+                *prev_frame,
+            );
+        }
+        // Frame::init_frame_post_alloc(frame_ptr, args, max_stack_size, *prev_frame);
+
+        unsafe {
+            frame_ptr.current_method = HACK_FRAME_CURRENT_METHOD_PTR.unwrap();
+            HACK_FRAME_CURRENT_METHOD_PTR = None;
+            HACK_FRAME_FRAME_ARGS_PTR = None;
+        }
+
         frame_ptr
     }
 
@@ -67,13 +101,69 @@ impl Frame {
         prev_frame: &Gc<Frame>,
         gc_interface: &mut GCInterface,
     ) -> Gc<Frame> {
-        let frame = Frame::from_block(block, args.len(), *current_method);
-        let max_stack_size = block.blk_info.max_stack_size as usize;
-        let size = frame.get_true_size(max_stack_size);
+        // let frame = Frame::from_block(block, args.len(), *current_method);
+        // let max_stack_size = block.blk_info.max_stack_size as usize;
+        // let size = frame.get_true_size(max_stack_size);
+        //
+        // let mut frame_ptr = gc_interface.alloc_with_size(frame, size);
+        // Frame::init_frame_post_alloc(frame_ptr, args, max_stack_size, *prev_frame);
+        // frame_ptr.current_method = *current_method;
+        //
+        // frame_ptr
 
-        let mut frame_ptr = gc_interface.alloc_with_size(frame, size);
-        Frame::init_frame_post_alloc(frame_ptr, args, max_stack_size, *prev_frame);
-        frame_ptr.current_method = *current_method;
+        let (max_stack_size, nbr_locals) = match &current_method.kind {
+            MethodKind::Defined(m_env) => (m_env.max_stack_size as usize, m_env.nbr_locals),
+            _ => unreachable!("if we're allocating a method frame, it has to be defined."),
+        };
+
+        let size = Frame::get_true_size(max_stack_size, args.len(), nbr_locals);
+
+        unsafe {
+            HACK_FRAME_CURRENT_METHOD_PTR = Some(*current_method);
+            HACK_FRAME_CURRENT_BLOCK_PTR = Some(block);
+            HACK_FRAME_FRAME_ARGS_PTR = Some(Vec::from(args));
+        }
+
+        // dbg!(&args);
+        // unsafe { dbg!(&HACK_FRAME_FRAME_ARGS_PTR); }
+        // dbg!(prev_frame);
+
+        // This MAY TRIGGER A COLLECTION, so we account for that with the surrounding code
+        // dbg!(prev_frame);
+        let mut frame_ptr: Gc<Frame> = gc_interface.request_bytes(size + OBJECT_REF_OFFSET).into();
+        // dbg!(prev_frame);
+
+        // dbg!(&args);
+        // unsafe { dbg!(&HACK_FRAME_FRAME_ARGS_PTR); }
+
+        let header_ptr: *mut u8 = frame_ptr.to_mut_ptr() as *mut u8;
+        unsafe {
+            *header_ptr = Frame::get_magic_gc_id();
+        }
+
+        frame_ptr.ptr += OBJECT_REF_OFFSET;
+        unsafe {
+            *frame_ptr = Frame::from_block(HACK_FRAME_CURRENT_BLOCK_PTR.unwrap(), args.len(), *current_method);
+        }
+        unsafe {
+            Frame::init_frame_post_alloc(
+                frame_ptr,
+                HACK_FRAME_FRAME_ARGS_PTR.as_ref().unwrap().as_slice(),
+                max_stack_size,
+                *prev_frame,
+            );
+        }
+
+        unsafe {
+            frame_ptr.current_method = HACK_FRAME_CURRENT_METHOD_PTR.unwrap();
+            HACK_FRAME_CURRENT_METHOD_PTR = None;
+            HACK_FRAME_CURRENT_BLOCK_PTR = None;
+            HACK_FRAME_FRAME_ARGS_PTR = None;
+        }
+
+        // dbg!(frame_ptr);
+        // dbg!(prev_frame);
+        // dbg!(frame_ptr.prev_frame.ptr);
 
         frame_ptr
     }
@@ -106,16 +196,17 @@ impl Frame {
 
     // Creates a frame from a block. Meant to only be called by the alloc_from_block function
     fn from_block(block: Gc<Block>, nbr_args: usize, current_method: Gc<Method>) -> Self {
-        let mut block_obj = block;
         Self {
             prev_frame: Gc::default(),
             current_method,
-            nbr_locals: block_obj.blk_info.nb_locals,
+            max_stack_size: block.blk_info.max_stack_size as usize,
+            nbr_locals: block.blk_info.nb_locals,
             nbr_args,
-            literals: &block_obj.blk_info.literals,
-            bytecodes: &block_obj.blk_info.body,
+            literals: &block.blk_info.literals,
+            bytecodes: &block.blk_info.body,
             bytecode_idx: 0,
-            inline_cache: std::ptr::addr_of_mut!(block_obj.blk_info.inline_cache),
+            // inline_cache: std::ptr::addr_of_mut!(block_obj.blk_info.inline_cache),
+            inline_cache: std::ptr::null_mut(),
             stack_ptr: std::ptr::null_mut(),
             args_ptr: std::ptr::null_mut(),
             locals_ptr: std::ptr::null_mut(),
@@ -134,6 +225,7 @@ impl Frame {
                     prev_frame: Gc::default(),
                     nbr_locals: env.nbr_locals,
                     nbr_args,
+                    max_stack_size: env.max_stack_size as usize,
                     literals: &env.literals,
                     bytecodes: &env.body,
                     current_method: method,
@@ -152,10 +244,24 @@ impl Frame {
     }
 
     /// Returns the true size of the `Frame`, counting the extra memory needed for its stack/locals/arguments.
-    /// Takes in the maximum stack size, but could also fetch it from its methodenv.
-    /// But it's currently only invoked in contexts where we need the max stack size for other calculations, so it takes it to not have to re-compute it.
-    pub fn get_true_size(&self, max_stack_size: usize) -> usize {
-        size_of::<Frame>() + ((max_stack_size + self.nbr_args + self.nbr_locals) * size_of::<Value>())
+    pub fn get_true_size(max_stack_size: usize, nbr_args: usize, nbr_locals: usize) -> usize {
+        size_of::<Frame>() + ((max_stack_size + nbr_args + nbr_locals) * size_of::<Value>())
+    }
+
+    pub fn get_max_stack_size(&self) -> usize {
+        self.max_stack_size
+        // let self_arg = self.lookup_argument(0);
+        // match self_arg.as_block() {
+        //     Some(b) => {
+        //         b.blk_info.max_stack_size as usize
+        //     }
+        //     None => {
+        //         match &self.current_method.kind {
+        //             MethodKind::Defined(e) => e.max_stack_size as usize,
+        //             MethodKind::Primitive(_) => 0,
+        //         }
+        //     },
+        // }
     }
 
     /// Get the self value for this frame.
@@ -224,9 +330,9 @@ impl Frame {
 
         let mut target_frame: Gc<Frame> = match current_frame.lookup_argument(0).as_block() {
             Some(block) => *block.frame.as_ref().unwrap(),
-            v => panic!(
+            None => panic!(
                 "attempting to access a non local var/arg from a method instead of a block: self wasn't blockself but {:?}.",
-                v
+                current_frame.lookup_argument(0)
             ),
         };
         for _ in 1..n {
@@ -234,7 +340,7 @@ impl Frame {
                 Some(block) => {
                     *block.frame.as_ref().unwrap()
                 }
-                v => panic!("attempting to access a non local var/arg from a method instead of a block (but the original frame we were in was a block): self wasn't blockself but {:?}.", v)
+                None => panic!("attempting to access a non local var/arg from a method instead of a block (but the original frame we were in was a block): self wasn't blockself but {:?}.", current_frame.lookup_argument(0))
             };
         }
         target_frame

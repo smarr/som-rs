@@ -80,7 +80,7 @@ impl ObjectModel<SOMVM> for VMObjectModel {
     }
 
     fn get_current_size(object: ObjectReference) -> usize {
-        unsafe { (MMTK_TO_VM_INTERFACE.get().unwrap().get_object_size_fn)(object) }
+        unsafe { (MMTK_TO_VM_INTERFACE.get().unwrap().get_object_size)(object) }
     }
 
     fn get_size_when_copied(_object: ObjectReference) -> usize {

@@ -423,6 +423,7 @@ impl Universe {
         // {
         //     let stack_trace_fn = crate::primitives::system::get_instance_primitive("printStackTrace")?;
         //     stack_trace_fn(interpreter, self).expect("couldn't print stack trace");
+        //     std::process::exit(1);
         // }
 
         interpreter.push_method_frame_with_args(

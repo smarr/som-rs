@@ -112,7 +112,7 @@ fn get_roots_in_mutator_thread(_mutator: &mut Mutator<SOMVM>) -> Vec<SOMSlot> {
         for (_name, val) in UNIVERSE_RAW_PTR_CONST.unwrap().as_ref().globals.iter() {
             if val.is_ptr_type() {
                 let val_ptr = val.as_u64_ptr();
-                to_process.push(SOMSlot::from_ref(val_ptr))
+                to_process.push(SOMSlot::from_value_ptr(val_ptr))
             }
         }
 
@@ -121,7 +121,7 @@ fn get_roots_in_mutator_thread(_mutator: &mut Mutator<SOMVM>) -> Vec<SOMSlot> {
             for val in frame_args.as_ref() {
                 if val.is_ptr_type() {
                     let val_ptr = val.as_u64_ptr();
-                    to_process.push(SOMSlot::from_ref(val_ptr))
+                    to_process.push(SOMSlot::from_value_ptr(val_ptr))
                 }
             }
         }
@@ -237,7 +237,7 @@ pub fn scan_object<'a>(object: ObjectReference, slot_visitor: &'a mut (dyn SlotV
 fn visit_value<'a>(val: &Value, slot_visitor: &'a mut (dyn SlotVisitor<SOMSlot> + 'a)) {
     if val.is_ptr_type() {
         let val_ptr = unsafe { val.as_u64_ptr() };
-        slot_visitor.visit_slot(SOMSlot::from_ref(val_ptr))
+        slot_visitor.visit_slot(SOMSlot::from_value_ptr(val_ptr))
     }
 }
 
@@ -362,9 +362,9 @@ fn get_object_size(_: ObjectReference) -> usize {
 
 pub fn get_callbacks_for_gc() -> MMTKtoVMCallbacks {
     MMTKtoVMCallbacks {
-        scan_object_fn: scan_object,
-        get_roots_in_mutator_thread_fn: get_roots_in_mutator_thread,
+        scan_object,
+        get_roots_in_mutator_thread,
         adapt_post_copy,
-        get_object_size_fn: get_object_size,
+        get_object_size,
     }
 }

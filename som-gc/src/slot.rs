@@ -1,7 +1,7 @@
+use crate::gcref::Gc;
 use log::debug;
 use mmtk::util::{Address, ObjectReference};
 use mmtk::vm::slot::{SimpleSlot, Slot};
-
 // pub type SOMSlot = mmtk::vm::slot::SimpleSlot;
 
 // because of NaN boxing, we make a new slot specifically for accessing values, which contain internally a GCRef
@@ -11,12 +11,23 @@ pub enum SOMSlot {
     RefValueSlot(RefValueSlot),
 }
 
+/// Most common case: turn any pointer to any heap address into a slot.
+/// This pointer must be on the heap or in a static variable! Otherwise, it becomes invalid when Rust discards it.
+impl<T> From<&Gc<T>> for SOMSlot {
+    fn from(value: &Gc<T>) -> Self {
+        SOMSlot::Simple(SimpleSlot::from_address(Address::from(value)))
+    }
+}
+
 impl SOMSlot {
+    /// @deprecated
     pub fn from_address(addr: Address) -> SOMSlot {
         SOMSlot::Simple(SimpleSlot::from_address(addr))
     }
 
-    pub fn from_ref(value: *mut u64) -> SOMSlot {
+    /// Turn a pointer to a value type to a slot.
+    /// Could be implemented as a `From` impl, but this is clearer
+    pub fn from_value_ptr(value: *mut u64) -> SOMSlot {
         SOMSlot::RefValueSlot(RefValueSlot::from_ref(value))
     }
 }

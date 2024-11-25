@@ -1,11 +1,13 @@
 use crate::block::{Block, BlockInfo};
 use crate::class::Class;
 use crate::compiler::Literal;
-use crate::frame::{Frame, OFFSET_TO_STACK};
+use crate::frame::Frame;
 use crate::instance::Instance;
 use crate::method::{Method, MethodKind};
 use crate::value::Value;
-use crate::{INTERPRETER_RAW_PTR_CONST, UNIVERSE_RAW_PTR_CONST};
+use crate::{
+    HACK_FRAME_CURRENT_BLOCK_PTR, HACK_FRAME_CURRENT_METHOD_PTR, HACK_FRAME_FRAME_ARGS_PTR, INTERPRETER_RAW_PTR_CONST, UNIVERSE_RAW_PTR_CONST,
+};
 use core::mem::size_of;
 use log::debug;
 use mmtk::util::{Address, ObjectReference};
@@ -13,7 +15,6 @@ use mmtk::vm::{ObjectModel, SlotVisitor};
 use mmtk::Mutator;
 use num_bigint::BigInt;
 use som_gc::gc_interface::{HasTypeInfoForGC, MMTKtoVMCallbacks, BIGINT_MAGIC_ID, STRING_MAGIC_ID, VECU8_MAGIC_ID};
-use som_gc::gcref::Gc;
 use som_gc::object_model::VMObjectModel;
 use som_gc::slot::SOMSlot;
 use som_gc::SOMVM;
@@ -83,16 +84,16 @@ impl HasTypeInfoForGC for Frame {
 pub fn visit_value<'a>(val: &Value, slot_visitor: &'a mut (dyn SlotVisitor<SOMSlot> + 'a)) {
     if val.is_ptr_type() {
         let val_ptr = unsafe { val.as_u64_ptr() };
-        slot_visitor.visit_slot(SOMSlot::from_ref(val_ptr))
+        slot_visitor.visit_slot(SOMSlot::from_value_ptr(val_ptr))
     }
 }
 
 pub fn visit_literal<'a>(lit: &Literal, slot_visitor: &'a mut (dyn SlotVisitor<SOMSlot> + 'a)) {
     match lit {
-        Literal::Block(blk) => slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(blk))),
-        Literal::String(str) => slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(str))),
-        Literal::BigInteger(bigint) => slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(bigint))),
-        Literal::Array(arr) => slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(arr))),
+        Literal::Block(blk) => slot_visitor.visit_slot(SOMSlot::from(blk)),
+        Literal::String(str) => slot_visitor.visit_slot(SOMSlot::from(str)),
+        Literal::BigInteger(bigint) => slot_visitor.visit_slot(SOMSlot::from(bigint)),
+        Literal::Array(arr) => slot_visitor.visit_slot(SOMSlot::from(arr)),
         _ => {}
     }
 }
@@ -112,12 +113,10 @@ pub fn scan_object<'a>(object: ObjectReference, slot_visitor: &'a mut (dyn SlotV
                 // debug!("(frame method is: {})", &frame.current_method.signature);
 
                 if !frame.prev_frame.is_empty() {
-                    let prev_frame_slot_addr = Address::from_ref(&frame.prev_frame);
-                    slot_visitor.visit_slot(SOMSlot::from_address(prev_frame_slot_addr));
+                    slot_visitor.visit_slot(SOMSlot::from(&frame.prev_frame));
                 }
 
-                let method_slot_addr = Address::from_ref(&frame.current_method);
-                slot_visitor.visit_slot(SOMSlot::from_address(method_slot_addr));
+                slot_visitor.visit_slot(SOMSlot::from(&frame.current_method));
 
                 for i in 0..frame.nbr_locals {
                     let val: &Value = frame.lookup_local(i);
@@ -147,20 +146,19 @@ pub fn scan_object<'a>(object: ObjectReference, slot_visitor: &'a mut (dyn SlotV
                     }
                 }
 
-                let holder_slot_addr = Address::from_ref(&method.holder);
-                slot_visitor.visit_slot(SOMSlot::from_address(holder_slot_addr))
+                slot_visitor.visit_slot(SOMSlot::from(&method.holder))
             }
             BCObjMagicId::Class => {
                 let class: &mut Class = object.to_raw_address().as_mut_ref();
 
-                slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(&class.class)));
+                slot_visitor.visit_slot(SOMSlot::from(&class.class));
 
                 if class.super_class.is_some() {
-                    slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(class.super_class.as_ref().unwrap())));
+                    slot_visitor.visit_slot(SOMSlot::from(class.super_class.as_ref().unwrap()));
                 }
 
                 for (_, method_ref) in class.methods.iter() {
-                    slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(method_ref)))
+                    slot_visitor.visit_slot(SOMSlot::from(method_ref))
                 }
 
                 for field_ref in class.fields.iter() {
@@ -171,19 +169,17 @@ pub fn scan_object<'a>(object: ObjectReference, slot_visitor: &'a mut (dyn SlotV
                 let block: &mut Block = object.to_raw_address().as_mut_ref();
 
                 if let Some(frame) = block.frame.as_ref() {
-                    slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(frame)));
+                    slot_visitor.visit_slot(SOMSlot::from(frame));
                 }
 
-                slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(&block.blk_info)));
+                slot_visitor.visit_slot(SOMSlot::from(&block.blk_info));
             }
             BCObjMagicId::Instance => {
                 let instance: &mut Instance = object.to_raw_address().as_mut_ref();
-                slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(&instance.class)));
+                slot_visitor.visit_slot(SOMSlot::from(&instance.class));
 
-                // not the cleanest, to be frank
-                let gcref_instance: Gc<Instance> = Gc::from(object.to_raw_address().as_usize() as u64);
                 for i in 0..instance.class().get_nbr_fields() {
-                    let val: &Value = gcref_instance.lookup_field(i);
+                    let val: &Value = instance.lookup_field(i);
                     visit_value(val, slot_visitor)
                 }
             }
@@ -214,38 +210,55 @@ fn get_roots_in_mutator_thread(_mutator: &mut Mutator<SOMVM>) -> Vec<SOMSlot> {
         // walk the frame list.
         let current_frame_addr = &INTERPRETER_RAW_PTR_CONST.unwrap().as_ref().current_frame;
         debug!("scanning root: current_frame (method: {})", current_frame_addr.current_method.signature);
-        to_process.push(SOMSlot::from_address(Address::from_ref(current_frame_addr)));
+        to_process.push(SOMSlot::from(current_frame_addr));
 
         // walk globals (includes core classes)
         debug!("scanning roots: globals");
         for (_name, val) in UNIVERSE_RAW_PTR_CONST.unwrap().as_mut().globals.iter_mut() {
             if val.is_ptr_type() {
                 let val_ptr = val.as_u64_ptr();
-                to_process.push(SOMSlot::from_ref(val_ptr));
+                to_process.push(SOMSlot::from_value_ptr(val_ptr));
             }
         }
 
+        // we update the core classes in their class also though, to properly move them
         {
             let core_classes = &UNIVERSE_RAW_PTR_CONST.unwrap().as_mut().core;
-            to_process.push(SOMSlot::from_address(Address::from_ref(&core_classes.class_class)));
-            to_process.push(SOMSlot::from_address(Address::from_ref(&core_classes.object_class)));
-            to_process.push(SOMSlot::from_address(Address::from_ref(&core_classes.metaclass_class)));
-            to_process.push(SOMSlot::from_address(Address::from_ref(&core_classes.nil_class)));
-            to_process.push(SOMSlot::from_address(Address::from_ref(&core_classes.integer_class)));
-            to_process.push(SOMSlot::from_address(Address::from_ref(&core_classes.double_class)));
-            to_process.push(SOMSlot::from_address(Address::from_ref(&core_classes.array_class)));
-            to_process.push(SOMSlot::from_address(Address::from_ref(&core_classes.method_class)));
-            to_process.push(SOMSlot::from_address(Address::from_ref(&core_classes.primitive_class)));
-            to_process.push(SOMSlot::from_address(Address::from_ref(&core_classes.symbol_class)));
-            to_process.push(SOMSlot::from_address(Address::from_ref(&core_classes.string_class)));
-            to_process.push(SOMSlot::from_address(Address::from_ref(&core_classes.system_class)));
-            to_process.push(SOMSlot::from_address(Address::from_ref(&core_classes.block_class)));
-            to_process.push(SOMSlot::from_address(Address::from_ref(&core_classes.block1_class)));
-            to_process.push(SOMSlot::from_address(Address::from_ref(&core_classes.block2_class)));
-            to_process.push(SOMSlot::from_address(Address::from_ref(&core_classes.block3_class)));
-            to_process.push(SOMSlot::from_address(Address::from_ref(&core_classes.boolean_class)));
-            to_process.push(SOMSlot::from_address(Address::from_ref(&core_classes.true_class)));
-            to_process.push(SOMSlot::from_address(Address::from_ref(&core_classes.false_class)));
+            to_process.push(SOMSlot::from(&core_classes.class_class));
+            to_process.push(SOMSlot::from(&core_classes.object_class));
+            to_process.push(SOMSlot::from(&core_classes.metaclass_class));
+            to_process.push(SOMSlot::from(&core_classes.nil_class));
+            to_process.push(SOMSlot::from(&core_classes.integer_class));
+            to_process.push(SOMSlot::from(&core_classes.double_class));
+            to_process.push(SOMSlot::from(&core_classes.array_class));
+            to_process.push(SOMSlot::from(&core_classes.method_class));
+            to_process.push(SOMSlot::from(&core_classes.primitive_class));
+            to_process.push(SOMSlot::from(&core_classes.symbol_class));
+            to_process.push(SOMSlot::from(&core_classes.string_class));
+            to_process.push(SOMSlot::from(&core_classes.system_class));
+            to_process.push(SOMSlot::from(&core_classes.block_class));
+            to_process.push(SOMSlot::from(&core_classes.block1_class));
+            to_process.push(SOMSlot::from(&core_classes.block2_class));
+            to_process.push(SOMSlot::from(&core_classes.block3_class));
+            to_process.push(SOMSlot::from(&core_classes.boolean_class));
+            to_process.push(SOMSlot::from(&core_classes.true_class));
+            to_process.push(SOMSlot::from(&core_classes.false_class));
+        }
+
+        if HACK_FRAME_CURRENT_METHOD_PTR.is_some() {
+            to_process.push(SOMSlot::from(HACK_FRAME_CURRENT_METHOD_PTR.as_ref().unwrap()));
+        }
+
+        if HACK_FRAME_CURRENT_BLOCK_PTR.is_some() {
+            to_process.push(SOMSlot::from(HACK_FRAME_CURRENT_BLOCK_PTR.as_ref().unwrap()));
+        }
+
+        if HACK_FRAME_FRAME_ARGS_PTR.is_some() {
+            for elem in HACK_FRAME_FRAME_ARGS_PTR.as_ref().unwrap() {
+                if elem.is_ptr_type() {
+                    to_process.push(SOMSlot::from_value_ptr(elem as *const Value as *mut u64));
+                }
+            }
         }
 
         debug!("scanning roots: finished");
@@ -272,7 +285,7 @@ fn get_object_size(object: ObjectReference) -> usize {
                     MethodKind::Primitive(_) => 0,
                 };
 
-                size_of::<Frame>() + (frame.nbr_locals + frame.nbr_args + max_stack_size) * size_of::<Value>()
+                Frame::get_true_size(max_stack_size, frame.nbr_args, frame.nbr_locals)
             },
             BCObjMagicId::BlockInfo => size_of::<BlockInfo>(),
             BCObjMagicId::ArrayVal => size_of::<Vec<Value>>(),
@@ -301,19 +314,22 @@ fn adapt_post_copy(object: ObjectReference, original_obj: ObjectReference) {
             let obj_addr = object.to_raw_address().add(8);
             let frame: &mut Frame = obj_addr.as_mut_ref();
 
-            let old_stack_len = frame.stack_ptr.byte_sub(original_obj.to_raw_address().as_usize()).byte_sub(size_of::<Frame>()) as usize / 8;
+            let og_frame: *const Frame = original_obj.to_raw_address().to_ptr();
 
-            frame.stack_ptr = obj_addr.add(OFFSET_TO_STACK).add(old_stack_len * size_of::<Value>()).to_mut_ptr();
+            // let old_stack_len = og_frame.stack_ptr.byte_sub(original_obj.to_raw_address().as_usize()).byte_sub(size_of::<Frame>()) as usize / 8;
 
-            let stack_size = match &frame.current_method.kind {
-                MethodKind::Defined(e) => e.max_stack_size as usize,
-                MethodKind::Primitive(_) => 0,
-            };
+            let og_offset_to_stack = (*og_frame).stack_ptr.byte_sub(og_frame as usize) as usize;
+            let og_offset_to_args = (*og_frame).args_ptr.byte_sub(og_frame as usize) as usize;
+            let og_offset_to_locals = (*og_frame).locals_ptr.byte_sub(og_frame as usize) as usize;
 
-            frame.args_ptr = frame.stack_ptr.add(stack_size);
-            frame.locals_ptr = frame.args_ptr.add(frame.nbr_args);
+            frame.stack_ptr = obj_addr.add(og_offset_to_stack).to_mut_ptr();
+            frame.args_ptr = obj_addr.add(og_offset_to_args).to_mut_ptr();
+            frame.locals_ptr = obj_addr.add(og_offset_to_locals).to_mut_ptr();
 
-            // TODO: inline cache, also?
+            debug_assert_eq!((*og_frame).lookup_argument(0), frame.lookup_argument(0));
+            if frame.nbr_locals >= 1 {
+                debug_assert_eq!((*og_frame).lookup_local(0), frame.lookup_local(0));
+            }
         },
         BCObjMagicId::Instance => unsafe {
             debug!("adapt_post_copy: instance");
@@ -327,9 +343,9 @@ fn adapt_post_copy(object: ObjectReference, original_obj: ObjectReference) {
 
 pub fn get_callbacks_for_gc() -> MMTKtoVMCallbacks {
     MMTKtoVMCallbacks {
-        scan_object_fn: scan_object,
-        get_roots_in_mutator_thread_fn: get_roots_in_mutator_thread,
-        get_object_size_fn: get_object_size,
+        scan_object,
+        get_roots_in_mutator_thread,
+        get_object_size,
         adapt_post_copy,
     }
 }

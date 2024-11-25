@@ -2,10 +2,13 @@
 //! This is the interpreter for the Simple Object Machine.
 //!
 
-use std::ptr::NonNull;
-
+use crate::block::Block;
 use crate::interpreter::Interpreter;
+use crate::method::Method;
 use crate::universe::Universe;
+use crate::value::Value;
+use som_gc::gcref::Gc;
+use std::ptr::NonNull;
 
 /// Facilities for manipulating blocks.
 pub mod block;
@@ -52,3 +55,11 @@ pub mod gc;
 pub static mut UNIVERSE_RAW_PTR_CONST: Option<NonNull<Universe>> = None;
 /// See `UNIVERSE_RAW_PTR_CONST`.
 pub static mut INTERPRETER_RAW_PTR_CONST: Option<NonNull<Interpreter>> = None;
+
+/// Hack! at the moment, we pass a copied reference to a class' method when allocating a frame. When GC triggers from a frame allocation, that pointer isn't a root and doesn't get moved.
+/// So we're storing a reference to it. Better solution: just push it on the stack. Or TODO, we might be able to pass a pointer to it through functions.
+pub static mut HACK_FRAME_CURRENT_METHOD_PTR: Option<Gc<Method>> = None;
+/// that one's a true hack, and avoidable also.
+pub static mut HACK_FRAME_CURRENT_BLOCK_PTR: Option<Gc<Block>> = None;
+/// that one's the ugliest of hacks and we can definitely remove it somehow..
+pub static mut HACK_FRAME_FRAME_ARGS_PTR: Option<Vec<Value>> = None;

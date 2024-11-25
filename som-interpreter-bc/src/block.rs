@@ -53,6 +53,19 @@ impl Block {
 
 impl fmt::Debug for Block {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct(&format!("Block{}", self.nb_parameters() + 1)).finish()
+        f.debug_struct(&format!("Block{}", self.nb_parameters() + 1))
+            .field("block", &self.blk_info)
+            .field("frame", &self.frame.map(|f| f.ptr))
+            .finish()
+    }
+}
+
+impl fmt::Debug for BlockInfo {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("BlockInfo")
+            .field("nbr_locals", &self.nb_locals)
+            .field("nbr_params", &self.nb_params)
+            .field("literals", &self.literals)
+            .finish()
     }
 }

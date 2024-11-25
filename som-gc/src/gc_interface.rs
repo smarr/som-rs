@@ -47,10 +47,10 @@ impl Drop for GCInterface {
 }
 
 pub struct MMTKtoVMCallbacks {
-    pub scan_object_fn: fn(ObjectReference, &mut dyn SlotVisitor<SOMSlot>),
-    pub get_roots_in_mutator_thread_fn: fn(&mut Mutator<SOMVM>) -> Vec<SOMSlot>,
+    pub scan_object: fn(ObjectReference, &mut dyn SlotVisitor<SOMSlot>),
+    pub get_roots_in_mutator_thread: fn(&mut Mutator<SOMVM>) -> Vec<SOMSlot>,
     pub adapt_post_copy: fn(ObjectReference, ObjectReference),
-    pub get_object_size_fn: fn(ObjectReference) -> usize,
+    pub get_object_size: fn(ObjectReference) -> usize,
 }
 
 impl GCInterface {
@@ -151,25 +151,18 @@ impl GCInterface {
 }
 
 impl GCInterface {
-    // Allocates a type on the heap and returns a pointer to it.
+    /// Allocates a type on the heap and returns a pointer to it.
+    /// Considers that the provided object's size can be trivially inferred with a `size_of` call (which isn't the case for all of our objects, e.g. frames)
     pub fn alloc<T: HasTypeInfoForGC>(&mut self, obj: T) -> Gc<T> {
         self.alloc_with_size(obj, size_of::<T>())
     }
 
-    // Allocates a type, but with a given size. Useful when an object needs more than what we tell Rust through defining a struct.
-    // (e.g. Value arrays stored directly in the heap - see BC Frame)
-    pub fn alloc_with_size<T: HasTypeInfoForGC>(&mut self, obj: T, mut size: usize) -> Gc<T> {
+    /// Allocates a type, but with a given size.
+    pub fn alloc_with_size<T: HasTypeInfoForGC>(&mut self, obj: T, size: usize) -> Gc<T> {
         debug_assert!(size >= MIN_OBJECT_SIZE);
 
         // adding VM header size (type info) to amount we allocate
-        size += OBJECT_REF_OFFSET;
-
-        #[cfg(feature = "strategy-marksweep")]
-        let header_addr = unsafe { &mut (*self.default_allocator) }.alloc(size, GC_ALIGN, GC_OFFSET);
-
-        // TODO: make it use fast path, also
-        #[cfg(feature = "strategy-semispace")]
-        let header_addr = crate::api::mmtk_alloc(&mut self.mutator, size, GC_ALIGN, GC_OFFSET, AllocationSemantics::Default);
+        let header_addr = self.request_bytes(size + OBJECT_REF_OFFSET);
 
         debug_assert!(!header_addr.is_zero());
         let obj_addr = SOMVM::object_start_to_ref(header_addr);
@@ -183,6 +176,16 @@ impl GCInterface {
         }
 
         Gc::from(obj_addr.to_raw_address())
+    }
+
+    /// Request `size` bytes from MMTk.
+    /// Importantly, this MAY TRIGGER A COLLECTION. Which means any function that relies on it must be mindful of this,
+    /// such as by making sure no arguments are dangling on the Rust stack away from the GC's reach.
+    pub fn request_bytes(&mut self, size: usize) -> Address {
+        unsafe { &mut (*self.default_allocator) }.alloc(size, GC_ALIGN, GC_OFFSET)
+
+        // slow path, for debugging
+        // crate::api::mmtk_alloc(&mut self.mutator, size, GC_ALIGN, GC_OFFSET, AllocationSemantics::Default)
     }
 
     /// Custom alloc function, for traits to be able to choose how to allocate their data.

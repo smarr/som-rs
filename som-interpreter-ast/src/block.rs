@@ -34,6 +34,9 @@ impl Block {
 
 impl fmt::Debug for Block {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct(&format!("Block{}", self.nb_parameters() + 1)).finish()
+        f.debug_struct(&format!("Block{}", self.nb_parameters() + 1))
+            .field("block", &self.block)
+            .field("frame", &self.frame)
+            .finish()
     }
 }

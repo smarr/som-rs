@@ -88,7 +88,7 @@ impl Interpreter {
 
         let frame_ptr = Frame::alloc_from_method(method, args, &self.current_frame, mutator);
 
-        self.current_frame.remove_n_last_elements(nbr_args);
+        self.current_frame.remove_n_last_elements(nbr_args); // TODO I think this fucks up the stack somehow? or the previous copy. maybe that ugly copy is problematic for a reason
 
         self.bytecode_idx = 0;
         self.current_bytecodes = frame_ptr.bytecodes;
@@ -121,6 +121,7 @@ impl Interpreter {
     }
 
     pub fn pop_frame(&mut self) {
+        // dbg!(self.current_frame.prev_frame.ptr);
         let new_current_frame = self.current_frame.prev_frame;
         self.current_frame = new_current_frame;
         match new_current_frame.is_empty() {
@@ -151,7 +152,11 @@ impl Interpreter {
 
             self.bytecode_idx += 1;
 
-            // dbg!(&self.current_frame);
+            // dbg!(self.current_frame);
+            // if self.current_frame.lookup_argument(0).as_u64() == 103 {
+            //     dbg!("BPBPBP");
+            // }
+            // dbg!(bytecode);
 
             match bytecode {
                 Bytecode::Dup2 => {
@@ -470,6 +475,8 @@ impl Interpreter {
             interpreter.current_frame.bytecode_idx = interpreter.bytecode_idx;
 
             let Some(method) = method else {
+                dbg!(interpreter.current_frame);
+
                 let mut frame_copy = interpreter.current_frame;
                 let args = frame_copy.stack_n_last_elements(nb_params);
                 interpreter.current_frame.remove_n_last_elements(nb_params);
