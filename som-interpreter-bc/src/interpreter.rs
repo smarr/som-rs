@@ -518,10 +518,10 @@ impl Interpreter {
             }
         }
 
-        // TODO: re-enable inline caching.
-        #[allow(unused)]
+        // // TODO: re-enable inline caching.
+        // #[allow(unused)]
         fn resolve_method(frame: &mut Gc<Frame>, class: &Gc<Class>, signature: Interned, bytecode_idx: usize) -> Option<Gc<Method>> {
-            return class.lookup_method(signature);
+            // return class.lookup_method(signature);
 
             // SAFETY: this access is actually safe because the bytecode compiler
             // makes sure the cache has as many entries as there are bytecode instructions,

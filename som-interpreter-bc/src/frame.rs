@@ -195,7 +195,7 @@ impl Frame {
     }
 
     // Creates a frame from a block. Meant to only be called by the alloc_from_block function
-    fn from_block(block: Gc<Block>, nbr_args: usize, current_method: Gc<Method>) -> Self {
+    fn from_block(mut block: Gc<Block>, nbr_args: usize, current_method: Gc<Method>) -> Self {
         Self {
             prev_frame: Gc::default(),
             current_method,
@@ -205,8 +205,7 @@ impl Frame {
             literals: &block.blk_info.literals,
             bytecodes: &block.blk_info.body,
             bytecode_idx: 0,
-            // inline_cache: std::ptr::addr_of_mut!(block_obj.blk_info.inline_cache),
-            inline_cache: std::ptr::null_mut(),
+            inline_cache: std::ptr::addr_of_mut!(block.blk_info.inline_cache),
             stack_ptr: std::ptr::null_mut(),
             args_ptr: std::ptr::null_mut(),
             locals_ptr: std::ptr::null_mut(),
