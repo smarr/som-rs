@@ -282,7 +282,7 @@ fn get_object_size(object: ObjectReference) -> usize {
             BCObjMagicId::ArrayU8 => size_of::<Vec<u8>>(),
             BCObjMagicId::Frame => unsafe {
                 let frame: &mut Frame = object.to_raw_address().as_mut_ref();
-                Frame::get_true_size(frame.max_stack_size, frame.nbr_args, frame.nbr_locals)
+                Frame::get_true_size(frame.get_max_stack_size(), frame.nbr_args, frame.nbr_locals)
             },
             BCObjMagicId::MethodOrBlkEnv => size_of::<MethodEnv>(),
             BCObjMagicId::ArrayVal => size_of::<Vec<Value>>(),

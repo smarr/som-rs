@@ -76,7 +76,7 @@ impl Interpreter {
             start_time: Instant::now(),
             bytecode_idx: 0,
             current_frame: base_frame,
-            current_bytecodes: base_frame.bytecodes,
+            current_bytecodes: base_frame.get_bytecode_ptr(),
         }
     }
 
@@ -91,7 +91,7 @@ impl Interpreter {
         self.current_frame.remove_n_last_elements(nbr_args); // TODO I think this fucks up the stack somehow? or the previous copy. maybe that ugly copy is problematic for a reason
 
         self.bytecode_idx = 0;
-        self.current_bytecodes = frame_ptr.bytecodes;
+        self.current_bytecodes = frame_ptr.get_bytecode_ptr();
         self.current_frame = frame_ptr;
         frame_ptr
     }
@@ -102,7 +102,7 @@ impl Interpreter {
         let frame_ptr = Frame::alloc_from_method(method, args, &self.current_frame, mutator);
 
         self.bytecode_idx = 0;
-        self.current_bytecodes = frame_ptr.bytecodes;
+        self.current_bytecodes = frame_ptr.get_bytecode_ptr();
         self.current_frame = frame_ptr;
 
         frame_ptr
@@ -115,7 +115,7 @@ impl Interpreter {
         let current_method = &self.current_frame.current_method;
         let frame_ptr = Frame::alloc_from_block(block, args, current_method, &self.current_frame, mutator);
         self.bytecode_idx = 0;
-        self.current_bytecodes = frame_ptr.bytecodes;
+        self.current_bytecodes = frame_ptr.get_bytecode_ptr();
         self.current_frame = frame_ptr;
         frame_ptr
     }
@@ -128,7 +128,7 @@ impl Interpreter {
             true => {}
             false => {
                 self.bytecode_idx = new_current_frame.bytecode_idx;
-                self.current_bytecodes = new_current_frame.bytecodes;
+                self.current_bytecodes = new_current_frame.get_bytecode_ptr();
             }
         }
     }
@@ -140,7 +140,7 @@ impl Interpreter {
             true => {}
             false => {
                 self.bytecode_idx = new_current_frame.bytecode_idx;
-                self.current_bytecodes = new_current_frame.bytecodes;
+                self.current_bytecodes = new_current_frame.get_bytecode_ptr();
             }
         }
     }
@@ -527,7 +527,7 @@ impl Interpreter {
             // SAFETY: this access is actually safe because the bytecode compiler
             // makes sure the cache has as many entries as there are bytecode instructions,
             // therefore we can avoid doing any redundant bounds checks here.
-            let maybe_found = unsafe { (*frame.inline_cache).get_unchecked_mut(bytecode_idx) };
+            let maybe_found = unsafe { frame.get_inline_cache().get_unchecked_mut(bytecode_idx) };
 
             match maybe_found {
                 Some((receiver, method)) if receiver.ptr == class.ptr => Some(*method),

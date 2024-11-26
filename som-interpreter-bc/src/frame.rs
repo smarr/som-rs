@@ -1,7 +1,7 @@
 use crate::block::{Block, BodyInlineCache};
 use crate::class::Class;
 use crate::compiler::Literal;
-use crate::method::{Method, MethodKind};
+use crate::method::{Method, MethodEnv, MethodKind};
 use crate::value::Value;
 use crate::{HACK_FRAME_CURRENT_BLOCK_PTR, HACK_FRAME_CURRENT_METHOD_PTR, HACK_FRAME_FRAME_ARGS_PTR};
 use core::mem::size_of;
@@ -19,17 +19,11 @@ pub struct Frame {
     /// The previous frame. Frames are handled as a linked list
     pub prev_frame: Gc<Frame>,
     /// The method the execution context currently is in.
-    pub current_method: Gc<Method>,
-    /// The bytecodes associated with the frame.
-    pub bytecodes: *const Vec<Bytecode>,
-    /// Literals/constants associated with the frame.
-    pub literals: *const Vec<Literal>,
-    /// Inline cache associated with the frame.
-    pub inline_cache: *mut BodyInlineCache,
+    pub current_method: Gc<Method>, // TODO this should be removed and/or combined with current context
+    pub current_context: *mut MethodEnv,
+
     /// Bytecode index.
     pub bytecode_idx: usize,
-
-    pub max_stack_size: usize,
 
     pub nbr_args: usize, // todo u8 instead?
     pub nbr_locals: usize,
@@ -193,17 +187,14 @@ impl Frame {
     }
 
     // Creates a frame from a block. Meant to only be called by the alloc_from_block function
-    fn from_block(mut block: Gc<Block>, nbr_args: usize, current_method: Gc<Method>) -> Self {
+    fn from_block(block: Gc<Block>, nbr_args: usize, current_method: Gc<Method>) -> Self {
         Self {
             prev_frame: Gc::default(),
             current_method,
-            max_stack_size: block.blk_info.max_stack_size as usize,
+            current_context: block.blk_info.to_mut_ptr(),
             nbr_locals: block.blk_info.nbr_locals,
             nbr_args,
-            literals: &block.blk_info.literals,
-            bytecodes: &block.blk_info.body,
             bytecode_idx: 0,
-            inline_cache: std::ptr::addr_of_mut!(block.blk_info.inline_cache),
             stack_ptr: std::ptr::null_mut(),
             args_ptr: std::ptr::null_mut(),
             locals_ptr: std::ptr::null_mut(),
@@ -216,26 +207,20 @@ impl Frame {
     // Creates a frame from a block. Meant to only be called by the alloc_from_method function
     fn from_method(mut method: Gc<Method>, nbr_args: usize) -> Self {
         match &mut method.kind {
-            MethodKind::Defined(env) => {
-                let inline_cache = std::ptr::addr_of_mut!(env.inline_cache);
-                Self {
-                    prev_frame: Gc::default(),
-                    nbr_locals: env.nbr_locals,
-                    nbr_args,
-                    max_stack_size: env.max_stack_size as usize,
-                    literals: &env.literals,
-                    bytecodes: &env.body,
-                    current_method: method,
-                    bytecode_idx: 0,
-                    stack_ptr: std::ptr::null_mut(),
-                    args_ptr: std::ptr::null_mut(),
-                    locals_ptr: std::ptr::null_mut(),
-                    inline_cache,
-                    args_marker: PhantomData,
-                    locals_marker: PhantomData,
-                    stack_marker: PhantomData,
-                }
-            }
+            MethodKind::Defined(env) => Self {
+                prev_frame: Gc::default(),
+                nbr_locals: env.nbr_locals,
+                current_context: env as *mut MethodEnv,
+                nbr_args,
+                current_method: method,
+                bytecode_idx: 0,
+                stack_ptr: std::ptr::null_mut(),
+                args_ptr: std::ptr::null_mut(),
+                locals_ptr: std::ptr::null_mut(),
+                args_marker: PhantomData,
+                locals_marker: PhantomData,
+                stack_marker: PhantomData,
+            },
             _ => unreachable!(),
         }
     }
@@ -245,20 +230,19 @@ impl Frame {
         size_of::<Frame>() + ((max_stack_size + nbr_args + nbr_locals) * size_of::<Value>())
     }
 
+    #[inline(always)]
+    pub fn get_bytecode_ptr(&self) -> *const Vec<Bytecode> {
+        unsafe { &(*self.current_context).body }
+    }
+
+    #[inline(always)]
     pub fn get_max_stack_size(&self) -> usize {
-        self.max_stack_size
-        // let self_arg = self.lookup_argument(0);
-        // match self_arg.as_block() {
-        //     Some(b) => {
-        //         b.blk_info.max_stack_size as usize
-        //     }
-        //     None => {
-        //         match &self.current_method.kind {
-        //             MethodKind::Defined(e) => e.max_stack_size as usize,
-        //             MethodKind::Primitive(_) => 0,
-        //         }
-        //     },
-        // }
+        unsafe { (*self.current_context).max_stack_size as usize }
+    }
+
+    #[inline(always)]
+    pub fn get_inline_cache(&mut self) -> &mut BodyInlineCache {
+        unsafe { &mut (*self.current_context).inline_cache }
     }
 
     /// Get the self value for this frame.
@@ -314,9 +298,10 @@ impl Frame {
 
     #[inline(always)]
     pub fn lookup_constant(&self, idx: usize) -> Literal {
+        let literals = unsafe { &(*self.current_context).literals };
         match cfg!(debug_assertions) {
-            true => unsafe { (*self.literals).get(idx).unwrap().clone() },
-            false => unsafe { (*self.literals).get_unchecked(idx).clone() },
+            true => literals.get(idx).unwrap().clone(),
+            false => unsafe { literals.get_unchecked(idx).clone() },
         }
     }
 
