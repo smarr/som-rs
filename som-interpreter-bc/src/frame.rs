@@ -112,7 +112,7 @@ impl Frame {
         // frame_ptr
 
         let max_stack_size = block.blk_info.max_stack_size as usize;
-        let nbr_locals = block.blk_info.nb_locals;
+        let nbr_locals = block.blk_info.nbr_locals;
 
         let size = Frame::get_true_size(max_stack_size, args.len(), nbr_locals);
 
@@ -198,7 +198,7 @@ impl Frame {
             prev_frame: Gc::default(),
             current_method,
             max_stack_size: block.blk_info.max_stack_size as usize,
-            nbr_locals: block.blk_info.nb_locals,
+            nbr_locals: block.blk_info.nbr_locals,
             nbr_args,
             literals: &block.blk_info.literals,
             bytecodes: &block.blk_info.body,

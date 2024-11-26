@@ -14,12 +14,16 @@ use crate::value::Value;
 use som_core::ast::BlockDebugInfo;
 use som_gc::gcref::Gc;
 
+/// Data for a method, or importantly, a block.
+/// Blocks being treated the same as methods is something we do in all our other interpreters, if I'm not mistaken.
+/// The distinction is more pronounced here, since a block object is different than a method object - at the moment - but still
 #[derive(Clone)]
 pub struct MethodEnv {
     pub literals: Vec<Literal>,
     pub body: Vec<Bytecode>,
     pub inline_cache: BodyInlineCache,
     pub nbr_locals: usize,
+    pub nbr_params: usize,
     pub max_stack_size: u8,
     #[cfg(feature = "frame-debug-info")]
     pub block_debug_info: BlockDebugInfo,

@@ -34,9 +34,9 @@ impl Hash for Block {
     fn hash<H: Hasher>(&self, hasher: &mut H) {
         let blk_info = self.blk_info;
         blk_info.literals.iter().for_each(|it| it.hash(hasher));
-        blk_info.nb_locals.hash(hasher);
+        blk_info.nbr_locals.hash(hasher);
         // self.blk_info.locals.iter().for_each(|it| it.hash(hasher));
-        blk_info.nb_params.hash(hasher);
+        blk_info.nbr_params.hash(hasher);
         blk_info.body.iter().for_each(|it| it.hash(hasher));
     }
 }

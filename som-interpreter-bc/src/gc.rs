@@ -1,9 +1,9 @@
-use crate::block::{Block, BlockInfo};
+use crate::block::Block;
 use crate::class::Class;
 use crate::compiler::Literal;
 use crate::frame::Frame;
 use crate::instance::Instance;
-use crate::method::{Method, MethodKind};
+use crate::method::{Method, MethodEnv, MethodKind};
 use crate::value::Value;
 use crate::{
     HACK_FRAME_CURRENT_BLOCK_PTR, HACK_FRAME_CURRENT_METHOD_PTR, HACK_FRAME_FRAME_ARGS_PTR, INTERPRETER_RAW_PTR_CONST, UNIVERSE_RAW_PTR_CONST,
@@ -26,7 +26,7 @@ pub enum BCObjMagicId {
     BigInt = BIGINT_MAGIC_ID as isize,
     ArrayU8 = VECU8_MAGIC_ID as isize,
     Frame = 100,
-    BlockInfo = 101,
+    MethodOrBlkEnv = 101,
     Block = 102,
     Class = 103,
     Instance = 104,
@@ -43,9 +43,9 @@ impl HasTypeInfoForGC for VecValue {
     }
 }
 
-impl HasTypeInfoForGC for BlockInfo {
+impl HasTypeInfoForGC for MethodEnv {
     fn get_magic_gc_id() -> u8 {
-        BCObjMagicId::BlockInfo as u8
+        BCObjMagicId::MethodOrBlkEnv as u8
     }
 }
 
@@ -192,8 +192,8 @@ pub fn scan_object<'a>(object: ObjectReference, slot_visitor: &'a mut (dyn SlotV
                     visit_value(val, slot_visitor)
                 }
             }
-            BCObjMagicId::BlockInfo => {
-                let block_info: &mut BlockInfo = object.to_raw_address().as_mut_ref();
+            BCObjMagicId::MethodOrBlkEnv => {
+                let block_info: &mut MethodEnv = object.to_raw_address().as_mut_ref();
                 for lit in &block_info.literals {
                     visit_literal(lit, slot_visitor)
                 }
@@ -284,7 +284,7 @@ fn get_object_size(object: ObjectReference) -> usize {
                 let frame: &mut Frame = object.to_raw_address().as_mut_ref();
                 Frame::get_true_size(frame.max_stack_size, frame.nbr_args, frame.nbr_locals)
             },
-            BCObjMagicId::BlockInfo => size_of::<BlockInfo>(),
+            BCObjMagicId::MethodOrBlkEnv => size_of::<MethodEnv>(),
             BCObjMagicId::ArrayVal => size_of::<Vec<Value>>(),
             BCObjMagicId::Method => size_of::<Method>(),
             BCObjMagicId::Block => size_of::<Block>(),

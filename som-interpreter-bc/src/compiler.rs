@@ -6,7 +6,7 @@ use num_bigint::BigInt;
 use std::hash::{Hash, Hasher};
 use std::str::FromStr;
 
-use crate::block::{Block, BlockInfo};
+use crate::block::Block;
 use crate::class::Class;
 #[cfg(not(feature = "inlining-disabled"))]
 use crate::inliner::PrimMessageInliner;
@@ -755,9 +755,17 @@ fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::MethodDef, mutator: &mut 
 
                 let max_stack_size = get_max_stack_size(&body);
 
+                let nbr_params = {
+                    match ctxt.signature.chars().next() {
+                        Some(ch) if !ch.is_alphabetic() => 1,
+                        _ => ctxt.signature.chars().filter(|ch| *ch == ':').count(),
+                    }
+                };
+
                 MethodKind::Defined(MethodEnv {
                     body,
                     nbr_locals,
+                    nbr_params,
                     literals,
                     inline_cache,
                     max_stack_size,
@@ -815,19 +823,18 @@ fn compile_block(outer: &mut dyn GenCtxt, defn: &ast::Block, gc_interface: &mut 
     // };
     let literals = ctxt.literals.into_iter().collect();
     let body = ctxt.body.unwrap_or_default();
-    let nb_locals = ctxt.locals_nbr;
-    let nb_params = ctxt.args_nbr;
+    let nbr_locals = ctxt.locals_nbr;
+    let nbr_params = ctxt.args_nbr;
     let inline_cache = vec![None; body.len()];
     let max_stack_size = get_max_stack_size(&body);
 
     let block = Block {
         frame,
-        blk_info: gc_interface.alloc(BlockInfo {
-            // locals,
-            nb_locals,
+        blk_info: gc_interface.alloc(MethodEnv {
+            nbr_locals,
             literals,
             body,
-            nb_params,
+            nbr_params,
             inline_cache,
             max_stack_size,
             #[cfg(feature = "frame-debug-info")]

@@ -1,8 +1,9 @@
-use crate::block::{Block, BlockInfo};
+use crate::block::Block;
 use crate::compiler::MethodCodegen;
 use crate::compiler::{InnerGenCtxt, Literal};
 use crate::inliner::JumpType::{JumpOnFalse, JumpOnTrue};
 use crate::inliner::OrAndChoice::{And, Or};
+use crate::method::MethodEnv;
 use som_core::ast;
 use som_core::bytecode::Bytecode;
 use som_gc::gc_interface::GCInterface;
@@ -27,7 +28,7 @@ pub trait PrimMessageInliner {
     /// Gets the last bytecode, assumes it to be a PushBlock, removes it and inlines the block - a set of operations for which there is a redundant need.
     fn inline_last_push_block_bc(&self, ctxt: &mut dyn InnerGenCtxt, mutator: &mut GCInterface) -> Option<()>;
     /// Inlines a compiled block into the current scope.
-    fn inline_compiled_block(&self, ctxt: &mut dyn InnerGenCtxt, block: &BlockInfo, mutator: &mut GCInterface) -> Option<()>;
+    fn inline_compiled_block(&self, ctxt: &mut dyn InnerGenCtxt, block: &MethodEnv, mutator: &mut GCInterface) -> Option<()>;
     /// When inlining a block, adapt its potential children blocks to account for the inlining changes.
     fn adapt_block_after_outer_inlined(&self, block_body: Gc<Block>, adjust_scope_by: usize, mutator: &mut GCInterface) -> Block;
     /// Inlines `ifTrue:` and `ifFalse:`.
@@ -86,17 +87,17 @@ impl PrimMessageInliner for ast::Message {
         }
     }
 
-    fn inline_compiled_block(&self, ctxt: &mut dyn InnerGenCtxt, block: &BlockInfo, gc_interface: &mut GCInterface) -> Option<()> {
+    fn inline_compiled_block(&self, ctxt: &mut dyn InnerGenCtxt, block: &MethodEnv, gc_interface: &mut GCInterface) -> Option<()> {
         let nbr_locals_pre_inlining = ctxt.get_nbr_locals() as u8;
-        let nbr_args_pre_inlining = block.nb_params as u8;
+        let nbr_args_pre_inlining = block.nbr_params as u8;
 
-        ctxt.set_nbr_locals(nbr_locals_pre_inlining as usize + block.nb_locals + block.nb_params);
+        ctxt.set_nbr_locals(nbr_locals_pre_inlining as usize + block.nbr_locals + block.nbr_params);
 
         // all params in the block become local variables. not the prettiest way of going about it? works though
         let block = &{
             let mut new_blk = block.clone();
-            new_blk.nb_locals += new_blk.nb_params;
-            new_blk.nb_params = 0;
+            new_blk.nbr_locals += new_blk.nbr_params;
+            new_blk.nbr_params = 0;
             new_blk
         };
 
@@ -284,8 +285,8 @@ impl PrimMessageInliner for ast::Message {
         // TODO: we now pass a mutable pointer to a Block actually, so this is all avoidable!
         Block {
             frame: orig_block.frame,
-            blk_info: gc_interface.alloc(BlockInfo {
-                nb_locals: orig_block.blk_info.nb_locals,
+            blk_info: gc_interface.alloc(MethodEnv {
+                nbr_locals: orig_block.blk_info.nbr_locals,
                 literals: orig_block
                     .blk_info
                     .literals
@@ -302,7 +303,7 @@ impl PrimMessageInliner for ast::Message {
                     })
                     .collect(),
                 body: new_body,
-                nb_params: orig_block.blk_info.nb_params,
+                nbr_params: orig_block.blk_info.nbr_params,
                 max_stack_size: new_max_stack_size,
                 inline_cache: orig_block.blk_info.inline_cache.clone(),
                 #[cfg(feature = "frame-debug-info")]
