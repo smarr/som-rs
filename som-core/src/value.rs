@@ -1,4 +1,6 @@
 use crate::interner::Interned;
+use num_bigint::BigInt;
+use std::ops::Deref;
 
 static_assertions::const_assert_eq!(size_of::<f64>(), 8);
 static_assertions::assert_eq_size!(f64, u64, *const ());
@@ -206,17 +208,19 @@ impl BaseValue {
 
     /// Returns a new big integer value.
     #[inline(always)]
-    pub fn new_big_integer<Ptr>(value: Ptr) -> Self
+    pub fn new_big_integer<BigIntPtr>(value: BigIntPtr) -> Self
     where
-        u64: From<Ptr>,
+        u64: From<BigIntPtr>,
+        BigIntPtr: Deref<Target = BigInt>,
     {
         Self::new(BIG_INTEGER_TAG, u64::from(value))
     }
     /// Returns a new string value.
     #[inline(always)]
-    pub fn new_string<Ptr>(value: Ptr) -> Self
+    pub fn new_string<StringPtr>(value: StringPtr) -> Self
     where
-        u64: From<Ptr>,
+        u64: From<StringPtr>,
+        StringPtr: Deref<Target = String>,
     {
         Self::new(STRING_TAG, u64::from(value))
     }
@@ -286,19 +290,20 @@ impl BaseValue {
 
     /// Returns this value as a big integer, if such is its type.
     #[inline(always)]
-    pub fn as_big_integer<Ptr>(self) -> Option<Ptr>
+    pub fn as_big_integer<BigIntPtr>(self) -> Option<BigIntPtr>
     where
-        u64: From<Ptr>,
-        Ptr: From<u64>,
+        u64: From<BigIntPtr>,
+        BigIntPtr: From<u64>,
     {
         self.is_big_integer().then(|| self.extract_gc_cell())
     }
 
     /// Returns this value as a string, if such is its type.
     #[inline(always)]
-    pub fn as_string<Ptr>(self) -> Option<Ptr>
+    pub fn as_string<StringPtr>(self) -> Option<StringPtr>
     where
-        Ptr: From<u64>,
+        StringPtr: From<u64>,
+        StringPtr: Deref<Target = String>,
     {
         self.is_string().then(|| self.extract_gc_cell())
     }
@@ -365,9 +370,10 @@ impl BaseValue {
 
     #[allow(non_snake_case)]
     #[inline(always)]
-    pub fn BigInteger<Ptr>(value: Ptr) -> Self
+    pub fn BigInteger<BigIntPtr>(value: BigIntPtr) -> Self
     where
-        u64: From<Ptr>,
+        u64: From<BigIntPtr>,
+        BigIntPtr: Deref<Target = BigInt>,
     {
         Self::new_big_integer(value)
     }
@@ -377,19 +383,19 @@ impl BaseValue {
     pub fn String<Ptr>(value: Ptr) -> Self
     where
         u64: From<Ptr>,
+        Ptr: Deref<Target = String>,
     {
         Self::new_string(value)
     }
 
     /// Returns a pointer to the underlying data, given a reference to a Value type.
     /// Not actually unsafe in itself, but considered as such because it's VERY dangerous unless used correctly.
-    /// Why does it exist? Because GC does not know about the `BaseValue`/`Value` type (we'd get a circular dependency otherwise), and it knowing of it as a `u64` is enough to work with it.
-    /// So treating a `Value` like `u64` is fine. And if we need to get the GC access to a pointer to a value, this function is the way to go.
+    /// Why does it exist? Because GC needs to store mutable references to values to modify them when moving memory around. Most values are stored as &Value, so this function is convenient.
     /// # Safety
     /// The value used as a reference must be long-lived: if it is dropped at any point before invoking this function, we'll get undefined behavior.
     /// In practice for our cases, this means any reference passed to this function must be A POINTER TO THE GC HEAP.
-    pub unsafe fn as_u64_ptr(&self) -> *mut u64 {
-        self as *const Self as *mut u64
+    pub unsafe fn as_mut_ptr(&self) -> *mut BaseValue {
+        self as *const Self as *mut Self
     }
 }
 

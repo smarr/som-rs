@@ -10,7 +10,7 @@ use crate::{
     UNIVERSE_RAW_PTR_CONST,
 };
 use core::mem::size_of;
-use log::debug;
+use log::{debug, trace};
 use mmtk::util::{Address, ObjectReference};
 use mmtk::vm::{ObjectModel, SlotVisitor};
 use mmtk::Mutator;
@@ -82,10 +82,12 @@ impl HasTypeInfoForGC for Frame {
 
 // --- Scanning
 
-pub fn visit_value<'a>(val: &Value, slot_visitor: &'a mut (dyn SlotVisitor<SOMSlot> + 'a)) {
+/// Visits a value, via a specialized `SOMSlot` for value types.
+/// # Safety
+/// Values passed to this function MUST live on the GC heap, or the pointer generated from the reference will be invalid.
+pub unsafe fn visit_value<'a>(val: &Value, slot_visitor: &'a mut (dyn SlotVisitor<SOMSlot> + 'a)) {
     if val.is_ptr_type() {
-        let val_ptr = unsafe { val.as_u64_ptr() };
-        slot_visitor.visit_slot(SOMSlot::from_value_ptr(val_ptr))
+        slot_visitor.visit_slot(SOMSlot::from(val.as_mut_ptr()))
     }
 }
 
@@ -104,7 +106,7 @@ pub fn scan_object<'a>(object: ObjectReference, slot_visitor: &'a mut (dyn SlotV
         // let _ptr: *mut usize = unsafe { obj_addr.as_mut_ref() };
         let gc_id: &BCObjMagicId = VMObjectModel::ref_to_header(object).as_ref();
 
-        debug!("entering scan_object (type: {:?})", gc_id);
+        trace!("entering scan_object (type: {:?})", gc_id);
 
         match gc_id {
             BCObjMagicId::Frame => {
@@ -227,8 +229,7 @@ fn get_roots_in_mutator_thread(_mutator: &mut Mutator<SOMVM>) -> Vec<SOMSlot> {
         debug!("scanning roots: globals");
         for (_name, val) in UNIVERSE_RAW_PTR_CONST.unwrap().as_mut().globals.iter_mut() {
             if val.is_ptr_type() {
-                let val_ptr = val.as_u64_ptr();
-                to_process.push(SOMSlot::from_value_ptr(val_ptr));
+                to_process.push(SOMSlot::from(val.as_mut_ptr()));
             }
         }
 
@@ -250,7 +251,7 @@ fn get_roots_in_mutator_thread(_mutator: &mut Mutator<SOMVM>) -> Vec<SOMSlot> {
         if HACK_FRAME_FRAME_ARGS_PTR.is_some() {
             for elem in HACK_FRAME_FRAME_ARGS_PTR.as_ref().unwrap() {
                 if elem.is_ptr_type() {
-                    to_process.push(SOMSlot::from_value_ptr(elem as *const Value as *mut u64));
+                    to_process.push(SOMSlot::from(elem.as_mut_ptr()));
                 }
             }
         }

@@ -117,8 +117,7 @@ fn get_roots_in_mutator_thread(_mutator: &mut Mutator<SOMVM>) -> Vec<SOMSlot> {
         debug!("scanning roots: globals");
         for (_name, val) in UNIVERSE_RAW_PTR_CONST.unwrap().as_ref().globals.iter() {
             if val.is_ptr_type() {
-                let val_ptr = val.as_u64_ptr();
-                to_process.push(SOMSlot::from_value_ptr(val_ptr))
+                to_process.push(SOMSlot::from(val.as_mut_ptr()))
             }
         }
 
@@ -129,8 +128,7 @@ fn get_roots_in_mutator_thread(_mutator: &mut Mutator<SOMVM>) -> Vec<SOMSlot> {
             debug!("scanning roots: frame arguments (frame allocation triggered a GC)");
             for val in frame_args.as_ref() {
                 if val.is_ptr_type() {
-                    let val_ptr = val.as_u64_ptr();
-                    to_process.push(SOMSlot::from_value_ptr(val_ptr))
+                    to_process.push(SOMSlot::from(val.as_mut_ptr()))
                 }
             }
         }
@@ -238,10 +236,9 @@ pub fn scan_object<'a>(object: ObjectReference, slot_visitor: &'a mut (dyn SlotV
     }
 }
 
-fn visit_value<'a>(val: &Value, slot_visitor: &'a mut (dyn SlotVisitor<SOMSlot> + 'a)) {
+unsafe fn visit_value<'a>(val: &Value, slot_visitor: &'a mut (dyn SlotVisitor<SOMSlot> + 'a)) {
     if val.is_ptr_type() {
-        let val_ptr = unsafe { val.as_u64_ptr() };
-        slot_visitor.visit_slot(SOMSlot::from_value_ptr(val_ptr))
+        slot_visitor.visit_slot(SOMSlot::from(val.as_mut_ptr()))
     }
 }
 

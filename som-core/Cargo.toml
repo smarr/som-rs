@@ -10,5 +10,8 @@ license = "MIT OR Apache-2.0"
 [dependencies]
 static_assertions = "1.1.0"
 
+# not that hard a dependency, just used for type hinting in generic code in `value.rs`. If need be, can be removed
+num-bigint = "0.4.6"
+
 [features]
 block-debug-info = []
