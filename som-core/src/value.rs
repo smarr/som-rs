@@ -1,6 +1,4 @@
 use crate::interner::Interned;
-use num_bigint::BigInt;
-use som_gc::gcref::Gc;
 
 static_assertions::const_assert_eq!(size_of::<f64>(), 8);
 static_assertions::assert_eq_size!(f64, u64, *const ());
@@ -167,8 +165,11 @@ impl BaseValue {
     }
 
     #[inline(always)]
-    pub fn extract_gc_cell<T>(self) -> Gc<T> {
-        Gc::from(self.extract_pointer_bits())
+    pub fn extract_gc_cell<Ptr>(self) -> Ptr
+    where
+        Ptr: From<u64>,
+    {
+        Ptr::from(self.extract_pointer_bits())
     }
 
     #[inline(always)]
@@ -205,12 +206,18 @@ impl BaseValue {
 
     /// Returns a new big integer value.
     #[inline(always)]
-    pub fn new_big_integer(value: Gc<BigInt>) -> Self {
+    pub fn new_big_integer<Ptr>(value: Ptr) -> Self
+    where
+        u64: From<Ptr>,
+    {
         Self::new(BIG_INTEGER_TAG, u64::from(value))
     }
     /// Returns a new string value.
     #[inline(always)]
-    pub fn new_string(value: Gc<String>) -> Self {
+    pub fn new_string<Ptr>(value: Ptr) -> Self
+    where
+        u64: From<Ptr>,
+    {
         Self::new(STRING_TAG, u64::from(value))
     }
 
@@ -279,12 +286,20 @@ impl BaseValue {
 
     /// Returns this value as a big integer, if such is its type.
     #[inline(always)]
-    pub fn as_big_integer(self) -> Option<Gc<BigInt>> {
+    pub fn as_big_integer<Ptr>(self) -> Option<Ptr>
+    where
+        u64: From<Ptr>,
+        Ptr: From<u64>,
+    {
         self.is_big_integer().then(|| self.extract_gc_cell())
     }
+
     /// Returns this value as a string, if such is its type.
     #[inline(always)]
-    pub fn as_string(self) -> Option<Gc<String>> {
+    pub fn as_string<Ptr>(self) -> Option<Ptr>
+    where
+        Ptr: From<u64>,
+    {
         self.is_string().then(|| self.extract_gc_cell())
     }
 
@@ -350,13 +365,19 @@ impl BaseValue {
 
     #[allow(non_snake_case)]
     #[inline(always)]
-    pub fn BigInteger(value: Gc<BigInt>) -> Self {
+    pub fn BigInteger<Ptr>(value: Ptr) -> Self
+    where
+        u64: From<Ptr>,
+    {
         Self::new_big_integer(value)
     }
 
     #[allow(non_snake_case)]
     #[inline(always)]
-    pub fn String(value: Gc<String>) -> Self {
+    pub fn String<Ptr>(value: Ptr) -> Self
+    where
+        u64: From<Ptr>,
+    {
         Self::new_string(value)
     }
 
@@ -369,31 +390,6 @@ impl BaseValue {
     /// In practice for our cases, this means any reference passed to this function must be A POINTER TO THE GC HEAP.
     pub unsafe fn as_u64_ptr(&self) -> *mut u64 {
         self as *const Self as *mut u64
-    }
-}
-
-impl PartialEq for BaseValue {
-    fn eq(&self, other: &Self) -> bool {
-        if self.as_u64() == other.as_u64() {
-            // this encapsulates every comparison between values of the same primitive type, e.g. comparing two i32s or two booleans
-            true
-        } else if let (Some(a), Some(b)) = (self.as_double(), other.as_double()) {
-            a == b
-        } else if let (Some(a), Some(b)) = (self.as_integer(), other.as_double()) {
-            (a as f64) == b
-        } else if let (Some(a), Some(b)) = (self.as_double(), other.as_integer()) {
-            (b as f64) == a
-        } else if let (Some(a), Some(b)) = (self.as_big_integer(), other.as_big_integer()) {
-            a == b
-        } else if let (Some(a), Some(b)) = (self.as_big_integer(), other.as_integer()) {
-            (*a).eq(&BigInt::from(b))
-        } else if let (Some(a), Some(b)) = (self.as_integer(), other.as_big_integer()) {
-            BigInt::from(a).eq(&*b)
-        } else if let (Some(a), Some(b)) = (self.as_string(), other.as_string()) {
-            a == b
-        } else {
-            false
-        }
     }
 }
 

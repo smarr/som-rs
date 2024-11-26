@@ -25,7 +25,9 @@ const INSTANCE_TAG: u64 = 0b110 | CELL_BASE_TAG;
 const INVOKABLE_TAG: u64 = 0b111 | CELL_BASE_TAG;
 
 /// Represents an SOM value.
-#[derive(Clone, Copy, PartialEq, Hash)]
+
+#[derive(Clone, Copy, Hash)]
+#[allow(clippy::derived_hash_with_manual_eq)] // But TODO: implement it...
 #[repr(transparent)]
 pub struct Value(BaseValue);
 
@@ -195,7 +197,7 @@ impl Value {
             SYSTEM_TAG => "system".to_string(),
             BOOLEAN_TAG => self.as_boolean().unwrap().to_string(),
             INTEGER_TAG => self.as_integer().unwrap().to_string(),
-            BIG_INTEGER_TAG => self.as_big_integer().unwrap().to_string(),
+            BIG_INTEGER_TAG => self.as_big_integer::<Gc<BigInt>>().unwrap().to_string(),
             _ if self.is_double() => self.as_double().unwrap().to_string(),
             SYMBOL_TAG => {
                 let symbol = universe.lookup_symbol(self.as_symbol().unwrap());
@@ -205,7 +207,7 @@ impl Value {
                     format!("#{}", symbol)
                 }
             }
-            STRING_TAG => self.as_string().unwrap().to_string(),
+            STRING_TAG => self.as_string::<Gc<String>>().unwrap().to_string(),
             ARRAY_TAG => {
                 // TODO: I think we can do better here (less allocations).
                 let strings: Vec<String> = self.as_array().unwrap().0.iter().map(|value| value.to_string(universe)).collect();
@@ -320,6 +322,31 @@ impl From<ValueEnum> for Value {
             ValueEnum::Instance(value) => Self::new_instance(value),
             ValueEnum::Class(value) => Self::new_class(value),
             ValueEnum::Invokable(value) => Self::new_invokable(value),
+        }
+    }
+}
+
+impl PartialEq for Value {
+    fn eq(&self, other: &Self) -> bool {
+        if self.as_u64() == other.as_u64() {
+            // this encapsulates every comparison between values of the same primitive type, e.g. comparing two i32s or two booleans, and pointer comparisons
+            true
+        } else if let (Some(a), Some(b)) = (self.as_double(), other.as_double()) {
+            a == b
+        } else if let (Some(a), Some(b)) = (self.as_integer(), other.as_double()) {
+            (a as f64) == b
+        } else if let (Some(a), Some(b)) = (self.as_double(), other.as_integer()) {
+            (b as f64) == a
+        } else if let (Some(a), Some(b)) = (self.as_big_integer::<Gc<BigInt>>(), other.as_big_integer()) {
+            a == b
+        } else if let (Some(a), Some(b)) = (self.as_big_integer::<Gc<BigInt>>(), other.as_integer()) {
+            (*a).eq(&BigInt::from(b))
+        } else if let (Some(a), Some(b)) = (self.as_integer(), other.as_big_integer::<Gc<BigInt>>()) {
+            BigInt::from(a).eq(&*b)
+        } else if let (Some(a), Some(b)) = (self.as_string::<Gc<String>>(), other.as_string::<Gc<String>>()) {
+            a == b
+        } else {
+            false
         }
     }
 }

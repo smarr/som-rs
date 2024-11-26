@@ -30,7 +30,7 @@ pub struct Universe {
     /// The path to search in for new classes.
     pub classpath: Vec<PathBuf>,
     /// The interpreter's core classes.
-    pub core: CoreClasses<Class>,
+    pub core: CoreClasses<Gc<Class>>,
     /// GC interface for GC operations
     pub gc_interface: &'static mut GCInterface,
 }

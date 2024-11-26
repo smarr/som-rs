@@ -1,52 +1,50 @@
-use som_gc::gcref::Gc;
-
 /// The core classes of the SOM interpreter.
 ///
 /// This struct allows to always keep a reference to important classes,
 /// even in case of modifications to global bindings by user-defined code.
 #[derive(Debug)]
-pub struct CoreClasses<Class> {
+pub struct CoreClasses<ClassPtr> {
     /// The **Object** class.
-    pub object_class: Gc<Class>,
+    pub object_class: ClassPtr,
     /// The **Class** class.
-    pub class_class: Gc<Class>,
+    pub class_class: ClassPtr,
     /// The **Class** class.
-    pub metaclass_class: Gc<Class>,
+    pub metaclass_class: ClassPtr,
 
     /// The **Nil** class.
-    pub nil_class: Gc<Class>,
+    pub nil_class: ClassPtr,
     /// The **Integer** class.
-    pub integer_class: Gc<Class>,
+    pub integer_class: ClassPtr,
     /// The **Double** class.
-    pub double_class: Gc<Class>,
+    pub double_class: ClassPtr,
     /// The **Array** class.
-    pub array_class: Gc<Class>,
+    pub array_class: ClassPtr,
     /// The **Method** class.
-    pub method_class: Gc<Class>,
+    pub method_class: ClassPtr,
     /// The **Primitive** class.
-    pub primitive_class: Gc<Class>,
+    pub primitive_class: ClassPtr,
     /// The **Symbol** class.
-    pub symbol_class: Gc<Class>,
+    pub symbol_class: ClassPtr,
     /// The **String** class.
-    pub string_class: Gc<Class>,
+    pub string_class: ClassPtr,
     /// The **System** class.
-    pub system_class: Gc<Class>,
+    pub system_class: ClassPtr,
 
     /// The **Block** class.
-    pub block_class: Gc<Class>,
+    pub block_class: ClassPtr,
     /// The **Block1** class.
-    pub block1_class: Gc<Class>,
+    pub block1_class: ClassPtr,
     /// The **Block2** class.
-    pub block2_class: Gc<Class>,
+    pub block2_class: ClassPtr,
     /// The **Block3** class.
-    pub block3_class: Gc<Class>,
+    pub block3_class: ClassPtr,
 
     /// The **Boolean** class.
-    pub boolean_class: Gc<Class>,
+    pub boolean_class: ClassPtr,
     /// The **True** class.
-    pub true_class: Gc<Class>,
+    pub true_class: ClassPtr,
     /// The **False** class.
-    pub false_class: Gc<Class>,
+    pub false_class: ClassPtr,
 }
 
 impl<Class> CoreClasses<Class> {
@@ -78,12 +76,12 @@ impl<Class> CoreClasses<Class> {
     }
 }
 
-pub struct CoreClassesIter<'a, Class> {
-    fields: std::vec::IntoIter<&'a Gc<Class>>,
+pub struct CoreClassesIter<'a, ClassPtr> {
+    fields: std::vec::IntoIter<&'a ClassPtr>,
 }
 
-impl<'a, Class> Iterator for CoreClassesIter<'a, Class> {
-    type Item = &'a Gc<Class>;
+impl<'a, ClassPtr> Iterator for CoreClassesIter<'a, ClassPtr> {
+    type Item = &'a ClassPtr;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.fields.next()

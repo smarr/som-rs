@@ -33,7 +33,7 @@ pub struct Universe {
     /// The current frame for the operation
     pub current_frame: Gc<Frame>,
     /// The interpreter's core classes.
-    pub core: CoreClasses<Class>,
+    pub core: CoreClasses<Gc<Class>>,
     /// The time record of the universe's creation.
     pub start_time: Instant,
     /// GC interface

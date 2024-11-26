@@ -7,6 +7,7 @@ use crate::method::{Method, MethodKind};
 use crate::universe::Universe;
 use crate::value::Value;
 use anyhow::Context;
+use num_bigint::BigInt;
 use som_core::bytecode::Bytecode;
 use som_core::interner::Interned;
 use som_gc::gc_interface::GCInterface;
@@ -197,7 +198,7 @@ impl Interpreter {
                         *last = Value::new_integer(int + 1);
                     } else if let Some(double) = last.as_double() {
                         *last = Value::new_double(double + 1.0);
-                    } else if let Some(mut big_int) = last.as_big_integer() {
+                    } else if let Some(mut big_int) = last.as_big_integer::<Gc<BigInt>>() {
                         *big_int += 1;
                     } else {
                         panic!("Invalid type in Inc")
@@ -209,7 +210,7 @@ impl Interpreter {
                         *last = Value::new_integer(int - 1); // TODO: see Bytecode::Inc
                     } else if let Some(double) = last.as_double() {
                         *last = Value::new_double(double - 1.0);
-                    } else if let Some(mut big_int) = last.as_big_integer() {
+                    } else if let Some(mut big_int) = last.as_big_integer::<Gc<BigInt>>() {
                         *big_int -= 1;
                     } else {
                         panic!("Invalid type in DEC")
