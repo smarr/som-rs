@@ -56,8 +56,8 @@ impl<T> Deref for Gc<T> {
                 // checking we're not holding onto references from the old space
                 let gc_interface = &**crate::MUTATOR_WRAPPER.get().unwrap();
                 if gc_interface.get_nbr_collections() % 2 == 1 && self.ptr.to_string().chars().nth(0).unwrap() == '2' {
-                    dbg!(ptr as usize);
-                    dbg!("BREAKPOINT");
+                    // dbg!(ptr as usize);
+                    dbg!("INVALID POINTER TO OLD SPACE");
                 }
             }
             &*ptr
@@ -74,8 +74,8 @@ impl<T> DerefMut for Gc<T> {
                 // checking we're not holding onto references from the old space
                 let gc_interface = &**crate::MUTATOR_WRAPPER.get().unwrap();
                 if gc_interface.get_nbr_collections() % 2 == 1 && self.ptr.to_string().chars().nth(0).unwrap() == '2' {
-                    dbg!(ptr as usize);
-                    dbg!("BREAKPOINT MUT");
+                    // dbg!(ptr as usize);
+                    dbg!("INVALID MUT POINTER TO OLD SPACE");
                 }
             }
             &mut *ptr

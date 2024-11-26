@@ -11,61 +11,13 @@ use crate::gc::{get_callbacks_for_gc, VecValue};
 use crate::invokable::{Invoke, Return};
 use crate::value::Value;
 use anyhow::{anyhow, Error};
+use som_core::core_classes::CoreClasses;
 use som_core::interner::{Interned, Interner};
 use som_gc::gc_interface::GCInterface;
 use som_gc::gcref::Gc;
 
 /// GC default heap size
 pub const DEFAULT_HEAP_SIZE: usize = 1024 * 1024 * 256;
-
-/// The core classes of the SOM interpreter.
-///
-/// This struct allows to always keep a reference to important classes,
-/// even in case of modifications to global bindings by user-defined code.
-#[derive(Debug)]
-pub struct CoreClasses {
-    /// The **Object** class.
-    pub object_class: Gc<Class>,
-    /// The **Class** class.
-    pub class_class: Gc<Class>,
-    /// The **Class** class.
-    pub metaclass_class: Gc<Class>,
-
-    /// The **Nil** class.
-    pub nil_class: Gc<Class>,
-    /// The **Integer** class.
-    pub integer_class: Gc<Class>,
-    /// The **Double** class.
-    pub double_class: Gc<Class>,
-    /// The **Array** class.
-    pub array_class: Gc<Class>,
-    /// The **Method** class.
-    pub method_class: Gc<Class>,
-    /// The **Primitive** class.
-    pub primitive_class: Gc<Class>,
-    /// The **Symbol** class.
-    pub symbol_class: Gc<Class>,
-    /// The **String** class.
-    pub string_class: Gc<Class>,
-    /// The **System** class.
-    pub system_class: Gc<Class>,
-
-    /// The **Block** class.
-    pub block_class: Gc<Class>,
-    /// The **Block1** class.
-    pub block1_class: Gc<Class>,
-    /// The **Block2** class.
-    pub block2_class: Gc<Class>,
-    /// The **Block3** class.
-    pub block3_class: Gc<Class>,
-
-    /// The **Boolean** class.
-    pub boolean_class: Gc<Class>,
-    /// The **True** class.
-    pub true_class: Gc<Class>,
-    /// The **False** class.
-    pub false_class: Gc<Class>,
-}
 
 /// The central data structure for the interpreter.
 ///
@@ -81,7 +33,7 @@ pub struct Universe {
     /// The current frame for the operation
     pub current_frame: Gc<Frame>,
     /// The interpreter's core classes.
-    pub core: CoreClasses,
+    pub core: CoreClasses<Class>,
     /// The time record of the universe's creation.
     pub start_time: Instant,
     /// GC interface

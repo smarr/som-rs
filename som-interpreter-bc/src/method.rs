@@ -33,7 +33,10 @@ pub struct MethodEnv {
 #[derive(Clone)]
 pub enum MethodKind {
     /// A user-defined method from the AST.
-    Defined(Gc<MethodEnv>), // TODO: this should not be a Gc<T>. methods should own their own methodenv.
+    /// TODO: this should not be a Gc<T>. methods should own their own methodenv. But this isn't a slowdown as is, to be fair.
+    /// Why is it a Gc<MethodEnv>? Because the frame keeps a pointer to the current env, and if it's always a Gc<MethodEnv>, it can be scanned by the GC.
+    /// If it's sometimes a pointer into a Method, it has no type header and the GC hates that.
+    Defined(Gc<MethodEnv>),
     /// An interpreter primitive.
     Primitive(&'static PrimitiveFn),
 }

@@ -145,6 +145,11 @@ impl Frame {
             *frame
         }
     }
+
+    /// Returns the true size of a Frame, counting the heap stored right after it.
+    pub fn get_true_size(nbr_args: u8, nbr_locals: u8) -> usize {
+        size_of::<Frame>() + ((nbr_args + nbr_locals) as usize * size_of::<Value>())
+    }
 }
 
 // exact same as BC... but I'm not positive this isn't useful duplication in the long run? since we may want them to have different implems still

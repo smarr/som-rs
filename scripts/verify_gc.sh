@@ -12,14 +12,16 @@ run_benchmarks() {
     do
         local output="Running $bench ($exe): ..."
 
-        cargo run --bin som-interpreter-$exe --features=som-gc/stress_test -- -c core-lib/Smalltalk core-lib/Examples/Benchmarks \
+        export RUST_LOG=off
+        cmd_output=$(cargo run --bin som-interpreter-$exe --features=som-gc/stress_test -- -c core-lib/Smalltalk core-lib/Examples/Benchmarks \
           core-lib/Examples/Benchmarks/LanguageFeatures core-lib/Examples/Benchmarks/Json core-lib/Examples/Benchmarks/Richards \
-          core-lib/Examples/Benchmarks/DeltaBlue -- core-lib/Examples/Benchmarks/BenchmarkHarness.som $bench 1 7 &> /dev/null
+          core-lib/Examples/Benchmarks/DeltaBlue -- core-lib/Examples/Benchmarks/BenchmarkHarness.som $bench 1 7)
 
         if [ $? -eq 0 ]; then
             output+="${GREEN}OK${NC}"
         else
             output+="${RED}FAILED${NC}"
+            echo -e "Output from failed benchmark:\n$cmd_output"
         fi
 
         echo -e "$output"

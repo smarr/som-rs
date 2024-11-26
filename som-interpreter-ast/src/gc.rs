@@ -10,6 +10,7 @@ use log::debug;
 use mmtk::util::{Address, ObjectReference};
 use mmtk::vm::{ObjectModel, SlotVisitor};
 use mmtk::Mutator;
+use num_bigint::BigInt;
 use som_gc::gc_interface::{HasTypeInfoForGC, MMTKtoVMCallbacks, BIGINT_MAGIC_ID, STRING_MAGIC_ID, VECU8_MAGIC_ID};
 use som_gc::gcref::Gc;
 use som_gc::object_model::VMObjectModel;
@@ -107,7 +108,7 @@ fn get_roots_in_mutator_thread(_mutator: &mut Mutator<SOMVM>) -> Vec<SOMSlot> {
         debug!("scanning root: current_frame");
         to_process.push(SOMSlot::from_address(Address::from_ref(current_frame_addr)));
 
-        // walk globals (includes core classes)
+        // walk globals (includes core classes, but we also need to move the refs in the CoreClasses class)
         debug!("scanning roots: globals");
         for (_name, val) in UNIVERSE_RAW_PTR_CONST.unwrap().as_ref().globals.iter() {
             if val.is_ptr_type() {
@@ -115,6 +116,9 @@ fn get_roots_in_mutator_thread(_mutator: &mut Mutator<SOMVM>) -> Vec<SOMSlot> {
                 to_process.push(SOMSlot::from_value_ptr(val_ptr))
             }
         }
+
+        debug!("scanning roots: core classes");
+        UNIVERSE_RAW_PTR_CONST.unwrap().as_mut().core.iter().for_each(|cls_ptr| to_process.push(SOMSlot::from(cls_ptr)));
 
         if let Some(frame_args) = FRAME_ARGS_PTR {
             debug!("scanning roots: frame arguments (frame allocation triggered a GC)");
@@ -352,12 +356,49 @@ fn visit_expr(expr: &AstExpression, slot_visitor: &mut dyn SlotVisitor<SOMSlot>)
     }
 }
 
-fn adapt_post_copy(_obj: ObjectReference, _obj2: ObjectReference) {
-    todo!("adapt post copy")
+fn adapt_post_copy(_object: ObjectReference, _original_obj: ObjectReference) {
+    // let gc_id: &AstObjMagicId = unsafe { object.to_raw_address().as_ref() };
+    //
+    // match gc_id {
+    //     AstObjMagicId::Frame => unsafe {
+    //         debug!("adapt_post_copy: frame");
+    //
+    //         let frame: &mut Frame = object.to_raw_address().add(8).as_mut_ref();
+    //         let frame_ptr: Gc<Frame> = Gc::from(object.to_raw_address().add(8));
+    //         let og_frame_ptr: Gc<Frame> = Gc::from(original_obj.to_raw_address());
+    //
+    //         let offset = frame_ptr.ptr as isize - og_frame_ptr.ptr as isize;
+    //         frame.args_ptr = frame.args_ptr.byte_offset(offset);
+    //         frame.locals_ptr = frame.locals_ptr.byte_offset(offset);
+    //
+    //         debug_assert_eq!(og_frame_ptr.lookup_argument(0), frame_ptr.lookup_argument(0));
+    //         if frame.nbr_locals >= 1 {
+    //             debug_assert_eq!(og_frame_ptr.lookup_local(0), frame_ptr.lookup_local(0));
+    //         }
+    //     },
+    //     _ => {}
+    // }
 }
 
-fn get_object_size(_: ObjectReference) -> usize {
-    todo!("get object size")
+fn get_object_size(object: ObjectReference) -> usize {
+    let gc_id: &AstObjMagicId = unsafe { VMObjectModel::ref_to_header(object).as_ref() };
+
+    match gc_id {
+        AstObjMagicId::Frame => unsafe {
+            let frame: &mut Frame = object.to_raw_address().as_mut_ref();
+            Frame::get_true_size(frame.nbr_args, frame.nbr_locals)
+        },
+        AstObjMagicId::Instance => size_of::<Instance>(),
+        AstObjMagicId::String => size_of::<String>(),
+        AstObjMagicId::BigInt => size_of::<BigInt>(),
+        AstObjMagicId::ArrayU8 => size_of::<Vec<u8>>(),
+        AstObjMagicId::AstBlock => size_of::<AstBlock>(),
+        AstObjMagicId::VecAstLiteral => size_of::<VecAstLiteral>(),
+        AstObjMagicId::ArrayVal => size_of::<Vec<Value>>(),
+        AstObjMagicId::Method => size_of::<Method>(),
+        AstObjMagicId::Block => size_of::<Block>(),
+        AstObjMagicId::Class => size_of::<Class>(),
+    }
 }
 
 pub fn get_callbacks_for_gc() -> MMTKtoVMCallbacks {

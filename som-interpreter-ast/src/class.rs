@@ -73,10 +73,7 @@ impl Class {
             instance_locals
         };
 
-        let maybe_static_superclass = match super_class {
-            Some(cls) => Some(cls.class),
-            None => None,
-        };
+        let maybe_static_superclass = super_class.map(|cls| cls.class);
 
         let static_class = Self {
             name: format!("{} class", defn.name),
@@ -194,7 +191,7 @@ impl Class {
         //     self.field_names.insert(0, local_name.clone());
         // }
         for local in class.fields.iter().rev() {
-            self.fields.insert(0, local.clone());
+            self.fields.insert(0, *local);
         }
 
         self.super_class = Some(*class);
@@ -203,7 +200,7 @@ impl Class {
     /// Search for a given method within this class.
     pub fn lookup_method(&self, signature: impl AsRef<str>) -> Option<Gc<Method>> {
         let signature = signature.as_ref();
-        self.methods.get(signature).cloned().or_else(|| self.super_class.clone()?.lookup_method(signature))
+        self.methods.get(signature).cloned().or_else(|| self.super_class?.lookup_method(signature))
     }
 
     /// Search for a local binding.
@@ -230,7 +227,7 @@ impl Class {
         self.field_names
             .iter()
             .position(|field_name| field_name == name)
-            .and_then(|pos| Some(pos + self.super_class.map(|scls| scls.get_total_field_nbr()).unwrap_or(0)))
+            .map(|pos| pos + self.super_class.map(|scls| scls.get_total_field_nbr()).unwrap_or(0))
             .or_else(|| match self.super_class() {
                 Some(super_class) => super_class.get_field_offset_by_name(name),
                 _ => None,
@@ -250,7 +247,7 @@ impl Class {
         self.field_names
             .iter()
             .cloned()
-            .chain(self.super_class.as_ref().map(|scls| scls.get_all_field_names()).unwrap_or_else(|| Vec::new()))
+            .chain(self.super_class.as_ref().map(|scls| scls.get_all_field_names()).unwrap_or_default())
             .collect()
     }
 }

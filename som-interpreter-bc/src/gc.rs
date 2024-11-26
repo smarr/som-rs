@@ -108,17 +108,13 @@ pub fn scan_object<'a>(object: ObjectReference, slot_visitor: &'a mut (dyn SlotV
         match gc_id {
             BCObjMagicId::Frame => {
                 let frame: &mut Frame = object.to_raw_address().as_mut_ref();
-                // eprintln!("frame (method: {})", &frame.current_method.signature);
-
-                // debug!("(frame method is: {})", &frame.current_method.signature);
 
                 if !frame.prev_frame.is_empty() {
                     slot_visitor.visit_slot(SOMSlot::from(&frame.prev_frame));
                 }
 
                 slot_visitor.visit_slot(SOMSlot::from(&frame.current_method));
-
-                slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(&frame.current_context)));
+                slot_visitor.visit_slot(SOMSlot::from(&frame.current_context));
 
                 for i in 0..frame.get_nbr_locals() {
                     let val: &Value = frame.lookup_local(i);
@@ -225,28 +221,7 @@ fn get_roots_in_mutator_thread(_mutator: &mut Mutator<SOMVM>) -> Vec<SOMSlot> {
         }
 
         // we update the core classes in their class also though, to properly move them
-        {
-            let core_classes = &UNIVERSE_RAW_PTR_CONST.unwrap().as_mut().core;
-            to_process.push(SOMSlot::from(&core_classes.class_class));
-            to_process.push(SOMSlot::from(&core_classes.object_class));
-            to_process.push(SOMSlot::from(&core_classes.metaclass_class));
-            to_process.push(SOMSlot::from(&core_classes.nil_class));
-            to_process.push(SOMSlot::from(&core_classes.integer_class));
-            to_process.push(SOMSlot::from(&core_classes.double_class));
-            to_process.push(SOMSlot::from(&core_classes.array_class));
-            to_process.push(SOMSlot::from(&core_classes.method_class));
-            to_process.push(SOMSlot::from(&core_classes.primitive_class));
-            to_process.push(SOMSlot::from(&core_classes.symbol_class));
-            to_process.push(SOMSlot::from(&core_classes.string_class));
-            to_process.push(SOMSlot::from(&core_classes.system_class));
-            to_process.push(SOMSlot::from(&core_classes.block_class));
-            to_process.push(SOMSlot::from(&core_classes.block1_class));
-            to_process.push(SOMSlot::from(&core_classes.block2_class));
-            to_process.push(SOMSlot::from(&core_classes.block3_class));
-            to_process.push(SOMSlot::from(&core_classes.boolean_class));
-            to_process.push(SOMSlot::from(&core_classes.true_class));
-            to_process.push(SOMSlot::from(&core_classes.false_class));
-        }
+        UNIVERSE_RAW_PTR_CONST.unwrap().as_mut().core.iter().for_each(|cls_ptr| to_process.push(SOMSlot::from(cls_ptr)));
 
         if HACK_FRAME_CURRENT_METHOD_PTR.is_some() {
             to_process.push(SOMSlot::from(HACK_FRAME_CURRENT_METHOD_PTR.as_ref().unwrap()));
@@ -271,9 +246,6 @@ fn get_roots_in_mutator_thread(_mutator: &mut Mutator<SOMVM>) -> Vec<SOMSlot> {
 
 fn get_object_size(object: ObjectReference) -> usize {
     let gc_id: &BCObjMagicId = unsafe { VMObjectModel::ref_to_header(object).as_ref() };
-    // let gc_id: &BCObjMagicId = unsafe { object.to_raw_address().as_ref() };
-
-    // dbg!(&gc_id);
 
     let obj_size = {
         match gc_id {

@@ -6,6 +6,7 @@
 pub mod ast;
 /// The SOM bytecode definitions.
 pub mod bytecode;
+pub mod core_classes;
 /// Facilities for string interning.
 pub mod interner;
 /// Shared value representation logic (NaN boxing really)

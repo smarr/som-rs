@@ -20,7 +20,7 @@ pub struct Frame {
     pub prev_frame: Gc<Frame>,
     /// The method the execution context currently is in.
     pub current_method: Gc<Method>, // TODO this should be removed and/or combined with current context
-    pub current_context: *mut MethodEnv,
+    pub current_context: Gc<MethodEnv>,
 
     /// Bytecode index.
     pub bytecode_idx: usize,
@@ -184,7 +184,7 @@ impl Frame {
         Self {
             prev_frame: Gc::default(),
             current_method,
-            current_context: block.blk_info.to_mut_ptr(),
+            current_context: block.blk_info,
             bytecode_idx: 0,
             stack_ptr: std::ptr::null_mut(),
             args_ptr: std::ptr::null_mut(),
@@ -200,7 +200,7 @@ impl Frame {
         match &mut method.kind {
             MethodKind::Defined(env) => Self {
                 prev_frame: Gc::default(),
-                current_context: env.to_mut_ptr(),
+                current_context: *env,
                 current_method: method,
                 bytecode_idx: 0,
                 stack_ptr: std::ptr::null_mut(),
@@ -221,27 +221,27 @@ impl Frame {
 
     #[inline(always)]
     pub fn get_bytecode_ptr(&self) -> *const Vec<Bytecode> {
-        unsafe { &(*self.current_context).body }
+        &self.current_context.body
     }
 
     #[inline(always)]
     pub fn get_max_stack_size(&self) -> usize {
-        unsafe { (*self.current_context).max_stack_size as usize }
+        self.current_context.max_stack_size as usize
     }
 
     #[inline(always)]
     pub fn get_inline_cache(&mut self) -> &mut BodyInlineCache {
-        unsafe { &mut (*self.current_context).inline_cache }
+        &mut self.current_context.inline_cache
     }
 
     #[inline(always)]
     pub fn get_nbr_args(&self) -> usize {
-        unsafe { (*self.current_context).nbr_params + 1 }
+        self.current_context.nbr_params + 1
     }
 
     #[inline(always)]
     pub fn get_nbr_locals(&self) -> usize {
-        unsafe { (*self.current_context).nbr_locals }
+        self.current_context.nbr_locals
     }
 
     /// Get the self value for this frame.
@@ -290,14 +290,9 @@ impl Frame {
         unsafe { *self.args_ptr.add(idx) = value }
     }
 
-    // Don't even need this function. We store a pointer to the bytecode in the interpreter directly.
-    // pub fn get_bytecode(&self, idx: usize) -> Option<Bytecode> {
-    //     self.bytecodes.get(idx).cloned()
-    // }
-
     #[inline(always)]
     pub fn lookup_constant(&self, idx: usize) -> Literal {
-        let literals = unsafe { &(*self.current_context).literals };
+        let literals = &self.current_context.literals;
         match cfg!(debug_assertions) {
             true => literals.get(idx).unwrap().clone(),
             false => unsafe { literals.get_unchecked(idx).clone() },
