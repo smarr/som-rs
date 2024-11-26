@@ -644,7 +644,7 @@ impl GenCtxt for ClassGenCtxt<'_> {
     }
 }
 
-fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::MethodDef, mutator: &mut GCInterface) -> Option<Method> {
+fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::MethodDef, gc_interface: &mut GCInterface) -> Option<Method> {
     /// Only add a ReturnSelf at the end of a method if needed: i.e. there's no existing return, and if there is, that it can't be jumped over.
     fn should_add_return_self(ctxt: &mut MethodGenCtxt, body: &ast::Body) -> bool {
         if body.exprs.is_empty() {
@@ -727,7 +727,7 @@ fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::MethodDef, mutator: &mut 
         ast::MethodBody::Primitive => {}
         ast::MethodBody::Body { body, .. } => {
             for expr in &body.exprs {
-                expr.codegen(&mut ctxt, mutator)?;
+                expr.codegen(&mut ctxt, gc_interface)?;
                 ctxt.push_instr(Bytecode::Pop);
             }
 
@@ -762,7 +762,7 @@ fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::MethodDef, mutator: &mut 
                     }
                 };
 
-                MethodKind::Defined(MethodEnv {
+                MethodKind::Defined(gc_interface.alloc(MethodEnv {
                     body,
                     nbr_locals,
                     nbr_params,
@@ -771,7 +771,7 @@ fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::MethodDef, mutator: &mut 
                     max_stack_size,
                     #[cfg(feature = "frame-debug-info")]
                     block_debug_info: dbg_info,
-                })
+                }))
             }
         },
         holder: Gc::default(),

@@ -118,6 +118,8 @@ pub fn scan_object<'a>(object: ObjectReference, slot_visitor: &'a mut (dyn SlotV
 
                 slot_visitor.visit_slot(SOMSlot::from(&frame.current_method));
 
+                slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(&frame.current_context)));
+
                 for i in 0..frame.get_nbr_locals() {
                     let val: &Value = frame.lookup_local(i);
                     visit_value(val, slot_visitor)
@@ -136,14 +138,12 @@ pub fn scan_object<'a>(object: ObjectReference, slot_visitor: &'a mut (dyn SlotV
                     let stack_val = &*stack_ptr;
                     visit_value(stack_val, slot_visitor)
                 }
-
-                // slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(&frame.literals)));
-                // slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(&frame.bytecodes)));
             }
             BCObjMagicId::Method => {
                 let method: &mut Method = object.to_raw_address().as_mut_ref();
 
                 if let MethodKind::Defined(method_env) = &method.kind {
+                    slot_visitor.visit_slot(SOMSlot::from(method_env));
                     for x in &method_env.literals {
                         visit_literal(x, slot_visitor)
                     }
@@ -312,26 +312,10 @@ fn adapt_post_copy(object: ObjectReference, original_obj: ObjectReference) {
             let frame_ptr: *mut Frame = object.to_raw_address().add(8).to_mut_ptr();
             let og_frame_ptr: *const Frame = original_obj.to_raw_address().to_ptr();
 
-            // TODO: deuglify, trying to be clear because it breaks somehow
-            if frame_ptr as usize > og_frame_ptr as usize {
-                let move_offset = frame_ptr as usize - og_frame_ptr as usize;
-                frame.stack_ptr = frame.stack_ptr.byte_add(move_offset);
-                frame.args_ptr = frame.args_ptr.byte_add(move_offset);
-                frame.locals_ptr = frame.locals_ptr.byte_add(move_offset);
-            } else if og_frame_ptr as usize > frame_ptr as usize {
-                let move_offset = og_frame_ptr as usize - frame_ptr as usize;
-                frame.stack_ptr = frame.stack_ptr.byte_sub(move_offset);
-                frame.args_ptr = frame.args_ptr.byte_sub(move_offset);
-                frame.locals_ptr = frame.locals_ptr.byte_sub(move_offset);
-            } else {
-                panic!("how?")
-            }
-
-            // // TODO: think this breaks when doing a second collection, so I think I'm misusing byte_offset.
-            // let move_offset = frame_ptr.byte_offset_from(og_frame_ptr);
-            // frame.stack_ptr = frame.stack_ptr.byte_offset(move_offset);
-            // frame.args_ptr = frame.args_ptr.byte_offset(move_offset);
-            // frame.locals_ptr = frame.locals_ptr.byte_offset(move_offset);
+            let offset = frame_ptr as isize - og_frame_ptr as isize;
+            frame.stack_ptr = frame.stack_ptr.byte_offset(offset);
+            frame.args_ptr = frame.args_ptr.byte_offset(offset);
+            frame.locals_ptr = frame.locals_ptr.byte_offset(offset);
 
             debug_assert_eq!((*og_frame_ptr).lookup_argument(0), frame.lookup_argument(0));
             if frame.get_nbr_locals() >= 1 {

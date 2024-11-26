@@ -33,7 +33,7 @@ pub struct MethodEnv {
 #[derive(Clone)]
 pub enum MethodKind {
     /// A user-defined method from the AST.
-    Defined(MethodEnv),
+    Defined(Gc<MethodEnv>), // TODO: this should not be a Gc<T>. methods should own their own methodenv.
     /// An interpreter primitive.
     Primitive(&'static PrimitiveFn),
 }
@@ -49,8 +49,8 @@ impl MethodKind {
 #[derive(Clone)]
 pub struct Method {
     pub kind: MethodKind,
-    pub holder: Gc<Class>,
-    pub signature: String,
+    pub holder: Gc<Class>, // TODO: this is static information that belongs in the MethodEnv as well. Note that this might mean Primitive may need its own little env also.
+    pub signature: String, // same
 }
 
 impl Method {

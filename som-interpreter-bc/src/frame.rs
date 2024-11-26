@@ -25,20 +25,14 @@ pub struct Frame {
     /// Bytecode index.
     pub bytecode_idx: usize,
 
-    // pub _nbr_args: usize,
     pub stack_ptr: *mut Value,
     pub args_ptr: *mut Value,
     pub locals_ptr: *mut Value,
 
     /// markers. we don't use them directly. it's mostly a reminder that the struct looks different in memory... not the cleanest but not sure how else to go about it
-    // pub stack_marker: PhantomData<[Value]>,
+    pub stack_marker: PhantomData<[Value]>,
     pub args_marker: PhantomData<[Value]>,
     pub locals_marker: PhantomData<[Value]>,
-    pub stack_marker: PhantomData<[Value]>,
-    // /// The arguments within this frame.
-    // pub args: Vec<Value>,
-    // /// The bindings within this frame.
-    // pub locals: Vec<Value>,
 }
 
 impl Frame {
@@ -206,7 +200,7 @@ impl Frame {
         match &mut method.kind {
             MethodKind::Defined(env) => Self {
                 prev_frame: Gc::default(),
-                current_context: env as *mut MethodEnv,
+                current_context: env.to_mut_ptr(),
                 current_method: method,
                 bytecode_idx: 0,
                 stack_ptr: std::ptr::null_mut(),
