@@ -156,7 +156,8 @@ impl Interpreter {
             // if self.current_frame.lookup_argument(0).as_u64() == 103 {
             //     dbg!("BPBPBP");
             // }
-            // dbg!(bytecode);
+
+            // dbg!(universe.gc_interface.get_nbr_collections());
 
             match bytecode {
                 Bytecode::Dup2 => {

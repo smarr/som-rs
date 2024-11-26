@@ -136,6 +136,9 @@ pub fn scan_object<'a>(object: ObjectReference, slot_visitor: &'a mut (dyn SlotV
                     let stack_val = &*stack_ptr;
                     visit_value(stack_val, slot_visitor)
                 }
+
+                // slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(&frame.literals)));
+                // slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(&frame.bytecodes)));
             }
             BCObjMagicId::Method => {
                 let method: &mut Method = object.to_raw_address().as_mut_ref();
@@ -279,13 +282,7 @@ fn get_object_size(object: ObjectReference) -> usize {
             BCObjMagicId::ArrayU8 => size_of::<Vec<u8>>(),
             BCObjMagicId::Frame => unsafe {
                 let frame: &mut Frame = object.to_raw_address().as_mut_ref();
-
-                let max_stack_size = match &frame.current_method.kind {
-                    MethodKind::Defined(e) => e.max_stack_size as usize,
-                    MethodKind::Primitive(_) => 0,
-                };
-
-                Frame::get_true_size(max_stack_size, frame.nbr_args, frame.nbr_locals)
+                Frame::get_true_size(frame.max_stack_size, frame.nbr_args, frame.nbr_locals)
             },
             BCObjMagicId::BlockInfo => size_of::<BlockInfo>(),
             BCObjMagicId::ArrayVal => size_of::<Vec<Value>>(),
@@ -311,24 +308,34 @@ fn adapt_post_copy(object: ObjectReference, original_obj: ObjectReference) {
         BCObjMagicId::Frame => unsafe {
             debug!("adapt_post_copy: frame");
 
-            let obj_addr = object.to_raw_address().add(8);
-            let frame: &mut Frame = obj_addr.as_mut_ref();
+            let frame: &mut Frame = object.to_raw_address().add(8).as_mut_ref();
+            let frame_ptr: *mut Frame = object.to_raw_address().add(8).to_mut_ptr();
+            let og_frame_ptr: *const Frame = original_obj.to_raw_address().to_ptr();
 
-            let og_frame: *const Frame = original_obj.to_raw_address().to_ptr();
+            // TODO: deuglify, trying to be clear because it breaks somehow
+            if frame_ptr as usize > og_frame_ptr as usize {
+                let move_offset = frame_ptr as usize - og_frame_ptr as usize;
+                frame.stack_ptr = frame.stack_ptr.byte_add(move_offset);
+                frame.args_ptr = frame.args_ptr.byte_add(move_offset);
+                frame.locals_ptr = frame.locals_ptr.byte_add(move_offset);
+            } else if og_frame_ptr as usize > frame_ptr as usize {
+                let move_offset = og_frame_ptr as usize - frame_ptr as usize;
+                frame.stack_ptr = frame.stack_ptr.byte_sub(move_offset);
+                frame.args_ptr = frame.args_ptr.byte_sub(move_offset);
+                frame.locals_ptr = frame.locals_ptr.byte_sub(move_offset);
+            } else {
+                panic!("how?")
+            }
 
-            // let old_stack_len = og_frame.stack_ptr.byte_sub(original_obj.to_raw_address().as_usize()).byte_sub(size_of::<Frame>()) as usize / 8;
+            // // TODO: think this breaks when doing a second collection, so I think I'm misusing byte_offset.
+            // let move_offset = frame_ptr.byte_offset_from(og_frame_ptr);
+            // frame.stack_ptr = frame.stack_ptr.byte_offset(move_offset);
+            // frame.args_ptr = frame.args_ptr.byte_offset(move_offset);
+            // frame.locals_ptr = frame.locals_ptr.byte_offset(move_offset);
 
-            let og_offset_to_stack = (*og_frame).stack_ptr.byte_sub(og_frame as usize) as usize;
-            let og_offset_to_args = (*og_frame).args_ptr.byte_sub(og_frame as usize) as usize;
-            let og_offset_to_locals = (*og_frame).locals_ptr.byte_sub(og_frame as usize) as usize;
-
-            frame.stack_ptr = obj_addr.add(og_offset_to_stack).to_mut_ptr();
-            frame.args_ptr = obj_addr.add(og_offset_to_args).to_mut_ptr();
-            frame.locals_ptr = obj_addr.add(og_offset_to_locals).to_mut_ptr();
-
-            debug_assert_eq!((*og_frame).lookup_argument(0), frame.lookup_argument(0));
+            debug_assert_eq!((*og_frame_ptr).lookup_argument(0), frame.lookup_argument(0));
             if frame.nbr_locals >= 1 {
-                debug_assert_eq!((*og_frame).lookup_local(0), frame.lookup_local(0));
+                debug_assert_eq!((*og_frame_ptr).lookup_local(0), frame.lookup_local(0));
             }
         },
         BCObjMagicId::Instance => unsafe {
