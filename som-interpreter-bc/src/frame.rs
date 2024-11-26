@@ -25,9 +25,7 @@ pub struct Frame {
     /// Bytecode index.
     pub bytecode_idx: usize,
 
-    pub nbr_args: usize, // todo u8 instead?
-    pub nbr_locals: usize,
-
+    // pub _nbr_args: usize,
     pub stack_ptr: *mut Value,
     pub args_ptr: *mut Value,
     pub locals_ptr: *mut Value,
@@ -67,7 +65,7 @@ impl Frame {
 
         frame_ptr.ptr += OBJECT_REF_OFFSET;
         unsafe {
-            *frame_ptr = Frame::from_method(HACK_FRAME_CURRENT_METHOD_PTR.unwrap(), args.len());
+            *frame_ptr = Frame::from_method(HACK_FRAME_CURRENT_METHOD_PTR.unwrap());
         }
         unsafe {
             Frame::init_frame_post_alloc(
@@ -107,8 +105,9 @@ impl Frame {
 
         let max_stack_size = block.blk_info.max_stack_size as usize;
         let nbr_locals = block.blk_info.nbr_locals;
+        let nbr_args = block.blk_info.nbr_params;
 
-        let size = Frame::get_true_size(max_stack_size, args.len(), nbr_locals);
+        let size = Frame::get_true_size(max_stack_size, nbr_locals, nbr_args);
 
         unsafe {
             HACK_FRAME_CURRENT_METHOD_PTR = Some(*current_method);
@@ -135,7 +134,7 @@ impl Frame {
 
         frame_ptr.ptr += OBJECT_REF_OFFSET;
         unsafe {
-            *frame_ptr = Frame::from_block(HACK_FRAME_CURRENT_BLOCK_PTR.unwrap(), args.len(), *current_method);
+            *frame_ptr = Frame::from_block(HACK_FRAME_CURRENT_BLOCK_PTR.unwrap(), *current_method);
         }
         unsafe {
             Frame::init_frame_post_alloc(
@@ -172,13 +171,13 @@ impl Frame {
             // }
 
             frame.args_ptr = frame.stack_ptr.add(stack_size);
-            frame.locals_ptr = frame.args_ptr.add(frame.nbr_args);
+            frame.locals_ptr = frame.args_ptr.add(args.len());
 
             // initializing arguments from the args slice
             std::slice::from_raw_parts_mut(frame.args_ptr, args.len()).copy_from_slice(args);
 
             // setting all locals to NIL.
-            for idx in 0..frame.nbr_locals {
+            for idx in 0..frame.get_nbr_locals() {
                 *frame.locals_ptr.add(idx) = Value::NIL;
             }
 
@@ -187,13 +186,11 @@ impl Frame {
     }
 
     // Creates a frame from a block. Meant to only be called by the alloc_from_block function
-    fn from_block(block: Gc<Block>, nbr_args: usize, current_method: Gc<Method>) -> Self {
+    fn from_block(block: Gc<Block>, current_method: Gc<Method>) -> Self {
         Self {
             prev_frame: Gc::default(),
             current_method,
             current_context: block.blk_info.to_mut_ptr(),
-            nbr_locals: block.blk_info.nbr_locals,
-            nbr_args,
             bytecode_idx: 0,
             stack_ptr: std::ptr::null_mut(),
             args_ptr: std::ptr::null_mut(),
@@ -205,13 +202,11 @@ impl Frame {
     }
 
     // Creates a frame from a block. Meant to only be called by the alloc_from_method function
-    fn from_method(mut method: Gc<Method>, nbr_args: usize) -> Self {
+    fn from_method(mut method: Gc<Method>) -> Self {
         match &mut method.kind {
             MethodKind::Defined(env) => Self {
                 prev_frame: Gc::default(),
-                nbr_locals: env.nbr_locals,
                 current_context: env as *mut MethodEnv,
-                nbr_args,
                 current_method: method,
                 bytecode_idx: 0,
                 stack_ptr: std::ptr::null_mut(),
@@ -243,6 +238,16 @@ impl Frame {
     #[inline(always)]
     pub fn get_inline_cache(&mut self) -> &mut BodyInlineCache {
         unsafe { &mut (*self.current_context).inline_cache }
+    }
+
+    #[inline(always)]
+    pub fn get_nbr_args(&self) -> usize {
+        unsafe { (*self.current_context).nbr_params + 1 }
+    }
+
+    #[inline(always)]
+    pub fn get_nbr_locals(&self) -> usize {
+        unsafe { (*self.current_context).nbr_locals }
     }
 
     /// Get the self value for this frame.
@@ -415,11 +420,11 @@ impl Debug for Frame {
             )
             .field("bc idx", &self.bytecode_idx)
             .field("args", {
-                let args: Vec<String> = (0..self.nbr_args).map(|idx| format!("{:?}", self.lookup_argument(idx))).collect();
+                let args: Vec<String> = (0..self.get_nbr_args()).map(|idx| format!("{:?}", self.lookup_argument(idx))).collect();
                 &format!("[{}]", args.join(", "))
             })
             .field("locals", {
-                let locals: Vec<String> = (0..self.nbr_locals).map(|idx| format!("{:?}", self.lookup_local(idx))).collect();
+                let locals: Vec<String> = (0..self.get_nbr_locals()).map(|idx| format!("{:?}", self.lookup_local(idx))).collect();
                 &format!("[{}]", locals.join(", "))
             })
             .field("stack", unsafe { &stack_printer(self) })

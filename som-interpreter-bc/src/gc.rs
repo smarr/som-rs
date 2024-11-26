@@ -118,12 +118,12 @@ pub fn scan_object<'a>(object: ObjectReference, slot_visitor: &'a mut (dyn SlotV
 
                 slot_visitor.visit_slot(SOMSlot::from(&frame.current_method));
 
-                for i in 0..frame.nbr_locals {
+                for i in 0..frame.get_nbr_locals() {
                     let val: &Value = frame.lookup_local(i);
                     visit_value(val, slot_visitor)
                 }
 
-                for i in 0..frame.nbr_args {
+                for i in 0..frame.get_nbr_args() {
                     let val: &Value = frame.lookup_argument(i);
                     visit_value(val, slot_visitor)
                 }
@@ -282,7 +282,7 @@ fn get_object_size(object: ObjectReference) -> usize {
             BCObjMagicId::ArrayU8 => size_of::<Vec<u8>>(),
             BCObjMagicId::Frame => unsafe {
                 let frame: &mut Frame = object.to_raw_address().as_mut_ref();
-                Frame::get_true_size(frame.get_max_stack_size(), frame.nbr_args, frame.nbr_locals)
+                Frame::get_true_size(frame.get_max_stack_size(), frame.get_nbr_args(), frame.get_nbr_locals())
             },
             BCObjMagicId::MethodOrBlkEnv => size_of::<MethodEnv>(),
             BCObjMagicId::ArrayVal => size_of::<Vec<Value>>(),
@@ -334,7 +334,7 @@ fn adapt_post_copy(object: ObjectReference, original_obj: ObjectReference) {
             // frame.locals_ptr = frame.locals_ptr.byte_offset(move_offset);
 
             debug_assert_eq!((*og_frame_ptr).lookup_argument(0), frame.lookup_argument(0));
-            if frame.nbr_locals >= 1 {
+            if frame.get_nbr_locals() >= 1 {
                 debug_assert_eq!((*og_frame_ptr).lookup_local(0), frame.lookup_local(0));
             }
         },
