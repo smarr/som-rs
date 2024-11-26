@@ -190,6 +190,12 @@ pub fn scan_object<'a>(object: ObjectReference, slot_visitor: &'a mut (dyn SlotV
             }
             BCObjMagicId::MethodOrBlkEnv => {
                 let block_info: &mut MethodEnv = object.to_raw_address().as_mut_ref();
+
+                for (cls_ptr, method_ptr) in block_info.inline_cache.iter().flatten() {
+                    slot_visitor.visit_slot(SOMSlot::from(cls_ptr));
+                    slot_visitor.visit_slot(SOMSlot::from(method_ptr));
+                }
+
                 for lit in &block_info.literals {
                     visit_literal(lit, slot_visitor)
                 }

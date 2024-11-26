@@ -53,9 +53,9 @@ impl Frame {
     //     frame
     // }
 
-    pub fn alloc_new_frame(nbr_locals: u8, mut params: Vec<Value>, prev_frame: Gc<Frame>, gc_interface: &mut GCInterface) -> Gc<Self> {
+    pub fn alloc_new_frame(nbr_locals: u8, mut params: Vec<Value>, prev_frame: &Gc<Frame>, gc_interface: &mut GCInterface) -> Gc<Self> {
         let frame = Self {
-            prev_frame,
+            prev_frame: Gc::default(),
             nbr_locals,
             nbr_args: params.len() as u8,
             params_marker: PhantomData,
@@ -76,6 +76,7 @@ impl Frame {
                 for i in (0..params.len()).rev() {
                     frame_ptr.assign_arg(i as u8, params.pop().unwrap())
                 }
+                frame_ptr.prev_frame = *prev_frame;
             };
         };
         let size = size_of::<Frame>() + ((frame.nbr_args + frame.nbr_locals) as usize * size_of::<Value>());

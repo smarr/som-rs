@@ -7,7 +7,7 @@ use crate::method::{Method, MethodKind};
 use crate::value::Value;
 use crate::{FRAME_ARGS_PTR, UNIVERSE_RAW_PTR_CONST};
 use log::debug;
-use mmtk::util::{Address, ObjectReference};
+use mmtk::util::ObjectReference;
 use mmtk::vm::{ObjectModel, SlotVisitor};
 use mmtk::Mutator;
 use num_bigint::BigInt;
@@ -106,7 +106,7 @@ fn get_roots_in_mutator_thread(_mutator: &mut Mutator<SOMVM>) -> Vec<SOMSlot> {
         // walk the frame list.
         let current_frame_addr = &UNIVERSE_RAW_PTR_CONST.unwrap().as_ref().current_frame;
         debug!("scanning root: current_frame");
-        to_process.push(SOMSlot::from_address(Address::from_ref(current_frame_addr)));
+        to_process.push(SOMSlot::from(current_frame_addr));
 
         // walk globals (includes core classes, but we also need to move the refs in the CoreClasses class)
         debug!("scanning roots: globals");
@@ -146,8 +146,7 @@ pub fn scan_object<'a>(object: ObjectReference, slot_visitor: &'a mut (dyn SlotV
                 let frame: &mut Frame = object.to_raw_address().as_mut_ref();
 
                 if !frame.prev_frame.is_empty() {
-                    let prev_frame_slot_addr = Address::from_ref(&frame.prev_frame);
-                    slot_visitor.visit_slot(SOMSlot::from_address(prev_frame_slot_addr));
+                    slot_visitor.visit_slot(SOMSlot::from(&frame.prev_frame));
                 }
 
                 // ew
@@ -166,14 +165,14 @@ pub fn scan_object<'a>(object: ObjectReference, slot_visitor: &'a mut (dyn SlotV
             AstObjMagicId::Class => {
                 let class: &mut Class = object.to_raw_address().as_mut_ref();
 
-                slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(&class.class)));
+                slot_visitor.visit_slot(SOMSlot::from(&class.class));
 
                 if class.super_class.is_some() {
-                    slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(class.super_class.as_ref().unwrap())));
+                    slot_visitor.visit_slot(SOMSlot::from(class.super_class.as_ref().unwrap()));
                 }
 
                 for (_, method_ref) in class.methods.iter() {
-                    slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(method_ref)))
+                    slot_visitor.visit_slot(SOMSlot::from(method_ref))
                 }
 
                 for field_ref in class.fields.iter() {
@@ -183,14 +182,11 @@ pub fn scan_object<'a>(object: ObjectReference, slot_visitor: &'a mut (dyn SlotV
             AstObjMagicId::Method => {
                 let method: &mut Method = object.to_raw_address().as_mut_ref();
 
-                // TODO we shouldn't need to scan the holder. because we ASSUME that when we encounter a method, we did so through a class.
-                // I'm not sure in what case this isn't valid.
-                slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(&method.holder)));
+                slot_visitor.visit_slot(SOMSlot::from(&method.holder));
 
                 match &method.kind {
-                    MethodKind::Defined(_method_def) => {
-                        // I -think- we don't need to visit expressions here?
-                        for expr in &_method_def.body.exprs {
+                    MethodKind::Defined(method_def) => {
+                        for expr in &method_def.body.exprs {
                             visit_expr(expr, slot_visitor)
                         }
                     }
@@ -202,7 +198,7 @@ pub fn scan_object<'a>(object: ObjectReference, slot_visitor: &'a mut (dyn SlotV
             AstObjMagicId::Instance => {
                 let instance: &mut Instance = object.to_raw_address().as_mut_ref();
 
-                slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(&instance.class)));
+                slot_visitor.visit_slot(SOMSlot::from(&instance.class));
 
                 for val in &instance.fields {
                     visit_value(val, slot_visitor)
@@ -210,8 +206,8 @@ pub fn scan_object<'a>(object: ObjectReference, slot_visitor: &'a mut (dyn SlotV
             }
             AstObjMagicId::Block => {
                 let block: &mut Block = object.to_raw_address().as_mut_ref();
-                slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(&block.frame)));
-                slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(&block.block)));
+                slot_visitor.visit_slot(SOMSlot::from(&block.frame));
+                slot_visitor.visit_slot(SOMSlot::from(&block.block));
             }
             AstObjMagicId::AstBlock => {
                 let ast_block: &mut AstBlock = object.to_raw_address().as_mut_ref();
@@ -219,7 +215,6 @@ pub fn scan_object<'a>(object: ObjectReference, slot_visitor: &'a mut (dyn SlotV
                 for expr in &ast_block.body.exprs {
                     visit_expr(expr, slot_visitor)
                 }
-                // I -think- you don't need to scan expressions, once again.
             }
             AstObjMagicId::VecAstLiteral => {
                 let literal_vec: &mut Vec<AstLiteral> = object.to_raw_address().as_mut_ref();
@@ -247,16 +242,16 @@ fn visit_value<'a>(val: &Value, slot_visitor: &'a mut (dyn SlotVisitor<SOMSlot> 
 
 fn visit_literal(literal: &AstLiteral, slot_visitor: &mut dyn SlotVisitor<SOMSlot>) {
     match &literal {
-        AstLiteral::Symbol(s) | AstLiteral::String(s) => slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(s))),
-        AstLiteral::BigInteger(big_int) => slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(big_int))),
-        AstLiteral::Array(arr) => slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(arr))),
+        AstLiteral::Symbol(s) | AstLiteral::String(s) => slot_visitor.visit_slot(SOMSlot::from(s)),
+        AstLiteral::BigInteger(big_int) => slot_visitor.visit_slot(SOMSlot::from(big_int)),
+        AstLiteral::Array(arr) => slot_visitor.visit_slot(SOMSlot::from(arr)),
         AstLiteral::Double(_) | AstLiteral::Integer(_) => {}
     }
 }
 
 fn visit_expr(expr: &AstExpression, slot_visitor: &mut dyn SlotVisitor<SOMSlot>) {
     match expr {
-        AstExpression::Block(blk) => slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(blk))),
+        AstExpression::Block(blk) => slot_visitor.visit_slot(SOMSlot::from(blk)),
         AstExpression::Literal(lit) => visit_literal(lit, slot_visitor),
         AstExpression::InlinedCall(inlined_node) => match inlined_node.as_ref() {
             InlinedNode::IfInlined(if_inlined) => {
@@ -310,40 +305,40 @@ fn visit_expr(expr: &AstExpression, slot_visitor: &mut dyn SlotVisitor<SOMSlot>)
         | AstExpression::NonLocalVarWrite(_, _, expr) => visit_expr(expr, slot_visitor),
         AstExpression::UnaryDispatch(dispatch) => {
             visit_expr(&dispatch.dispatch_node.receiver, slot_visitor);
-            // if let Some(cache) = dispatch.dispatch_node.inline_cache {
-            //     slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(&cache.0)));
-            //     slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(&cache.1)));
-            // }
+            if let Some(cache) = &dispatch.dispatch_node.inline_cache {
+                slot_visitor.visit_slot(SOMSlot::from(&cache.0));
+                slot_visitor.visit_slot(SOMSlot::from(&cache.1));
+            }
         }
         AstExpression::BinaryDispatch(dispatch) => {
             visit_expr(&dispatch.dispatch_node.receiver, slot_visitor);
-            // if let Some(cache) = dispatch.dispatch_node.inline_cache {
-            //     slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(&cache.0)));
-            //     slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(&cache.1)));
-            // }
+            if let Some(cache) = &dispatch.dispatch_node.inline_cache {
+                slot_visitor.visit_slot(SOMSlot::from(&cache.0));
+                slot_visitor.visit_slot(SOMSlot::from(&cache.1));
+            }
             visit_expr(&dispatch.arg, slot_visitor)
         }
         AstExpression::TernaryDispatch(dispatch) => {
             visit_expr(&dispatch.dispatch_node.receiver, slot_visitor);
-            // if let Some(cache) = dispatch.dispatch_node.inline_cache {
-            //     slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(&cache.0)));
-            //     slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(&cache.1)));
-            // }
+            if let Some(cache) = &dispatch.dispatch_node.inline_cache {
+                slot_visitor.visit_slot(SOMSlot::from(&cache.0));
+                slot_visitor.visit_slot(SOMSlot::from(&cache.1));
+            }
             visit_expr(&dispatch.arg1, slot_visitor);
             visit_expr(&dispatch.arg2, slot_visitor);
         }
         AstExpression::NAryDispatch(dispatch) => {
             visit_expr(&dispatch.dispatch_node.receiver, slot_visitor);
-            // if let Some(cache) = dispatch.dispatch_node.inline_cache {
-            //     slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(&cache.0)));
-            //     slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(&cache.1)));
-            // }
+            if let Some(cache) = &dispatch.dispatch_node.inline_cache {
+                slot_visitor.visit_slot(SOMSlot::from(&cache.0));
+                slot_visitor.visit_slot(SOMSlot::from(&cache.1));
+            }
             for arg in &dispatch.values {
                 visit_expr(arg, slot_visitor);
             }
         }
         AstExpression::SuperMessage(super_message) => {
-            slot_visitor.visit_slot(SOMSlot::from_address(Address::from_ref(&super_message.super_class)));
+            slot_visitor.visit_slot(SOMSlot::from(&super_message.super_class));
             for arg in &super_message.values {
                 visit_expr(arg, slot_visitor);
             }
@@ -356,29 +351,7 @@ fn visit_expr(expr: &AstExpression, slot_visitor: &mut dyn SlotVisitor<SOMSlot>)
     }
 }
 
-fn adapt_post_copy(_object: ObjectReference, _original_obj: ObjectReference) {
-    // let gc_id: &AstObjMagicId = unsafe { object.to_raw_address().as_ref() };
-    //
-    // match gc_id {
-    //     AstObjMagicId::Frame => unsafe {
-    //         debug!("adapt_post_copy: frame");
-    //
-    //         let frame: &mut Frame = object.to_raw_address().add(8).as_mut_ref();
-    //         let frame_ptr: Gc<Frame> = Gc::from(object.to_raw_address().add(8));
-    //         let og_frame_ptr: Gc<Frame> = Gc::from(original_obj.to_raw_address());
-    //
-    //         let offset = frame_ptr.ptr as isize - og_frame_ptr.ptr as isize;
-    //         frame.args_ptr = frame.args_ptr.byte_offset(offset);
-    //         frame.locals_ptr = frame.locals_ptr.byte_offset(offset);
-    //
-    //         debug_assert_eq!(og_frame_ptr.lookup_argument(0), frame_ptr.lookup_argument(0));
-    //         if frame.nbr_locals >= 1 {
-    //             debug_assert_eq!(og_frame_ptr.lookup_local(0), frame_ptr.lookup_local(0));
-    //         }
-    //     },
-    //     _ => {}
-    // }
-}
+fn adapt_post_copy(_object: ObjectReference, _original_obj: ObjectReference) {}
 
 fn get_object_size(object: ObjectReference) -> usize {
     let gc_id: &AstObjMagicId = unsafe { VMObjectModel::ref_to_header(object).as_ref() };

@@ -20,11 +20,6 @@ impl<T> From<&Gc<T>> for SOMSlot {
 }
 
 impl SOMSlot {
-    /// @deprecated
-    pub fn from_address(addr: Address) -> SOMSlot {
-        SOMSlot::Simple(SimpleSlot::from_address(addr))
-    }
-
     /// Turn a pointer to a value type to a slot.
     /// Could be implemented as a `From` impl, but this is clearer
     pub fn from_value_ptr(value: *mut u64) -> SOMSlot {
