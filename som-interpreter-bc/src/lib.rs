@@ -3,6 +3,7 @@
 //!
 
 use crate::block::Block;
+use crate::class::Class;
 use crate::interpreter::Interpreter;
 use crate::method::Method;
 use crate::universe::Universe;
@@ -63,3 +64,6 @@ pub static mut HACK_FRAME_CURRENT_METHOD_PTR: Option<Gc<Method>> = None;
 pub static mut HACK_FRAME_CURRENT_BLOCK_PTR: Option<Gc<Block>> = None;
 /// that one's the ugliest of hacks and we can definitely remove it somehow..
 pub static mut HACK_FRAME_FRAME_ARGS_PTR: Option<Vec<Value>> = None;
+
+/// For instance initializations... we really need to pass pointers by references to primitives...
+pub static mut HACK_INSTANCE_CLASS_PTR: Option<Gc<Class>> = None;

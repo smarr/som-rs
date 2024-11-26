@@ -6,7 +6,8 @@ use crate::instance::Instance;
 use crate::method::{Method, MethodEnv, MethodKind};
 use crate::value::Value;
 use crate::{
-    HACK_FRAME_CURRENT_BLOCK_PTR, HACK_FRAME_CURRENT_METHOD_PTR, HACK_FRAME_FRAME_ARGS_PTR, INTERPRETER_RAW_PTR_CONST, UNIVERSE_RAW_PTR_CONST,
+    HACK_FRAME_CURRENT_BLOCK_PTR, HACK_FRAME_CURRENT_METHOD_PTR, HACK_FRAME_FRAME_ARGS_PTR, HACK_INSTANCE_CLASS_PTR, INTERPRETER_RAW_PTR_CONST,
+    UNIVERSE_RAW_PTR_CONST,
 };
 use core::mem::size_of;
 use log::debug;
@@ -212,6 +213,11 @@ fn get_roots_in_mutator_thread(_mutator: &mut Mutator<SOMVM>) -> Vec<SOMSlot> {
     unsafe {
         let mut to_process: Vec<SOMSlot> = vec![];
 
+        assert!(
+            UNIVERSE_RAW_PTR_CONST.is_some() && INTERPRETER_RAW_PTR_CONST.is_some(),
+            "GC triggered while the system wasn't finished initializing."
+        );
+
         // walk the frame list.
         let current_frame_addr = &INTERPRETER_RAW_PTR_CONST.unwrap().as_ref().current_frame;
         debug!("scanning root: current_frame (method: {})", current_frame_addr.current_method.signature);
@@ -235,6 +241,10 @@ fn get_roots_in_mutator_thread(_mutator: &mut Mutator<SOMVM>) -> Vec<SOMSlot> {
 
         if HACK_FRAME_CURRENT_BLOCK_PTR.is_some() {
             to_process.push(SOMSlot::from(HACK_FRAME_CURRENT_BLOCK_PTR.as_ref().unwrap()));
+        }
+
+        if HACK_INSTANCE_CLASS_PTR.is_some() {
+            to_process.push(SOMSlot::from(HACK_INSTANCE_CLASS_PTR.as_ref().unwrap()));
         }
 
         if HACK_FRAME_FRAME_ARGS_PTR.is_some() {

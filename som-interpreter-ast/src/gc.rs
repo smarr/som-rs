@@ -103,6 +103,11 @@ fn get_roots_in_mutator_thread(_mutator: &mut Mutator<SOMVM>) -> Vec<SOMSlot> {
     unsafe {
         let mut to_process: Vec<SOMSlot> = vec![];
 
+        assert!(
+            UNIVERSE_RAW_PTR_CONST.is_some(),
+            "GC triggered while the system wasn't finished initializing."
+        );
+
         // walk the frame list.
         let current_frame_addr = &UNIVERSE_RAW_PTR_CONST.unwrap().as_ref().current_frame;
         debug!("scanning root: current_frame");

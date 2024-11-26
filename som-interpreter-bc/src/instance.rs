@@ -1,5 +1,6 @@
 use crate::class::Class;
 use crate::value::Value;
+use crate::HACK_INSTANCE_CLASS_PTR;
 use core::mem::size_of;
 use som_gc::gc_interface::GCInterface;
 use som_gc::gcref::Gc;
@@ -20,9 +21,11 @@ impl Instance {
         let nbr_fields = class.get_nbr_fields();
 
         let instance = Self {
-            class,
+            class: Gc::default(),
             fields_ptr: std::ptr::null_mut(),
         };
+
+        unsafe { HACK_INSTANCE_CLASS_PTR = Some(class) }
 
         let post_alloc_closure = |mut instance_ref: Gc<Instance>| {
             unsafe {
@@ -32,6 +35,9 @@ impl Instance {
                     *values_addr = Value::NIL;
                     values_addr = values_addr.wrapping_add(1);
                 }
+
+                instance_ref.class = HACK_INSTANCE_CLASS_PTR.unwrap();
+                HACK_INSTANCE_CLASS_PTR = None;
             };
         };
 
