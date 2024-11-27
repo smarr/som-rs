@@ -636,7 +636,7 @@ fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::MethodDef, gc_interface: 
 
     let method = Method {
         kind: match &defn.body {
-            ast::MethodBody::Primitive => MethodKind::Primitive(&*UNIMPLEM_PRIMITIVE),
+            ast::MethodBody::Primitive => MethodKind::Primitive(&*UNIMPLEM_PRIMITIVE, String::from("")),
             ast::MethodBody::Body { .. } => {
                 // let locals = std::mem::take(&mut ctxt.inner.locals);
                 let nbr_locals = ctxt.inner.locals_nbr;
@@ -645,6 +645,7 @@ fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::MethodDef, gc_interface: 
                 let inline_cache = vec![None; body.len()];
                 #[cfg(feature = "frame-debug-info")]
                 let dbg_info = ctxt.inner.debug_info;
+                let signature = ctxt.signature.clone();
 
                 let max_stack_size = get_max_stack_size(&body);
 
@@ -657,6 +658,7 @@ fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::MethodDef, gc_interface: 
 
                 MethodKind::Defined(gc_interface.alloc(MethodEnv {
                     body,
+                    signature,
                     nbr_locals,
                     nbr_params,
                     literals,
@@ -668,7 +670,6 @@ fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::MethodDef, gc_interface: 
             }
         },
         holder: Gc::default(),
-        signature: ctxt.signature,
     };
 
     // println!("(method) compiled '{}' !", defn.signature);
@@ -715,6 +716,7 @@ fn compile_block(outer: &mut dyn GenCtxt, defn: &ast::Block, gc_interface: &mut 
     //     .collect()
     // };
     let literals = ctxt.literals.into_iter().collect();
+    let signature = String::from("--block--");
     let body = ctxt.body.unwrap_or_default();
     let nbr_locals = ctxt.locals_nbr;
     let nbr_params = ctxt.args_nbr;
@@ -725,6 +727,7 @@ fn compile_block(outer: &mut dyn GenCtxt, defn: &ast::Block, gc_interface: &mut 
         frame,
         blk_info: gc_interface.alloc(MethodEnv {
             nbr_locals,
+            signature,
             literals,
             body,
             nbr_params,
@@ -853,8 +856,7 @@ pub fn compile_class(
             }
 
             let method = Method {
-                signature: signature.to_string(),
-                kind: MethodKind::Primitive(primitive),
+                kind: MethodKind::Primitive(primitive, String::from(signature)),
                 holder: static_class_gc_ptr,
             };
             let signature = static_class_ctxt.interner.intern(signature);
@@ -921,8 +923,7 @@ pub fn compile_class(
             }
 
             let method = Method {
-                signature: signature.to_string(),
-                kind: MethodKind::Primitive(primitive),
+                kind: MethodKind::Primitive(primitive, String::from(signature)),
                 holder: instance_class_gc_ptr,
             };
             let signature = instance_class_ctxt.interner.intern(signature);

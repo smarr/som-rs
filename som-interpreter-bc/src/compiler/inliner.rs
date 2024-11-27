@@ -286,6 +286,7 @@ impl PrimMessageInliner for ast::Message {
         Block {
             frame: orig_block.frame,
             blk_info: gc_interface.alloc(MethodEnv {
+                signature: orig_block.blk_info.signature.clone(),
                 nbr_locals: orig_block.blk_info.nbr_locals,
                 literals: orig_block
                     .blk_info

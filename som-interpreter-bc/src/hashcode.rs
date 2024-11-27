@@ -45,6 +45,6 @@ impl Hash for Method {
     fn hash<H: Hasher>(&self, hasher: &mut H) {
         self.holder.hash(hasher);
         hasher.write(b">>");
-        self.signature.hash(hasher);
+        self.signature().hash(hasher);
     }
 }

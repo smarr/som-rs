@@ -477,8 +477,6 @@ impl Interpreter {
             interpreter.current_frame.bytecode_idx = interpreter.bytecode_idx;
 
             let Some(method) = method else {
-                dbg!(interpreter.current_frame);
-
                 let mut frame_copy = interpreter.current_frame;
                 let args = frame_copy.stack_n_last_elements(nb_params);
                 interpreter.current_frame.remove_n_last_elements(nb_params);
@@ -511,7 +509,7 @@ impl Interpreter {
 
                     interpreter.push_method_frame(method, nb_params + 1, universe.gc_interface);
                 }
-                MethodKind::Primitive(func) => {
+                MethodKind::Primitive(func, _) => {
                     // eprintln!("Invoking prim {:?} (in {:?})", &method.signature, &method.holder.name);
                     func(interpreter, universe)
                         .with_context(|| anyhow::anyhow!("error calling primitive `{}`", universe.lookup_symbol(symbol)))

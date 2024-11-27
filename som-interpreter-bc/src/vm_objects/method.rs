@@ -20,6 +20,7 @@ use crate::vm_objects::block::BodyInlineCache;
 /// The distinction is more pronounced here, since a block object is different than a method object - at the moment - but still
 #[derive(Clone)]
 pub struct MethodEnv {
+    pub signature: String,
     pub literals: Vec<Literal>,
     pub body: Vec<Bytecode>,
     pub inline_cache: BodyInlineCache,
@@ -39,13 +40,13 @@ pub enum MethodKind {
     /// If it's sometimes a pointer into a Method, it has no type header and the GC hates that.
     Defined(Gc<MethodEnv>),
     /// An interpreter primitive.
-    Primitive(&'static PrimitiveFn),
+    Primitive(&'static PrimitiveFn, String),
 }
 
 impl MethodKind {
     /// Whether this invocable is a primitive.
     pub fn is_primitive(&self) -> bool {
-        matches!(self, Self::Primitive(_))
+        matches!(self, Self::Primitive(..))
     }
 }
 
@@ -54,7 +55,6 @@ impl MethodKind {
 pub struct Method {
     pub kind: MethodKind,
     pub holder: Gc<Class>, // TODO: this is static information that belongs in the MethodEnv as well. Note that this might mean Primitive may need its own little env also.
-    pub signature: String, // same
 }
 
 impl Method {
@@ -75,7 +75,10 @@ impl Method {
     }
 
     pub fn signature(&self) -> &str {
-        self.signature.as_str()
+        match &self.kind {
+            MethodKind::Defined(gc) => &gc.signature,
+            MethodKind::Primitive(_, name) => name.as_str(),
+        }
     }
 
     /// Whether this invocable is a primitive.
@@ -96,12 +99,12 @@ impl Invoke for Gc<Method> {
                 frame_args.append(&mut args);
                 interpreter.push_method_frame_with_args(*self, frame_args.as_slice(), universe.gc_interface);
             }
-            MethodKind::Primitive(func) => {
+            MethodKind::Primitive(func, _) => {
                 interpreter.current_frame.stack_push(receiver);
                 for arg in args {
                     interpreter.current_frame.stack_push(arg)
                 }
-                func(interpreter, universe).unwrap_or_else(|_| panic!("invoking func {} failed", &self.signature))
+                func(interpreter, universe).unwrap_or_else(|_| panic!("invoking func {} failed", &self.signature()))
             }
         }
     }
@@ -109,7 +112,7 @@ impl Invoke for Gc<Method> {
 
 impl fmt::Display for Method {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "#{}>>#{} = ", self.holder.name(), self.signature)?;
+        write!(f, "#{}>>#{} = ", self.holder.name(), self.signature())?;
         match &self.kind {
             MethodKind::Defined(env) => {
                 writeln!(f, "(")?;
@@ -191,7 +194,7 @@ impl fmt::Display for Method {
                 }
                 Ok(())
             }
-            MethodKind::Primitive(_) => write!(f, "<primitive>"),
+            MethodKind::Primitive(..) => write!(f, "<primitive>"),
         }
     }
 }

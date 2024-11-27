@@ -222,7 +222,7 @@ fn get_roots_in_mutator_thread(_mutator: &mut Mutator<SOMVM>) -> Vec<SOMSlot> {
 
         // walk the frame list.
         let current_frame_addr = &INTERPRETER_RAW_PTR_CONST.unwrap().as_ref().current_frame;
-        debug!("scanning root: current_frame (method: {})", current_frame_addr.current_method.signature);
+        debug!("scanning root: current_frame (method: {})", current_frame_addr.current_method.signature());
         to_process.push(SOMSlot::from(current_frame_addr));
 
         // walk globals (includes core classes)

@@ -186,7 +186,7 @@ fn dump_class_methods(class: Gc<Class>, opts: &Options, file_stem: &str, univers
 
                 disassemble_method_body(universe, &class, env);
             }
-            MethodKind::Primitive(_) => {
+            MethodKind::Primitive(..) => {
                 println!("{class}>>#{signature} (primitive)", class = file_stem, signature = method.signature(),);
             }
         }
