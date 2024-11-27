@@ -21,7 +21,7 @@ structopt = "0.3.25"
 anyhow = "1.0.51"
 
 # consistently-ordered hashmaps
-indexmap = "1.7.0"
+indexmap = "2.6.0"
 
 # big integers
 num-bigint = "0.4.3"

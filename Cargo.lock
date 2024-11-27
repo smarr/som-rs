@@ -1529,7 +1529,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "indenter",
- "indexmap 1.7.0",
+ "indexmap 2.6.0",
  "jemallocator",
  "log",
  "mmtk",
@@ -1550,7 +1550,7 @@ name = "som-interpreter-bc"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "indexmap 1.7.0",
+ "indexmap 2.6.0",
  "jemallocator",
  "log",
  "measureme",
