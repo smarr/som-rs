@@ -1,26 +1,26 @@
 use crate::block::Block;
-use crate::compiler::MethodCodegen;
-use crate::compiler::{InnerGenCtxt, Literal};
-use crate::inliner::JumpType::{JumpOnFalse, JumpOnTrue};
-use crate::inliner::OrAndChoice::{And, Or};
+use crate::compiler::compile::{InnerGenCtxt, MethodCodegen};
+use crate::compiler::inliner::JumpType::{JumpOnFalse, JumpOnTrue};
+use crate::compiler::inliner::OrAndChoice::{And, Or};
+use crate::compiler::Literal;
 use crate::method::MethodEnv;
 use som_core::ast;
 use som_core::bytecode::Bytecode;
 use som_gc::gc_interface::GCInterface;
 use som_gc::gcref::Gc;
 
-pub enum JumpType {
+pub(crate) enum JumpType {
     JumpOnFalse,
     JumpOnTrue,
 }
 
-pub enum OrAndChoice {
+pub(crate) enum OrAndChoice {
     Or,
     And,
 }
 
 // TODO some of those should return Result types and throw errors instead, most likely.
-pub trait PrimMessageInliner {
+pub(crate) trait PrimMessageInliner {
     /// Starts inlining a function if it's on the list of inlinable functions.
     fn inline_if_possible(&self, ctxt: &mut dyn InnerGenCtxt, mutator: &mut GCInterface) -> Option<()>;
     /// Inlines an expression. If this results in a PushBlock, calls `inline_last_push_block_bc(...)` to inline the block.

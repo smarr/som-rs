@@ -1,6 +1,6 @@
 use crate::block::Block;
 use crate::class::Class;
-use crate::compiler;
+use crate::compiler::compile::compile_class;
 use crate::frame::Frame;
 use crate::gc::{get_callbacks_for_gc, VecValue};
 use crate::interpreter::Interpreter;
@@ -201,7 +201,7 @@ impl Universe {
             };
 
             let mut class =
-                compiler::compile_class(&mut self.interner, &defn, Some(&super_class), self.gc_interface).ok_or_else(|| Error::msg(String::new()))?;
+                compile_class(&mut self.interner, &defn, Some(&super_class), self.gc_interface).ok_or_else(|| Error::msg(String::new()))?;
             set_super_class(&mut class, &super_class, &self.core.metaclass_class);
 
             let symbol = self.intern_symbol(class.name());
@@ -244,7 +244,7 @@ impl Universe {
             if defn.name != class_name {
                 return Err(anyhow!("{}: class name is different from file name.", path.display(),));
             }
-            let class = compiler::compile_class(interner, &defn, None, allocator).ok_or_else(|| Error::msg(String::new()))?;
+            let class = compile_class(interner, &defn, None, allocator).ok_or_else(|| Error::msg(String::new()))?;
 
             return Ok(class);
         }

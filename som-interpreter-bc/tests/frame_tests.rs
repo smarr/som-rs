@@ -1,10 +1,11 @@
 use rstest::{fixture, rstest};
 use som_gc::gcref::Gc;
+use som_interpreter_bc::compiler::compile::compile_class;
 use som_interpreter_bc::frame::Frame;
 use som_interpreter_bc::method::Method;
 use som_interpreter_bc::universe::Universe;
 use som_interpreter_bc::value::Value;
-use som_interpreter_bc::{compiler, UNIVERSE_RAW_PTR_CONST};
+use som_interpreter_bc::UNIVERSE_RAW_PTR_CONST;
 use som_lexer::{Lexer, Token};
 use som_parser::lang;
 use std::cell::OnceCell;
@@ -48,7 +49,7 @@ fn get_method(method_txt: &str, method_name: &str, universe: &mut Universe) -> G
     let class_def = som_parser::apply(lang::class_def(), tokens.as_slice()).unwrap();
 
     let object_class = universe.object_class();
-    let class = compiler::compile_class(&mut universe.interner, &class_def, Some(&object_class), &mut universe.gc_interface);
+    let class = compile_class(&mut universe.interner, &class_def, Some(&object_class), &mut universe.gc_interface);
     assert!(class.is_some(), "could not compile test expression");
 
     class.unwrap().lookup_method(method_name_interned).expect("method not found somehow?")

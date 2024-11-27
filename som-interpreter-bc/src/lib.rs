@@ -36,9 +36,6 @@ pub mod universe;
 /// Facilities for manipulating values.
 pub mod value;
 
-/// Inlining some calls to a select few builtin functions for sizeable perf gains.
-pub mod inliner;
-
 mod convert;
 /// Facilities for profiling the SOM VM during execution.
 #[cfg(feature = "profiler")]

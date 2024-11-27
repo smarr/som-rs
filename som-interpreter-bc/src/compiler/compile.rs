@@ -3,13 +3,13 @@
 //!
 use indexmap::{IndexMap, IndexSet};
 use num_bigint::BigInt;
-use std::hash::{Hash, Hasher};
 use std::str::FromStr;
 
 use crate::block::Block;
 use crate::class::Class;
 #[cfg(not(feature = "inlining-disabled"))]
-use crate::inliner::PrimMessageInliner;
+use crate::compiler::inliner::PrimMessageInliner;
+use crate::compiler::Literal;
 use crate::method::{Method, MethodEnv, MethodKind};
 use crate::primitives;
 use crate::primitives::UNIMPLEM_PRIMITIVE;
@@ -23,86 +23,19 @@ use som_core::interner::{Interned, Interner};
 use som_gc::gc_interface::GCInterface;
 use som_gc::gcref::Gc;
 
-#[derive(Debug, Clone)]
-pub enum Literal {
-    Symbol(Interned),
-    String(Gc<String>),
-    Double(f64),
-    Integer(i32),
-    BigInteger(Gc<BigInt>),
-    Array(Gc<Vec<u8>>),
-    Block(Gc<Block>),
-}
-
-impl PartialEq for Literal {
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Literal::Symbol(val1), Literal::Symbol(val2)) => val1.eq(val2),
-            (Literal::String(val1), Literal::String(val2)) => val1.eq(val2),
-            (Literal::Double(val1), Literal::Double(val2)) => val1.eq(val2),
-            (Literal::Integer(val1), Literal::Integer(val2)) => val1.eq(val2),
-            (Literal::BigInteger(val1), Literal::BigInteger(val2)) => val1.eq(val2),
-            (Literal::Array(val1), Literal::Array(val2)) => val1.eq(val2),
-            (Literal::Block(val1), Literal::Block(val2)) => val1 == val2,
-            _ => false,
-        }
-    }
-}
-
-impl Eq for Literal {}
-
-impl Hash for Literal {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        match self {
-            Literal::Symbol(val) => {
-                state.write(b"sym#");
-                val.hash(state);
-            }
-            Literal::String(val) => {
-                state.write(b"string#");
-                val.hash(state);
-            }
-            Literal::Double(val) => {
-                state.write(b"dbl#");
-                val.to_bits().hash(state);
-            }
-            Literal::Integer(val) => {
-                state.write(b"int#");
-                val.hash(state);
-            }
-            Literal::BigInteger(val) => {
-                state.write(b"bigint#");
-                val.hash(state);
-            }
-            Literal::Array(val) => {
-                state.write(b"array#");
-                val.hash(state);
-            }
-            Literal::Block(val) => {
-                state.write(b"blk");
-                val.hash(state);
-            }
-        }
-    }
-}
-
-pub trait GenCtxt {
+pub(crate) trait GenCtxt {
     fn intern_symbol(&mut self, name: &str) -> Interned;
-    fn lookup_symbol(&self, id: Interned) -> &str;
     fn get_scope(&self) -> usize;
     fn find_field(&mut self, name: &str) -> Option<usize>;
-    fn class_name(&self) -> &str;
 }
 
-pub trait InnerGenCtxt: GenCtxt {
+pub(crate) trait InnerGenCtxt: GenCtxt {
     fn as_gen_ctxt(&mut self) -> &mut dyn GenCtxt;
     fn push_instr(&mut self, instr: Bytecode);
     fn pop_instr(&mut self);
     fn get_instructions(&self) -> &Vec<Bytecode>;
     fn get_nbr_locals(&self) -> usize;
     fn set_nbr_locals(&mut self, nbr_locals: usize);
-    fn get_nbr_args(&self) -> usize;
-    fn set_nbr_args(&mut self, nbr_args: usize);
     fn get_literal(&self, idx: usize) -> Option<&Literal>;
     fn push_literal(&mut self, literal: Literal) -> usize;
     fn remove_literal(&mut self, idx: usize) -> Option<Literal>;
@@ -127,16 +60,8 @@ impl GenCtxt for BlockGenCtxt<'_> {
         self.outer.intern_symbol(name)
     }
 
-    fn lookup_symbol(&self, id: Interned) -> &str {
-        self.outer.lookup_symbol(id)
-    }
-
     fn get_scope(&self) -> usize {
         self.outer.get_scope() + 1
-    }
-
-    fn class_name(&self) -> &str {
-        self.outer.class_name()
     }
 
     fn find_field(&mut self, name: &str) -> Option<usize> {
@@ -203,14 +128,6 @@ impl InnerGenCtxt for BlockGenCtxt<'_> {
 
     fn set_nbr_locals(&mut self, nbr_locals: usize) {
         self.locals_nbr = nbr_locals;
-    }
-
-    fn get_nbr_args(&self) -> usize {
-        self.args_nbr
-    }
-
-    fn set_nbr_args(&mut self, nbr_args: usize) {
-        self.args_nbr = nbr_args
     }
 
     fn remove_dup_popx_pop_sequences(&mut self) {
@@ -321,20 +238,12 @@ impl GenCtxt for MethodGenCtxt<'_> {
         self.inner.intern_symbol(name)
     }
 
-    fn lookup_symbol(&self, id: Interned) -> &str {
-        self.inner.lookup_symbol(id)
-    }
-
     fn get_scope(&self) -> usize {
         0
     }
 
     fn find_field(&mut self, name: &str) -> Option<usize> {
         self.inner.find_field(name)
-    }
-
-    fn class_name(&self) -> &str {
-        self.inner.class_name()
     }
 }
 
@@ -390,17 +299,9 @@ impl InnerGenCtxt for MethodGenCtxt<'_> {
     fn set_nbr_locals(&mut self, nbr_locals: usize) {
         self.inner.set_nbr_locals(nbr_locals)
     }
-
-    fn get_nbr_args(&self) -> usize {
-        self.inner.get_nbr_args()
-    }
-
-    fn set_nbr_args(&mut self, nbr_args: usize) {
-        self.inner.set_nbr_args(nbr_args)
-    }
 }
 
-pub trait MethodCodegen {
+pub(crate) trait MethodCodegen {
     fn codegen(&self, ctxt: &mut dyn InnerGenCtxt, mutator: &mut GCInterface) -> Option<()>;
 }
 
@@ -627,20 +528,12 @@ impl GenCtxt for ClassGenCtxt<'_> {
         self.interner.intern(name)
     }
 
-    fn lookup_symbol(&self, id: Interned) -> &str {
-        self.interner.lookup(id)
-    }
-
     fn get_scope(&self) -> usize {
         unreachable!("Asking for scope in a class generation context?")
     }
 
     fn find_field(&mut self, name: &str) -> Option<usize> {
         self.fields.iter().position(|f_int| self.interner.lookup(*f_int) == name)
-    }
-
-    fn class_name(&self) -> &str {
-        self.name.as_str()
     }
 }
 

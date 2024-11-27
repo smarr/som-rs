@@ -1,10 +1,11 @@
 use rstest::{fixture, rstest};
 use som_gc::gcref::Gc;
+use som_interpreter_bc::compiler::compile::compile_class;
 use som_interpreter_bc::frame::Frame;
 use som_interpreter_bc::interpreter::Interpreter;
 use som_interpreter_bc::universe::Universe;
 use som_interpreter_bc::value::Value;
-use som_interpreter_bc::{compiler, INTERPRETER_RAW_PTR_CONST, UNIVERSE_RAW_PTR_CONST};
+use som_interpreter_bc::{INTERPRETER_RAW_PTR_CONST, UNIVERSE_RAW_PTR_CONST};
 use som_lexer::{Lexer, Token};
 use som_parser::lang;
 use std::cell::OnceCell;
@@ -37,7 +38,7 @@ pub fn universe<'a>() -> &'a mut Universe {
 }
 
 #[rstest]
-fn basic_interpreter_tests(mut universe: &mut Universe) {
+fn basic_interpreter_tests(universe: &mut Universe) {
     let return_class_ptr = universe.load_class("Return").unwrap();
     let compiler_simplification_class_ptr = universe.load_class("CompilerSimplification").unwrap();
 
@@ -129,7 +130,7 @@ fn basic_interpreter_tests(mut universe: &mut Universe) {
         let class_def = som_parser::apply(lang::class_def(), tokens.as_slice()).unwrap();
 
         let object_class = universe.object_class();
-        let class = compiler::compile_class(&mut universe.interner, &class_def, Some(&object_class), &mut universe.gc_interface);
+        let class = compile_class(&mut universe.interner, &class_def, Some(&object_class), universe.gc_interface);
         assert!(class.is_some(), "could not compile test expression");
         let mut class = class.unwrap();
 
@@ -140,9 +141,9 @@ fn basic_interpreter_tests(mut universe: &mut Universe) {
 
         let method = class.lookup_method(method_name).expect("method not found ??");
 
-        let frame = Frame::alloc_from_method(method, &[Value::SYSTEM], &Gc::default(), &mut universe.gc_interface);
+        let frame = Frame::alloc_from_method(method, &[Value::SYSTEM], &Gc::default(), universe.gc_interface);
         let mut interpreter = Interpreter::new(frame);
-        if let Some(output) = interpreter.run(&mut universe) {
+        if let Some(output) = interpreter.run(universe) {
             assert_eq!(&output, expected, "unexpected test output value");
         }
     }
