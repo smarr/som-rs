@@ -564,19 +564,12 @@ fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::MethodDef, gc_interface: 
         }
     }
 
+    let interned_signature = outer.intern_symbol(&defn.signature);
+
     let mut ctxt = MethodGenCtxt {
         signature: defn.signature.clone(),
         inner: BlockGenCtxt {
             outer,
-            // args: {
-            //     let mut args = IndexSet::new();
-            //     args.insert(String::from("self"));
-            //     args
-            // },
-            // locals: match &defn.body {
-            //     ast::MethodBody::Primitive => IndexSet::new(),
-            //     ast::MethodBody::Body { locals, .. } => locals.iter().cloned().collect(),
-            // },
             literals: IndexSet::new(),
             body: None,
             locals_nbr: {
@@ -604,18 +597,6 @@ fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::MethodDef, gc_interface: 
         },
     };
 
-    // match &defn.kind {
-    //     ast::MethodKind::Unary => {}
-    //     ast::MethodKind::Positional { parameters } => {
-    //         for param in parameters {
-    //             ctxt.push_arg(param.clone());
-    //         }
-    //     }
-    //     ast::MethodKind::Operator { rhs } => {
-    //         ctxt.push_arg(rhs.clone());
-    //     }
-    // }
-
     match &defn.body {
         ast::MethodBody::Primitive => {}
         ast::MethodBody::Body { body, .. } => {
@@ -638,7 +619,6 @@ fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::MethodDef, gc_interface: 
         kind: match &defn.body {
             ast::MethodBody::Primitive => MethodKind::Primitive(&*UNIMPLEM_PRIMITIVE),
             ast::MethodBody::Body { .. } => {
-                // let locals = std::mem::take(&mut ctxt.inner.locals);
                 let nbr_locals = ctxt.inner.locals_nbr;
                 let body = ctxt.inner.body.unwrap_or_default();
                 let literals = ctxt.inner.literals.into_iter().collect();
@@ -668,7 +648,7 @@ fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::MethodDef, gc_interface: 
             }
         },
         holder: Gc::default(),
-        signature: ctxt.signature,
+        signature: interned_signature,
     };
 
     // println!("(method) compiled '{}' !", defn.signature);
@@ -853,7 +833,7 @@ pub fn compile_class(
             }
 
             let method = Method {
-                signature: signature.to_string(),
+                signature: symbol,
                 kind: MethodKind::Primitive(primitive),
                 holder: static_class_gc_ptr,
             };
@@ -921,7 +901,7 @@ pub fn compile_class(
             }
 
             let method = Method {
-                signature: signature.to_string(),
+                signature: symbol,
                 kind: MethodKind::Primitive(primitive),
                 holder: instance_class_gc_ptr,
             };

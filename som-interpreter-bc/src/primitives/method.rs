@@ -27,10 +27,10 @@ fn holder(_: &mut Interpreter, _: &mut Universe, invokable: Gc<Method>) -> Resul
     Ok(invokable.holder)
 }
 
-fn signature(_: &mut Interpreter, universe: &mut Universe, invokable: Gc<Method>) -> Result<Interned, Error> {
+fn signature(_: &mut Interpreter, _universe: &mut Universe, invokable: Gc<Method>) -> Result<Interned, Error> {
     const _: &str = "Method>>#signature";
 
-    Ok(universe.intern_symbol(invokable.signature()))
+    Ok(invokable.signature())
 }
 
 fn invoke_on_with(

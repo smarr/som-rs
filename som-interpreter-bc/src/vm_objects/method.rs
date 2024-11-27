@@ -1,6 +1,7 @@
 use std::fmt;
 
 use som_core::bytecode::Bytecode;
+use som_core::interner::Interned;
 
 use crate::compiler::Literal;
 use crate::interpreter::Interpreter;
@@ -54,7 +55,7 @@ impl MethodKind {
 pub struct Method {
     pub kind: MethodKind,
     pub holder: Gc<Class>, // TODO: this is static information that belongs in the MethodEnv as well. Note that this might mean Primitive may need its own little env also.
-    pub signature: String, // same
+    pub signature: Interned, // same
 }
 
 impl Method {
@@ -74,8 +75,8 @@ impl Method {
         &self.holder
     }
 
-    pub fn signature(&self) -> &str {
-        self.signature.as_str()
+    pub fn signature(&self) -> Interned {
+        self.signature
     }
 
     /// Whether this invocable is a primitive.
