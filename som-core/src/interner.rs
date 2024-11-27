@@ -7,7 +7,6 @@
 //!
 
 use std::collections::HashMap;
-use std::fmt::Display;
 use std::mem;
 
 /// An interned string.
@@ -15,14 +14,6 @@ use std::mem;
 /// This is fast to move, clone and compare.
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
 pub struct Interned(pub u32);
-
-/// A bit of a hack... Ideally, we never try to print an interned (since what we really want is its
-/// associated string), and this can be removed. TODO: do just that.
-impl Display for Interned {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!("Interned({})", self.0))
-    }
-}
 
 /// A string interner.
 ///
