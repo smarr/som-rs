@@ -14,7 +14,7 @@ use crate::value::Value;
 use crate::vm_objects::block::Block;
 use crate::vm_objects::class::Class;
 use crate::vm_objects::instance::Instance;
-use crate::vm_objects::method::Method;
+use crate::vm_objects::method::MethodOrPrim;
 use num_bigint::BigInt;
 use som_core::interner::Interned;
 use som_gc::gc_interface::GCInterface;
@@ -225,7 +225,7 @@ impl FromArgs for Gc<Block> {
     }
 }
 
-impl FromArgs for Gc<Method> {
+impl FromArgs for Gc<MethodOrPrim> {
     fn from_args(interpreter: &mut Interpreter, _: &mut Universe) -> Result<Self, Error> {
         let arg = interpreter.current_frame.stack_pop();
         arg.as_invokable().context("could not resolve `Value` as `Method`")
@@ -292,7 +292,7 @@ impl IntoValue for Gc<Block> {
     }
 }
 
-impl IntoValue for Gc<Method> {
+impl IntoValue for Gc<MethodOrPrim> {
     fn into_value(&self, _: &mut GCInterface) -> Value {
         Value::Invokable(*self)
     }

@@ -4,9 +4,9 @@ use crate::compiler::Literal;
 use crate::universe::Universe;
 use crate::vm_objects::block::Block;
 use crate::vm_objects::class::Class;
-use crate::vm_objects::method::MethodEnv;
+use crate::vm_objects::method::Method;
 
-pub fn disassemble_method_body(universe: &Universe, class: &Class, env: &MethodEnv) {
+pub fn disassemble_method_body(universe: &Universe, class: &Class, env: &Method) {
     disassemble_body(universe, class, 1, &mut vec![env]);
     #[cfg(not(feature = "frame-debug-info"))]
     eprintln!("------- Used disassembler without debug symbols. While it could be possible, it's likely not desired. -------");
@@ -166,7 +166,7 @@ trait FrameEnv {
     fn resolve_argument(&self, idx: u8) -> String;
 }
 
-impl FrameEnv for MethodEnv {
+impl FrameEnv for Method {
     fn get_body(&self) -> &[Bytecode] {
         &self.body
     }

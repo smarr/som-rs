@@ -3,7 +3,7 @@ use crate::universe::Universe;
 use crate::vm_objects::block::Block;
 use crate::vm_objects::class::Class;
 use crate::vm_objects::instance::Instance;
-use crate::vm_objects::method::Method;
+use crate::vm_objects::method::MethodOrPrim;
 use num_bigint::BigInt;
 use som_core::delegate_to_base_value;
 use som_core::interner::Interned;
@@ -97,7 +97,7 @@ impl Value {
     }
     /// Returns a new invocable value.
     #[inline(always)]
-    pub fn new_invokable(value: Gc<Method>) -> Self {
+    pub fn new_invokable(value: Gc<MethodOrPrim>) -> Self {
         BaseValue::new(INVOKABLE_TAG, u64::from(value)).into()
     }
 
@@ -150,7 +150,7 @@ impl Value {
     }
     /// Returns this value as an invocable, if such is its type.
     #[inline(always)]
-    pub fn as_invokable(self) -> Option<Gc<Method>> {
+    pub fn as_invokable(self) -> Option<Gc<MethodOrPrim>> {
         self.is_invocable().then(|| self.extract_gc_cell())
     }
 
@@ -186,7 +186,7 @@ impl Value {
     }
 
     /// Search for a given method for this value.
-    pub fn lookup_method(&self, universe: &Universe, signature: Interned) -> Option<Gc<Method>> {
+    pub fn lookup_method(&self, universe: &Universe, signature: Interned) -> Option<Gc<MethodOrPrim>> {
         self.class(universe).lookup_method(signature)
     }
 
@@ -224,7 +224,7 @@ impl Value {
             CLASS_TAG => self.as_class().unwrap().name().to_string(),
             INVOKABLE_TAG => {
                 let invokable = self.as_invokable().unwrap();
-                format!("{}>>#{}", invokable.holder.name(), invokable.signature(),)
+                format!("{}>>#{}", invokable.holder().name(), invokable.signature(),)
             }
             _ => {
                 panic!("unknown tag")
@@ -257,7 +257,7 @@ impl Value {
     }
 
     #[inline(always)]
-    pub fn Invokable(value: Gc<Method>) -> Self {
+    pub fn Invokable(value: Gc<MethodOrPrim>) -> Self {
         Value::new_invokable(value)
     }
 }
@@ -379,7 +379,7 @@ pub enum ValueEnum {
     /// A bare class object.
     Class(Gc<Class>),
     /// A bare invokable.
-    Invokable(Gc<Method>),
+    Invokable(Gc<MethodOrPrim>),
 }
 
 impl ValueEnum {
@@ -405,7 +405,7 @@ impl ValueEnum {
 
     /// Search for a given method for this value.
     #[inline(always)]
-    pub fn lookup_method(&self, universe: &Universe, signature: Interned) -> Option<Gc<Method>> {
+    pub fn lookup_method(&self, universe: &Universe, signature: Interned) -> Option<Gc<MethodOrPrim>> {
         self.class(universe).lookup_method(signature)
     }
 
@@ -504,7 +504,7 @@ impl fmt::Debug for ValueEnum {
             Self::Instance(val) => f.debug_tuple("Instance").field(&val).finish(),
             Self::Class(val) => f.debug_tuple("Class").field(&val).finish(),
             Self::Invokable(val) => {
-                let signature = format!("{}>>#{}", val.holder.name(), val.signature());
+                let signature = format!("{}>>#{}", val.holder().name(), val.signature());
                 f.debug_tuple("Invokable").field(&signature).finish()
             }
         }
@@ -654,7 +654,7 @@ impl ValueEnum {
     }
     /// Returns this value as an invocable, if such is its type.
     #[inline(always)]
-    pub fn as_invokable(&self) -> Option<Gc<Method>> {
+    pub fn as_invokable(&self) -> Option<Gc<MethodOrPrim>> {
         if let Self::Invokable(v) = self {
             Some(*v)
         } else {
@@ -778,7 +778,7 @@ impl ValueEnum {
     }
     /// Returns a new invocable value.
     #[inline(always)]
-    pub fn new_invokable(value: Gc<Method>) -> Self {
+    pub fn new_invokable(value: Gc<MethodOrPrim>) -> Self {
         ValueEnum::Invokable(value)
     }
 }

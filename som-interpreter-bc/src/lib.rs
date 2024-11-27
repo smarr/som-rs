@@ -9,7 +9,7 @@ use crate::vm_objects::block::Block;
 use som_gc::gcref::Gc;
 use std::ptr::NonNull;
 use vm_objects::class::Class;
-use vm_objects::method::Method;
+use vm_objects::method::MethodOrPrim;
 
 /// VM objects.
 pub mod vm_objects;
@@ -43,7 +43,7 @@ pub static mut INTERPRETER_RAW_PTR_CONST: Option<NonNull<Interpreter>> = None;
 
 /// Hack! at the moment, we pass a copied reference to a class' method when allocating a frame. When GC triggers from a frame allocation, that pointer isn't a root and doesn't get moved.
 /// So we're storing a reference to it. Better solution: just push it on the stack. Or TODO, we might be able to pass a pointer to it through functions.
-pub static mut HACK_FRAME_CURRENT_METHOD_PTR: Option<Gc<Method>> = None;
+pub static mut HACK_FRAME_CURRENT_METHOD_PTR: Option<Gc<MethodOrPrim>> = None;
 /// that one's a true hack, and avoidable also.
 pub static mut HACK_FRAME_CURRENT_BLOCK_PTR: Option<Gc<Block>> = None;
 /// that one's the ugliest of hacks and we can definitely remove it somehow..

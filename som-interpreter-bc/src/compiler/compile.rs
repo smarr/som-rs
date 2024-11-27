@@ -13,7 +13,7 @@ use crate::primitives::UNIMPLEM_PRIMITIVE;
 use crate::value::Value;
 use crate::vm_objects::block::Block;
 use crate::vm_objects::class::Class;
-use crate::vm_objects::method::{Method, MethodEnv, MethodKind};
+use crate::vm_objects::method::{Method, MethodOrPrim};
 use som_core::ast;
 #[cfg(feature = "frame-debug-info")]
 use som_core::ast::BlockDebugInfo;
@@ -519,7 +519,7 @@ impl MethodCodegen for ast::Expression {
 struct ClassGenCtxt<'a> {
     pub name: String,
     pub fields: IndexSet<Interned>,
-    pub methods: IndexMap<Interned, Gc<Method>>,
+    pub methods: IndexMap<Interned, Gc<MethodOrPrim>>,
     pub interner: &'a mut Interner,
 }
 
@@ -537,7 +537,7 @@ impl GenCtxt for ClassGenCtxt<'_> {
     }
 }
 
-fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::MethodDef, gc_interface: &mut GCInterface) -> Option<Method> {
+fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::MethodDef, gc_interface: &mut GCInterface) -> Option<MethodOrPrim> {
     /// Only add a ReturnSelf at the end of a method if needed: i.e. there's no existing return, and if there is, that it can't be jumped over.
     fn should_add_return_self(ctxt: &mut MethodGenCtxt, body: &ast::Body) -> bool {
         if body.exprs.is_empty() {
@@ -634,9 +634,9 @@ fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::MethodDef, gc_interface: 
         }
     }
 
-    let method = Method {
-        kind: match &defn.body {
-            ast::MethodBody::Primitive => MethodKind::Primitive(&*UNIMPLEM_PRIMITIVE, String::from("")),
+    let method = {
+        match &defn.body {
+            ast::MethodBody::Primitive => MethodOrPrim::Primitive(&*UNIMPLEM_PRIMITIVE, String::from(""), Gc::default()),
             ast::MethodBody::Body { .. } => {
                 // let locals = std::mem::take(&mut ctxt.inner.locals);
                 let nbr_locals = ctxt.inner.locals_nbr;
@@ -656,8 +656,9 @@ fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::MethodDef, gc_interface: 
                     }
                 };
 
-                MethodKind::Defined(gc_interface.alloc(MethodEnv {
+                MethodOrPrim::Defined(gc_interface.alloc(Method {
                     body,
+                    holder: Gc::default(),
                     signature,
                     nbr_locals,
                     nbr_params,
@@ -668,8 +669,7 @@ fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::MethodDef, gc_interface: 
                     block_debug_info: dbg_info,
                 }))
             }
-        },
-        holder: Gc::default(),
+        }
     };
 
     // println!("(method) compiled '{}' !", defn.signature);
@@ -725,9 +725,10 @@ fn compile_block(outer: &mut dyn GenCtxt, defn: &ast::Block, gc_interface: &mut 
 
     let block = Block {
         frame,
-        blk_info: gc_interface.alloc(MethodEnv {
+        blk_info: gc_interface.alloc(Method {
             nbr_locals,
             signature,
+            holder: Gc::default(),
             literals,
             body,
             nbr_params,
@@ -844,7 +845,7 @@ pub fn compile_class(
     for method in &defn.static_methods {
         let signature = static_class_ctxt.interner.intern(method.signature.as_str());
         let mut method = compile_method(&mut static_class_ctxt, method, gc_interface)?;
-        method.holder = static_class_gc_ptr;
+        method.set_holder(static_class_gc_ptr);
         static_class_ctxt.methods.insert(signature, gc_interface.alloc(method));
     }
 
@@ -855,10 +856,8 @@ pub fn compile_class(
                 eprintln!("Warning: Primitive '{}' is not in class definition for class '{}'", signature, defn.name);
             }
 
-            let method = Method {
-                kind: MethodKind::Primitive(primitive, String::from(signature)),
-                holder: static_class_gc_ptr,
-            };
+            let method = MethodOrPrim::Primitive(primitive, String::from(signature), static_class_gc_ptr);
+
             let signature = static_class_ctxt.interner.intern(signature);
             static_class_ctxt.methods.insert(signature, gc_interface.alloc(method));
         }
@@ -911,7 +910,7 @@ pub fn compile_class(
     for method in &defn.instance_methods {
         let signature = instance_class_ctxt.interner.intern(method.signature.as_str());
         let mut method = compile_method(&mut instance_class_ctxt, method, gc_interface)?;
-        method.holder = instance_class_gc_ptr;
+        method.set_holder(instance_class_gc_ptr);
         instance_class_ctxt.methods.insert(signature, gc_interface.alloc(method));
     }
 
@@ -922,10 +921,7 @@ pub fn compile_class(
                 eprintln!("Warning: Primitive '{}' is not in class definition for class '{}'", signature, defn.name);
             }
 
-            let method = Method {
-                kind: MethodKind::Primitive(primitive, String::from(signature)),
-                holder: instance_class_gc_ptr,
-            };
+            let method = MethodOrPrim::Primitive(primitive, String::from(signature), instance_class_gc_ptr);
             let signature = instance_class_ctxt.interner.intern(signature);
             instance_class_ctxt.methods.insert(signature, gc_interface.alloc(method));
         }

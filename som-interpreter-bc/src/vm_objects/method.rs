@@ -15,12 +15,11 @@ use som_gc::gcref::Gc;
 
 use crate::vm_objects::block::BodyInlineCache;
 
-/// Data for a method, or importantly, a block.
-/// Blocks being treated the same as methods is something we do in all our other interpreters, if I'm not mistaken.
-/// The distinction is more pronounced here, since a block object is different than a method object - at the moment - but still
+/// Data for a method, or a block.
 #[derive(Clone)]
-pub struct MethodEnv {
+pub struct Method {
     pub signature: String,
+    pub holder: Gc<Class>,
     pub literals: Vec<Literal>,
     pub body: Vec<Bytecode>,
     pub inline_cache: BodyInlineCache,
@@ -31,33 +30,48 @@ pub struct MethodEnv {
     pub block_debug_info: BlockDebugInfo,
 }
 
-/// The kind of a class method.
+/// Represents a class method.
 #[derive(Clone)]
-pub enum MethodKind {
+pub enum MethodOrPrim {
     /// A user-defined method from the AST.
     /// TODO: this should not be a Gc<T>. methods should own their own methodenv. But this isn't a slowdown as is, to be fair.
     /// Why is it a Gc<MethodEnv>? Because the frame keeps a pointer to the current env, and if it's always a Gc<MethodEnv>, it can be scanned by the GC.
     /// If it's sometimes a pointer into a Method, it has no type header and the GC hates that.
-    Defined(Gc<MethodEnv>),
+    Defined(Gc<Method>),
     /// An interpreter primitive.
-    Primitive(&'static PrimitiveFn, String),
+    Primitive(&'static PrimitiveFn, String, Gc<Class>),
 }
 
-impl MethodKind {
+impl MethodOrPrim {
     /// Whether this invocable is a primitive.
     pub fn is_primitive(&self) -> bool {
         matches!(self, Self::Primitive(..))
     }
+
+    pub fn holder(&self) -> &Gc<Class> {
+        match &self {
+            MethodOrPrim::Defined(env) => &env.holder,
+            MethodOrPrim::Primitive(_, _, holder) => holder,
+        }
+    }
+
+    /// Used during initialization.
+    pub fn set_holder(&mut self, holder_ptr: Gc<Class>) {
+        match self {
+            MethodOrPrim::Defined(env) => env.holder = holder_ptr,
+            MethodOrPrim::Primitive(_, _, c) => *c = holder_ptr,
+        }
+    }
+
+    pub fn get_env(&self) -> Gc<Method> {
+        match self {
+            MethodOrPrim::Defined(env) => *env,
+            MethodOrPrim::Primitive(_, _, _) => panic!("requesting method metadata from primitive"),
+        }
+    }
 }
 
-/// Represents a class method.
-#[derive(Clone)]
-pub struct Method {
-    pub kind: MethodKind,
-    pub holder: Gc<Class>, // TODO: this is static information that belongs in the MethodEnv as well. Note that this might mean Primitive may need its own little env also.
-}
-
-impl Method {
+impl MethodOrPrim {
     pub fn class(&self, universe: &Universe) -> Gc<Class> {
         if self.is_primitive() {
             universe.primitive_class()
@@ -66,24 +80,11 @@ impl Method {
         }
     }
 
-    pub fn kind(&self) -> &MethodKind {
-        &self.kind
-    }
-
-    pub fn holder(&self) -> &Gc<Class> {
-        &self.holder
-    }
-
     pub fn signature(&self) -> &str {
-        match &self.kind {
-            MethodKind::Defined(gc) => &gc.signature,
-            MethodKind::Primitive(_, name) => name.as_str(),
+        match &self {
+            MethodOrPrim::Defined(gc) => &gc.signature,
+            MethodOrPrim::Primitive(_, name, _) => name.as_str(),
         }
-    }
-
-    /// Whether this invocable is a primitive.
-    pub fn is_primitive(&self) -> bool {
-        self.kind.is_primitive()
     }
 }
 
@@ -91,15 +92,15 @@ pub trait Invoke {
     fn invoke(&self, interpreter: &mut Interpreter, universe: &mut Universe, receiver: Value, args: Vec<Value>);
 }
 
-impl Invoke for Gc<Method> {
+impl Invoke for Gc<MethodOrPrim> {
     fn invoke(&self, interpreter: &mut Interpreter, universe: &mut Universe, receiver: Value, mut args: Vec<Value>) {
-        match self.kind() {
-            MethodKind::Defined(_) => {
+        match &**self {
+            MethodOrPrim::Defined(_) => {
                 let mut frame_args = vec![receiver];
                 frame_args.append(&mut args);
                 interpreter.push_method_frame_with_args(*self, frame_args.as_slice(), universe.gc_interface);
             }
-            MethodKind::Primitive(func, _) => {
+            MethodOrPrim::Primitive(func, ..) => {
                 interpreter.current_frame.stack_push(receiver);
                 for arg in args {
                     interpreter.current_frame.stack_push(arg)
@@ -110,11 +111,11 @@ impl Invoke for Gc<Method> {
     }
 }
 
-impl fmt::Display for Method {
+impl fmt::Display for MethodOrPrim {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "#{}>>#{} = ", self.holder.name(), self.signature())?;
-        match &self.kind {
-            MethodKind::Defined(env) => {
+        write!(f, "#{}>>#{} = ", self.holder().name(), self.signature())?;
+        match &self {
+            MethodOrPrim::Defined(env) => {
                 writeln!(f, "(")?;
                 write!(f, "    <{} locals>", env.nbr_locals)?;
                 for bytecode in &env.body {
@@ -194,7 +195,7 @@ impl fmt::Display for Method {
                 }
                 Ok(())
             }
-            MethodKind::Primitive(..) => write!(f, "<primitive>"),
+            MethodOrPrim::Primitive(..) => write!(f, "<primitive>"),
         }
     }
 }

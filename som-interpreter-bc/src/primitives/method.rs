@@ -6,7 +6,7 @@ use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
 use crate::value::Value;
 use crate::vm_objects::class::Class;
-use crate::vm_objects::method::{Invoke, Method};
+use crate::vm_objects::method::{Invoke, MethodOrPrim};
 use anyhow::Error;
 use once_cell::sync::Lazy;
 use som_core::interner::Interned;
@@ -21,13 +21,13 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
 });
 pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([]));
 
-fn holder(_: &mut Interpreter, _: &mut Universe, invokable: Gc<Method>) -> Result<Gc<Class>, Error> {
+fn holder(_: &mut Interpreter, _: &mut Universe, invokable: Gc<MethodOrPrim>) -> Result<Gc<Class>, Error> {
     const _: &str = "Method>>#holder";
 
-    Ok(invokable.holder)
+    Ok(*invokable.holder())
 }
 
-fn signature(_: &mut Interpreter, universe: &mut Universe, invokable: Gc<Method>) -> Result<Interned, Error> {
+fn signature(_: &mut Interpreter, universe: &mut Universe, invokable: Gc<MethodOrPrim>) -> Result<Interned, Error> {
     const _: &str = "Method>>#signature";
 
     Ok(universe.intern_symbol(invokable.signature()))
@@ -36,7 +36,7 @@ fn signature(_: &mut Interpreter, universe: &mut Universe, invokable: Gc<Method>
 fn invoke_on_with(
     interpreter: &mut Interpreter,
     universe: &mut Universe,
-    invokable: Gc<Method>,
+    invokable: Gc<MethodOrPrim>,
     receiver: Value,
     arguments: Gc<VecValue>,
 ) -> Result<(), Error> {

@@ -2,7 +2,7 @@ use crate::compiler::Literal;
 use crate::value::Value;
 use crate::vm_objects::block::{Block, BodyInlineCache};
 use crate::vm_objects::class::Class;
-use crate::vm_objects::method::{Method, MethodEnv, MethodKind};
+use crate::vm_objects::method::{Method, MethodOrPrim};
 use crate::{HACK_FRAME_CURRENT_BLOCK_PTR, HACK_FRAME_CURRENT_METHOD_PTR, HACK_FRAME_FRAME_ARGS_PTR};
 use core::mem::size_of;
 use som_core::bytecode::Bytecode;
@@ -19,8 +19,7 @@ pub struct Frame {
     /// The previous frame. Frames are handled as a linked list
     pub prev_frame: Gc<Frame>,
     /// The method the execution context currently is in.
-    pub current_method: Gc<Method>, // TODO this should be removed and/or combined with current context
-    pub current_context: Gc<MethodEnv>,
+    pub current_context: Gc<Method>,
 
     /// Bytecode index.
     pub bytecode_idx: usize,
@@ -36,9 +35,9 @@ pub struct Frame {
 }
 
 impl Frame {
-    pub fn alloc_from_method(method: Gc<Method>, args: &[Value], prev_frame: &Gc<Frame>, gc_interface: &mut GCInterface) -> Gc<Frame> {
-        let (max_stack_size, nbr_locals) = match &method.kind {
-            MethodKind::Defined(m_env) => (m_env.max_stack_size as usize, m_env.nbr_locals),
+    pub fn alloc_from_method(method: Gc<MethodOrPrim>, args: &[Value], prev_frame: &Gc<Frame>, gc_interface: &mut GCInterface) -> Gc<Frame> {
+        let (max_stack_size, nbr_locals) = match &*method {
+            MethodOrPrim::Defined(m_env) => (m_env.max_stack_size as usize, m_env.nbr_locals),
             _ => unreachable!("if we're allocating a method frame, it has to be defined."),
         };
 
@@ -59,7 +58,7 @@ impl Frame {
 
         frame_ptr.ptr += OBJECT_REF_OFFSET;
         unsafe {
-            *frame_ptr = Frame::from_method(HACK_FRAME_CURRENT_METHOD_PTR.unwrap());
+            *frame_ptr = Frame::from_method(HACK_FRAME_CURRENT_METHOD_PTR.unwrap().get_env());
         }
         unsafe {
             Frame::init_frame_post_alloc(
@@ -72,7 +71,6 @@ impl Frame {
         // Frame::init_frame_post_alloc(frame_ptr, args, max_stack_size, *prev_frame);
 
         unsafe {
-            frame_ptr.current_method = HACK_FRAME_CURRENT_METHOD_PTR.unwrap();
             HACK_FRAME_CURRENT_METHOD_PTR = None;
             HACK_FRAME_FRAME_ARGS_PTR = None;
         }
@@ -80,13 +78,7 @@ impl Frame {
         frame_ptr
     }
 
-    pub fn alloc_from_block(
-        block: Gc<Block>,
-        args: &[Value],
-        current_method: &Gc<Method>,
-        prev_frame: &Gc<Frame>,
-        gc_interface: &mut GCInterface,
-    ) -> Gc<Frame> {
+    pub fn alloc_from_block(block: Gc<Block>, args: &[Value], prev_frame: &Gc<Frame>, gc_interface: &mut GCInterface) -> Gc<Frame> {
         // let frame = Frame::from_block(block, args.len(), *current_method);
         // let max_stack_size = block.blk_info.max_stack_size as usize;
         // let size = frame.get_true_size(max_stack_size);
@@ -104,7 +96,7 @@ impl Frame {
         let size = Frame::get_true_size(max_stack_size, nbr_locals, nbr_args);
 
         unsafe {
-            HACK_FRAME_CURRENT_METHOD_PTR = Some(*current_method);
+            // HACK_FRAME_CURRENT_METHOD_PTR = Some(*current_method);
             HACK_FRAME_CURRENT_BLOCK_PTR = Some(block);
             HACK_FRAME_FRAME_ARGS_PTR = Some(Vec::from(args));
         }
@@ -128,7 +120,7 @@ impl Frame {
 
         frame_ptr.ptr += OBJECT_REF_OFFSET;
         unsafe {
-            *frame_ptr = Frame::from_block(HACK_FRAME_CURRENT_BLOCK_PTR.unwrap(), *current_method);
+            *frame_ptr = Frame::from_block(HACK_FRAME_CURRENT_BLOCK_PTR.unwrap());
         }
         unsafe {
             Frame::init_frame_post_alloc(
@@ -140,8 +132,7 @@ impl Frame {
         }
 
         unsafe {
-            frame_ptr.current_method = HACK_FRAME_CURRENT_METHOD_PTR.unwrap();
-            HACK_FRAME_CURRENT_METHOD_PTR = None;
+            // HACK_FRAME_CURRENT_METHOD_PTR = None;
             HACK_FRAME_CURRENT_BLOCK_PTR = None;
             HACK_FRAME_FRAME_ARGS_PTR = None;
         }
@@ -180,10 +171,9 @@ impl Frame {
     }
 
     // Creates a frame from a block. Meant to only be called by the alloc_from_block function
-    fn from_block(block: Gc<Block>, current_method: Gc<Method>) -> Self {
+    fn from_block(block: Gc<Block>) -> Self {
         Self {
             prev_frame: Gc::default(),
-            current_method,
             current_context: block.blk_info,
             bytecode_idx: 0,
             stack_ptr: std::ptr::null_mut(),
@@ -196,21 +186,17 @@ impl Frame {
     }
 
     // Creates a frame from a block. Meant to only be called by the alloc_from_method function
-    fn from_method(mut method: Gc<Method>) -> Self {
-        match &mut method.kind {
-            MethodKind::Defined(env) => Self {
-                prev_frame: Gc::default(),
-                current_context: *env,
-                current_method: method,
-                bytecode_idx: 0,
-                stack_ptr: std::ptr::null_mut(),
-                args_ptr: std::ptr::null_mut(),
-                locals_ptr: std::ptr::null_mut(),
-                args_marker: PhantomData,
-                locals_marker: PhantomData,
-                stack_marker: PhantomData,
-            },
-            _ => unreachable!(),
+    fn from_method(method: Gc<Method>) -> Self {
+        Self {
+            prev_frame: Gc::default(),
+            current_context: method,
+            bytecode_idx: 0,
+            stack_ptr: std::ptr::null_mut(),
+            args_ptr: std::ptr::null_mut(),
+            locals_ptr: std::ptr::null_mut(),
+            args_marker: PhantomData,
+            locals_marker: PhantomData,
+            stack_marker: PhantomData,
         }
     }
 
@@ -263,7 +249,7 @@ impl Frame {
                 let block_frame = b.frame.as_ref().unwrap();
                 block_frame.get_method_holder()
             }
-            None => self.current_method.holder,
+            None => self.current_context.holder,
         }
     }
 
@@ -405,7 +391,7 @@ impl Debug for Frame {
         f.debug_struct("Frame")
             .field(
                 "current method",
-                &format!("{}::>{}", self.current_method.holder.name(), self.current_method.signature()),
+                &format!("{}::>{}", self.current_context.holder.name(), self.current_context.signature),
             )
             .field("bc idx", &self.bytecode_idx)
             .field("args", {

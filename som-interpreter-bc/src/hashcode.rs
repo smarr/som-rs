@@ -3,7 +3,7 @@ use std::hash::{Hash, Hasher};
 use crate::vm_objects::block::Block;
 use crate::vm_objects::class::Class;
 use crate::vm_objects::instance::Instance;
-use crate::vm_objects::method::Method;
+use crate::vm_objects::method::MethodOrPrim;
 
 // impl Hash for ValueEnum {
 //     fn hash<H: Hasher>(&self, hasher: &mut H) {
@@ -41,9 +41,9 @@ impl Hash for Block {
     }
 }
 
-impl Hash for Method {
+impl Hash for MethodOrPrim {
     fn hash<H: Hasher>(&self, hasher: &mut H) {
-        self.holder.hash(hasher);
+        self.holder().hash(hasher);
         hasher.write(b">>");
         self.signature().hash(hasher);
     }

@@ -3,7 +3,7 @@ use crate::compiler::inliner::JumpType::{JumpOnFalse, JumpOnTrue};
 use crate::compiler::inliner::OrAndChoice::{And, Or};
 use crate::compiler::Literal;
 use crate::vm_objects::block::Block;
-use crate::vm_objects::method::MethodEnv;
+use crate::vm_objects::method::Method;
 use som_core::ast;
 use som_core::bytecode::Bytecode;
 use som_gc::gc_interface::GCInterface;
@@ -28,7 +28,7 @@ pub(crate) trait PrimMessageInliner {
     /// Gets the last bytecode, assumes it to be a PushBlock, removes it and inlines the block - a set of operations for which there is a redundant need.
     fn inline_last_push_block_bc(&self, ctxt: &mut dyn InnerGenCtxt, mutator: &mut GCInterface) -> Option<()>;
     /// Inlines a compiled block into the current scope.
-    fn inline_compiled_block(&self, ctxt: &mut dyn InnerGenCtxt, block: &MethodEnv, mutator: &mut GCInterface) -> Option<()>;
+    fn inline_compiled_block(&self, ctxt: &mut dyn InnerGenCtxt, block: &Method, mutator: &mut GCInterface) -> Option<()>;
     /// When inlining a block, adapt its potential children blocks to account for the inlining changes.
     fn adapt_block_after_outer_inlined(&self, block_body: Gc<Block>, adjust_scope_by: usize, mutator: &mut GCInterface) -> Block;
     /// Inlines `ifTrue:` and `ifFalse:`.
@@ -87,7 +87,7 @@ impl PrimMessageInliner for ast::Message {
         }
     }
 
-    fn inline_compiled_block(&self, ctxt: &mut dyn InnerGenCtxt, block: &MethodEnv, gc_interface: &mut GCInterface) -> Option<()> {
+    fn inline_compiled_block(&self, ctxt: &mut dyn InnerGenCtxt, block: &Method, gc_interface: &mut GCInterface) -> Option<()> {
         let nbr_locals_pre_inlining = ctxt.get_nbr_locals() as u8;
         let nbr_args_pre_inlining = block.nbr_params as u8;
 
@@ -285,7 +285,8 @@ impl PrimMessageInliner for ast::Message {
         // TODO: we now pass a mutable pointer to a Block actually, so this is all avoidable!
         Block {
             frame: orig_block.frame,
-            blk_info: gc_interface.alloc(MethodEnv {
+            blk_info: gc_interface.alloc(Method {
+                holder: orig_block.blk_info.holder,
                 signature: orig_block.blk_info.signature.clone(),
                 nbr_locals: orig_block.blk_info.nbr_locals,
                 literals: orig_block

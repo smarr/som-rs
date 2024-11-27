@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 use som_interpreter_bc::compiler::compile::compile_class;
 use som_interpreter_bc::universe::Universe;
-use som_interpreter_bc::vm_objects::method::MethodKind;
+use som_interpreter_bc::vm_objects::method::MethodOrPrim;
 use som_lexer::{Lexer, Token};
 use som_parser::lang;
 
@@ -34,8 +34,8 @@ fn get_bytecodes_from_method(class_txt: &str, method_name: &str) -> Vec<Bytecode
     let class = class.unwrap();
     let method = class.lookup_method(method_name_interned).expect("method not found ??");
 
-    match &method.kind {
-        MethodKind::Defined(m) => m.body.clone(),
+    match &*method {
+        MethodOrPrim::Defined(m) => m.body.clone(),
         _ => unreachable!(),
     }
 }

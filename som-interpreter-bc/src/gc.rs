@@ -4,7 +4,7 @@ use crate::vm_objects::block::Block;
 use crate::vm_objects::class::Class;
 use crate::vm_objects::frame::Frame;
 use crate::vm_objects::instance::Instance;
-use crate::vm_objects::method::{Method, MethodEnv, MethodKind};
+use crate::vm_objects::method::{Method, MethodOrPrim};
 use crate::{
     HACK_FRAME_CURRENT_BLOCK_PTR, HACK_FRAME_CURRENT_METHOD_PTR, HACK_FRAME_FRAME_ARGS_PTR, HACK_INSTANCE_CLASS_PTR, INTERPRETER_RAW_PTR_CONST,
     UNIVERSE_RAW_PTR_CONST,
@@ -44,7 +44,7 @@ impl HasTypeInfoForGC for VecValue {
     }
 }
 
-impl HasTypeInfoForGC for MethodEnv {
+impl HasTypeInfoForGC for Method {
     fn get_magic_gc_id() -> u8 {
         BCObjMagicId::MethodOrBlkEnv as u8
     }
@@ -56,7 +56,7 @@ impl HasTypeInfoForGC for Instance {
     }
 }
 
-impl HasTypeInfoForGC for Method {
+impl HasTypeInfoForGC for MethodOrPrim {
     fn get_magic_gc_id() -> u8 {
         BCObjMagicId::Method as u8
     }
@@ -116,7 +116,6 @@ pub fn scan_object<'a>(object: ObjectReference, slot_visitor: &'a mut (dyn SlotV
                     slot_visitor.visit_slot(SOMSlot::from(&frame.prev_frame));
                 }
 
-                slot_visitor.visit_slot(SOMSlot::from(&frame.current_method));
                 slot_visitor.visit_slot(SOMSlot::from(&frame.current_context));
 
                 for i in 0..frame.get_nbr_locals() {
@@ -139,16 +138,16 @@ pub fn scan_object<'a>(object: ObjectReference, slot_visitor: &'a mut (dyn SlotV
                 }
             }
             BCObjMagicId::Method => {
-                let method: &mut Method = object.to_raw_address().as_mut_ref();
+                let method: &mut MethodOrPrim = object.to_raw_address().as_mut_ref();
 
-                if let MethodKind::Defined(method_env) = &method.kind {
+                if let MethodOrPrim::Defined(method_env) = &method {
                     slot_visitor.visit_slot(SOMSlot::from(method_env));
                     for x in &method_env.literals {
                         visit_literal(x, slot_visitor)
                     }
                 }
 
-                slot_visitor.visit_slot(SOMSlot::from(&method.holder))
+                slot_visitor.visit_slot(SOMSlot::from(method.holder()))
             }
             BCObjMagicId::Class => {
                 let class: &mut Class = object.to_raw_address().as_mut_ref();
@@ -192,7 +191,7 @@ pub fn scan_object<'a>(object: ObjectReference, slot_visitor: &'a mut (dyn SlotV
                 }
             }
             BCObjMagicId::MethodOrBlkEnv => {
-                let block_info: &mut MethodEnv = object.to_raw_address().as_mut_ref();
+                let block_info: &mut Method = object.to_raw_address().as_mut_ref();
 
                 for (cls_ptr, method_ptr) in block_info.inline_cache.iter().flatten() {
                     slot_visitor.visit_slot(SOMSlot::from(cls_ptr));
@@ -222,7 +221,7 @@ fn get_roots_in_mutator_thread(_mutator: &mut Mutator<SOMVM>) -> Vec<SOMSlot> {
 
         // walk the frame list.
         let current_frame_addr = &INTERPRETER_RAW_PTR_CONST.unwrap().as_ref().current_frame;
-        debug!("scanning root: current_frame (method: {})", current_frame_addr.current_method.signature());
+        debug!("scanning root: current_frame (method: {})", current_frame_addr.current_context.signature);
         to_process.push(SOMSlot::from(current_frame_addr));
 
         // walk globals (includes core classes)
@@ -273,9 +272,9 @@ fn get_object_size(object: ObjectReference) -> usize {
                 let frame: &mut Frame = object.to_raw_address().as_mut_ref();
                 Frame::get_true_size(frame.get_max_stack_size(), frame.get_nbr_args(), frame.get_nbr_locals())
             },
-            BCObjMagicId::MethodOrBlkEnv => size_of::<MethodEnv>(),
+            BCObjMagicId::MethodOrBlkEnv => size_of::<Method>(),
             BCObjMagicId::ArrayVal => size_of::<Vec<Value>>(),
-            BCObjMagicId::Method => size_of::<Method>(),
+            BCObjMagicId::Method => size_of::<MethodOrPrim>(),
             BCObjMagicId::Block => size_of::<Block>(),
             BCObjMagicId::Class => size_of::<Class>(),
             BCObjMagicId::Instance => unsafe {

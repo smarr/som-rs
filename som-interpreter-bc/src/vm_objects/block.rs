@@ -1,11 +1,11 @@
 use crate::universe::Universe;
 use crate::vm_objects::class::Class;
 use crate::vm_objects::frame::Frame;
-use crate::vm_objects::method::{Method, MethodEnv};
+use crate::vm_objects::method::{Method, MethodOrPrim};
 use som_gc::gcref::Gc;
 use std::fmt;
 
-pub type BodyInlineCache = Vec<Option<(Gc<Class>, Gc<Method>)>>;
+pub type BodyInlineCache = Vec<Option<(Gc<Class>, Gc<MethodOrPrim>)>>;
 
 /// Represents an executable block.
 #[derive(Clone)]
@@ -13,7 +13,7 @@ pub struct Block {
     /// Reference to the captured stack frame.
     pub frame: Option<Gc<Frame>>,
     /// Block environment needed for execution, e.g. the block's bytecodes, literals, number of locals...
-    pub blk_info: Gc<MethodEnv>,
+    pub blk_info: Gc<Method>,
 }
 
 impl Block {
@@ -42,7 +42,7 @@ impl fmt::Debug for Block {
     }
 }
 
-impl fmt::Debug for MethodEnv {
+impl fmt::Debug for Method {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("BlockInfo")
             .field("nbr_locals", &self.nbr_locals)
