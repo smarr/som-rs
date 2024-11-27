@@ -1,12 +1,12 @@
-use crate::class::Class;
 use crate::convert::Primitive;
 use crate::gc::VecValue;
-use crate::instance::Instance;
 use crate::interpreter::Interpreter;
 use crate::primitives::PrimInfo;
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
 use crate::value::Value;
+use crate::vm_objects::class::Class;
+use crate::vm_objects::instance::Instance;
 use anyhow::Error;
 use once_cell::sync::Lazy;
 use som_core::interner::Interned;

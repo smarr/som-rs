@@ -4,12 +4,12 @@ use std::io;
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
-use crate::block::Block;
-use crate::class::Class;
-use crate::frame::{Frame, FrameAccess};
 use crate::gc::{get_callbacks_for_gc, VecValue};
 use crate::invokable::{Invoke, Return};
 use crate::value::Value;
+use crate::vm_objects::block::Block;
+use crate::vm_objects::class::Class;
+use crate::vm_objects::frame::{Frame, FrameAccess};
 use anyhow::{anyhow, Error};
 use som_core::core_classes::CoreClasses;
 use som_core::interner::{Interned, Interner};

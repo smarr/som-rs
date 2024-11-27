@@ -6,15 +6,15 @@ use std::convert::TryFrom;
 
 use anyhow::{bail, Context, Error};
 
-use crate::block::Block;
-use crate::class::Class;
 use crate::gc::VecValue;
-use crate::instance::Instance;
 use crate::interpreter::Interpreter;
-use crate::method::Method;
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
 use crate::value::Value;
+use crate::vm_objects::block::Block;
+use crate::vm_objects::class::Class;
+use crate::vm_objects::instance::Instance;
+use crate::vm_objects::method::Method;
 use num_bigint::BigInt;
 use som_core::interner::Interned;
 use som_gc::gc_interface::GCInterface;

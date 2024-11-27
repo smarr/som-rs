@@ -2,17 +2,18 @@ use std::fmt;
 
 use som_core::bytecode::Bytecode;
 
-use crate::block::BodyInlineCache;
-use crate::class::Class;
 use crate::compiler::Literal;
 use crate::interpreter::Interpreter;
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
 use crate::value::Value;
+use crate::vm_objects::class::Class;
 
 #[cfg(feature = "frame-debug-info")]
 use som_core::ast::BlockDebugInfo;
 use som_gc::gcref::Gc;
+
+use crate::vm_objects::block::BodyInlineCache;
 
 /// Data for a method, or importantly, a block.
 /// Blocks being treated the same as methods is something we do in all our other interpreters, if I'm not mistaken.

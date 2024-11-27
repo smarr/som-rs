@@ -1,8 +1,8 @@
-use crate::block::Block;
 use crate::evaluate::Evaluate;
 use crate::invokable::{Invoke, Return};
 use crate::universe::Universe;
 use crate::value::Value;
+use crate::vm_objects::block::Block;
 use som_gc::gcref::Gc;
 
 #[derive(Debug, Clone, PartialEq)]

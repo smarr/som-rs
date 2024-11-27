@@ -5,15 +5,15 @@ use indexmap::{IndexMap, IndexSet};
 use num_bigint::BigInt;
 use std::str::FromStr;
 
-use crate::block::Block;
-use crate::class::Class;
 #[cfg(not(feature = "inlining-disabled"))]
 use crate::compiler::inliner::PrimMessageInliner;
 use crate::compiler::Literal;
-use crate::method::{Method, MethodEnv, MethodKind};
 use crate::primitives;
 use crate::primitives::UNIMPLEM_PRIMITIVE;
 use crate::value::Value;
+use crate::vm_objects::block::Block;
+use crate::vm_objects::class::Class;
+use crate::vm_objects::method::{Method, MethodEnv, MethodKind};
 use som_core::ast;
 #[cfg(feature = "frame-debug-info")]
 use som_core::ast::BlockDebugInfo;

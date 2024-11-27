@@ -1,10 +1,10 @@
-use crate::block::Block;
-use crate::class::Class;
 use crate::compiler::Literal;
-use crate::frame::Frame;
-use crate::instance::Instance;
-use crate::method::{Method, MethodEnv, MethodKind};
 use crate::value::Value;
+use crate::vm_objects::block::Block;
+use crate::vm_objects::class::Class;
+use crate::vm_objects::frame::Frame;
+use crate::vm_objects::instance::Instance;
+use crate::vm_objects::method::{Method, MethodEnv, MethodKind};
 use crate::{
     HACK_FRAME_CURRENT_BLOCK_PTR, HACK_FRAME_CURRENT_METHOD_PTR, HACK_FRAME_FRAME_ARGS_PTR, HACK_INSTANCE_CLASS_PTR, INTERPRETER_RAW_PTR_CONST,
     UNIVERSE_RAW_PTR_CONST,

@@ -2,7 +2,6 @@ use std::convert::TryInto;
 use std::fs;
 use std::io::Write;
 
-use crate::class::Class;
 use crate::convert::{Nil, Primitive, StringLike, System};
 use crate::gc::VecValue;
 use crate::interpreter::Interpreter;
@@ -10,6 +9,7 @@ use crate::primitives::PrimInfo;
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
 use crate::value::Value;
+use crate::vm_objects::class::Class;
 use anyhow::{Context, Error};
 use once_cell::sync::Lazy;
 use som_core::interner::Interned;

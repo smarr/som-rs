@@ -1,8 +1,8 @@
 use crate::evaluate::Evaluate;
-use crate::frame::Frame;
-use crate::method::{Method, MethodKind, MethodKindSpecialized};
 use crate::universe::Universe;
 use crate::value::Value;
+use crate::vm_objects::frame::Frame;
+use crate::vm_objects::method::{Method, MethodKind, MethodKindSpecialized};
 use som_gc::gcref::Gc;
 
 /// Represents the kinds of possible returns from an invocation.

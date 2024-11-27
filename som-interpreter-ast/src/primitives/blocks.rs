@@ -8,9 +8,9 @@ use once_cell::sync::Lazy;
 /// Primitives for the **Block** and **Block1** class.
 pub mod block1 {
     use super::*;
-    use crate::block::Block;
     use crate::convert::Primitive;
     use crate::evaluate::Evaluate;
+    use crate::vm_objects::block::Block;
     use anyhow::Error;
     use som_gc::gcref::Gc;
 
@@ -43,9 +43,9 @@ pub mod block1 {
 /// Primitives for the **Block2** class.
 pub mod block2 {
     use super::*;
-    use crate::block::Block;
     use crate::convert::Primitive;
     use crate::evaluate::Evaluate;
+    use crate::vm_objects::block::Block;
     use anyhow::Error;
     use som_gc::gcref::Gc;
 
@@ -72,9 +72,9 @@ pub mod block2 {
 /// Primitives for the **Block3** class.
 pub mod block3 {
     use super::*;
-    use crate::block::Block;
     use crate::convert::Primitive;
     use crate::evaluate::Evaluate;
+    use crate::vm_objects::block::Block;
     use anyhow::Error;
     use som_gc::gcref::Gc;
 

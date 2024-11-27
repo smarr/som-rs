@@ -2,12 +2,12 @@ use crate::ast::{
     AstBinaryDispatch, AstBlock, AstBody, AstDispatchNode, AstExpression, AstLiteral, AstMethodDef, AstNAryDispatch, AstSuperMessage, AstTerm,
     AstTernaryDispatch, AstUnaryDispatch, InlinedNode,
 };
-use crate::block::Block;
-use crate::frame::{Frame, FrameAccess};
 use crate::gc::VecValue;
 use crate::invokable::{Invoke, Return};
-use crate::method::Method;
 use crate::universe::Universe;
+use crate::vm_objects::block::Block;
+use crate::vm_objects::frame::{Frame, FrameAccess};
+use crate::vm_objects::method::Method;
 use crate::Value;
 use som_gc::gcref::Gc;
 

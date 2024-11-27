@@ -1,8 +1,8 @@
-use crate::block::{Block, BodyInlineCache};
-use crate::class::Class;
 use crate::compiler::Literal;
-use crate::method::{Method, MethodEnv, MethodKind};
 use crate::value::Value;
+use crate::vm_objects::block::{Block, BodyInlineCache};
+use crate::vm_objects::class::Class;
+use crate::vm_objects::method::{Method, MethodEnv, MethodKind};
 use crate::{HACK_FRAME_CURRENT_BLOCK_PTR, HACK_FRAME_CURRENT_METHOD_PTR, HACK_FRAME_FRAME_ARGS_PTR};
 use core::mem::size_of;
 use som_core::bytecode::Bytecode;

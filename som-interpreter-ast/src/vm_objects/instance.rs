@@ -1,5 +1,5 @@
-use crate::class::Class;
 use crate::value::Value;
+use crate::vm_objects::class::Class;
 use som_gc::gcref::Gc;
 use std::fmt;
 

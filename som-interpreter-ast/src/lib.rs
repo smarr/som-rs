@@ -19,29 +19,21 @@ macro_rules! propagate {
 pub mod ast;
 /// Generates the AST
 pub mod compiler;
-/// Inlining specific messages, such as control flow.
-pub mod inliner;
-
-/// Facilities for manipulating blocks.
-pub mod block;
-/// Facilities for manipulating classes.
-pub mod class;
 /// Facilities for evaluating nodes and expressions.
 pub mod evaluate;
-/// Facilities for manipulating stack frames.
-pub mod frame;
 /// Facilities for manipulating values.
 pub mod hashcode;
-/// Facilities for manipulating class instances.
-pub mod instance;
+/// Inlining specific messages, such as control flow.
+pub mod inliner;
 /// Facilities for invoking methods and/or primitives.
 pub mod invokable;
-/// Facilities for manipulating class methods.
-pub mod method;
 /// Definitions for all supported primitives.
 pub mod primitives;
 /// The interpreter's main data structure.
 pub mod universe;
+
+/// VM-specific objects.
+pub mod vm_objects;
 
 mod convert;
 /// To interact with the GC.

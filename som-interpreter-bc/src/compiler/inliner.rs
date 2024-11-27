@@ -1,9 +1,9 @@
-use crate::block::Block;
 use crate::compiler::compile::{InnerGenCtxt, MethodCodegen};
 use crate::compiler::inliner::JumpType::{JumpOnFalse, JumpOnTrue};
 use crate::compiler::inliner::OrAndChoice::{And, Or};
 use crate::compiler::Literal;
-use crate::method::MethodEnv;
+use crate::vm_objects::block::Block;
+use crate::vm_objects::method::MethodEnv;
 use som_core::ast;
 use som_core::bytecode::Bytecode;
 use som_gc::gc_interface::GCInterface;

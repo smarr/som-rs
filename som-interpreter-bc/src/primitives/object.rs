@@ -2,15 +2,15 @@ use std::collections::hash_map::DefaultHasher;
 use std::convert::{TryFrom, TryInto};
 use std::hash::{Hash, Hasher};
 
-use crate::class::Class;
 use crate::convert::Primitive;
 use crate::gc::VecValue;
 use crate::interpreter::Interpreter;
-use crate::method::Invoke;
 use crate::primitives::PrimInfo;
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
 use crate::value::Value;
+use crate::vm_objects::class::Class;
+use crate::vm_objects::method::Invoke;
 use anyhow::{Context, Error};
 use once_cell::sync::Lazy;
 use som_core::interner::Interned;

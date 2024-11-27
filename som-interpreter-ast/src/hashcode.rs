@@ -1,9 +1,9 @@
 use std::hash::{Hash, Hasher};
 
-use crate::block::Block;
-use crate::class::Class;
-use crate::instance::Instance;
-use crate::method::Method;
+use crate::vm_objects::block::Block;
+use crate::vm_objects::class::Class;
+use crate::vm_objects::instance::Instance;
+use crate::vm_objects::method::Method;
 
 // impl Hash for Value {
 //     fn hash<H: Hasher>(&self, hasher: &mut H) {

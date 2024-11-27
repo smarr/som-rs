@@ -1,9 +1,9 @@
-use crate::block::Block;
-use crate::class::Class;
 use crate::gc::VecValue;
-use crate::instance::Instance;
-use crate::method::Method;
 use crate::universe::Universe;
+use crate::vm_objects::block::Block;
+use crate::vm_objects::class::Class;
+use crate::vm_objects::instance::Instance;
+use crate::vm_objects::method::Method;
 use num_bigint::BigInt;
 use som_core::delegate_to_base_value;
 use som_core::interner::Interned;

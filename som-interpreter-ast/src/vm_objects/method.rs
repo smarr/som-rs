@@ -1,5 +1,4 @@
 use crate::ast::AstMethodDef;
-use crate::class::Class;
 use crate::primitives::PrimitiveFn;
 use crate::specialized::down_to_do_node::DownToDoNode;
 use crate::specialized::if_node::IfNode;
@@ -9,6 +8,7 @@ use crate::specialized::to_do_node::ToDoNode;
 use crate::specialized::trivial_methods::{TrivialGetterMethod, TrivialGlobalMethod, TrivialLiteralMethod, TrivialSetterMethod};
 use crate::specialized::while_node::WhileNode;
 use crate::universe::Universe;
+use crate::vm_objects::class::Class;
 use som_gc::gcref::Gc;
 use std::fmt::{Debug, Formatter};
 

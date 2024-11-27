@@ -1,12 +1,12 @@
 use anyhow::Error;
 use once_cell::sync::Lazy;
 
-use crate::block::Block;
 use crate::convert::Primitive;
 use crate::interpreter::Interpreter;
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
 use crate::value::Value;
+use crate::vm_objects::block::Block;
 
 use crate::primitives::PrimInfo;
 

@@ -1,11 +1,11 @@
 use super::PrimInfo;
-use crate::class::Class;
 use crate::convert::Primitive;
 use crate::gc::VecValue;
-use crate::instance::Instance;
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
 use crate::value::Value;
+use crate::vm_objects::class::Class;
+use crate::vm_objects::instance::Instance;
 use anyhow::Error;
 use once_cell::sync::Lazy;
 use som_gc::gcref::Gc;

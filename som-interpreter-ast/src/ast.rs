@@ -1,12 +1,12 @@
-use crate::class::Class;
 use crate::gc::VecAstLiteral;
-use crate::method::Method;
 use crate::specialized::inlined::and_inlined_node::AndInlinedNode;
 use crate::specialized::inlined::if_inlined_node::IfInlinedNode;
 use crate::specialized::inlined::if_true_if_false_inlined_node::IfTrueIfFalseInlinedNode;
 use crate::specialized::inlined::or_inlined_node::OrInlinedNode;
 use crate::specialized::inlined::to_do_inlined_node::ToDoInlinedNode;
 use crate::specialized::inlined::while_inlined_node::WhileInlinedNode;
+use crate::vm_objects::class::Class;
+use crate::vm_objects::method::Method;
 use indenter::indented;
 use num_bigint::BigInt;
 use som_gc::gcref::Gc;

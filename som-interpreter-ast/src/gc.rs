@@ -1,10 +1,10 @@
 use crate::ast::{AstBlock, AstExpression, AstLiteral, InlinedNode};
-use crate::block::Block;
-use crate::class::Class;
-use crate::frame::{Frame, FrameAccess};
-use crate::instance::Instance;
-use crate::method::{Method, MethodKind};
 use crate::value::Value;
+use crate::vm_objects::block::Block;
+use crate::vm_objects::class::Class;
+use crate::vm_objects::frame::{Frame, FrameAccess};
+use crate::vm_objects::instance::Instance;
+use crate::vm_objects::method::{Method, MethodKind};
 use crate::{FRAME_ARGS_PTR, UNIVERSE_RAW_PTR_CONST};
 use log::debug;
 use mmtk::util::ObjectReference;

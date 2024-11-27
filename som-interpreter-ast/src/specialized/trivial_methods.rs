@@ -1,9 +1,9 @@
 use crate::ast::AstLiteral;
 use crate::evaluate::Evaluate;
-use crate::frame::FrameAccess;
 use crate::invokable::{Invoke, Return};
 use crate::universe::Universe;
 use crate::value::Value;
+use crate::vm_objects::frame::FrameAccess;
 #[derive(Debug, Clone, PartialEq)]
 pub struct TrivialLiteralMethod {
     pub(crate) literal: AstLiteral,

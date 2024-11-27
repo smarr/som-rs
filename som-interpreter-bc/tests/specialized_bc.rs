@@ -1,8 +1,8 @@
 use som_core::bytecode::Bytecode;
 use som_core::bytecode::Bytecode::*;
 use som_interpreter_bc::compiler::compile::compile_class;
-use som_interpreter_bc::method::MethodKind;
 use som_interpreter_bc::universe::Universe;
+use som_interpreter_bc::vm_objects::method::MethodKind;
 use som_lexer::{Lexer, Token};
 use som_parser::lang;
 use std::path::PathBuf;

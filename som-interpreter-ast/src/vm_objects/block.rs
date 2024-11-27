@@ -2,9 +2,9 @@ use crate::ast::AstBlock;
 use som_gc::gcref::Gc;
 use std::fmt;
 
-use crate::class::Class;
-use crate::frame::Frame;
 use crate::universe::Universe;
+use crate::vm_objects::class::Class;
+use crate::vm_objects::frame::Frame;
 
 /// Represents an executable block.
 #[derive(Clone)]

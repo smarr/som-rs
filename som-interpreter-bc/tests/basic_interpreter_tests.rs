@@ -1,10 +1,10 @@
 use rstest::{fixture, rstest};
 use som_gc::gcref::Gc;
 use som_interpreter_bc::compiler::compile::compile_class;
-use som_interpreter_bc::frame::Frame;
 use som_interpreter_bc::interpreter::Interpreter;
 use som_interpreter_bc::universe::Universe;
 use som_interpreter_bc::value::Value;
+use som_interpreter_bc::vm_objects::frame::Frame;
 use som_interpreter_bc::{INTERPRETER_RAW_PTR_CONST, UNIVERSE_RAW_PTR_CONST};
 use som_lexer::{Lexer, Token};
 use som_parser::lang;

@@ -1,5 +1,5 @@
-use crate::class::Class;
 use crate::value::Value;
+use crate::vm_objects::class::Class;
 use crate::HACK_INSTANCE_CLASS_PTR;
 use core::mem::size_of;
 use som_gc::gc_interface::GCInterface;

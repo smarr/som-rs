@@ -1,11 +1,11 @@
-use crate::block::Block;
-use crate::class::Class;
 use crate::compiler::Literal;
-use crate::frame::Frame;
 use crate::gc::VecValue;
-use crate::method::{Method, MethodKind};
 use crate::universe::Universe;
 use crate::value::Value;
+use crate::vm_objects::block::Block;
+use crate::vm_objects::class::Class;
+use crate::vm_objects::frame::Frame;
+use crate::vm_objects::method::{Method, MethodKind};
 use anyhow::Context;
 use num_bigint::BigInt;
 use som_core::bytecode::Bytecode;

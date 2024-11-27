@@ -1,4 +1,8 @@
-use crate::block::Block;
+//! Compiles parser AST to bytecode.
+//! This module only needs to expose the compile_class() function: the rest of the VM should not
+//! need access to more than that, barring testing.
+
+use crate::vm_objects::block::Block;
 use num_bigint::BigInt;
 use som_core::interner::Interned;
 use som_gc::gcref::Gc;

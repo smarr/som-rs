@@ -1,7 +1,7 @@
 use std::fmt;
 
-use crate::method::Method;
 use crate::value::Value;
+use crate::vm_objects::method::Method;
 use indexmap::IndexMap;
 use som_core::interner::Interned;
 use som_gc::gcref::Gc;

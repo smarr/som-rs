@@ -2,10 +2,8 @@ use crate::ast::{
     AstBinaryDispatch, AstBlock, AstBody, AstDispatchNode, AstExpression, AstLiteral, AstMethodDef, AstNAryDispatch, AstSuperMessage,
     AstTernaryDispatch, AstUnaryDispatch,
 };
-use crate::class::Class;
 use crate::gc::VecAstLiteral;
 use crate::inliner::PrimMessageInliner;
-use crate::method::{MethodKind, MethodKindSpecialized};
 use crate::primitives::UNIMPLEM_PRIMITIVE;
 use crate::specialized::down_to_do_node::DownToDoNode;
 use crate::specialized::if_node::IfNode;
@@ -14,6 +12,8 @@ use crate::specialized::to_by_do_node::ToByDoNode;
 use crate::specialized::to_do_node::ToDoNode;
 use crate::specialized::trivial_methods::{TrivialGetterMethod, TrivialGlobalMethod, TrivialLiteralMethod, TrivialSetterMethod};
 use crate::specialized::while_node::WhileNode;
+use crate::vm_objects::class::Class;
+use crate::vm_objects::method::{MethodKind, MethodKindSpecialized};
 use som_core::ast;
 use som_core::ast::{Expression, Literal, MethodBody};
 use som_gc::gc_interface::GCInterface;

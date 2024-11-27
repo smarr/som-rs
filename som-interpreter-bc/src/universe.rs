@@ -1,10 +1,10 @@
-use crate::block::Block;
-use crate::class::Class;
 use crate::compiler::compile::compile_class;
-use crate::frame::Frame;
 use crate::gc::{get_callbacks_for_gc, VecValue};
 use crate::interpreter::Interpreter;
 use crate::value::Value;
+use crate::vm_objects::block::Block;
+use crate::vm_objects::class::Class;
+use crate::vm_objects::frame::Frame;
 use anyhow::{anyhow, Error};
 use som_core::core_classes::CoreClasses;
 use som_core::interner::{Interned, Interner};

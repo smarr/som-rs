@@ -1,10 +1,10 @@
 use som_core::bytecode::Bytecode;
 
-use crate::block::Block;
-use crate::class::Class;
 use crate::compiler::Literal;
-use crate::method::MethodEnv;
 use crate::universe::Universe;
+use crate::vm_objects::block::Block;
+use crate::vm_objects::class::Class;
+use crate::vm_objects::method::MethodEnv;
 
 pub fn disassemble_method_body(universe: &Universe, class: &Class, env: &MethodEnv) {
     disassemble_body(universe, class, 1, &mut vec![env]);

@@ -10,16 +10,16 @@ use anyhow::{bail, Context};
 #[cfg(feature = "jemalloc")]
 use jemallocator::Jemalloc;
 use som_gc::gcref::Gc;
-use som_interpreter_bc::class::Class;
+use som_interpreter_bc::vm_objects::class::Class;
 use structopt::StructOpt;
 mod shell;
 
-use som_interpreter_bc::disassembler::disassemble_method_body;
-use som_interpreter_bc::method::{Method, MethodKind};
+use som_interpreter_bc::debug::disassembler::disassemble_method_body;
 #[cfg(feature = "profiler")]
-use som_interpreter_bc::profiler::Profiler;
+use som_interpreter_bc::debug::profiler::Profiler;
 use som_interpreter_bc::universe::Universe;
 use som_interpreter_bc::value::Value;
+use som_interpreter_bc::vm_objects::method::{Method, MethodKind};
 use som_interpreter_bc::{INTERPRETER_RAW_PTR_CONST, UNIVERSE_RAW_PTR_CONST};
 
 #[cfg(feature = "jemalloc")]

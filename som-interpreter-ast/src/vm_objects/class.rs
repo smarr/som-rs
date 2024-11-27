@@ -1,9 +1,9 @@
 use std::fmt;
 
 use crate::compiler::AstMethodCompilerCtxt;
-use crate::method::{Method, MethodKind};
 use crate::primitives;
 use crate::value::Value;
+use crate::vm_objects::method::{Method, MethodKind};
 use indexmap::IndexMap;
 use som_core::ast::ClassDef;
 use som_gc::gc_interface::GCInterface;
