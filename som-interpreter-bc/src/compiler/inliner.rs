@@ -3,7 +3,7 @@ use crate::compiler::inliner::JumpType::{JumpOnFalse, JumpOnTrue};
 use crate::compiler::inliner::OrAndChoice::{And, Or};
 use crate::compiler::Literal;
 use crate::vm_objects::block::Block;
-use crate::vm_objects::method::Method;
+use crate::vm_objects::method::{Method, MethodInfo};
 use som_core::ast;
 use som_core::bytecode::Bytecode;
 use som_gc::gc_interface::GCInterface;
@@ -89,6 +89,7 @@ impl PrimMessageInliner for ast::Message {
 
     fn inline_compiled_block(&self, ctxt: &mut dyn InnerGenCtxt, block: &Method, gc_interface: &mut GCInterface) -> Option<()> {
         let nbr_locals_pre_inlining = ctxt.get_nbr_locals() as u8;
+        let block = block.get_env();
         let nbr_args_pre_inlining = block.nbr_params as u8;
 
         ctxt.set_nbr_locals(nbr_locals_pre_inlining as usize + block.nbr_locals + block.nbr_params);
@@ -219,6 +220,7 @@ impl PrimMessageInliner for ast::Message {
         let mut block_literals_to_patch = vec![];
         let new_body = orig_block
             .blk_info
+            .get_env()
             .body
             .iter()
             .map(|b| match b {
@@ -260,6 +262,7 @@ impl PrimMessageInliner for ast::Message {
                 Bytecode::PushBlock(block_idx) => {
                     let inner_lit = orig_block
                         .blk_info
+                        .get_env()
                         .literals
                         .get(*block_idx as usize)
                         .unwrap_or_else(|| panic!("PushBlock is associated with no literal whatsoever?"));
@@ -285,12 +288,13 @@ impl PrimMessageInliner for ast::Message {
         // TODO: we now pass a mutable pointer to a Block actually, so this is all avoidable!
         Block {
             frame: orig_block.frame,
-            blk_info: gc_interface.alloc(Method {
-                holder: orig_block.blk_info.holder,
-                signature: orig_block.blk_info.signature.clone(),
-                nbr_locals: orig_block.blk_info.nbr_locals,
+            blk_info: gc_interface.alloc(Method::Defined(MethodInfo {
+                holder: orig_block.blk_info.get_env().holder,
+                signature: orig_block.blk_info.get_env().signature.clone(),
+                nbr_locals: orig_block.blk_info.get_env().nbr_locals,
                 literals: orig_block
                     .blk_info
+                    .get_env()
                     .literals
                     .iter()
                     .enumerate()
@@ -305,12 +309,12 @@ impl PrimMessageInliner for ast::Message {
                     })
                     .collect(),
                 body: new_body,
-                nbr_params: orig_block.blk_info.nbr_params,
+                nbr_params: orig_block.blk_info.get_env().nbr_params,
                 max_stack_size: new_max_stack_size,
-                inline_cache: orig_block.blk_info.inline_cache.clone(),
+                inline_cache: orig_block.blk_info.get_env().inline_cache.clone(),
                 #[cfg(feature = "frame-debug-info")]
-                block_debug_info: orig_block.blk_info.block_debug_info.clone(),
-            }),
+                block_debug_info: orig_block.blk_info.get_env().block_debug_info.clone(),
+            })),
         }
     }
 

@@ -10,10 +10,10 @@ use crate::interpreter::Interpreter;
 use crate::universe::Universe;
 use crate::value::Value;
 use crate::vm_objects::block::Block;
-use crate::vm_objects::method::Method;
 use som_gc::gcref::Gc;
 use std::ptr::NonNull;
 use vm_objects::class::Class;
+use vm_objects::method::Method;
 
 /// VM objects.
 pub mod vm_objects;

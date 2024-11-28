@@ -2,7 +2,7 @@ use som_core::bytecode::Bytecode;
 use som_core::bytecode::Bytecode::*;
 use som_interpreter_bc::compiler::compile::compile_class;
 use som_interpreter_bc::universe::Universe;
-use som_interpreter_bc::vm_objects::method::MethodOrPrim;
+use som_interpreter_bc::vm_objects::method::Method;
 use som_lexer::{Lexer, Token};
 use som_parser::lang;
 use std::path::PathBuf;
@@ -34,7 +34,7 @@ fn get_bytecodes_from_method(class_txt: &str, method_name: &str) -> Vec<Bytecode
     let method = class.lookup_method(method_name_interned).expect("method not found ??");
 
     match &*method {
-        MethodOrPrim::Defined(m) => m.body.clone(),
+        Method::Defined(m) => m.body.clone(),
         _ => unreachable!(),
     }
 }

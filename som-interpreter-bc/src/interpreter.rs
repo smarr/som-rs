@@ -5,7 +5,7 @@ use crate::value::Value;
 use crate::vm_objects::block::Block;
 use crate::vm_objects::class::Class;
 use crate::vm_objects::frame::Frame;
-use crate::vm_objects::method::{Method, MethodOrPrim};
+use crate::vm_objects::method::Method;
 use anyhow::Context;
 use num_bigint::BigInt;
 use som_core::bytecode::Bytecode;
@@ -469,7 +469,7 @@ impl Interpreter {
             }
         }
 
-        pub fn do_send(interpreter: &mut Interpreter, universe: &mut Universe, method: Option<Gc<MethodOrPrim>>, symbol: Interned, nb_params: usize) {
+        pub fn do_send(interpreter: &mut Interpreter, universe: &mut Universe, method: Option<Gc<Method>>, symbol: Interned, nb_params: usize) {
             // we store the current bytecode idx to be able to correctly restore the bytecode state when we pop frames
             interpreter.current_frame.bytecode_idx = interpreter.bytecode_idx;
 
@@ -491,7 +491,7 @@ impl Interpreter {
             };
 
             match &*method {
-                MethodOrPrim::Defined(method) => {
+                Method::Defined(_) => {
                     // let name = &method.holder.name.clone();
                     // eprintln!("Invoking {:?} (in {:?})", &method.signature, &name);
                     // if method.signature == "initializeWith:selector:arguments:" {
@@ -504,9 +504,9 @@ impl Interpreter {
                     // if !SYSTEM_CLASS_NAMES.contains(&name.as_str()) {
                     // }
 
-                    interpreter.push_method_frame(*method, nb_params + 1, universe.gc_interface);
+                    interpreter.push_method_frame(method, nb_params + 1, universe.gc_interface);
                 }
-                MethodOrPrim::Primitive(func, ..) => {
+                Method::Primitive(func, ..) => {
                     // eprintln!("Invoking prim {:?} (in {:?})", &method.signature, &method.holder.name);
                     func(interpreter, universe)
                         .with_context(|| anyhow::anyhow!("error calling primitive `{}`", universe.lookup_symbol(symbol)))
@@ -515,7 +515,7 @@ impl Interpreter {
             }
         }
 
-        fn resolve_method(frame: &mut Gc<Frame>, class: &Gc<Class>, signature: Interned, bytecode_idx: usize) -> Option<Gc<MethodOrPrim>> {
+        fn resolve_method(frame: &mut Gc<Frame>, class: &Gc<Class>, signature: Interned, bytecode_idx: usize) -> Option<Gc<Method>> {
             // SAFETY: this access is actually safe because the bytecode compiler
             // makes sure the cache has as many entries as there are bytecode instructions,
             // therefore we can avoid doing any redundant bounds checks here.

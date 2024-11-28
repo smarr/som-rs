@@ -2,7 +2,7 @@ use crate::value::Value;
 use crate::vm_objects::block::Block;
 use crate::vm_objects::class::Class;
 use crate::vm_objects::instance::Instance;
-use crate::vm_objects::method::MethodOrPrim;
+use crate::vm_objects::method::Method;
 use num_bigint::BigInt;
 use som_gc::gcref::Gc;
 use std::hash::{Hash, Hasher};
@@ -75,15 +75,15 @@ impl Hash for Instance {
 impl Hash for Block {
     fn hash<H: Hasher>(&self, hasher: &mut H) {
         let blk_info = self.blk_info;
-        blk_info.literals.iter().for_each(|it| it.hash(hasher));
-        blk_info.nbr_locals.hash(hasher);
+        blk_info.get_env().literals.iter().for_each(|it| it.hash(hasher));
+        blk_info.get_env().nbr_locals.hash(hasher);
         // self.blk_info.locals.iter().for_each(|it| it.hash(hasher));
-        blk_info.nbr_params.hash(hasher);
-        blk_info.body.iter().for_each(|it| it.hash(hasher));
+        blk_info.get_env().nbr_params.hash(hasher);
+        blk_info.get_env().body.iter().for_each(|it| it.hash(hasher));
     }
 }
 
-impl Hash for MethodOrPrim {
+impl Hash for Method {
     fn hash<H: Hasher>(&self, hasher: &mut H) {
         self.holder().hash(hasher);
         hasher.write(b">>");

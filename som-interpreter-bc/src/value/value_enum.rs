@@ -3,7 +3,7 @@ use crate::value::Value;
 use crate::vm_objects::block::Block;
 use crate::vm_objects::class::Class;
 use crate::vm_objects::instance::Instance;
-use crate::vm_objects::method::MethodOrPrim;
+use crate::vm_objects::method::Method;
 use num_bigint::BigInt;
 use som_core::interner::Interned;
 use som_gc::gcref::Gc;
@@ -37,7 +37,7 @@ pub enum ValueEnum {
     /// A bare class object.
     Class(Gc<Class>),
     /// A bare invokable.
-    Invokable(Gc<MethodOrPrim>),
+    Invokable(Gc<Method>),
 }
 
 impl From<Value> for ValueEnum {
@@ -121,7 +121,7 @@ impl ValueEnum {
 
     /// Search for a given method for this value.
     #[inline(always)]
-    pub fn lookup_method(&self, universe: &Universe, signature: Interned) -> Option<Gc<MethodOrPrim>> {
+    pub fn lookup_method(&self, universe: &Universe, signature: Interned) -> Option<Gc<Method>> {
         self.class(universe).lookup_method(signature)
     }
 
@@ -370,7 +370,7 @@ impl ValueEnum {
     }
     /// Returns this value as an invocable, if such is its type.
     #[inline(always)]
-    pub fn as_invokable(&self) -> Option<Gc<MethodOrPrim>> {
+    pub fn as_invokable(&self) -> Option<Gc<Method>> {
         if let Self::Invokable(v) = self {
             Some(*v)
         } else {
@@ -494,7 +494,7 @@ impl ValueEnum {
     }
     /// Returns a new invocable value.
     #[inline(always)]
-    pub fn new_invokable(value: Gc<MethodOrPrim>) -> Self {
+    pub fn new_invokable(value: Gc<Method>) -> Self {
         ValueEnum::Invokable(value)
     }
 }

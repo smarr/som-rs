@@ -1,11 +1,11 @@
 use crate::universe::Universe;
 use crate::vm_objects::class::Class;
 use crate::vm_objects::frame::Frame;
-use crate::vm_objects::method::{Method, MethodOrPrim};
+use crate::vm_objects::method::{Method, MethodInfo};
 use som_gc::gcref::Gc;
 use std::fmt;
 
-pub type BodyInlineCache = Vec<Option<(Gc<Class>, Gc<MethodOrPrim>)>>;
+pub type BodyInlineCache = Vec<Option<(Gc<Class>, Gc<Method>)>>;
 
 /// Represents an executable block.
 #[derive(Clone)]
@@ -29,20 +29,20 @@ impl Block {
 
     /// Retrieve the number of parameters this block accepts.
     pub fn nb_parameters(&self) -> usize {
-        self.blk_info.nbr_params
+        self.blk_info.get_env().nbr_params
     }
 }
 
 impl fmt::Debug for Block {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct(&format!("Block{}", self.nb_parameters() + 1))
-            .field("block", &self.blk_info)
+            .field("block", &self.blk_info.get_env())
             .field("frame", &self.frame.map(|f| f.ptr))
             .finish()
     }
 }
 
-impl fmt::Debug for Method {
+impl fmt::Debug for MethodInfo {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("BlockInfo")
             .field("nbr_locals", &self.nbr_locals)

@@ -357,7 +357,7 @@ impl Universe {
     /// Call `escapedBlock:` on the given value, if it is defined.
     pub fn escaped_block(&mut self, interpreter: &mut Interpreter, value: Value, block: Gc<Block>) -> Option<()> {
         let method_name = self.intern_symbol("escapedBlock:");
-        let method = value.lookup_method(self, method_name)?.get_method();
+        let method = value.lookup_method(self, method_name)?;
         interpreter.push_method_frame_with_args(method, &[value, Value::Block(block)], self.gc_interface);
         Some(())
     }
@@ -369,7 +369,7 @@ impl Universe {
         // panic!("does not understand: {:?}, called on {:?}", self.interner.lookup(symbol), &value);
 
         let method_name = self.intern_symbol("doesNotUnderstand:arguments:");
-        let method = value.lookup_method(self, method_name)?.get_method();
+        let method = value.lookup_method(self, method_name)?;
 
         // #[cfg(debug_assertions)]
         // {
@@ -390,7 +390,7 @@ impl Universe {
     /// Call `unknownGlobal:` on the given value, if it is defined.
     pub fn unknown_global(&mut self, interpreter: &mut Interpreter, value: Value, name: Interned) -> Option<()> {
         let method_name = self.intern_symbol("unknownGlobal:");
-        let method = value.lookup_method(self, method_name)?.get_method();
+        let method = value.lookup_method(self, method_name)?;
 
         interpreter.current_frame.bytecode_idx = interpreter.bytecode_idx;
         interpreter.push_method_frame_with_args(method, &[value, Value::Symbol(name)], self.gc_interface);
@@ -401,7 +401,7 @@ impl Universe {
     /// Call `System>>#initialize:` with the given name, if it is defined.
     pub fn initialize(&mut self, args: Vec<Value>) -> Option<Interpreter> {
         let method_name = self.interner.intern("initialize:");
-        let method = Value::SYSTEM.lookup_method(self, method_name)?.get_method();
+        let method = Value::SYSTEM.lookup_method(self, method_name)?;
 
         let args_vec = self.gc_interface.alloc(VecValue(args));
         let frame_ptr = Frame::alloc_from_method(method, &[Value::SYSTEM, Value::Array(args_vec)], &Gc::default(), self.gc_interface);

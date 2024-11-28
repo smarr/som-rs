@@ -10,6 +10,7 @@ use som_gc::gc_interface::GCInterface;
 use som_gc::gcref::Gc;
 use std::fmt::{Debug, Formatter};
 use std::marker::PhantomData;
+use std::ops::DerefMut;
 
 pub(crate) const OFFSET_TO_STACK: usize = size_of::<Frame>();
 
@@ -17,7 +18,12 @@ pub(crate) const OFFSET_TO_STACK: usize = size_of::<Frame>();
 pub struct Frame {
     /// The previous frame. Frames are handled as a linked list
     pub prev_frame: Gc<Frame>,
+
     /// The method the execution context currently is in.
+    /// Interestingly, this is a Gc<Method> and not a pointer to MethodInfo, what we really need (it's never a primitive).
+    /// In fact, we induce (minimal) runtime overhead by having to fetch the info from the Method enum regularly.
+    /// So why do we do things that way? Because of moving GC. If we have a pointer to a MethodInfo, that's an inner pointer to a Method object. So when GC moves the frame, it can't update that pointer.
+    /// It could update if Gc<MethodInfo> was a thing. And it was, at some point, and it turned out that really broke things (not sure why, I assume because MMTk didn't play well with a Gc<Enum> that had a Gc<SomethingElse> variant)  
     pub current_context: Gc<Method>,
 
     /// Bytecode index.
@@ -35,7 +41,12 @@ pub struct Frame {
 
 impl Frame {
     pub fn alloc_from_method(method: Gc<Method>, args: &[Value], prev_frame: &Gc<Frame>, gc_interface: &mut GCInterface) -> Gc<Frame> {
-        let size = Frame::get_true_size(method.max_stack_size as usize, args.len(), method.nbr_locals);
+        let (max_stack_size, nbr_locals) = match &*method {
+            Method::Defined(m_env) => (m_env.max_stack_size as usize, m_env.nbr_locals),
+            _ => unreachable!("if we're allocating a method frame, it has to be defined."),
+        };
+
+        let size = Frame::get_true_size(max_stack_size, args.len(), nbr_locals);
 
         unsafe {
             HACK_FRAME_CURRENT_METHOD_PTR = Some(method);
@@ -49,7 +60,7 @@ impl Frame {
             Frame::init_frame_post_alloc(
                 frame_ptr,
                 HACK_FRAME_FRAME_ARGS_PTR.as_ref().unwrap().as_slice(),
-                HACK_FRAME_CURRENT_METHOD_PTR.unwrap().max_stack_size as usize,
+                max_stack_size,
                 *prev_frame,
             );
 
@@ -61,8 +72,8 @@ impl Frame {
     }
 
     pub fn alloc_from_block(block: Gc<Block>, args: &[Value], prev_frame: &Gc<Frame>, gc_interface: &mut GCInterface) -> Gc<Frame> {
-        let max_stack_size = block.blk_info.max_stack_size as usize;
-        let nbr_locals = block.blk_info.nbr_locals;
+        let max_stack_size = block.blk_info.get_env().max_stack_size as usize;
+        let nbr_locals = block.blk_info.get_env().nbr_locals;
 
         let size = Frame::get_true_size(max_stack_size, nbr_locals, args.len());
 
@@ -154,27 +165,30 @@ impl Frame {
 
     #[inline(always)]
     pub fn get_bytecode_ptr(&self) -> *const Vec<Bytecode> {
-        &self.current_context.body
+        &self.current_context.get_env().body
     }
 
     #[inline(always)]
     pub fn get_max_stack_size(&self) -> usize {
-        self.current_context.max_stack_size as usize
+        self.current_context.get_env().max_stack_size as usize
     }
 
     #[inline(always)]
     pub fn get_inline_cache(&mut self) -> &mut BodyInlineCache {
-        &mut self.current_context.inline_cache
+        match self.current_context.deref_mut() {
+            Method::Defined(env) => &mut env.inline_cache,
+            Method::Primitive(_, _, _) => unreachable!(),
+        }
     }
 
     #[inline(always)]
     pub fn get_nbr_args(&self) -> usize {
-        self.current_context.nbr_params + 1
+        self.current_context.get_env().nbr_params + 1
     }
 
     #[inline(always)]
     pub fn get_nbr_locals(&self) -> usize {
-        self.current_context.nbr_locals
+        self.current_context.get_env().nbr_locals
     }
 
     /// Get the self value for this frame.
@@ -197,7 +211,7 @@ impl Frame {
                 let block_frame = b.frame.as_ref().unwrap();
                 block_frame.get_method_holder()
             }
-            None => self.current_context.holder,
+            None => self.current_context.get_env().holder,
         }
     }
 
@@ -226,7 +240,7 @@ impl Frame {
 
     #[inline(always)]
     pub fn lookup_constant(&self, idx: usize) -> Literal {
-        self.current_context.literals.get(idx).unwrap().clone()
+        self.current_context.get_env().literals.get(idx).unwrap().clone()
     }
 
     pub fn nth_frame_back(current_frame: &Gc<Frame>, n: u8) -> Gc<Frame> {
@@ -335,7 +349,11 @@ impl Debug for Frame {
         f.debug_struct("Frame")
             .field(
                 "current method",
-                &format!("{}::>{}", self.current_context.holder.name(), self.current_context.signature),
+                &format!(
+                    "{}::>{}",
+                    self.current_context.get_env().holder.name(),
+                    self.current_context.get_env().signature
+                ),
             )
             .field("bc idx", &self.bytecode_idx)
             .field("args", {

@@ -4,9 +4,9 @@ use crate::compiler::Literal;
 use crate::universe::Universe;
 use crate::vm_objects::block::Block;
 use crate::vm_objects::class::Class;
-use crate::vm_objects::method::Method;
+use crate::vm_objects::method::MethodInfo;
 
-pub fn disassemble_method_body(universe: &Universe, class: &Class, env: &Method) {
+pub fn disassemble_method_body(universe: &Universe, class: &Class, env: &MethodInfo) {
     disassemble_body(universe, class, 1, &mut vec![env]);
     #[cfg(not(feature = "frame-debug-info"))]
     eprintln!("------- Used disassembler without debug symbols. While it could be possible, it's likely not desired. -------");
@@ -73,7 +73,7 @@ fn disassemble_body(universe: &Universe, class: &Class, level: usize, env: &mut 
                     println!("({padding}  | (invalid block)");
                     continue;
                 };
-                println!(" - (max stack size: {})", blk.blk_info.max_stack_size);
+                println!(" - (max stack size: {})", blk.blk_info.get_env().max_stack_size);
                 env.push(&**blk);
                 disassemble_body(universe, class, level + 1, env);
                 env.pop();
@@ -166,7 +166,7 @@ trait FrameEnv {
     fn resolve_argument(&self, idx: u8) -> String;
 }
 
-impl FrameEnv for Method {
+impl FrameEnv for MethodInfo {
     fn get_body(&self) -> &[Bytecode] {
         &self.body
     }
@@ -203,7 +203,7 @@ impl FrameEnv for Method {
 
 impl FrameEnv for Block {
     fn get_body(&self) -> &[Bytecode] {
-        &self.blk_info.body
+        &self.blk_info.get_env().body
     }
     #[cfg(feature = "frame-debug-info")]
     fn resolve_local(&self, idx: u8) -> String {
@@ -219,7 +219,7 @@ impl FrameEnv for Block {
     }
 
     fn resolve_literal(&self, idx: u8) -> Option<&Literal> {
-        self.blk_info.literals.get(usize::from(idx))
+        self.blk_info.get_env().literals.get(usize::from(idx))
     }
 
     #[cfg(feature = "frame-debug-info")]

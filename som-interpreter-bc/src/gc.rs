@@ -4,7 +4,7 @@ use crate::vm_objects::block::Block;
 use crate::vm_objects::class::Class;
 use crate::vm_objects::frame::Frame;
 use crate::vm_objects::instance::Instance;
-use crate::vm_objects::method::{Method, MethodOrPrim};
+use crate::vm_objects::method::Method;
 use crate::{
     HACK_FRAME_CURRENT_BLOCK_PTR, HACK_FRAME_CURRENT_METHOD_PTR, HACK_FRAME_FRAME_ARGS_PTR, HACK_INSTANCE_CLASS_PTR, INTERPRETER_RAW_PTR_CONST,
     UNIVERSE_RAW_PTR_CONST,
@@ -27,7 +27,6 @@ pub enum BCObjMagicId {
     BigInt = BIGINT_MAGIC_ID as isize,
     ArrayU8 = VECU8_MAGIC_ID as isize,
     Frame = 100,
-    MethodOrBlkEnv = 101,
     Block = 102,
     Class = 103,
     Instance = 104,
@@ -44,19 +43,13 @@ impl HasTypeInfoForGC for VecValue {
     }
 }
 
-impl HasTypeInfoForGC for Method {
-    fn get_magic_gc_id() -> u8 {
-        BCObjMagicId::MethodOrBlkEnv as u8
-    }
-}
-
 impl HasTypeInfoForGC for Instance {
     fn get_magic_gc_id() -> u8 {
         BCObjMagicId::Instance as u8
     }
 }
 
-impl HasTypeInfoForGC for MethodOrPrim {
+impl HasTypeInfoForGC for Method {
     fn get_magic_gc_id() -> u8 {
         BCObjMagicId::Method as u8
     }
@@ -138,10 +131,24 @@ pub fn scan_object<'a>(object: ObjectReference, slot_visitor: &'a mut (dyn SlotV
                 }
             }
             BCObjMagicId::Method => {
-                let method: &mut MethodOrPrim = object.to_raw_address().as_mut_ref();
+                let method: &mut Method = object.to_raw_address().as_mut_ref();
 
-                if let MethodOrPrim::Defined(method_env) = &method {
-                    slot_visitor.visit_slot(SOMSlot::from(method_env));
+                match method {
+                    Method::Defined(method) => {
+                        slot_visitor.visit_slot(SOMSlot::from(&method.holder));
+
+                        for (cls_ptr, method_ptr) in method.inline_cache.iter().flatten() {
+                            slot_visitor.visit_slot(SOMSlot::from(cls_ptr));
+                            slot_visitor.visit_slot(SOMSlot::from(method_ptr));
+                        }
+
+                        for lit in &method.literals {
+                            visit_literal(lit, slot_visitor)
+                        }
+                    }
+                    Method::Primitive(_, _, c) => {
+                        slot_visitor.visit_slot(SOMSlot::from(&*c));
+                    }
                 }
             }
             BCObjMagicId::Class => {
@@ -185,20 +192,6 @@ pub fn scan_object<'a>(object: ObjectReference, slot_visitor: &'a mut (dyn SlotV
                     visit_value(val, slot_visitor)
                 }
             }
-            BCObjMagicId::MethodOrBlkEnv => {
-                let method: &mut Method = object.to_raw_address().as_mut_ref();
-
-                slot_visitor.visit_slot(SOMSlot::from(&method.holder));
-
-                for (cls_ptr, method_ptr) in method.inline_cache.iter().flatten() {
-                    slot_visitor.visit_slot(SOMSlot::from(cls_ptr));
-                    slot_visitor.visit_slot(SOMSlot::from(method_ptr));
-                }
-
-                for lit in &method.literals {
-                    visit_literal(lit, slot_visitor)
-                }
-            }
             BCObjMagicId::String | BCObjMagicId::ArrayU8 | BCObjMagicId::BigInt => {
                 // leaf nodes: no children.
             }
@@ -218,7 +211,10 @@ fn get_roots_in_mutator_thread(_mutator: &mut Mutator<SOMVM>) -> Vec<SOMSlot> {
 
         // walk the frame list.
         let current_frame_addr = &INTERPRETER_RAW_PTR_CONST.unwrap().as_ref().current_frame;
-        debug!("scanning root: current_frame (method: {})", current_frame_addr.current_context.signature);
+        debug!(
+            "scanning root: current_frame (method: {})",
+            current_frame_addr.current_context.get_env().signature
+        );
         to_process.push(SOMSlot::from(current_frame_addr));
 
         // walk globals (includes core classes)
@@ -269,9 +265,8 @@ fn get_object_size(object: ObjectReference) -> usize {
                 let frame: &mut Frame = object.to_raw_address().as_mut_ref();
                 Frame::get_true_size(frame.get_max_stack_size(), frame.get_nbr_args(), frame.get_nbr_locals())
             },
-            BCObjMagicId::MethodOrBlkEnv => size_of::<Method>(),
             BCObjMagicId::ArrayVal => size_of::<Vec<Value>>(),
-            BCObjMagicId::Method => size_of::<MethodOrPrim>(),
+            BCObjMagicId::Method => size_of::<Method>(),
             BCObjMagicId::Block => size_of::<Block>(),
             BCObjMagicId::Class => size_of::<Class>(),
             BCObjMagicId::Instance => unsafe {

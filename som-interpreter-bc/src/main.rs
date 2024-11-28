@@ -19,7 +19,7 @@ use som_interpreter_bc::debug::disassembler::disassemble_method_body;
 use som_interpreter_bc::debug::profiler::Profiler;
 use som_interpreter_bc::universe::Universe;
 use som_interpreter_bc::value::Value;
-use som_interpreter_bc::vm_objects::method::MethodOrPrim;
+use som_interpreter_bc::vm_objects::method::Method;
 use som_interpreter_bc::{INTERPRETER_RAW_PTR_CONST, UNIVERSE_RAW_PTR_CONST};
 
 #[cfg(feature = "jemalloc")]
@@ -154,8 +154,8 @@ fn disassemble_class(opts: Options) -> anyhow::Result<()> {
 }
 
 fn dump_class_methods(class: Gc<Class>, opts: &Options, file_stem: &str, universe: &mut Universe) {
-    let methods: Vec<Gc<MethodOrPrim>> = if opts.args.is_empty() {
-        class.methods.values().cloned().collect::<Vec<Gc<MethodOrPrim>>>()
+    let methods: Vec<Gc<Method>> = if opts.args.is_empty() {
+        class.methods.values().cloned().collect::<Vec<Gc<Method>>>()
     } else {
         opts.args
             .iter()
@@ -174,7 +174,7 @@ fn dump_class_methods(class: Gc<Class>, opts: &Options, file_stem: &str, univers
 
     for method in methods {
         match &*method {
-            MethodOrPrim::Defined(env) => {
+            Method::Defined(env) => {
                 println!(
                     "{class}>>#{signature} ({num_locals} locals, {num_literals} literals) (max stack size: {max_stack_size})",
                     class = file_stem,
@@ -186,7 +186,7 @@ fn dump_class_methods(class: Gc<Class>, opts: &Options, file_stem: &str, univers
 
                 disassemble_method_body(universe, &class, env);
             }
-            MethodOrPrim::Primitive(..) => {
+            Method::Primitive(..) => {
                 println!("{class}>>#{signature} (primitive)", class = file_stem, signature = method.signature(),);
             }
         }

@@ -5,7 +5,7 @@ use crate::value::value_enum::ValueEnum;
 use crate::vm_objects::block::Block;
 use crate::vm_objects::class::Class;
 use crate::vm_objects::instance::Instance;
-use crate::vm_objects::method::MethodOrPrim;
+use crate::vm_objects::method::Method;
 use num_bigint::BigInt;
 use som_core::delegate_to_base_value;
 use som_core::interner::Interned;
@@ -92,7 +92,7 @@ impl Value {
     }
     /// Returns a new invocable value.
     #[inline(always)]
-    pub fn new_invokable(value: Gc<MethodOrPrim>) -> Self {
+    pub fn new_invokable(value: Gc<Method>) -> Self {
         BaseValue::new(INVOKABLE_TAG, u64::from(value)).into()
     }
 
@@ -145,7 +145,7 @@ impl Value {
     }
     /// Returns this value as an invocable, if such is its type.
     #[inline(always)]
-    pub fn as_invokable(self) -> Option<Gc<MethodOrPrim>> {
+    pub fn as_invokable(self) -> Option<Gc<Method>> {
         self.is_invocable().then(|| self.extract_gc_cell())
     }
 
@@ -181,7 +181,7 @@ impl Value {
     }
 
     /// Search for a given method for this value.
-    pub fn lookup_method(&self, universe: &Universe, signature: Interned) -> Option<Gc<MethodOrPrim>> {
+    pub fn lookup_method(&self, universe: &Universe, signature: Interned) -> Option<Gc<Method>> {
         self.class(universe).lookup_method(signature)
     }
 
@@ -252,7 +252,7 @@ impl Value {
     }
 
     #[inline(always)]
-    pub fn Invokable(value: Gc<MethodOrPrim>) -> Self {
+    pub fn Invokable(value: Gc<Method>) -> Self {
         Value::new_invokable(value)
     }
 }

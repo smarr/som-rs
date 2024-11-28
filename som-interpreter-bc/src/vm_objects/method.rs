@@ -17,7 +17,7 @@ use crate::vm_objects::block::BodyInlineCache;
 
 /// Data for a method, or a block.
 #[derive(Clone)]
-pub struct Method {
+pub struct MethodInfo {
     pub signature: String,
     pub holder: Gc<Class>,
     pub literals: Vec<Literal>,
@@ -32,46 +32,43 @@ pub struct Method {
 
 /// Represents a class method.
 #[derive(Clone)]
-pub enum MethodOrPrim {
+pub enum Method {
     /// A user-defined method from the AST.
-    /// TODO: this should not be a Gc<T>. methods should own their own methodenv. But this isn't a slowdown as is, to be fair.
-    /// Why is it a Gc<MethodEnv>? Because the frame keeps a pointer to the current env, and if it's always a Gc<MethodEnv>, it can be scanned by the GC.
-    /// If it's sometimes a pointer into a Method, it has no type header and the GC hates that.
-    Defined(Gc<Method>),
+    Defined(MethodInfo),
     /// An interpreter primitive.
     Primitive(&'static PrimitiveFn, String, Gc<Class>),
 }
 
-impl MethodOrPrim {
+impl Method {
+    /// Whether this invocable is a primitive.
+    pub fn is_primitive(&self) -> bool {
+        matches!(self, Self::Primitive(..))
+    }
+
     pub fn holder(&self) -> &Gc<Class> {
         match &self {
-            MethodOrPrim::Defined(env) => &env.holder,
-            MethodOrPrim::Primitive(_, _, holder) => holder,
+            Method::Defined(env) => &env.holder,
+            Method::Primitive(_, _, holder) => holder,
         }
     }
 
     /// Used during initialization.
     pub fn set_holder(&mut self, holder_ptr: Gc<Class>) {
         match self {
-            MethodOrPrim::Defined(env) => env.holder = holder_ptr,
-            MethodOrPrim::Primitive(_, _, c) => *c = holder_ptr,
+            Method::Defined(env) => env.holder = holder_ptr,
+            Method::Primitive(_, _, c) => *c = holder_ptr,
         }
     }
 
-    /// Whether this invocable is a primitive.
-    pub fn is_primitive(&self) -> bool {
-        matches!(self, Self::Primitive(..))
-    }
-
-    pub fn get_method(&self) -> Gc<Method> {
+    pub fn get_env(&self) -> &MethodInfo {
         match self {
-            MethodOrPrim::Defined(env) => *env,
-            MethodOrPrim::Primitive(..) => panic!("requesting method metadata from primitive"),
+            Method::Defined(env) => env,
+            Method::Primitive(_, _, _) => panic!("requesting method metadata from primitive"),
         }
     }
 }
 
-impl MethodOrPrim {
+impl Method {
     pub fn class(&self, universe: &Universe) -> Gc<Class> {
         if self.is_primitive() {
             universe.primitive_class()
@@ -82,8 +79,8 @@ impl MethodOrPrim {
 
     pub fn signature(&self) -> &str {
         match &self {
-            MethodOrPrim::Defined(gc) => &gc.signature,
-            MethodOrPrim::Primitive(_, name, _) => name.as_str(),
+            Method::Defined(gc) => &gc.signature,
+            Method::Primitive(_, name, _) => name.as_str(),
         }
     }
 }
@@ -92,15 +89,15 @@ pub trait Invoke {
     fn invoke(&self, interpreter: &mut Interpreter, universe: &mut Universe, receiver: Value, args: Vec<Value>);
 }
 
-impl Invoke for Gc<MethodOrPrim> {
+impl Invoke for Gc<Method> {
     fn invoke(&self, interpreter: &mut Interpreter, universe: &mut Universe, receiver: Value, mut args: Vec<Value>) {
         match &**self {
-            MethodOrPrim::Defined(method) => {
+            Method::Defined(_) => {
                 let mut frame_args = vec![receiver];
                 frame_args.append(&mut args);
-                interpreter.push_method_frame_with_args(*method, frame_args.as_slice(), universe.gc_interface);
+                interpreter.push_method_frame_with_args(*self, frame_args.as_slice(), universe.gc_interface);
             }
-            MethodOrPrim::Primitive(func, ..) => {
+            Method::Primitive(func, ..) => {
                 interpreter.current_frame.stack_push(receiver);
                 for arg in args {
                     interpreter.current_frame.stack_push(arg)
@@ -111,11 +108,11 @@ impl Invoke for Gc<MethodOrPrim> {
     }
 }
 
-impl fmt::Display for MethodOrPrim {
+impl fmt::Display for Method {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "#{}>>#{} = ", self.holder().name(), self.signature())?;
         match &self {
-            MethodOrPrim::Defined(env) => {
+            Method::Defined(env) => {
                 writeln!(f, "(")?;
                 write!(f, "    <{} locals>", env.nbr_locals)?;
                 for bytecode in &env.body {
@@ -195,7 +192,7 @@ impl fmt::Display for MethodOrPrim {
                 }
                 Ok(())
             }
-            MethodOrPrim::Primitive(..) => write!(f, "<primitive>"),
+            Method::Primitive(..) => write!(f, "<primitive>"),
         }
     }
 }

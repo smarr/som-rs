@@ -1,7 +1,7 @@
 use std::fmt;
 
 use crate::value::Value;
-use crate::vm_objects::method::MethodOrPrim;
+use crate::vm_objects::method::Method;
 use indexmap::IndexMap;
 use som_core::interner::Interned;
 use som_gc::gcref::Gc;
@@ -28,7 +28,7 @@ pub struct Class {
     /// The class' fields' names, in the same order as the fields array
     pub field_names: Vec<Interned>,
     /// The class' methods/invokables.
-    pub methods: IndexMap<Interned, Gc<MethodOrPrim>>,
+    pub methods: IndexMap<Interned, Gc<Method>>,
     /// Is this class a static one ?
     pub is_static: bool,
 }
@@ -65,7 +65,7 @@ impl Class {
     }
 
     /// Search for a given method within this class.
-    pub fn lookup_method(&self, signature: Interned) -> Option<Gc<MethodOrPrim>> {
+    pub fn lookup_method(&self, signature: Interned) -> Option<Gc<Method>> {
         self.methods.get(&signature).cloned().or_else(|| self.super_class.as_ref()?.lookup_method(signature))
     }
 
