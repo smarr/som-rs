@@ -195,6 +195,16 @@ impl GCInterface {
         // crate::api::mmtk_alloc(&mut self.mutator, size, GC_ALIGN, GC_OFFSET, AllocationSemantics::Default)
     }
 
+    /// TODO doc + should likely deduce the size from the type
+    pub fn request_memory_for_type<T: HasTypeInfoForGC>(&mut self, type_size: usize) -> Gc<T> {
+        let mut bytes = self.request_bytes(type_size + OBJECT_REF_OFFSET);
+        unsafe {
+            *bytes.as_mut_ref::<u8>() = T::get_magic_gc_id();
+            bytes += OBJECT_REF_OFFSET;
+            bytes.into()
+        }
+    }
+
     /// Custom alloc function, for traits to be able to choose how to allocate their data.
     /// In practice, that's usually allowing for more memory than Rust might be able to infer from the struct size, and filling it with our own data.
     pub fn alloc_with_post_init<T: HasTypeInfoForGC, F>(&mut self, obj: T, size: usize, mut post_alloc_init_closure: F) -> Gc<T>

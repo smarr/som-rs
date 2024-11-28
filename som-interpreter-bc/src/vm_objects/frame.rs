@@ -6,9 +6,8 @@ use crate::vm_objects::method::{Method, MethodOrPrim};
 use crate::{HACK_FRAME_CURRENT_BLOCK_PTR, HACK_FRAME_CURRENT_METHOD_PTR, HACK_FRAME_FRAME_ARGS_PTR};
 use core::mem::size_of;
 use som_core::bytecode::Bytecode;
-use som_gc::gc_interface::{GCInterface, HasTypeInfoForGC};
+use som_gc::gc_interface::GCInterface;
 use som_gc::gcref::Gc;
-use som_gc::object_model::OBJECT_REF_OFFSET;
 use std::fmt::{Debug, Formatter};
 use std::marker::PhantomData;
 
@@ -48,19 +47,10 @@ impl Frame {
             HACK_FRAME_FRAME_ARGS_PTR = Some(Vec::from(args));
         }
 
-        let mut frame_ptr: Gc<Frame> = gc_interface.request_bytes(size + OBJECT_REF_OFFSET).into();
+        let mut frame_ptr: Gc<Frame> = gc_interface.request_memory_for_type(size);
 
         unsafe {
-            let header_ptr: *mut u8 = frame_ptr.to_mut_ptr() as *mut u8;
-            *header_ptr = Frame::get_magic_gc_id();
-
-            frame_ptr.ptr += OBJECT_REF_OFFSET;
-
             *frame_ptr = Frame::from_method(HACK_FRAME_CURRENT_METHOD_PTR.unwrap().get_env());
-
-            let _frame_ptr = &*frame_ptr;
-            let _frame_ptr_ctxt = &*frame_ptr.current_context;
-
             Frame::init_frame_post_alloc(
                 frame_ptr,
                 HACK_FRAME_FRAME_ARGS_PTR.as_ref().unwrap().as_slice(),
@@ -76,50 +66,20 @@ impl Frame {
     }
 
     pub fn alloc_from_block(block: Gc<Block>, args: &[Value], prev_frame: &Gc<Frame>, gc_interface: &mut GCInterface) -> Gc<Frame> {
-        // let frame = Frame::from_block(block, args.len(), *current_method);
-        // let max_stack_size = block.blk_info.max_stack_size as usize;
-        // let size = frame.get_true_size(max_stack_size);
-        //
-        // let mut frame_ptr = gc_interface.alloc_with_size(frame, size);
-        // Frame::init_frame_post_alloc(frame_ptr, args, max_stack_size, *prev_frame);
-        // frame_ptr.current_method = *current_method;
-        //
-        // frame_ptr
-
         let max_stack_size = block.blk_info.max_stack_size as usize;
         let nbr_locals = block.blk_info.nbr_locals;
-        // let nbr_args = block.blk_info.nbr_params;
 
         let size = Frame::get_true_size(max_stack_size, nbr_locals, args.len());
 
         unsafe {
-            // HACK_FRAME_CURRENT_METHOD_PTR = Some(*current_method);
             HACK_FRAME_CURRENT_BLOCK_PTR = Some(block);
             HACK_FRAME_FRAME_ARGS_PTR = Some(Vec::from(args));
         }
 
-        // dbg!(&args);
-        // unsafe { dbg!(&HACK_FRAME_FRAME_ARGS_PTR); }
-        // dbg!(prev_frame);
+        let mut frame_ptr: Gc<Frame> = gc_interface.request_memory_for_type(size);
 
-        // This MAY TRIGGER A COLLECTION, so we account for that with the surrounding code
-        // dbg!(prev_frame);
-        let mut frame_ptr: Gc<Frame> = gc_interface.request_bytes(size + OBJECT_REF_OFFSET).into();
-        // dbg!(prev_frame);
-
-        // dbg!(&args);
-        // unsafe { dbg!(&HACK_FRAME_FRAME_ARGS_PTR); }
-
-        let header_ptr: *mut u8 = frame_ptr.to_mut_ptr() as *mut u8;
-        unsafe {
-            *header_ptr = Frame::get_magic_gc_id();
-        }
-
-        frame_ptr.ptr += OBJECT_REF_OFFSET;
         unsafe {
             *frame_ptr = Frame::from_block(HACK_FRAME_CURRENT_BLOCK_PTR.unwrap());
-        }
-        unsafe {
             Frame::init_frame_post_alloc(
                 frame_ptr,
                 HACK_FRAME_FRAME_ARGS_PTR.as_ref().unwrap().as_slice(),
@@ -129,14 +89,9 @@ impl Frame {
         }
 
         unsafe {
-            // HACK_FRAME_CURRENT_METHOD_PTR = None;
             HACK_FRAME_CURRENT_BLOCK_PTR = None;
             HACK_FRAME_FRAME_ARGS_PTR = None;
         }
-
-        // dbg!(frame_ptr);
-        // dbg!(prev_frame);
-        // dbg!(frame_ptr.prev_frame.ptr);
 
         frame_ptr
     }
