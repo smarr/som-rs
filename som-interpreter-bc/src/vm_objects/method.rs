@@ -43,11 +43,6 @@ pub enum MethodOrPrim {
 }
 
 impl MethodOrPrim {
-    /// Whether this invocable is a primitive.
-    pub fn is_primitive(&self) -> bool {
-        matches!(self, Self::Primitive(..))
-    }
-
     pub fn holder(&self) -> &Gc<Class> {
         match &self {
             MethodOrPrim::Defined(env) => &env.holder,
@@ -63,10 +58,15 @@ impl MethodOrPrim {
         }
     }
 
-    pub fn get_env(&self) -> Gc<Method> {
+    /// Whether this invocable is a primitive.
+    pub fn is_primitive(&self) -> bool {
+        matches!(self, Self::Primitive(..))
+    }
+
+    pub fn get_method(&self) -> Gc<Method> {
         match self {
             MethodOrPrim::Defined(env) => *env,
-            MethodOrPrim::Primitive(_, _, _) => panic!("requesting method metadata from primitive"),
+            MethodOrPrim::Primitive(..) => panic!("requesting method metadata from primitive"),
         }
     }
 }
@@ -95,10 +95,10 @@ pub trait Invoke {
 impl Invoke for Gc<MethodOrPrim> {
     fn invoke(&self, interpreter: &mut Interpreter, universe: &mut Universe, receiver: Value, mut args: Vec<Value>) {
         match &**self {
-            MethodOrPrim::Defined(_) => {
+            MethodOrPrim::Defined(method) => {
                 let mut frame_args = vec![receiver];
                 frame_args.append(&mut args);
-                interpreter.push_method_frame_with_args(*self, frame_args.as_slice(), universe.gc_interface);
+                interpreter.push_method_frame_with_args(*method, frame_args.as_slice(), universe.gc_interface);
             }
             MethodOrPrim::Primitive(func, ..) => {
                 interpreter.current_frame.stack_push(receiver);

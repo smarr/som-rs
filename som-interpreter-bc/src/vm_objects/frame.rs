@@ -2,7 +2,7 @@ use crate::compiler::Literal;
 use crate::value::Value;
 use crate::vm_objects::block::{Block, BodyInlineCache};
 use crate::vm_objects::class::Class;
-use crate::vm_objects::method::{Method, MethodOrPrim};
+use crate::vm_objects::method::Method;
 use crate::{HACK_FRAME_CURRENT_BLOCK_PTR, HACK_FRAME_CURRENT_METHOD_PTR, HACK_FRAME_FRAME_ARGS_PTR};
 use core::mem::size_of;
 use som_core::bytecode::Bytecode;
@@ -34,13 +34,8 @@ pub struct Frame {
 }
 
 impl Frame {
-    pub fn alloc_from_method(method: Gc<MethodOrPrim>, args: &[Value], prev_frame: &Gc<Frame>, gc_interface: &mut GCInterface) -> Gc<Frame> {
-        let (max_stack_size, nbr_locals) = match &*method {
-            MethodOrPrim::Defined(m_env) => (m_env.max_stack_size as usize, m_env.nbr_locals),
-            _ => unreachable!("if we're allocating a method frame, it has to be defined."),
-        };
-
-        let size = Frame::get_true_size(max_stack_size, args.len(), nbr_locals);
+    pub fn alloc_from_method(method: Gc<Method>, args: &[Value], prev_frame: &Gc<Frame>, gc_interface: &mut GCInterface) -> Gc<Frame> {
+        let size = Frame::get_true_size(method.max_stack_size as usize, args.len(), method.nbr_locals);
 
         unsafe {
             HACK_FRAME_CURRENT_METHOD_PTR = Some(method);
@@ -50,11 +45,11 @@ impl Frame {
         let mut frame_ptr: Gc<Frame> = gc_interface.request_memory_for_type(size);
 
         unsafe {
-            *frame_ptr = Frame::from_method(HACK_FRAME_CURRENT_METHOD_PTR.unwrap().get_env());
+            *frame_ptr = Frame::from_method(HACK_FRAME_CURRENT_METHOD_PTR.unwrap());
             Frame::init_frame_post_alloc(
                 frame_ptr,
                 HACK_FRAME_FRAME_ARGS_PTR.as_ref().unwrap().as_slice(),
-                max_stack_size,
+                HACK_FRAME_CURRENT_METHOD_PTR.unwrap().max_stack_size as usize,
                 *prev_frame,
             );
 

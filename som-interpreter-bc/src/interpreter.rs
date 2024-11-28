@@ -5,7 +5,7 @@ use crate::value::Value;
 use crate::vm_objects::block::Block;
 use crate::vm_objects::class::Class;
 use crate::vm_objects::frame::Frame;
-use crate::vm_objects::method::MethodOrPrim;
+use crate::vm_objects::method::{Method, MethodOrPrim};
 use anyhow::Context;
 use num_bigint::BigInt;
 use som_core::bytecode::Bytecode;
@@ -83,7 +83,7 @@ impl Interpreter {
 
     /// Creates and allocates a new frame corresponding to a method.
     /// nbr_args is the number of arguments, including the self value, which it takes from the previous frame.
-    pub fn push_method_frame(&mut self, method: Gc<MethodOrPrim>, nbr_args: usize, mutator: &mut GCInterface) -> Gc<Frame> {
+    pub fn push_method_frame(&mut self, method: Gc<Method>, nbr_args: usize, mutator: &mut GCInterface) -> Gc<Frame> {
         let mut frame_copy = self.current_frame;
         let args = frame_copy.stack_n_last_elements(nbr_args);
 
@@ -99,7 +99,7 @@ impl Interpreter {
 
     /// Creates and allocates a new frame corresponding to a method, with arguments provided.
     /// Used in primitives and
-    pub fn push_method_frame_with_args(&mut self, method: Gc<MethodOrPrim>, args: &[Value], mutator: &mut GCInterface) -> Gc<Frame> {
+    pub fn push_method_frame_with_args(&mut self, method: Gc<Method>, args: &[Value], mutator: &mut GCInterface) -> Gc<Frame> {
         let frame_ptr = Frame::alloc_from_method(method, args, &self.current_frame, mutator);
 
         self.bytecode_idx = 0;
@@ -491,7 +491,7 @@ impl Interpreter {
             };
 
             match &*method {
-                MethodOrPrim::Defined(_) => {
+                MethodOrPrim::Defined(method) => {
                     // let name = &method.holder.name.clone();
                     // eprintln!("Invoking {:?} (in {:?})", &method.signature, &name);
                     // if method.signature == "initializeWith:selector:arguments:" {
@@ -504,7 +504,7 @@ impl Interpreter {
                     // if !SYSTEM_CLASS_NAMES.contains(&name.as_str()) {
                     // }
 
-                    interpreter.push_method_frame(method, nb_params + 1, universe.gc_interface);
+                    interpreter.push_method_frame(*method, nb_params + 1, universe.gc_interface);
                 }
                 MethodOrPrim::Primitive(func, ..) => {
                     // eprintln!("Invoking prim {:?} (in {:?})", &method.signature, &method.holder.name);

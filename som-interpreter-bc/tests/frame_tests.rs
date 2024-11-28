@@ -4,7 +4,7 @@ use som_interpreter_bc::compiler::compile::compile_class;
 use som_interpreter_bc::universe::Universe;
 use som_interpreter_bc::value::Value;
 use som_interpreter_bc::vm_objects::frame::Frame;
-use som_interpreter_bc::vm_objects::method::MethodOrPrim;
+use som_interpreter_bc::vm_objects::method::Method;
 use som_interpreter_bc::UNIVERSE_RAW_PTR_CONST;
 use som_lexer::{Lexer, Token};
 use som_parser::lang;
@@ -38,7 +38,7 @@ pub fn universe<'a>() -> &'a mut Universe {
     }
 }
 
-fn get_method(method_txt: &str, method_name: &str, universe: &mut Universe) -> Gc<MethodOrPrim> {
+fn get_method(method_txt: &str, method_name: &str, universe: &mut Universe) -> Gc<Method> {
     let method_name_interned = universe.intern_symbol(method_name);
 
     let class_txt = format!("Foo = ( {} )", method_txt);
@@ -53,7 +53,7 @@ fn get_method(method_txt: &str, method_name: &str, universe: &mut Universe) -> G
     let class = compile_class(&mut universe.interner, &class_def, Some(&object_class), &mut universe.gc_interface);
     assert!(class.is_some(), "could not compile test expression");
 
-    class.unwrap().lookup_method(method_name_interned).expect("method not found somehow?")
+    class.unwrap().lookup_method(method_name_interned).expect("method not found somehow?").get_method()
 }
 
 #[rstest]

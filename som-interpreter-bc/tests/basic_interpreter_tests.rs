@@ -141,7 +141,7 @@ fn basic_interpreter_tests(universe: &mut Universe) {
         class.class().set_super_class(&object_class.class());
         class.class().set_class(&metaclass_class);
 
-        let method = class.lookup_method(method_name).expect("method not found ??");
+        let method = class.lookup_method(method_name).expect("method not found ??").get_method();
 
         let frame = Frame::alloc_from_method(method, &[Value::SYSTEM], &Gc::default(), universe.gc_interface);
         let mut interpreter = Interpreter::new(frame);
