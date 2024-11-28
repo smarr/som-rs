@@ -328,20 +328,20 @@ macro_rules! reverse {
 
 macro_rules! derive_stuff {
     ($($ty:ident),* $(,)?) => {
-        impl <$($ty: $crate::convert::IntoValue),*> $crate::convert::IntoValue for ($($ty),*,) {
+        impl <$($ty: $crate::value::convert::IntoValue),*> $crate::value::convert::IntoValue for ($($ty),*,) {
             fn into_value(&self, gc_interface: &mut GCInterface) -> $crate::value::Value {
                 #[allow(non_snake_case)]
                 let ($($ty),*,) = self;
                 let values = vec![
                 $(
-                    $crate::convert::IntoValue::into_value($ty, gc_interface),
+                    $crate::value::convert::IntoValue::into_value($ty, gc_interface),
                 )*];
                 let allocated = gc_interface.alloc(VecValue(values));
                 $crate::value::Value::Array(allocated)
             }
         }
 
-        impl <$($ty: $crate::convert::FromArgs),*> $crate::convert::FromArgs for ($($ty),*,) {
+        impl <$($ty: $crate::value::convert::FromArgs),*> $crate::value::convert::FromArgs for ($($ty),*,) {
             fn from_args(interpreter: &mut $crate::interpreter::Interpreter, universe: &mut $crate::universe::Universe) -> Result<Self, Error> {
                 $(
                     #[allow(non_snake_case)]
@@ -351,11 +351,11 @@ macro_rules! derive_stuff {
             }
         }
 
-        impl <F, R, $($ty),*> $crate::convert::Primitive<($($ty),*,)> for F
+        impl <F, R, $($ty),*> $crate::value::convert::Primitive<($($ty),*,)> for F
         where
             F: Fn(&mut $crate::interpreter::Interpreter, &mut $crate::universe::Universe, $($ty),*) -> Result<R, Error> + Send + Sync + 'static,
-            R: $crate::convert::IntoReturn,
-            $($ty: $crate::convert::FromArgs),*,
+            R: $crate::value::convert::IntoReturn,
+            $($ty: $crate::value::convert::FromArgs),*,
         {
             fn invoke(&self, interpreter: &mut $crate::interpreter::Interpreter, universe: &mut $crate::universe::Universe) -> Result<(), Error> {
                 reverse!(interpreter, universe, [$($ty),*], []);

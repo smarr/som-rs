@@ -20,9 +20,9 @@ pub mod symbol;
 pub mod system;
 
 pub use self::blocks::{block1, block2, block3};
-use crate::convert::Primitive;
 use crate::interpreter::Interpreter;
 use crate::universe::Universe;
+use crate::value::convert::Primitive;
 use anyhow::Error;
 use once_cell::sync::Lazy;
 

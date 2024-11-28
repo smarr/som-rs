@@ -2,12 +2,12 @@ use std::collections::hash_map::DefaultHasher;
 use std::convert::{TryFrom, TryInto};
 use std::hash::{Hash, Hasher};
 
-use crate::convert::Primitive;
 use crate::gc::VecValue;
 use crate::interpreter::Interpreter;
 use crate::primitives::PrimInfo;
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
+use crate::value::convert::Primitive;
 use crate::value::Value;
 use crate::vm_objects::class::Class;
 use crate::vm_objects::method::Invoke;

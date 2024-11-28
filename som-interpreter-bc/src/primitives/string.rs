@@ -2,11 +2,11 @@ use std::collections::hash_map::DefaultHasher;
 use std::convert::{TryFrom, TryInto};
 use std::hash::Hasher;
 
-use crate::convert::{Primitive, StringLike};
 use crate::interpreter::Interpreter;
 use crate::primitives::PrimInfo;
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
+use crate::value::convert::{Primitive, StringLike};
 use crate::value::Value;
 use anyhow::Error;
 use num_bigint::BigInt;

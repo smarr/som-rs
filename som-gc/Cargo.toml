@@ -20,7 +20,7 @@ log = "0.4.21"
 num-bigint = "0.4.3"
 
 [features]
-default = ["marksweep"]
+default = ["semispace"]
 #default = ["mmtk/extreme_assertions"]
 
 marksweep = []

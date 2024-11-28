@@ -31,9 +31,6 @@ pub mod universe;
 /// Facilities for manipulating values.
 pub mod value;
 
-/// Used to convert types, used by primitives.
-pub mod convert;
-
 /// Structs and info related to interacting with the GC
 pub mod gc;
 

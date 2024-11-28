@@ -2,11 +2,11 @@ use anyhow::Error;
 use once_cell::sync::Lazy;
 use som_gc::gcref::Gc;
 
-use crate::convert::Primitive;
 use crate::interpreter::Interpreter;
 use crate::primitives::PrimInfo;
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
+use crate::value::convert::Primitive;
 use som_core::interner::Interned;
 
 pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([("asString", self::as_string.into_func(), true)]));

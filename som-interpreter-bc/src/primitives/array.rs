@@ -1,11 +1,11 @@
 use std::convert::{TryFrom, TryInto};
 
 use super::PrimInfo;
-use crate::convert::Primitive;
 use crate::gc::VecValue;
 use crate::interpreter::Interpreter;
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
+use crate::value::convert::Primitive;
 use crate::value::Value;
 use anyhow::{Context, Error};
 use once_cell::sync::Lazy;

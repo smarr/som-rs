@@ -1,10 +1,10 @@
 use std::convert::{TryFrom, TryInto};
 
-use crate::convert::{DoubleLike, IntegerLike, Primitive, StringLike};
 use crate::interpreter::Interpreter;
 use crate::primitives::PrimInfo;
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
+use crate::value::convert::{DoubleLike, IntegerLike, Primitive, StringLike};
 use crate::value::Value;
 use anyhow::{bail, Context, Error};
 use num_bigint::{BigInt, BigUint, ToBigInt};

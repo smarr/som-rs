@@ -2,12 +2,12 @@ use std::convert::TryInto;
 use std::fs;
 use std::io::Write;
 
-use crate::convert::{Nil, Primitive, StringLike, System};
 use crate::gc::VecValue;
 use crate::interpreter::Interpreter;
 use crate::primitives::PrimInfo;
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
+use crate::value::convert::{Nil, Primitive, StringLike, System};
 use crate::value::Value;
 use crate::vm_objects::class::Class;
 use anyhow::{Context, Error};

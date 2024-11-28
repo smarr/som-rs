@@ -1,8 +1,8 @@
-use crate::convert::{DoubleLike, Primitive};
 use crate::interpreter::Interpreter;
 use crate::primitives::PrimInfo;
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
+use crate::value::convert::{DoubleLike, Primitive};
 use crate::value::Value;
 use anyhow::{Context, Error};
 use num_traits::ToPrimitive;
