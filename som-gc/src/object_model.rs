@@ -64,7 +64,7 @@ impl ObjectModel<SOMVM> for VMObjectModel {
 
         copy_context.post_copy(header_dst_obj, bytes, semantics);
 
-        ((&MMTK_TO_VM_INTERFACE).get().unwrap().adapt_post_copy)(header_dst_obj, from);
+        (MMTK_TO_VM_INTERFACE.get().unwrap().adapt_post_copy)(header_dst_obj, from);
 
         debug_assert_eq!(_from_header_gc_id, unsafe { header_dst.as_ref::<u8>() });
 
@@ -79,7 +79,7 @@ impl ObjectModel<SOMVM> for VMObjectModel {
     }
 
     fn get_current_size(object: ObjectReference) -> usize {
-        ((&MMTK_TO_VM_INTERFACE).get().unwrap().get_object_size)(object)
+        (MMTK_TO_VM_INTERFACE.get().unwrap().get_object_size)(object)
     }
 
     fn get_size_when_copied(_object: ObjectReference) -> usize {

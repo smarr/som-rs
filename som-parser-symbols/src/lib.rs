@@ -48,7 +48,7 @@ enum FoundVar {
     // Field(usize),
 }
 
-impl<'a> AstGenCtxtData<'a> {
+impl AstGenCtxtData<'_> {
     pub fn init() -> Self {
         AstGenCtxtData {
             kind: AstGenCtxtType::Class,

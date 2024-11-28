@@ -1,3 +1,4 @@
+#![allow(static_mut_refs)]
 extern crate libc;
 extern crate mmtk;
 
@@ -30,14 +31,11 @@ impl VMBinding for SOMVM {
     type VMSlot = SOMSlot;
     type VMMemorySlice = mmtk::vm::slot::UnimplementedMemorySlice<SOMSlot>;
 
-    /// Allowed maximum alignment in bytes.
-    // const MAX_ALIGNMENT: usize = 1 << 6;
-
     const ALIGNMENT_VALUE: usize = 0xdead_beef;
     /// Allowed minimal alignment in bytes.
     const MIN_ALIGNMENT: usize = 1 << 2;
     /// Allowed maximum alignment in bytes.
-    const MAX_ALIGNMENT: usize = 1 << 3;
+    const MAX_ALIGNMENT: usize = 1 << 3; // const MAX_ALIGNMENT: usize = 1 << 6;
     const USE_ALLOCATION_OFFSET: bool = true;
 
     const ALLOC_END_ALIGNMENT: usize = 1;

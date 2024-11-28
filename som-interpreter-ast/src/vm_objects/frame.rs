@@ -7,26 +7,6 @@ use std::fmt::{Debug, Formatter};
 use std::marker::PhantomData;
 use std::ptr::NonNull;
 
-/// The kind of a given frame.
-// #[cfg(feature = "frame-debug-info")]
-// #[derive(Debug, Clone)]
-// pub enum FrameKind {
-//     /// A frame created from a block evaluation.
-//     Block {
-//         /// The block instance for the current frame.
-//         block: Rc<Block>,
-//     },
-//     /// A frame created from a method invocation.
-//     Method {
-//         /// The holder of the current method (used for lexical self/super).
-//         holder: SOMRef<Class>,
-//         /// The current method.
-//         signature: Interned,
-//         /// The self value.
-//         self_value: Value,
-//     },
-// }
-
 /// Represents a stack frame.
 pub struct Frame {
     pub prev_frame: Gc<Frame>,
@@ -42,17 +22,6 @@ pub struct Frame {
 }
 
 impl Frame {
-    /// Construct a new empty frame from its kind.
-    // pub fn from_kind(kind: FrameKind, nbr_locals: usize, self_value: Value) -> Self {
-    //     let mut frame = Self {
-    //         kind,
-    //         locals: vec![Value::Nil; nbr_locals],
-    //         params: vec![], // can we statically determine the length to not have to init it later? it's not straightforward as it turns out, but *should* be doable...
-    //     };
-    //     frame.params.push(self_value);
-    //     frame
-    // }
-
     pub fn alloc_new_frame(nbr_locals: u8, mut params: Vec<Value>, prev_frame: &Gc<Frame>, gc_interface: &mut GCInterface) -> Gc<Self> {
         let frame = Self {
             prev_frame: Gc::default(),
@@ -88,20 +57,6 @@ impl Frame {
 
         frame_ptr
     }
-
-    /// Get the frame's kind.
-    // pub fn kind(&self) -> &FrameKind {
-    //     &self.kind
-    // }
-
-    /// Get the signature of the current method.
-    // #[cfg(feature = "frame-debug-info")]
-    // pub fn get_method_signature(&self) -> Interned {
-    //     match &self.kind {
-    //         FrameKind::Method { signature, .. } => *signature,
-    //         FrameKind::Block { block, .. } => block.frame.borrow().get_method_signature(),
-    //     }
-    // }
 
     pub fn nth_frame_back(current_frame: &Gc<Frame>, n: u8) -> Gc<Frame> {
         if n == 0 {

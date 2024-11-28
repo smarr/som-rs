@@ -2,6 +2,10 @@
 //! This is the interpreter for the Simple Object Machine.
 //!
 
+// TODO: remove we should NOT rely on static mutables.
+// I thought it was justified, and I've got a decent use case, but that doesn't mean we shouldn't use some Rust wrapper like OnceLock<T>
+#![allow(static_mut_refs)]
+
 use crate::interpreter::Interpreter;
 use crate::universe::Universe;
 use crate::value::Value;

@@ -12,10 +12,12 @@ use std::cell::OnceCell;
 use std::path::PathBuf;
 use std::ptr::NonNull;
 
+#[allow(static_mut_refs)]
 static mut UNIVERSE_CELL: OnceCell<Universe> = OnceCell::new();
 
 #[fixture]
 pub fn universe<'a>() -> &'a mut Universe {
+    #[allow(static_mut_refs)]
     unsafe {
         UNIVERSE_CELL.get_or_init(|| {
             let classpath = vec![
