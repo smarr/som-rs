@@ -24,7 +24,7 @@ panic = 'abort'
 lto = "fat"
 # codegen-units of 1 gives best optimization, but disables parallel building.
 # Default: 16
-codegen-units = 1
+codegen-units = 16
 # The default optimization level is 3 for release mode builds.
 # 0 means disable optimization and is the default for debug mode buids.
 # (Setting opt-level=1 for debug builds is a good way of speeding them up a bit.)

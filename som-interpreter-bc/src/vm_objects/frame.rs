@@ -276,11 +276,7 @@ impl Frame {
 
     #[inline(always)]
     pub fn lookup_constant(&self, idx: usize) -> Literal {
-        let literals = &self.current_context.literals;
-        match cfg!(debug_assertions) {
-            true => literals.get(idx).unwrap().clone(),
-            false => unsafe { literals.get_unchecked(idx).clone() },
-        }
+        self.current_context.literals.get(idx).unwrap().clone()
     }
 
     pub fn nth_frame_back(current_frame: &Gc<Frame>, n: u8) -> Gc<Frame> {

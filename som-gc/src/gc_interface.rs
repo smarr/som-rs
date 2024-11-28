@@ -62,7 +62,7 @@ impl GCInterface {
         #[cfg(feature = "strategy-semispace")]
         let default_allocator = Self::get_default_allocator::<BumpAllocator<SOMVM>>(mutator.as_ref());
 
-        let mut self_ = Box::new(Self {
+        let self_ = Box::new(Self {
             mutator_thread,
             mutator,
             default_allocator,
@@ -70,21 +70,25 @@ impl GCInterface {
             total_gc_time: Duration::new(0, 0),
         });
 
+        let gc_interface_ptr = Box::leak(self_);
+
         unsafe {
             // in the context of tests, this function gets invoked many times, so they can have already been initialized.
+            // TODO: which makes me realize that this function's structure is subpar. Why do we return a NEW GCInterface at all, then?
+            // The universe should likely use a reference to the OnceCell, or something... That'd be better.
 
             if MUTATOR_WRAPPER.get().is_none() {
-                MUTATOR_WRAPPER.set(&mut *self_).unwrap_or_else(|_| panic!("couldn't set mutator wrapper?"));
+                // very unsafe, very ugly: we duplicate a mutable reference to the GC interface ptr. need to avoid by implementing above idea
+                let dup_ptr = &mut *(gc_interface_ptr as *mut GCInterface);
+                MUTATOR_WRAPPER.set(dup_ptr).unwrap_or_else(|_| panic!("couldn't set mutator wrapper?"));
             }
 
             if MMTK_TO_VM_INTERFACE.get().is_none() {
-                MMTK_TO_VM_INTERFACE
-                    .set(vm_callbacks)
-                    .unwrap_or_else(|_| panic!("couldn't set callbacks to establish MMTk=>VM connection?"));
+                MMTK_TO_VM_INTERFACE.get_or_init(|| vm_callbacks);
             }
         }
 
-        Box::leak(self_)
+        gc_interface_ptr
     }
 
     /// Initialize MMTk, and get from it all the info we need to initialize our interface
