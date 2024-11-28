@@ -142,12 +142,7 @@ pub fn scan_object<'a>(object: ObjectReference, slot_visitor: &'a mut (dyn SlotV
 
                 if let MethodOrPrim::Defined(method_env) = &method {
                     slot_visitor.visit_slot(SOMSlot::from(method_env));
-                    for x in &method_env.literals {
-                        visit_literal(x, slot_visitor)
-                    }
                 }
-
-                slot_visitor.visit_slot(SOMSlot::from(method.holder()))
             }
             BCObjMagicId::Class => {
                 let class: &mut Class = object.to_raw_address().as_mut_ref();
@@ -191,14 +186,16 @@ pub fn scan_object<'a>(object: ObjectReference, slot_visitor: &'a mut (dyn SlotV
                 }
             }
             BCObjMagicId::MethodOrBlkEnv => {
-                let block_info: &mut Method = object.to_raw_address().as_mut_ref();
+                let method: &mut Method = object.to_raw_address().as_mut_ref();
 
-                for (cls_ptr, method_ptr) in block_info.inline_cache.iter().flatten() {
+                slot_visitor.visit_slot(SOMSlot::from(&method.holder));
+
+                for (cls_ptr, method_ptr) in method.inline_cache.iter().flatten() {
                     slot_visitor.visit_slot(SOMSlot::from(cls_ptr));
                     slot_visitor.visit_slot(SOMSlot::from(method_ptr));
                 }
 
-                for lit in &block_info.literals {
+                for lit in &method.literals {
                     visit_literal(lit, slot_visitor)
                 }
             }

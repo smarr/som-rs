@@ -48,29 +48,26 @@ impl Frame {
             HACK_FRAME_FRAME_ARGS_PTR = Some(Vec::from(args));
         }
 
-        // dbg!(prev_frame);
         let mut frame_ptr: Gc<Frame> = gc_interface.request_bytes(size + OBJECT_REF_OFFSET).into();
-        // dbg!(prev_frame);
-        let header_ptr: *mut u8 = frame_ptr.to_mut_ptr() as *mut u8;
-        unsafe {
-            *header_ptr = Frame::get_magic_gc_id();
-        }
 
-        frame_ptr.ptr += OBJECT_REF_OFFSET;
         unsafe {
+            let header_ptr: *mut u8 = frame_ptr.to_mut_ptr() as *mut u8;
+            *header_ptr = Frame::get_magic_gc_id();
+
+            frame_ptr.ptr += OBJECT_REF_OFFSET;
+
             *frame_ptr = Frame::from_method(HACK_FRAME_CURRENT_METHOD_PTR.unwrap().get_env());
-        }
-        unsafe {
+
+            let _frame_ptr = &*frame_ptr;
+            let _frame_ptr_ctxt = &*frame_ptr.current_context;
+
             Frame::init_frame_post_alloc(
                 frame_ptr,
                 HACK_FRAME_FRAME_ARGS_PTR.as_ref().unwrap().as_slice(),
                 max_stack_size,
                 *prev_frame,
             );
-        }
-        // Frame::init_frame_post_alloc(frame_ptr, args, max_stack_size, *prev_frame);
 
-        unsafe {
             HACK_FRAME_CURRENT_METHOD_PTR = None;
             HACK_FRAME_FRAME_ARGS_PTR = None;
         }
@@ -244,6 +241,7 @@ impl Frame {
 
     /// Get the holder for this current method.
     pub(crate) fn get_method_holder(&self) -> Gc<Class> {
+        // TODO: just self.current_context.holder instead? most likely.
         match self.lookup_argument(0).as_block() {
             Some(b) => {
                 let block_frame = b.frame.as_ref().unwrap();
