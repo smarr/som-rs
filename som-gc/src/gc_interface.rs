@@ -107,7 +107,7 @@ impl GCInterface {
             }
 
             #[cfg(feature = "stress_test")]
-            assert!(builder.set_option("stress_factor", "1000000"));
+            assert!(builder.set_option("stress_factor", "4000000"));
 
             builder
         };

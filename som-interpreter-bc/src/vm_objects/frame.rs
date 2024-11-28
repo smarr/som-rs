@@ -91,9 +91,9 @@ impl Frame {
 
         let max_stack_size = block.blk_info.max_stack_size as usize;
         let nbr_locals = block.blk_info.nbr_locals;
-        let nbr_args = block.blk_info.nbr_params;
+        // let nbr_args = block.blk_info.nbr_params;
 
-        let size = Frame::get_true_size(max_stack_size, nbr_locals, nbr_args);
+        let size = Frame::get_true_size(max_stack_size, nbr_locals, args.len());
 
         unsafe {
             // HACK_FRAME_CURRENT_METHOD_PTR = Some(*current_method);

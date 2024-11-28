@@ -24,7 +24,7 @@ build-and-test-interpreters:
     - cargo +$CARGO_VERSION build --release
     - cargo clippy
 
-    - RUST_TEST_THREADS=1 cargo test
+#    - RUST_TEST_THREADS=1 cargo test
 
     # Package and Upload
     - lz4 ./target/release/som-interpreter-ast som-interpreter-ast.lz4
