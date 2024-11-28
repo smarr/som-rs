@@ -24,8 +24,7 @@ const INSTANCE_TAG: u64 = 0b110 | CELL_BASE_TAG;
 /// Tag bits for the `Invokable` type.
 const INVOKABLE_TAG: u64 = 0b111 | CELL_BASE_TAG;
 
-#[derive(Clone, Copy, Hash)]
-#[allow(clippy::derived_hash_with_manual_eq)] // But TODO: implement it...
+#[derive(Clone, Copy)]
 pub struct Value(BaseValue);
 
 impl Deref for Value {

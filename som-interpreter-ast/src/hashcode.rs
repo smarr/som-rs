@@ -73,14 +73,14 @@ use crate::vm_objects::method::Method;
 impl Hash for Class {
     fn hash<H: Hasher>(&self, hasher: &mut H) {
         self.name.hash(hasher);
-        self.fields.hash(hasher)
+        self.fields.iter().for_each(|val| val.hash(hasher))
     }
 }
 
 impl Hash for Instance {
     fn hash<H: Hasher>(&self, hasher: &mut H) {
         self.class.hash(hasher);
-        self.fields.hash(hasher)
+        self.fields.iter().for_each(|val| val.hash(hasher))
     }
 }
 

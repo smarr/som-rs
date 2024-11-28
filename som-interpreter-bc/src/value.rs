@@ -26,8 +26,7 @@ const INVOKABLE_TAG: u64 = 0b111 | CELL_BASE_TAG;
 
 /// Represents an SOM value.
 
-#[derive(Clone, Copy, Hash)]
-#[allow(clippy::derived_hash_with_manual_eq)] // But TODO: implement it...
+#[derive(Clone, Copy)]
 #[repr(transparent)]
 pub struct Value(BaseValue);
 
