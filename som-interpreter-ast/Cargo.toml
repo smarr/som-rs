@@ -12,7 +12,7 @@ license = "MIT OR Apache-2.0"
 som-core = { path = "../som-core", version = "0.1.0" }
 som-lexer = { path = "../som-lexer", version = "0.1.0" }
 som-parser = { package = "som-parser-symbols", path = "../som-parser-symbols", version = "0.1.0" }
-som-gc = { path = "../som-gc", version = "0.1.0" }
+som-gc = { path = "../som-gc", version = "0.1.0", default-features = false }
 
 # CLI interface
 structopt = "0.3.25"

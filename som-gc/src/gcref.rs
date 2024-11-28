@@ -51,7 +51,7 @@ impl<T> Deref for Gc<T> {
     fn deref(&self) -> &T {
         unsafe {
             let ptr = self.ptr as *const T;
-            #[cfg(all(feature = "strategy-semispace", debug_assertions))]
+            #[cfg(all(feature = "semispace", debug_assertions))]
             {
                 // checking we're not holding onto references from the old space
                 let gc_interface = &**crate::MUTATOR_WRAPPER.get().unwrap();
@@ -69,7 +69,7 @@ impl<T> DerefMut for Gc<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         unsafe {
             let ptr = self.ptr as *mut T;
-            #[cfg(all(feature = "strategy-semispace", debug_assertions))]
+            #[cfg(all(feature = "semispace", debug_assertions))]
             {
                 // checking we're not holding onto references from the old space
                 let gc_interface = &**crate::MUTATOR_WRAPPER.get().unwrap();

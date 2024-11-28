@@ -20,12 +20,11 @@ log = "0.4.21"
 num-bigint = "0.4.3"
 
 [features]
-#default = ["strategy-marksweep"]
-default = ["strategy-semispace"]
+default = ["marksweep"]
 #default = ["mmtk/extreme_assertions"]
 
-strategy-marksweep = []
-strategy-semispace = []
+marksweep = []
+semispace = []
 
 stress_test = []
 is_mmtk_object = ["mmtk/is_mmtk_object"]

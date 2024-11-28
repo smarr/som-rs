@@ -3,9 +3,6 @@ stages:
   - benchmark
   - benchmark-completion
 
-variables:
-  CARGO_VERSION: stable
-
 before_script:
   - (cd core-lib && git remote add smarr https://github.com/smarr/SOM.git && git fetch --all) || true
   - git submodule update --init
@@ -20,11 +17,12 @@ build-and-test-interpreters:
     - git clone https://github.com/mmtk/mmtk-core
     - cd mmtk-core && git checkout v0.29.0 && cd ..
 
-    - cargo +$CARGO_VERSION clean
-    - cargo +$CARGO_VERSION build --release
+    - cargo clean
+    - cargo build --release -p som-interpreter-ast --features=som-gc/marksweep
+    - cargo build --release -p som-interpreter-bc --features=som-gc/semispace
     - cargo clippy
 
-#    - RUST_TEST_THREADS=1 cargo test
+    - RUST_TEST_THREADS=1 cargo test --features som-gc/marksweep
 
     # Package and Upload
     - lz4 ./target/release/som-interpreter-ast som-interpreter-ast.lz4

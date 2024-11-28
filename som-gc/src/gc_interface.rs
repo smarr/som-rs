@@ -9,9 +9,9 @@ use crate::{MMTK_SINGLETON, MMTK_TO_VM_INTERFACE, MUTATOR_WRAPPER, SOMVM};
 use core::mem::size_of;
 use log::debug;
 use mmtk::util::alloc::Allocator;
-#[cfg(feature = "strategy-semispace")]
+#[cfg(feature = "semispace")]
 use mmtk::util::alloc::BumpAllocator;
-#[cfg(feature = "strategy-marksweep")]
+#[cfg(feature = "marksweep")]
 use mmtk::util::alloc::FreeListAllocator;
 use mmtk::util::constants::MIN_OBJECT_SIZE;
 use mmtk::util::{Address, ObjectReference, OpaquePointer, VMMutatorThread, VMThread};
@@ -20,6 +20,12 @@ use mmtk::{memory_manager, AllocationSemantics, MMTKBuilder, Mutator};
 use num_bigint::BigInt;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
+
+#[cfg(not(any(feature = "marksweep", feature = "semispace")))]
+compile_error!("Either marksweep or semispace must be enabled for this crate.");
+
+#[cfg(all(feature = "semispace", feature = "marksweep"))]
+compile_error!("Several GC strategies enabled: only one is allowed at a time.");
 
 pub static IS_WORLD_STOPPED: AtomicBool = AtomicBool::new(false);
 
@@ -30,9 +36,9 @@ static GC_ALIGN: usize = 8;
 /// TODO rename, maybe MutatorWrapper
 pub struct GCInterface {
     mutator: Box<Mutator<SOMVM>>,
-    #[cfg(feature = "strategy-marksweep")]
+    #[cfg(feature = "marksweep")]
     default_allocator: *mut FreeListAllocator<SOMVM>,
-    #[cfg(feature = "strategy-semispace")]
+    #[cfg(feature = "semispace")]
     default_allocator: *mut mmtk::util::alloc::BumpAllocator<SOMVM>,
     mutator_thread: VMMutatorThread,
     start_the_world_count: usize,
@@ -57,9 +63,9 @@ impl GCInterface {
     /// Initialize the GCInterface. Internally inits MMTk and fetches everything needed to actually communicate with the GC.
     pub fn init<'a>(heap_size: usize, vm_callbacks: MMTKtoVMCallbacks) -> &'a mut Self {
         let (mutator_thread, mutator) = Self::init_mmtk(heap_size);
-        #[cfg(feature = "strategy-marksweep")]
+        #[cfg(feature = "marksweep")]
         let default_allocator = Self::get_default_allocator::<FreeListAllocator<SOMVM>>(mutator.as_ref());
-        #[cfg(feature = "strategy-semispace")]
+        #[cfg(feature = "semispace")]
         let default_allocator = Self::get_default_allocator::<BumpAllocator<SOMVM>>(mutator.as_ref());
 
         let self_ = Box::new(Self {
@@ -99,12 +105,9 @@ impl GCInterface {
             let heap_success = mmtk_set_fixed_heap_size(&mut builder, heap_size);
             assert!(heap_success, "Couldn't set MMTk fixed heap size");
 
-            #[cfg(all(feature = "strategy-semispace", feature = "strategy-marksweep"))]
-            compile_error!("Several GC strategies enabled: only one is allowed at a time.");
-
-            if cfg!(feature = "strategy-marksweep") {
+            if cfg!(feature = "marksweep") {
                 assert!(builder.set_option("plan", "MarkSweep"));
-            } else if cfg!(feature = "strategy-semispace") {
+            } else if cfg!(feature = "semispace") {
                 assert!(builder.set_option("plan", "SemiSpace"));
             } else {
                 panic!("No GC plan set!")
