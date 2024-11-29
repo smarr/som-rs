@@ -129,7 +129,7 @@ impl ValueEnum {
     #[inline(always)]
     pub fn lookup_local(&self, idx: usize) -> Self {
         match self {
-            Self::Instance(instance_ptr) => (*instance_ptr.lookup_field(idx)).into(),
+            Self::Instance(instance_ptr) => (*Instance::lookup_field(*instance_ptr, idx)).into(),
             Self::Class(class) => class.lookup_field(idx).into(),
             v => unreachable!("Attempting to look up a local in {:?}", v),
         }
@@ -138,7 +138,7 @@ impl ValueEnum {
     /// Assign a value to a local binding within this value.
     pub fn assign_local(&mut self, idx: usize, value: Self) {
         match self {
-            Self::Instance(instance_ptr) => instance_ptr.assign_field(idx, value.into()),
+            Self::Instance(instance_ptr) => Instance::assign_field(*instance_ptr, idx, value.into()),
             Self::Class(class) => class.assign_field(idx, value.into()),
             v => unreachable!("Attempting to assign a local in {:?}", v),
         }

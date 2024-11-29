@@ -5,14 +5,15 @@ use core::mem::size_of;
 use som_gc::gc_interface::GCInterface;
 use som_gc::gcref::Gc;
 use std::fmt;
+use std::marker::PhantomData;
 
 /// Represents a generic (non-primitive) class instance.
 #[derive(Clone, PartialEq)]
 pub struct Instance {
     /// The class of which this is an instance from.
     pub class: Gc<Class>,
-    /// Pointer to the fields of this instance
-    pub fields_ptr: *mut Value,
+    /// We store the fields right after the instance in memory.
+    pub fields_marker: PhantomData<[Value]>,
 }
 
 impl Instance {
@@ -22,20 +23,16 @@ impl Instance {
 
         let instance = Self {
             class: Gc::default(),
-            fields_ptr: std::ptr::null_mut(),
+            fields_marker: PhantomData,
         };
 
         unsafe { HACK_INSTANCE_CLASS_PTR = Some(class) }
 
         let post_alloc_closure = |mut instance_ref: Gc<Instance>| {
             unsafe {
-                let mut values_addr = (instance_ref.ptr + size_of::<Instance>()) as *mut Value;
-                instance_ref.fields_ptr = values_addr;
-                for _ in 0..nbr_fields {
-                    *values_addr = Value::NIL;
-                    values_addr = values_addr.wrapping_add(1);
+                for idx in 0..nbr_fields {
+                    Instance::assign_field(instance_ref, idx, Value::NIL)
                 }
-
                 instance_ref.class = HACK_INSTANCE_CLASS_PTR.unwrap();
                 HACK_INSTANCE_CLASS_PTR = None;
             };
@@ -44,20 +41,6 @@ impl Instance {
         let size = size_of::<Instance>() + (nbr_fields * size_of::<Value>());
         gc_interface.alloc_with_post_init(instance, size, post_alloc_closure)
     }
-
-    // /// Construct an instance for a given class.
-    // pub fn from_static_class(class: Gc<Class>, mutator: &mut GCInterface) -> Gc<Instance> {
-    //     let instance = Self {
-    //         class,
-    //         fields_ptr: std::ptr::null_mut(),
-    //     };
-    //
-    //     let mut instance_ref = mutator.alloc(instance);
-    //
-    //     // instance_ref.fields_ptr = class.fields.as_mut_slice();
-    //
-    //     instance_ref
-    // }
 
     /// Get the class of which this is an instance from.
     pub fn class(&self) -> Gc<Class> {
@@ -69,27 +52,24 @@ impl Instance {
         self.class.super_class()
     }
 
-    // /// Search for a local binding.
-    // pub fn lookup_local(&self, idx: usize) -> Value {
-    //     unsafe { self.locals.get_unchecked(idx).clone() }
-    // }
-    //
-    // /// Assign a value to a local binding.
-    // pub fn assign_local(&mut self, idx: usize, value: Value) {
-    //     unsafe { *self.locals.get_unchecked_mut(idx) = value; }
-    // }
+    #[inline(always)]
+    fn get_field_ptr(ptr: usize, n: usize) -> *mut Value {
+        (ptr + size_of::<Instance>() + n * size_of::<Value>()) as *mut Value
+    }
 
-    pub(crate) fn lookup_field(&self, idx: usize) -> &Value {
+    /// Lookup a field in an instance.
+    pub(crate) fn lookup_field(_self: Gc<Instance>, idx: usize) -> &'static Value {
         unsafe {
-            let local_ref = self.fields_ptr.add(idx);
-            &*local_ref
+            let field_ptr = Self::get_field_ptr(_self.ptr, idx);
+            &*field_ptr
         }
     }
 
-    pub(crate) fn assign_field(&mut self, idx: usize, value: Value) {
+    /// Assign a field to an instance.
+    pub(crate) fn assign_field(_self: Gc<Self>, idx: usize, value: Value) {
         unsafe {
-            let ptr_to_local = self.fields_ptr.add(idx);
-            *ptr_to_local = value
+            let field_ptr = Self::get_field_ptr(_self.ptr, idx);
+            *field_ptr = value
         }
     }
 

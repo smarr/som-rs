@@ -22,8 +22,10 @@ build-and-test-interpreters:
     - cargo build --release -p som-interpreter-bc --features=som-gc/semispace
     - cargo clippy
 
-    # because the default is semispace at the moment (i'm experimenting with it)
-    - RUST_TEST_THREADS=1 cargo test --no-default-features --features som-gc/marksweep
+    # we have to deactivate defaults because the default is semispace at the moment (i'm experimenting with it)
+    # also AST doesn't have semispace support yet
+    - RUST_TEST_THREADS=1 cargo test --no-default-features --features som-gc/marksweep -p som-interpreter-ast
+    - RUST_TEST_THREADS=1 cargo test --no-default-features --features som-gc/semispace -p som-interpreter-bc
 
     # Package and Upload
     - lz4 ./target/release/som-interpreter-ast som-interpreter-ast.lz4

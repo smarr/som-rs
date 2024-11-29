@@ -277,18 +277,24 @@ impl Frame {
         target_frame
     }
 
+    /// Gets the nth element from the stack (not in reverse order - "3" yields the 3rd element from the bottom, not the top)
+    /// # Safety
+    /// The caller needs to ensure this is a valid stack value. That means not outside the stack's maximum size, and not pointing to an unitialized value.
     #[inline(always)]
-    pub fn nth_stack(&self, n: u8) -> *const Value {
+    pub unsafe fn nth_stack(&self, n: u8) -> &Value {
         let stack_ptr = self as *const Self as usize + OFFSET_TO_STACK;
         let val_ptr = stack_ptr + (n as usize * size_of::<Value>());
-        val_ptr as *const Value
+        &*(val_ptr as *const Value)
     }
 
+    /// Gets the nth element from the stack mutably (not in reverse order - "3" yields the 3rd element from the bottom, not the top)
+    /// # Safety
+    /// The caller needs to ensure this is a valid stack value. That means not outside the stack's maximum size, and not pointing to an unitialized value.
     #[inline(always)]
-    pub fn nth_stack_mut(&mut self, n: u8) -> *mut Value {
+    pub unsafe fn nth_stack_mut(&mut self, n: u8) -> &mut Value {
         let stack_ptr = self as *mut Self as usize + OFFSET_TO_STACK;
         let val_ptr = stack_ptr + (n as usize * size_of::<Value>());
-        val_ptr as *mut Value
+        &mut *(val_ptr as *mut Value)
     }
 
     #[inline(always)]
@@ -309,17 +315,17 @@ impl Frame {
 
     #[inline(always)]
     pub fn stack_last(&self) -> &Value {
-        unsafe { &*self.nth_stack(self.stack_ptr - 1) }
+        unsafe { self.nth_stack(self.stack_ptr - 1) }
     }
 
     #[inline(always)]
     pub fn stack_last_mut(&mut self) -> &mut Value {
-        unsafe { &mut *self.nth_stack_mut(self.stack_ptr - 1) }
+        unsafe { self.nth_stack_mut(self.stack_ptr - 1) }
     }
 
     #[inline(always)]
     pub fn stack_nth_back(&self, n: usize) -> &Value {
-        unsafe { &*self.nth_stack(self.stack_ptr - (n as u8 + 1)) }
+        unsafe { self.nth_stack(self.stack_ptr - (n as u8 + 1)) }
     }
 
     #[inline(always)]
@@ -361,9 +367,9 @@ impl<'a> Iterator for FrameStackIter<'a> {
             return None;
         }
 
-        let val = self.frame.nth_stack(self.stack_idx);
+        let val = unsafe { self.frame.nth_stack(self.stack_idx) };
         self.stack_idx += 1;
-        unsafe { Some(&*val) }
+        Some(val)
     }
 }
 

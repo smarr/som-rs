@@ -16,6 +16,7 @@ use mmtk::vm::{ObjectModel, SlotVisitor};
 use mmtk::Mutator;
 use num_bigint::BigInt;
 use som_gc::gc_interface::{HasTypeInfoForGC, MMTKtoVMCallbacks, BIGINT_MAGIC_ID, STRING_MAGIC_ID, VECU8_MAGIC_ID};
+use som_gc::gcref::Gc;
 use som_gc::object_model::VMObjectModel;
 use som_gc::slot::SOMSlot;
 use som_gc::SOMVM;
@@ -177,8 +178,9 @@ pub fn scan_object<'a>(object: ObjectReference, slot_visitor: &'a mut (dyn SlotV
                 let instance: &mut Instance = object.to_raw_address().as_mut_ref();
                 slot_visitor.visit_slot(SOMSlot::from(&instance.class));
 
+                let instance_as_gc: Gc<Instance> = object.to_raw_address().into();
                 for i in 0..instance.class().get_nbr_fields() {
-                    let val: &Value = instance.lookup_field(i);
+                    let val: &Value = Instance::lookup_field(instance_as_gc, i);
                     visit_value(val, slot_visitor)
                 }
             }
@@ -280,15 +282,16 @@ fn get_object_size(object: ObjectReference) -> usize {
 fn adapt_post_copy(object: ObjectReference, original_obj: ObjectReference) {
     let gc_id: &BCObjMagicId = unsafe { object.to_raw_address().as_ref() };
 
-    match gc_id {
-        BCObjMagicId::Frame => unsafe {
+    unsafe {
+        if gc_id == &BCObjMagicId::Frame {
             debug!("adapt_post_copy: frame");
 
             let frame: &mut Frame = object.to_raw_address().add(8).as_mut_ref();
-            let frame_ptr: *mut Frame = object.to_raw_address().add(8).to_mut_ptr();
+
+            let frame_addr_usize: usize = object.to_raw_address().add(8).as_usize();
             let og_frame_ptr: *const Frame = original_obj.to_raw_address().to_ptr();
 
-            let offset = frame_ptr as isize - og_frame_ptr as isize;
+            let offset = frame_addr_usize as isize - og_frame_ptr as isize;
             // frame.stack_ptr = frame.stack_ptr.byte_offset(offset);
             frame.args_ptr = frame.args_ptr.byte_offset(offset);
             frame.locals_ptr = frame.locals_ptr.byte_offset(offset);
@@ -297,14 +300,7 @@ fn adapt_post_copy(object: ObjectReference, original_obj: ObjectReference) {
             if frame.get_nbr_locals() >= 1 {
                 debug_assert_eq!((*og_frame_ptr).lookup_local(0), frame.lookup_local(0));
             }
-        },
-        BCObjMagicId::Instance => unsafe {
-            debug!("adapt_post_copy: instance");
-            let obj_addr = object.to_raw_address().add(8);
-            let instance_ptr: &mut Instance = obj_addr.as_mut_ref();
-            instance_ptr.fields_ptr = obj_addr.add(size_of::<Instance>()).to_mut_ptr();
-        },
-        _ => {}
+        }
     }
 }
 

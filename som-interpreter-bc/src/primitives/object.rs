@@ -10,6 +10,7 @@ use crate::universe::Universe;
 use crate::value::convert::Primitive;
 use crate::value::Value;
 use crate::vm_objects::class::Class;
+use crate::vm_objects::instance::Instance;
 use crate::vm_objects::method::Invoke;
 use anyhow::{Context, Error};
 use once_cell::sync::Lazy;
@@ -161,7 +162,7 @@ fn inst_var_at(_: &mut Interpreter, _: &mut Universe, receiver: Value, index: i3
 
     if let Some(instance) = receiver.as_instance() {
         match idx < instance.get_nbr_fields() {
-            true => Ok(Some(*instance.lookup_field(idx))),
+            true => Ok(Some(*Instance::lookup_field(instance, idx))),
             false => Ok(None),
         }
     } else if let Some(class) = receiver.as_class() {
@@ -176,8 +177,8 @@ fn inst_var_at(_: &mut Interpreter, _: &mut Universe, receiver: Value, index: i3
 
 fn inst_var_at_put(_: &mut Interpreter, _: &mut Universe, receiver: Value, index: i32, value: Value) -> Result<Option<Value>, Error> {
     let index = usize::try_from(index.saturating_sub(1))?;
-    if let Some(mut instance) = receiver.as_instance() {
-        instance.assign_field(index, value);
+    if let Some(instance) = receiver.as_instance() {
+        Instance::assign_field(instance, index, value)
     } else if let Some(mut class) = receiver.as_class() {
         class.assign_field(index, value);
     } else {

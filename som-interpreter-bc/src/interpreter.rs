@@ -5,6 +5,7 @@ use crate::value::Value;
 use crate::vm_objects::block::Block;
 use crate::vm_objects::class::Class;
 use crate::vm_objects::frame::Frame;
+use crate::vm_objects::instance::Instance;
 use crate::vm_objects::method::Method;
 use anyhow::Context;
 use num_bigint::BigInt;
@@ -237,7 +238,7 @@ impl Interpreter {
                     let self_val = self.current_frame.get_self();
                     let val = {
                         if let Some(instance) = self_val.as_instance() {
-                            *instance.lookup_field(idx as usize)
+                            *Instance::lookup_field(instance, idx as usize)
                         } else if let Some(cls) = self_val.as_class() {
                             cls.class().lookup_field(idx as usize)
                         } else {
@@ -317,8 +318,8 @@ impl Interpreter {
                 Bytecode::PopField(idx) => {
                     let value = self.current_frame.stack_pop();
                     let self_val = self.current_frame.get_self();
-                    if let Some(mut instance) = self_val.as_instance() {
-                        instance.assign_field(idx as usize, value)
+                    if let Some(instance) = self_val.as_instance() {
+                        Instance::assign_field(instance, idx as usize, value)
                     } else if let Some(cls) = self_val.as_class() {
                         cls.class().assign_field(idx as usize, value)
                     } else {

@@ -42,9 +42,12 @@ impl Hash for Value {
         } else if let Some(value) = self.as_class() {
             hasher.write(b"#cls#");
             value.deref().hash(hasher);
-        } else if let Some(value) = self.as_instance() {
+        } else if let Some(instance) = self.as_instance() {
             hasher.write(b"#inst#");
-            value.deref().hash(hasher);
+            instance.class.hash(hasher);
+            for i in 0..instance.class.fields.len() {
+                Instance::lookup_field(instance, i).hash(hasher)
+            }
         } else if let Some(value) = self.as_invokable() {
             hasher.write(b"#mthd#");
             value.hash(hasher);
@@ -60,15 +63,6 @@ impl Hash for Class {
         self.fields.iter().for_each(|value| {
             value.hash(hasher);
         });
-    }
-}
-
-impl Hash for Instance {
-    fn hash<H: Hasher>(&self, hasher: &mut H) {
-        self.class.hash(hasher);
-        for i in 0..self.class.fields.len() {
-            self.lookup_field(i).hash(hasher);
-        }
     }
 }
 
