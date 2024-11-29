@@ -42,7 +42,44 @@ pub struct Frame {
 }
 
 impl Frame {
-    pub fn alloc_from_method(method: Gc<Method>, args: &[Value], prev_frame: &Gc<Frame>, gc_interface: &mut GCInterface) -> Gc<Frame> {
+    pub fn alloc_from_method_from_frame(
+        method: Gc<Method>,
+        nbr_args: usize,
+        prev_frame: &mut Gc<Frame>,
+        gc_interface: &mut GCInterface,
+    ) -> Gc<Frame> {
+        let (max_stack_size, nbr_locals) = match &*method {
+            Method::Defined(m_env) => (m_env.max_stack_size as usize, m_env.nbr_locals),
+            _ => unreachable!("if we're allocating a method frame, it has to be defined."),
+        };
+
+        let size = Frame::get_true_size(max_stack_size, nbr_args, nbr_locals);
+
+        unsafe {
+            HACK_FRAME_CURRENT_METHOD_PTR = Some(method);
+        }
+
+        let mut frame_ptr: Gc<Frame> = gc_interface.request_memory_for_type(size);
+
+        unsafe {
+            // ...I spent ages debugging a release-only bug, and this turned out to be the fix.
+            // Whatever rust thinks it CAN do with the prev_frame ref (likely assume it points to the same data), it can't do safely in some cases... So we tell it not to.
+            std::hint::black_box(&prev_frame);
+
+            *frame_ptr = Frame::from_method(HACK_FRAME_CURRENT_METHOD_PTR.unwrap());
+            let args = prev_frame.stack_n_last_elements(nbr_args);
+
+            Frame::init_frame_post_alloc(frame_ptr, args, max_stack_size, *prev_frame);
+
+            prev_frame.remove_n_last_elements(nbr_args);
+
+            HACK_FRAME_CURRENT_METHOD_PTR = None;
+        }
+
+        frame_ptr
+    }
+
+    pub fn alloc_from_method_with_args(method: Gc<Method>, args: &[Value], prev_frame: &Gc<Frame>, gc_interface: &mut GCInterface) -> Gc<Frame> {
         let (max_stack_size, nbr_locals) = match &*method {
             Method::Defined(m_env) => (m_env.max_stack_size as usize, m_env.nbr_locals),
             _ => unreachable!("if we're allocating a method frame, it has to be defined."),
@@ -279,7 +316,7 @@ impl Frame {
 
     /// Gets the nth element from the stack (not in reverse order - "3" yields the 3rd element from the bottom, not the top)
     /// # Safety
-    /// The caller needs to ensure this is a valid stack value. That means not outside the stack's maximum size, and not pointing to an unitialized value.
+    /// The caller needs to ensure this is a valid stack value. That means not outside the stack's maximum size, and not pointing to an uninitialized value.
     #[inline(always)]
     pub unsafe fn nth_stack(&self, n: u8) -> &Value {
         let stack_ptr = self as *const Self as usize + OFFSET_TO_STACK;
@@ -289,7 +326,7 @@ impl Frame {
 
     /// Gets the nth element from the stack mutably (not in reverse order - "3" yields the 3rd element from the bottom, not the top)
     /// # Safety
-    /// The caller needs to ensure this is a valid stack value. That means not outside the stack's maximum size, and not pointing to an unitialized value.
+    /// The caller needs to ensure this is a valid stack value. That means not outside the stack's maximum size, and not pointing to an uninitialized value.
     #[inline(always)]
     pub unsafe fn nth_stack_mut(&mut self, n: u8) -> &mut Value {
         let stack_ptr = self as *mut Self as usize + OFFSET_TO_STACK;
@@ -329,11 +366,10 @@ impl Frame {
     }
 
     #[inline(always)]
-    pub fn stack_n_last_elements(&mut self, n: usize) -> &[Value] {
+    pub fn stack_n_last_elements(&self, n: usize) -> &[Value] {
         unsafe {
-            let slice_ptr = self.nth_stack_mut(self.stack_ptr - n as u8);
-            // self.stack_ptr = slice_ptr;
-            std::slice::from_raw_parts_mut(slice_ptr, n)
+            let slice_ptr = self.nth_stack(self.stack_ptr - n as u8);
+            std::slice::from_raw_parts(slice_ptr, n)
         }
     }
 
@@ -375,12 +411,9 @@ impl<'a> Iterator for FrameStackIter<'a> {
 
 impl Debug for Frame {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        unsafe fn stack_printer(frame: &Frame) -> String {
-            let stack_iter = FrameStackIter::from(frame);
-
-            let stack_elems_str = stack_iter.map(|val| format!("{:?}", val)).collect::<Vec<_>>().join(", ");
-
-            format!("[{}]", stack_elems_str)
+        fn stack_printer(frame: &Frame) -> String {
+            let stack_elems = FrameStackIter::from(frame).map(|val| format!("{:?}", val)).collect::<Vec<_>>();
+            format!("[{}]", stack_elems.join(", "))
         }
 
         f.debug_struct("Frame")
@@ -397,7 +430,7 @@ impl Debug for Frame {
                 let locals: Vec<String> = (0..self.get_nbr_locals()).map(|idx| format!("{:?}", self.lookup_local(idx))).collect();
                 &format!("[{}]", locals.join(", "))
             })
-            .field("stack", unsafe { &stack_printer(self) })
+            .field("stack", &stack_printer(self))
             .finish()
     }
 }

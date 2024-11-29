@@ -143,7 +143,7 @@ fn basic_interpreter_tests(universe: &mut Universe) {
 
         let method = class.lookup_method(method_name).expect("method not found ??");
 
-        let frame = Frame::alloc_from_method(method, &[Value::SYSTEM], &Gc::default(), universe.gc_interface);
+        let frame = Frame::alloc_from_method_with_args(method, &[Value::SYSTEM], &Gc::default(), universe.gc_interface);
         let mut interpreter = Interpreter::new(frame);
         if let Some(output) = interpreter.run(universe) {
             assert_eq!(&output, expected, "unexpected test output value");

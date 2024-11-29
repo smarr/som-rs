@@ -85,12 +85,7 @@ impl Interpreter {
     /// Creates and allocates a new frame corresponding to a method.
     /// nbr_args is the number of arguments, including the self value, which it takes from the previous frame.
     pub fn push_method_frame(&mut self, method: Gc<Method>, nbr_args: usize, mutator: &mut GCInterface) -> Gc<Frame> {
-        let mut frame_copy = self.current_frame;
-        let args = frame_copy.stack_n_last_elements(nbr_args);
-
-        let frame_ptr = Frame::alloc_from_method(method, args, &self.current_frame, mutator);
-
-        self.current_frame.remove_n_last_elements(nbr_args); // TODO I think this fucks up the stack somehow? or the previous copy. maybe that ugly copy is problematic for a reason
+        let frame_ptr = Frame::alloc_from_method_from_frame(method, nbr_args, &mut self.current_frame, mutator);
 
         self.bytecode_idx = 0;
         self.current_bytecodes = frame_ptr.get_bytecode_ptr();
@@ -101,7 +96,7 @@ impl Interpreter {
     /// Creates and allocates a new frame corresponding to a method, with arguments provided.
     /// Used in primitives and
     pub fn push_method_frame_with_args(&mut self, method: Gc<Method>, args: &[Value], mutator: &mut GCInterface) -> Gc<Frame> {
-        let frame_ptr = Frame::alloc_from_method(method, args, &self.current_frame, mutator);
+        let frame_ptr = Frame::alloc_from_method_with_args(method, args, &self.current_frame, mutator);
 
         self.bytecode_idx = 0;
         self.current_bytecodes = frame_ptr.get_bytecode_ptr();
@@ -353,9 +348,6 @@ impl Interpreter {
                 Bytecode::ReturnSelf => {
                     let self_val = *self.current_frame.lookup_argument(0);
                     self.pop_frame();
-                    // if self.current_frame.is_empty() {
-                    //     return Some(self.stack.pop().unwrap_or(Value::NIL));
-                    // }
                     self.current_frame.stack_push(self_val);
                 }
                 Bytecode::ReturnLocal => {
@@ -470,7 +462,7 @@ impl Interpreter {
             interpreter.current_frame.bytecode_idx = interpreter.bytecode_idx;
 
             let Some(method) = method else {
-                let mut frame_copy = interpreter.current_frame;
+                let frame_copy = interpreter.current_frame;
                 let args = frame_copy.stack_n_last_elements(nb_params);
                 interpreter.current_frame.remove_n_last_elements(nb_params);
                 let self_value = interpreter.current_frame.clone().stack_pop();
