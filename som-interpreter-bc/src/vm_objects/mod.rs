@@ -8,3 +8,8 @@ pub mod frame;
 pub mod instance;
 /// Facilities for manipulating class methods.
 pub mod method;
+
+#[cfg(test)]
+mod tests {
+    pub mod frame;
+}

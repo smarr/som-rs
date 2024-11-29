@@ -27,9 +27,11 @@ pub struct Frame {
     pub current_context: Gc<Method>,
 
     /// Bytecode index.
-    pub bytecode_idx: usize,
+    pub bytecode_idx: u16,
 
-    pub stack_ptr: *mut Value,
+    pub stack_ptr: u8,
+
+    // pub stack_ptr: *mut Value,
     pub args_ptr: *mut Value,
     pub locals_ptr: *mut Value,
 
@@ -106,14 +108,10 @@ impl Frame {
         unsafe {
             let mut frame = frame_ptr;
 
+            frame.stack_ptr = 0;
+
             // setting up the self-referential pointers for args/locals accesses
-            frame.stack_ptr = (frame_ptr.ptr + OFFSET_TO_STACK) as *mut Value;
-
-            // for idx in 0..stack_size {
-            //     *frame.stack_ptr.add(idx) = Value::NIL;
-            // }
-
-            frame.args_ptr = frame.stack_ptr.add(stack_size);
+            frame.args_ptr = (frame_ptr.ptr + OFFSET_TO_STACK + stack_size * size_of::<Value>()) as *mut Value;
             frame.locals_ptr = frame.args_ptr.add(args.len());
 
             // initializing arguments from the args slice
@@ -134,7 +132,7 @@ impl Frame {
             prev_frame: Gc::default(),
             current_context: block.blk_info,
             bytecode_idx: 0,
-            stack_ptr: std::ptr::null_mut(),
+            stack_ptr: 0,
             args_ptr: std::ptr::null_mut(),
             locals_ptr: std::ptr::null_mut(),
             args_marker: PhantomData,
@@ -149,7 +147,7 @@ impl Frame {
             prev_frame: Gc::default(),
             current_context: method,
             bytecode_idx: 0,
-            stack_ptr: std::ptr::null_mut(),
+            stack_ptr: 0,
             args_ptr: std::ptr::null_mut(),
             locals_ptr: std::ptr::null_mut(),
             args_marker: PhantomData,
@@ -280,40 +278,54 @@ impl Frame {
     }
 
     #[inline(always)]
+    pub fn nth_stack(&self, n: u8) -> *const Value {
+        let stack_ptr = self as *const Self as usize + OFFSET_TO_STACK;
+        let val_ptr = stack_ptr + (n as usize * size_of::<Value>());
+        val_ptr as *const Value
+    }
+
+    #[inline(always)]
+    pub fn nth_stack_mut(&mut self, n: u8) -> *mut Value {
+        let stack_ptr = self as *mut Self as usize + OFFSET_TO_STACK;
+        let val_ptr = stack_ptr + (n as usize * size_of::<Value>());
+        val_ptr as *mut Value
+    }
+
+    #[inline(always)]
     pub fn stack_push(&mut self, value: Value) {
         unsafe {
-            *self.stack_ptr = value;
-            self.stack_ptr = self.stack_ptr.add(1);
+            *self.nth_stack_mut(self.stack_ptr) = value;
+            self.stack_ptr += 1;
         }
     }
 
     #[inline(always)]
     pub fn stack_pop(&mut self) -> Value {
         unsafe {
-            self.stack_ptr = self.stack_ptr.sub(1);
-            *self.stack_ptr
+            self.stack_ptr -= 1;
+            *self.nth_stack_mut(self.stack_ptr)
         }
     }
 
     #[inline(always)]
     pub fn stack_last(&self) -> &Value {
-        unsafe { &*self.stack_ptr.sub(1) }
+        unsafe { &*self.nth_stack(self.stack_ptr - 1) }
     }
 
     #[inline(always)]
     pub fn stack_last_mut(&mut self) -> &mut Value {
-        unsafe { &mut *self.stack_ptr.sub(1) }
+        unsafe { &mut *self.nth_stack_mut(self.stack_ptr - 1) }
     }
 
     #[inline(always)]
     pub fn stack_nth_back(&self, n: usize) -> &Value {
-        unsafe { &(*self.stack_ptr.sub(n + 1)) }
+        unsafe { &*self.nth_stack(self.stack_ptr - (n as u8 + 1)) }
     }
 
     #[inline(always)]
     pub fn stack_n_last_elements(&mut self, n: usize) -> &[Value] {
         unsafe {
-            let slice_ptr = self.stack_ptr.sub(n);
+            let slice_ptr = self.nth_stack_mut(self.stack_ptr - n as u8);
             // self.stack_ptr = slice_ptr;
             std::slice::from_raw_parts_mut(slice_ptr, n)
         }
@@ -321,39 +333,54 @@ impl Frame {
 
     #[inline(always)]
     pub fn remove_n_last_elements(&mut self, n: usize) {
-        unsafe { self.stack_ptr = self.stack_ptr.sub(n) }
+        self.stack_ptr -= n as u8
     }
 
     /// Gets the total number of elements on the stack. Only used for debugging.
-    pub fn stack_len(frame_ptr: Gc<Frame>) -> usize {
-        ((frame_ptr.stack_ptr as usize) - (frame_ptr.ptr + OFFSET_TO_STACK)) / size_of::<Value>()
+    pub fn stack_len(&self) -> usize {
+        self.stack_ptr as usize
+    }
+}
+
+pub struct FrameStackIter<'a> {
+    frame: &'a Frame,
+    stack_idx: u8,
+}
+
+impl<'a> From<&'a Frame> for FrameStackIter<'a> {
+    fn from(frame: &'a Frame) -> Self {
+        Self { frame, stack_idx: 0 }
+    }
+}
+
+impl<'a> Iterator for FrameStackIter<'a> {
+    type Item = &'a Value;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.stack_idx >= self.frame.stack_ptr {
+            return None;
+        }
+
+        let val = self.frame.nth_stack(self.stack_idx);
+        self.stack_idx += 1;
+        unsafe { Some(&*val) }
     }
 }
 
 impl Debug for Frame {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        // TODO: an iter on Frame instead..
         unsafe fn stack_printer(frame: &Frame) -> String {
-            let mut stack_elements = vec![];
-            let frame_stack_start_addr = (frame as *const Frame).byte_add(OFFSET_TO_STACK) as *const Value;
-            let mut backwards_stack_ptr = frame_stack_start_addr;
-            while !std::ptr::eq(backwards_stack_ptr, frame.stack_ptr) {
-                let stack_val = &*backwards_stack_ptr;
-                stack_elements.push(format!("{:?}", &stack_val));
-                backwards_stack_ptr = backwards_stack_ptr.add(1);
-            }
+            let stack_iter = FrameStackIter::from(frame);
 
-            format!("[{}]", stack_elements.join(", "))
+            let stack_elems_str = stack_iter.map(|val| format!("{:?}", val)).collect::<Vec<_>>().join(", ");
+
+            format!("[{}]", stack_elems_str)
         }
 
         f.debug_struct("Frame")
             .field(
                 "current method",
-                &format!(
-                    "{}::>{}",
-                    self.current_context.get_env().holder.name(),
-                    self.current_context.get_env().signature
-                ),
+                &format!("{}::>{}", self.current_context.holder().name(), self.current_context.signature()),
             )
             .field("bc idx", &self.bytecode_idx)
             .field("args", {

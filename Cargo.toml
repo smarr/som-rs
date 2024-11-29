@@ -19,6 +19,9 @@ panic = 'abort'
 [profile.release]
 panic = 'abort'
 
+# for debugging MMTk
+#debug-assertions = true
+
 # Enable link-time optimization, eliminates more code and inlines across crate boundaries.
 # Default: false
 lto = "fat"

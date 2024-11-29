@@ -2,7 +2,7 @@ use crate::compiler::Literal;
 use crate::value::Value;
 use crate::vm_objects::block::Block;
 use crate::vm_objects::class::Class;
-use crate::vm_objects::frame::Frame;
+use crate::vm_objects::frame::{Frame, FrameStackIter};
 use crate::vm_objects::instance::Instance;
 use crate::vm_objects::method::Method;
 use crate::{
@@ -11,7 +11,7 @@ use crate::{
 };
 use core::mem::size_of;
 use log::{debug, trace};
-use mmtk::util::{Address, ObjectReference};
+use mmtk::util::ObjectReference;
 use mmtk::vm::{ObjectModel, SlotVisitor};
 use mmtk::Mutator;
 use num_bigint::BigInt;
@@ -121,13 +121,9 @@ pub fn scan_object<'a>(object: ObjectReference, slot_visitor: &'a mut (dyn SlotV
                     visit_value(val, slot_visitor)
                 }
 
-                // this should all really be done in the frame as a custom method. return an iter or something
-                let frame_stack_start_addr: Address = object.to_raw_address().add(size_of::<Frame>());
-                let mut stack_ptr = frame.stack_ptr;
-                while !std::ptr::eq(stack_ptr, frame_stack_start_addr.to_ptr()) {
-                    stack_ptr = stack_ptr.sub(1);
-                    let stack_val = &*stack_ptr;
-                    visit_value(stack_val, slot_visitor)
+                let stack_iter = FrameStackIter::from(&*frame);
+                for stack_item in stack_iter.into_iter() {
+                    visit_value(stack_item, slot_visitor);
                 }
             }
             BCObjMagicId::Method => {
@@ -293,7 +289,7 @@ fn adapt_post_copy(object: ObjectReference, original_obj: ObjectReference) {
             let og_frame_ptr: *const Frame = original_obj.to_raw_address().to_ptr();
 
             let offset = frame_ptr as isize - og_frame_ptr as isize;
-            frame.stack_ptr = frame.stack_ptr.byte_offset(offset);
+            // frame.stack_ptr = frame.stack_ptr.byte_offset(offset);
             frame.args_ptr = frame.args_ptr.byte_offset(offset);
             frame.locals_ptr = frame.locals_ptr.byte_offset(offset);
 

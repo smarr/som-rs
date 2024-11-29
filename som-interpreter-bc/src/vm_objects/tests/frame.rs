@@ -1,17 +1,18 @@
+use crate::compiler::compile::compile_class;
+use crate::universe::Universe;
+use crate::value::Value;
+use crate::vm_objects::frame::Frame;
+use crate::vm_objects::method::Method;
+use crate::UNIVERSE_RAW_PTR_CONST;
 use rstest::{fixture, rstest};
 use som_gc::gcref::Gc;
-use som_interpreter_bc::compiler::compile::compile_class;
-use som_interpreter_bc::universe::Universe;
-use som_interpreter_bc::value::Value;
-use som_interpreter_bc::vm_objects::frame::Frame;
-use som_interpreter_bc::vm_objects::method::Method;
-use som_interpreter_bc::UNIVERSE_RAW_PTR_CONST;
 use som_lexer::{Lexer, Token};
 use som_parser::lang;
 use std::cell::OnceCell;
 use std::path::PathBuf;
 use std::ptr::NonNull;
 
+// TODO: instead of a universe cell, these should all use some mocks..
 static mut UNIVERSE_CELL: OnceCell<Universe> = OnceCell::new();
 
 #[fixture]
@@ -140,16 +141,16 @@ fn frame_stack_accesses(universe: &mut Universe) {
     );
     let mut frame = frame_ptr;
 
-    assert_eq!(Frame::stack_len(frame_ptr), 0);
+    assert_eq!(frame.stack_len(), 0);
     frame.stack_push(Value::Boolean(true));
-    assert_eq!(Frame::stack_len(frame_ptr), 1);
+    assert_eq!(frame.stack_len(), 1);
 
     assert_eq!(frame.stack_pop().as_boolean(), Some(true));
-    assert_eq!(Frame::stack_len(frame_ptr), 0);
+    assert_eq!(frame.stack_len(), 0);
 
     frame.stack_push(Value::Integer(10000));
     frame.stack_push(Value::Double(424242.424242));
-    assert_eq!(Frame::stack_len(frame_ptr), 2);
+    assert_eq!(frame.stack_len(), 2);
 
     assert_eq!(frame.stack_last().as_double(), Some(424242.424242));
     assert_eq!(frame.stack_last_mut().as_double(), Some(424242.424242));
@@ -176,7 +177,7 @@ fn frame_stack_split_off(universe: &mut Universe) {
     frame.stack_push(Value::INTEGER_ONE);
     frame.stack_push(Value::Boolean(true));
 
-    assert_eq!(Frame::stack_len(frame_ptr), 5);
+    assert_eq!(frame.stack_len(), 5);
 
     let two_last = frame.stack_n_last_elements(2);
 
@@ -184,6 +185,6 @@ fn frame_stack_split_off(universe: &mut Universe) {
 
     frame.remove_n_last_elements(2);
 
-    assert_eq!(Frame::stack_len(frame_ptr), 3);
+    assert_eq!(frame.stack_len(), 3);
     assert_eq!(frame.stack_last(), &Value::NIL);
 }

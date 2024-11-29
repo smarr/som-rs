@@ -64,7 +64,7 @@ pub struct Interpreter {
     /// The time record of the interpreter's creation.
     pub start_time: Instant,
     /// The current bytecode index.
-    pub bytecode_idx: usize,
+    pub bytecode_idx: u16,
     /// The current frame.
     pub current_frame: Gc<Frame>,
     /// Pointer to the frame's bytecodes, to not have to read them from the frame directly
@@ -148,16 +148,11 @@ impl Interpreter {
     pub fn run(&mut self, universe: &mut Universe) -> Option<Value> {
         loop {
             // Actually safe, there's always a reference to the current bytecodes. Need unsafe because we want to store a ref for quick access in perf-critical code
-            let bytecode = *(unsafe { (*self.current_bytecodes).get_unchecked(self.bytecode_idx) });
+            let bytecode = *(unsafe { (*self.current_bytecodes).get_unchecked(self.bytecode_idx as usize) });
 
             self.bytecode_idx += 1;
 
             // dbg!(self.current_frame);
-            // if self.current_frame.lookup_argument(0).as_u64() == 103 {
-            //     dbg!("BPBPBP");
-            // }
-
-            // dbg!(universe.gc_interface.get_nbr_collections());
 
             match bytecode {
                 Bytecode::Dup2 => {
@@ -181,7 +176,7 @@ impl Interpreter {
                     if is_greater {
                         self.current_frame.stack_pop();
                         self.current_frame.stack_pop();
-                        self.bytecode_idx += offset as usize - 1;
+                        self.bytecode_idx += offset - 1;
                     }
                 }
                 Bytecode::Halt => {
@@ -415,16 +410,16 @@ impl Interpreter {
                     }
                 }
                 Bytecode::Jump(offset) => {
-                    self.bytecode_idx += offset as usize - 1; // minus one because it gets incremented by one already every loop
+                    self.bytecode_idx += offset - 1; // minus one because it gets incremented by one already every loop
                 }
                 Bytecode::JumpBackward(offset) => {
-                    self.bytecode_idx -= offset as usize + 1;
+                    self.bytecode_idx -= offset + 1;
                 }
                 Bytecode::JumpOnTrueTopNil(offset) => {
                     let condition_result = self.current_frame.stack_last();
 
                     if condition_result.is_boolean_true() {
-                        self.bytecode_idx += offset as usize - 1;
+                        self.bytecode_idx += offset - 1;
                         *self.current_frame.stack_last_mut() = Value::NIL;
                     } else if condition_result.is_boolean_false() {
                         self.current_frame.stack_pop();
@@ -438,7 +433,7 @@ impl Interpreter {
                     if condition_result.is_boolean_true() {
                         self.current_frame.stack_pop();
                     } else if condition_result.is_boolean_false() {
-                        self.bytecode_idx += offset as usize - 1;
+                        self.bytecode_idx += offset - 1;
                         *self.current_frame.stack_last_mut() = Value::NIL;
                     } else {
                         panic!("JumpOnFalseTopNil condition did not evaluate to boolean (was {:?})", condition_result)
@@ -448,7 +443,7 @@ impl Interpreter {
                     let condition_result = self.current_frame.stack_pop();
 
                     if condition_result.is_boolean_true() {
-                        self.bytecode_idx += offset as usize - 1;
+                        self.bytecode_idx += offset - 1;
                     } else if condition_result.is_boolean_false() {
                         // pass
                     } else {
@@ -459,7 +454,7 @@ impl Interpreter {
                     let condition_result = self.current_frame.stack_pop();
 
                     if condition_result.is_boolean_false() {
-                        self.bytecode_idx += offset as usize - 1;
+                        self.bytecode_idx += offset - 1;
                     } else if condition_result.is_boolean_true() {
                         // pass
                     } else {
@@ -515,11 +510,11 @@ impl Interpreter {
             }
         }
 
-        fn resolve_method(frame: &mut Gc<Frame>, class: &Gc<Class>, signature: Interned, bytecode_idx: usize) -> Option<Gc<Method>> {
+        fn resolve_method(frame: &mut Gc<Frame>, class: &Gc<Class>, signature: Interned, bytecode_idx: u16) -> Option<Gc<Method>> {
             // SAFETY: this access is actually safe because the bytecode compiler
             // makes sure the cache has as many entries as there are bytecode instructions,
             // therefore we can avoid doing any redundant bounds checks here.
-            let maybe_found = unsafe { frame.get_inline_cache().get_unchecked_mut(bytecode_idx) };
+            let maybe_found = unsafe { frame.get_inline_cache().get_unchecked_mut(bytecode_idx as usize) };
 
             match maybe_found {
                 Some((receiver, method)) if receiver.ptr == class.ptr => Some(*method),

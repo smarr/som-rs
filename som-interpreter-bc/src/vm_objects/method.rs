@@ -55,7 +55,14 @@ impl Method {
     /// Used during initialization.
     pub fn set_holder(&mut self, holder_ptr: Gc<Class>) {
         match self {
-            Method::Defined(env) => env.holder = holder_ptr,
+            Method::Defined(env) => {
+                env.holder = holder_ptr;
+                for lit in &mut env.literals {
+                    if let Literal::Block(blk) = lit {
+                        blk.blk_info.set_holder(holder_ptr);
+                    }
+                }
+            }
             Method::Primitive(_, _, c) => *c = holder_ptr,
         }
     }
