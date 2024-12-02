@@ -1,5 +1,4 @@
 use rstest::{fixture, rstest};
-use som_gc::gcref::Gc;
 use som_interpreter_bc::compiler::compile::compile_class;
 use som_interpreter_bc::interpreter::Interpreter;
 use som_interpreter_bc::universe::Universe;
@@ -143,7 +142,7 @@ fn basic_interpreter_tests(universe: &mut Universe) {
 
         let method = class.lookup_method(method_name).expect("method not found ??");
 
-        let frame = Frame::alloc_from_method_with_args(method, &[Value::SYSTEM], &Gc::default(), universe.gc_interface);
+        let frame = Frame::alloc_initial_method(method, &[Value::SYSTEM], universe.gc_interface);
         let mut interpreter = Interpreter::new(frame);
         if let Some(output) = interpreter.run(universe) {
             assert_eq!(&output, expected, "unexpected test output value");
@@ -153,7 +152,7 @@ fn basic_interpreter_tests(universe: &mut Universe) {
 
 /// Runs the TestHarness, which handles many basic tests written in SOM
 #[rstest]
-fn test_harness(mut universe: &mut Universe) {
+fn test_harness(universe: &mut Universe) {
     let args = ["TestHarness"].iter().map(|str| Value::String(universe.gc_interface.alloc(String::from(*str)))).collect();
 
     let mut interpreter = universe.initialize(args).unwrap();
@@ -163,7 +162,7 @@ fn test_harness(mut universe: &mut Universe) {
         INTERPRETER_RAW_PTR_CONST = NonNull::new(&mut interpreter);
     }
 
-    assert_eq!(interpreter.run(&mut universe), Some(Value::INTEGER_ZERO))
+    assert_eq!(interpreter.run(universe), Some(Value::INTEGER_ZERO))
 }
 
 #[rstest]

@@ -404,7 +404,7 @@ impl Universe {
         let method = Value::SYSTEM.lookup_method(self, method_name)?;
 
         let args_vec = self.gc_interface.alloc(VecValue(args));
-        let frame_ptr = Frame::alloc_from_method_with_args(method, &[Value::SYSTEM, Value::Array(args_vec)], &Gc::default(), self.gc_interface);
+        let frame_ptr = Frame::alloc_initial_method(method, &[Value::SYSTEM, Value::Array(args_vec)], self.gc_interface);
         let interpreter = Interpreter::new(frame_ptr);
 
         Some(interpreter)

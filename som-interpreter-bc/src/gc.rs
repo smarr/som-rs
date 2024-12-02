@@ -5,10 +5,7 @@ use crate::vm_objects::class::Class;
 use crate::vm_objects::frame::{Frame, FrameStackIter};
 use crate::vm_objects::instance::Instance;
 use crate::vm_objects::method::Method;
-use crate::{
-    HACK_FRAME_CURRENT_BLOCK_PTR, HACK_FRAME_CURRENT_METHOD_PTR, HACK_FRAME_FRAME_ARGS_PTR, HACK_INSTANCE_CLASS_PTR, INTERPRETER_RAW_PTR_CONST,
-    UNIVERSE_RAW_PTR_CONST,
-};
+use crate::{HACK_FRAME_FRAME_ARGS_PTR, HACK_INSTANCE_CLASS_PTR, INTERPRETER_RAW_PTR_CONST, UNIVERSE_RAW_PTR_CONST};
 use core::mem::size_of;
 use log::{debug, trace};
 use mmtk::util::ObjectReference;
@@ -225,14 +222,6 @@ fn get_roots_in_mutator_thread(_mutator: &mut Mutator<SOMVM>) -> Vec<SOMSlot> {
 
         // we update the core classes in their class also though, to properly move them
         UNIVERSE_RAW_PTR_CONST.unwrap().as_mut().core.iter().for_each(|cls_ptr| to_process.push(SOMSlot::from(cls_ptr)));
-
-        if HACK_FRAME_CURRENT_METHOD_PTR.is_some() {
-            to_process.push(SOMSlot::from(HACK_FRAME_CURRENT_METHOD_PTR.as_ref().unwrap()));
-        }
-
-        if HACK_FRAME_CURRENT_BLOCK_PTR.is_some() {
-            to_process.push(SOMSlot::from(HACK_FRAME_CURRENT_BLOCK_PTR.as_ref().unwrap()));
-        }
 
         if HACK_INSTANCE_CLASS_PTR.is_some() {
             to_process.push(SOMSlot::from(HACK_INSTANCE_CLASS_PTR.as_ref().unwrap()));

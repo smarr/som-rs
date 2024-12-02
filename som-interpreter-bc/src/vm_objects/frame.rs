@@ -3,7 +3,7 @@ use crate::value::Value;
 use crate::vm_objects::block::{Block, BodyInlineCache};
 use crate::vm_objects::class::Class;
 use crate::vm_objects::method::Method;
-use crate::{HACK_FRAME_CURRENT_BLOCK_PTR, HACK_FRAME_CURRENT_METHOD_PTR, HACK_FRAME_FRAME_ARGS_PTR};
+use crate::HACK_FRAME_FRAME_ARGS_PTR;
 use core::mem::size_of;
 use som_core::bytecode::Bytecode;
 use som_gc::gc_interface::GCInterface;
@@ -29,6 +29,8 @@ pub struct Frame {
     /// Bytecode index.
     pub bytecode_idx: u16,
 
+    /// Stack pointer/index. Points to the NEXT element that can be written to the stack;
+    /// Alternatively, can be seen as number of elements on the stack
     pub stack_ptr: u8,
 
     // pub stack_ptr: *mut Value,
@@ -55,31 +57,25 @@ impl Frame {
 
         let size = Frame::get_true_size(max_stack_size, nbr_args, nbr_locals);
 
-        unsafe {
-            HACK_FRAME_CURRENT_METHOD_PTR = Some(method);
-        }
+        prev_frame.stack_push(Value::new_invokable(method));
 
         let mut frame_ptr: Gc<Frame> = gc_interface.request_memory_for_type(size);
 
-        unsafe {
-            // ...I spent ages debugging a release-only bug, and this turned out to be the fix.
-            // Whatever rust thinks it CAN do with the prev_frame ref (likely assume it points to the same data), it can't do safely in some cases... So we tell it not to.
-            std::hint::black_box(&prev_frame);
+        // ...I spent ages debugging a release-only bug, and this turned out to be the fix.
+        // Whatever rust thinks it CAN do with the prev_frame ref (likely assume it points to the same data), it can't do safely in some cases... So we tell it not to.
+        std::hint::black_box(&prev_frame);
 
-            *frame_ptr = Frame::from_method(HACK_FRAME_CURRENT_METHOD_PTR.unwrap());
-            let args = prev_frame.stack_n_last_elements(nbr_args);
+        let method = prev_frame.stack_pop().as_invokable().unwrap();
+        *frame_ptr = Frame::from_method(method);
+        let args = prev_frame.stack_n_last_elements(nbr_args);
 
-            Frame::init_frame_post_alloc(frame_ptr, args, max_stack_size, *prev_frame);
+        Frame::init_frame_post_alloc(frame_ptr, args, max_stack_size, *prev_frame);
 
-            prev_frame.remove_n_last_elements(nbr_args);
-
-            HACK_FRAME_CURRENT_METHOD_PTR = None;
-        }
-
+        prev_frame.remove_n_last_elements(nbr_args);
         frame_ptr
     }
 
-    pub fn alloc_from_method_with_args(method: Gc<Method>, args: &[Value], prev_frame: &Gc<Frame>, gc_interface: &mut GCInterface) -> Gc<Frame> {
+    pub fn alloc_from_method_with_args(method: Gc<Method>, args: &[Value], prev_frame: &mut Gc<Frame>, gc_interface: &mut GCInterface) -> Gc<Frame> {
         let (max_stack_size, nbr_locals) = match &*method {
             Method::Defined(m_env) => (m_env.max_stack_size as usize, m_env.nbr_locals),
             _ => unreachable!("if we're allocating a method frame, it has to be defined."),
@@ -88,14 +84,16 @@ impl Frame {
         let size = Frame::get_true_size(max_stack_size, args.len(), nbr_locals);
 
         unsafe {
-            HACK_FRAME_CURRENT_METHOD_PTR = Some(method);
             HACK_FRAME_FRAME_ARGS_PTR = Some(Vec::from(args));
         }
+
+        prev_frame.stack_push(Value::new_invokable(method));
 
         let mut frame_ptr: Gc<Frame> = gc_interface.request_memory_for_type(size);
 
         unsafe {
-            *frame_ptr = Frame::from_method(HACK_FRAME_CURRENT_METHOD_PTR.unwrap());
+            let method = prev_frame.stack_pop().as_invokable().unwrap();
+            *frame_ptr = Frame::from_method(method);
             Frame::init_frame_post_alloc(
                 frame_ptr,
                 HACK_FRAME_FRAME_ARGS_PTR.as_ref().unwrap().as_slice(),
@@ -103,28 +101,29 @@ impl Frame {
                 *prev_frame,
             );
 
-            HACK_FRAME_CURRENT_METHOD_PTR = None;
             HACK_FRAME_FRAME_ARGS_PTR = None;
         }
 
         frame_ptr
     }
 
-    pub fn alloc_from_block(block: Gc<Block>, args: &[Value], prev_frame: &Gc<Frame>, gc_interface: &mut GCInterface) -> Gc<Frame> {
+    pub fn alloc_from_block(block: Gc<Block>, args: &[Value], prev_frame: &mut Gc<Frame>, gc_interface: &mut GCInterface) -> Gc<Frame> {
         let max_stack_size = block.blk_info.get_env().max_stack_size as usize;
         let nbr_locals = block.blk_info.get_env().nbr_locals;
 
         let size = Frame::get_true_size(max_stack_size, nbr_locals, args.len());
 
         unsafe {
-            HACK_FRAME_CURRENT_BLOCK_PTR = Some(block);
             HACK_FRAME_FRAME_ARGS_PTR = Some(Vec::from(args));
         }
+
+        prev_frame.stack_push(Value::new_block(block));
 
         let mut frame_ptr: Gc<Frame> = gc_interface.request_memory_for_type(size);
 
         unsafe {
-            *frame_ptr = Frame::from_block(HACK_FRAME_CURRENT_BLOCK_PTR.unwrap());
+            let block = prev_frame.stack_pop().as_block().unwrap();
+            *frame_ptr = Frame::from_block(block);
             Frame::init_frame_post_alloc(
                 frame_ptr,
                 HACK_FRAME_FRAME_ARGS_PTR.as_ref().unwrap().as_slice(),
@@ -134,9 +133,34 @@ impl Frame {
         }
 
         unsafe {
-            HACK_FRAME_CURRENT_BLOCK_PTR = None;
             HACK_FRAME_FRAME_ARGS_PTR = None;
         }
+
+        frame_ptr
+    }
+
+    /// Allocates the very first frame, for the `initialize:` call and tests.
+    /// Special-cased because the normal case pushes the previous value on the previous frame's
+    /// stack for it to be reachable: we have no previous frame in some cases, so we can't.
+    pub fn alloc_initial_method(init_method: Gc<Method>, args: &[Value], gc_interface: &mut GCInterface) -> Gc<Frame> {
+        let (max_stack_size, nbr_locals) = match &*init_method {
+            Method::Defined(m_env) => (m_env.max_stack_size as usize, m_env.nbr_locals),
+            _ => unreachable!("if we're allocating a method frame, it has to be defined."),
+        };
+
+        let size = Frame::get_true_size(max_stack_size, args.len(), nbr_locals);
+
+        let nbr_gc_runs = gc_interface.get_nbr_collections();
+        let mut frame_ptr: Gc<Frame> = gc_interface.request_memory_for_type(size);
+
+        assert_eq!(
+            nbr_gc_runs,
+            gc_interface.get_nbr_collections(),
+            "We assume we can't trigger a collection when allocating a parent-less frame"
+        );
+
+        *frame_ptr = Frame::from_method(init_method);
+        Frame::init_frame_post_alloc(frame_ptr, args, max_stack_size, Gc::default());
 
         frame_ptr
     }
@@ -336,6 +360,7 @@ impl Frame {
 
     #[inline(always)]
     pub fn stack_push(&mut self, value: Value) {
+        debug_assert!(self.stack_ptr < self.current_context.get_env().max_stack_size);
         unsafe {
             *self.nth_stack_mut(self.stack_ptr) = value;
             self.stack_ptr += 1;
@@ -344,6 +369,7 @@ impl Frame {
 
     #[inline(always)]
     pub fn stack_pop(&mut self) -> Value {
+        debug_assert!(self.stack_ptr > 0);
         unsafe {
             self.stack_ptr -= 1;
             *self.nth_stack_mut(self.stack_ptr)
@@ -352,16 +378,19 @@ impl Frame {
 
     #[inline(always)]
     pub fn stack_last(&self) -> &Value {
+        debug_assert!(self.stack_ptr > 0);
         unsafe { self.nth_stack(self.stack_ptr - 1) }
     }
 
     #[inline(always)]
     pub fn stack_last_mut(&mut self) -> &mut Value {
+        debug_assert!(self.stack_ptr > 0);
         unsafe { self.nth_stack_mut(self.stack_ptr - 1) }
     }
 
     #[inline(always)]
     pub fn stack_nth_back(&self, n: usize) -> &Value {
+        debug_assert!(self.stack_ptr >= (n + 1) as u8);
         unsafe { self.nth_stack(self.stack_ptr - (n as u8 + 1)) }
     }
 

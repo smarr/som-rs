@@ -798,7 +798,7 @@ fn get_max_stack_size(body: &Vec<Bytecode>) -> u8 {
         }
     }
 
-    // NB: Stefan does a global +2 to account for DNU?
+    // NB: plus one to account for the one arg we push onto the stack to make sure they're reachable by the GC (needed for moving GC, not marksweep).
     max_stack_size_observed + 2
 }
 

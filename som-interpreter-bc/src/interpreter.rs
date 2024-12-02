@@ -96,7 +96,7 @@ impl Interpreter {
     /// Creates and allocates a new frame corresponding to a method, with arguments provided.
     /// Used in primitives and
     pub fn push_method_frame_with_args(&mut self, method: Gc<Method>, args: &[Value], mutator: &mut GCInterface) -> Gc<Frame> {
-        let frame_ptr = Frame::alloc_from_method_with_args(method, args, &self.current_frame, mutator);
+        let frame_ptr = Frame::alloc_from_method_with_args(method, args, &mut self.current_frame, mutator);
 
         self.bytecode_idx = 0;
         self.current_bytecodes = frame_ptr.get_bytecode_ptr();
@@ -109,7 +109,7 @@ impl Interpreter {
     /// Always passes arguments directly since we don't take them as a slice off the previous frame, like we do for methods.
     /// ...which would likely be faster, actually. TODO.
     pub fn push_block_frame_with_args(&mut self, block: Gc<Block>, args: &[Value], mutator: &mut GCInterface) -> Gc<Frame> {
-        let frame_ptr = Frame::alloc_from_block(block, args, &self.current_frame, mutator);
+        let frame_ptr = Frame::alloc_from_block(block, args, &mut self.current_frame, mutator);
         self.bytecode_idx = 0;
         self.current_bytecodes = frame_ptr.get_bytecode_ptr();
         self.current_frame = frame_ptr;
