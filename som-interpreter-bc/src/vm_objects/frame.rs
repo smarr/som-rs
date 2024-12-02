@@ -50,6 +50,10 @@ impl Frame {
         prev_frame: &mut Gc<Frame>,
         gc_interface: &mut GCInterface,
     ) -> Gc<Frame> {
+        // ...I spent ages debugging a release-only bug, and this turned out to be the fix.
+        // Whatever rust thinks it CAN do with the prev_frame ref (likely assume it points to the same data), it can't do safely in some cases... So we tell it not to.
+        std::hint::black_box(&prev_frame);
+
         let (max_stack_size, nbr_locals) = match &*method {
             Method::Defined(m_env) => (m_env.max_stack_size as usize, m_env.nbr_locals),
             _ => unreachable!("if we're allocating a method frame, it has to be defined."),
@@ -60,10 +64,6 @@ impl Frame {
         prev_frame.stack_push(Value::new_invokable(method));
 
         let mut frame_ptr: Gc<Frame> = gc_interface.request_memory_for_type(size);
-
-        // ...I spent ages debugging a release-only bug, and this turned out to be the fix.
-        // Whatever rust thinks it CAN do with the prev_frame ref (likely assume it points to the same data), it can't do safely in some cases... So we tell it not to.
-        std::hint::black_box(&prev_frame);
 
         let method = prev_frame.stack_pop().as_invokable().unwrap();
         *frame_ptr = Frame::from_method(method);
@@ -108,6 +108,8 @@ impl Frame {
     }
 
     pub fn alloc_from_block(block: Gc<Block>, args: &[Value], prev_frame: &mut Gc<Frame>, gc_interface: &mut GCInterface) -> Gc<Frame> {
+        std::hint::black_box(&prev_frame);
+
         let max_stack_size = block.blk_info.get_env().max_stack_size as usize;
         let nbr_locals = block.blk_info.get_env().nbr_locals;
 
