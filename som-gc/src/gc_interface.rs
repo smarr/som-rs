@@ -41,6 +41,7 @@ pub struct GCInterface {
     #[cfg(feature = "semispace")]
     default_allocator: *mut mmtk::util::alloc::BumpAllocator<SOMVM>,
     #[cfg(feature = "semispace")]
+    #[allow(unused)]
     alloc_bump_ptr: BumpPointer,
     mutator_thread: VMMutatorThread,
     start_the_world_count: usize,
@@ -205,22 +206,23 @@ impl GCInterface {
     /// such as by making sure no arguments are dangling on the Rust stack away from the GC's reach.
     pub fn request_bytes(&mut self, size: usize) -> Address {
         //unsafe { &mut (*self.default_allocator) }.alloc(size, GC_ALIGN, GC_OFFSET)
+        unsafe { &mut (*self.default_allocator) }.alloc(size, GC_ALIGN, GC_OFFSET)
 
+        // TODO: this code should work, and -does-, but sometimes returns references to the old space - as far as i can tell.
         // code taken from MMTk docs. https://docs.mmtk.io/portingguide/perf_tuning/alloc.html#option-3-embed-the-fast-path-struct
-
-        let new_cursor = self.alloc_bump_ptr.cursor + size;
-        if new_cursor < self.alloc_bump_ptr.limit {
-            let addr = self.alloc_bump_ptr.cursor;
-            self.alloc_bump_ptr.cursor = new_cursor;
-            addr
-        } else {
-            let default_allocator = unsafe { &mut *self.default_allocator };
-            default_allocator.bump_pointer = self.alloc_bump_ptr;
-            let addr = default_allocator.alloc_slow(size, GC_ALIGN, GC_OFFSET);
-            // Copy bump pointer values to the fastpath BumpPointer so we will have an allocation buffer.
-            self.alloc_bump_ptr = default_allocator.bump_pointer;
-            addr
-        }
+        // let new_cursor = self.alloc_bump_ptr.cursor + size;
+        // if new_cursor < self.alloc_bump_ptr.limit {
+        //     let addr = self.alloc_bump_ptr.cursor;
+        //     self.alloc_bump_ptr.cursor = new_cursor;
+        //     addr
+        // } else {
+        //     let default_allocator = unsafe { &mut *self.default_allocator };
+        //     default_allocator.bump_pointer = self.alloc_bump_ptr;
+        //     let addr = default_allocator.alloc(size, GC_ALIGN, GC_OFFSET);
+        //     // Copy bump pointer values to the fastpath BumpPointer so we will have an allocation buffer.
+        //     self.alloc_bump_ptr = default_allocator.bump_pointer;
+        //     addr
+        // }
     }
 
     /// TODO doc + should likely deduce the size from the type
