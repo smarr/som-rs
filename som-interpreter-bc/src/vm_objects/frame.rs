@@ -64,7 +64,7 @@ impl Frame {
         unsafe {
             // ...I spent ages debugging a release-only bug, and this turned out to be the fix.
             // Whatever rust thinks it CAN do with the prev_frame ref (likely assume it points to the same data), it can't do safely in some cases... So we tell it not to.
-            std::hint::black_box(&prev_frame);
+            //std::hint::black_box(&prev_frame);
 
             *frame_ptr = Frame::from_method(HACK_FRAME_CURRENT_METHOD_PTR.unwrap());
             let args = prev_frame.stack_n_last_elements(nbr_args);
