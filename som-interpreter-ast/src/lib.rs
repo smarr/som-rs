@@ -27,8 +27,6 @@ pub mod compiler;
 pub mod evaluate;
 /// Facilities for manipulating values.
 pub mod hashcode;
-/// Inlining specific messages, such as control flow.
-pub mod inliner;
 /// Facilities for invoking methods and/or primitives.
 pub mod invokable;
 /// Definitions for all supported primitives.

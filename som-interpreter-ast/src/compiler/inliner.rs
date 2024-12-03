@@ -1,5 +1,5 @@
+use super::compile::{AstMethodCompilerCtxt, AstScopeCtxt};
 use crate::ast::{AstBlock, AstBody, AstExpression, InlinedNode};
-use crate::compiler::{AstMethodCompilerCtxt, AstScopeCtxt};
 use crate::specialized::inlined::and_inlined_node::AndInlinedNode;
 use crate::specialized::inlined::if_inlined_node::IfInlinedNode;
 use crate::specialized::inlined::if_true_if_false_inlined_node::IfTrueIfFalseInlinedNode;

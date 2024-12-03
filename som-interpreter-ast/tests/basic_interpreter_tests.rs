@@ -1,5 +1,5 @@
 use rstest::{fixture, rstest};
-use som_interpreter_ast::compiler::AstMethodCompilerCtxt;
+use som_interpreter_ast::compiler::compile::AstMethodCompilerCtxt;
 use som_interpreter_ast::evaluate::Evaluate;
 use som_interpreter_ast::invokable::Return;
 use som_interpreter_ast::universe::Universe;
@@ -120,11 +120,7 @@ fn basic_interpreter_tests(universe: &mut Universe) {
         assert!(lexer.text().is_empty(), "could not fully tokenize test expression");
 
         let ast_parser = som_parser::apply(lang::expression(), tokens.as_slice()).unwrap();
-        let mut compiler = AstMethodCompilerCtxt {
-            scopes: vec![],
-            class: None,
-            gc_interface: universe.gc_interface,
-        };
+        let mut compiler = AstMethodCompilerCtxt::new(universe.gc_interface);
         let mut ast = compiler.parse_expression(&ast_parser);
 
         let output = universe.with_frame(0, vec![Value::SYSTEM], |universe| ast.evaluate(universe));

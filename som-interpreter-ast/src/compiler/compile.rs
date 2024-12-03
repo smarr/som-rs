@@ -1,9 +1,9 @@
+use super::inliner::PrimMessageInliner;
 use crate::ast::{
     AstBinaryDispatch, AstBlock, AstBody, AstDispatchNode, AstExpression, AstLiteral, AstMethodDef, AstNAryDispatch, AstSuperMessage,
     AstTernaryDispatch, AstUnaryDispatch,
 };
 use crate::gc::VecAstLiteral;
-use crate::inliner::PrimMessageInliner;
 use crate::primitives::UNIMPLEM_PRIMITIVE;
 use crate::specialized::down_to_do_node::DownToDoNode;
 use crate::specialized::if_node::IfNode;
@@ -22,15 +22,15 @@ use std::panic;
 
 pub struct AstMethodCompilerCtxt<'a> {
     /// The class in which context we're compiling. Needed for resolving field accesses. Should always be Some() outside of a testing context.
-    pub class: Option<Gc<Class>>,
+    pub(crate) class: Option<Gc<Class>>,
     /// The stack of scopes to better reason about inlining.
-    pub scopes: Vec<AstScopeCtxt>,
+    pub(crate) scopes: Vec<AstScopeCtxt>,
     /// The interface to the GC to allocate anything we want during parsing.
-    pub gc_interface: &'a mut GCInterface,
+    pub(crate) gc_interface: &'a mut GCInterface,
 }
 
 #[derive(Debug, Default)]
-pub struct AstScopeCtxt {
+pub(crate) struct AstScopeCtxt {
     nbr_args: usize,
     nbr_locals: usize,
     pub is_getting_inlined: bool,
@@ -58,6 +58,14 @@ impl AstScopeCtxt {
 }
 
 impl<'a> AstMethodCompilerCtxt<'a> {
+    pub fn new(gc_interface: &'a mut GCInterface) -> Self {
+        Self {
+            class: None,
+            scopes: vec![],
+            gc_interface,
+        }
+    }
+
     pub fn get_method_kind(method: &ast::MethodDef, class: Option<Gc<Class>>, gc_interface: &mut GCInterface) -> MethodKind {
         // NB: these If/IfTrueIfFalse/While are very rare cases, since we normally inline those functions.
         // But we don't do inlining when e.g. the condition for ifTrue: isn't a block.
@@ -86,7 +94,7 @@ impl<'a> AstMethodCompilerCtxt<'a> {
         }
     }
 
-    fn make_trivial_method_if_possible(method_def: &AstMethodDef) -> Option<MethodKind> {
+    pub(crate) fn make_trivial_method_if_possible(method_def: &AstMethodDef) -> Option<MethodKind> {
         if method_def.locals_nbr != 0 || method_def.body.exprs.len() != 1 {
             return None;
         }
@@ -262,7 +270,7 @@ impl<'a> AstMethodCompilerCtxt<'a> {
         }
     }
 
-    pub fn global_or_field_read_from_superclass(&self, name: String) -> AstExpression {
+    pub(crate) fn global_or_field_read_from_superclass(&self, name: String) -> AstExpression {
         if name.as_str() == "super" {
             return AstExpression::ArgRead((self.scopes.len() - 1) as u8, 0);
         }
@@ -277,7 +285,7 @@ impl<'a> AstMethodCompilerCtxt<'a> {
         }
     }
 
-    pub fn resolve_global_write_to_field_write(&mut self, name: &String, expr: &Expression) -> AstExpression {
+    fn resolve_global_write_to_field_write(&mut self, name: &String, expr: &Expression) -> AstExpression {
         if self.class.is_none() {
             panic!(
                 "can't turn the GlobalWrite `{}` into a FieldWrite, and GlobalWrite shouldn't exist at runtime",
@@ -294,7 +302,7 @@ impl<'a> AstMethodCompilerCtxt<'a> {
         }
     }
 
-    pub fn parse_literal(&mut self, lit: &ast::Literal) -> AstLiteral {
+    pub(crate) fn parse_literal(&mut self, lit: &ast::Literal) -> AstLiteral {
         match lit {
             Literal::String(str) => {
                 let str_ptr = self.gc_interface.alloc(str.clone());

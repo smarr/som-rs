@@ -2,7 +2,7 @@ use som_gc::gc_interface::GCInterface;
 use som_interpreter_ast::ast::AstExpression::*;
 use som_interpreter_ast::ast::InlinedNode::IfInlined;
 use som_interpreter_ast::ast::{AstBinaryDispatch, AstBody, AstDispatchNode, AstLiteral, AstMethodDef, AstUnaryDispatch, InlinedNode};
-use som_interpreter_ast::compiler::AstMethodCompilerCtxt;
+use som_interpreter_ast::compiler::compile::AstMethodCompilerCtxt;
 use som_interpreter_ast::gc::get_callbacks_for_gc;
 use som_interpreter_ast::specialized::inlined::if_inlined_node::IfInlinedNode;
 use som_interpreter_ast::specialized::inlined::to_do_inlined_node::ToDoInlinedNode;
