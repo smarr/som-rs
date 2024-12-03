@@ -57,9 +57,9 @@ fn basic_interpreter_tests(universe: &mut Universe) {
         ("Blocks testEmptyZeroArg", Value::Integer(1)),
         ("Blocks testEmptyOneArg", Value::Integer(1)),
         ("Blocks testEmptyTwoArg", Value::Integer(1)),
-        ("Return testReturnSelf", return_class.clone()),
-        ("Return testReturnSelfImplicitly", return_class.clone()),
-        ("Return testNoReturnReturnsSelf", return_class.clone()),
+        ("Return testReturnSelf", return_class),
+        ("Return testReturnSelfImplicitly", return_class),
+        ("Return testNoReturnReturnsSelf", return_class),
         ("Return testBlockReturnsImplicitlyLastValue", Value::Integer(4)),
         ("IfTrueIfFalse test", Value::Integer(42)),
         ("IfTrueIfFalse test2", Value::Integer(33)),
@@ -73,8 +73,8 @@ fn basic_interpreter_tests(universe: &mut Universe) {
         ("IfTrueIfFalse testIfFalseTrueResult", Value::Class(universe.nil_class())),
         ("IfTrueIfFalse testIfFalseFalseResult", Value::Class(universe.integer_class())),
         ("CompilerSimplification testReturnConstantInt", Value::Integer(42)),
-        ("CompilerSimplification testReturnSelf", compiler_simplification_class.clone()),
-        ("CompilerSimplification testReturnSelfImplicitly", compiler_simplification_class.clone()),
+        ("CompilerSimplification testReturnSelf", compiler_simplification_class),
+        ("CompilerSimplification testReturnSelfImplicitly", compiler_simplification_class),
         ("CompilerSimplification testReturnArgumentN", Value::Integer(55)),
         ("CompilerSimplification testReturnArgumentA", Value::Integer(44)),
         ("CompilerSimplification testSetField", Value::Symbol(universe.intern_symbol("foo"))),
@@ -123,7 +123,7 @@ fn basic_interpreter_tests(universe: &mut Universe) {
         let mut compiler = AstMethodCompilerCtxt {
             scopes: vec![],
             class: None,
-            gc_interface: &mut universe.gc_interface,
+            gc_interface: universe.gc_interface,
         };
         let mut ast = compiler.parse_expression(&ast_parser);
 
