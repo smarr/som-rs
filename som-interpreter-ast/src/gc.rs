@@ -133,6 +133,12 @@ fn get_roots_in_mutator_thread(_mutator: &mut Mutator<SOMVM>) -> Vec<SOMSlot> {
             }
         }
 
+        for stored_arg in &UNIVERSE_RAW_PTR_CONST.unwrap().as_ref().args_stack_for_gc {
+            if stored_arg.is_ptr_type() {
+                to_process.push(SOMSlot::from(stored_arg.as_mut_ptr()))
+            }
+        }
+
         debug!("scanning roots: finished");
         to_process
     }

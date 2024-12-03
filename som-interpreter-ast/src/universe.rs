@@ -38,6 +38,9 @@ pub struct Universe {
     pub start_time: Instant,
     /// GC interface
     pub gc_interface: &'static mut GCInterface,
+
+    // we need to store them somehow.
+    pub args_stack_for_gc: Vec<Value>,
 }
 
 impl Drop for Universe {
@@ -173,6 +176,7 @@ impl Universe {
                 false_class,
             },
             gc_interface,
+            args_stack_for_gc: vec![],
         })
     }
 

@@ -27,6 +27,7 @@ pub struct Frame {
     // pub kind: FrameKind,
     pub nbr_args: u8,
     pub nbr_locals: u8,
+
     /// Parameters for this frame.
     pub params_marker: PhantomData<Vec<Value>>,
     /// Local variables that get defined within this frame.

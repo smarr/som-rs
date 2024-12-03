@@ -25,20 +25,28 @@ pub trait Invoke {
 
 impl Invoke for Method {
     fn invoke(&mut self, universe: &mut Universe, args: Vec<Value>) -> Return {
-        // println!("--- Invoking \"{:1}\" ({:2})", &self.signature, &self.holder.class().name);
         // println!("--- ...with args: {:?}", &args);
 
         match &mut self.kind {
-            MethodKind::Defined(method) => universe.with_frame(method.locals_nbr, args, |universe| method.evaluate(universe)),
-            MethodKind::Primitive(func) => func(universe, args),
-            MethodKind::Specialized(specialized_kind) => match specialized_kind {
-                MethodKindSpecialized::While(while_node) => while_node.invoke(universe, args),
-                MethodKindSpecialized::If(if_node) => if_node.invoke(universe, args),
-                MethodKindSpecialized::IfTrueIfFalse(if_true_if_false_node) => if_true_if_false_node.invoke(universe, args),
-                MethodKindSpecialized::ToDo(to_do_node) => to_do_node.invoke(universe, args),
-                MethodKindSpecialized::ToByDo(to_by_do_node) => to_by_do_node.invoke(universe, args),
-                MethodKindSpecialized::DownToDo(down_to_do_node) => down_to_do_node.invoke(universe, args),
-            },
+            MethodKind::Defined(method) => {
+                // println!("--- Invoking \"{:1}\" ({:2})", &self.signature, &self.holder.class().name);
+                universe.with_frame(method.locals_nbr, args, |universe| method.evaluate(universe))
+            }
+            MethodKind::Primitive(func) => {
+                // println!("--- Invoking prim \"{:1}\" ({:2})", &self.signature, &self.holder.class().name);
+                func(universe, args)
+            }
+            MethodKind::Specialized(specialized_kind) => {
+                // println!("--- Invoking specialized method \"{:1}\" ({:2})", &self.signature, &self.holder.class().name);
+                match specialized_kind {
+                    MethodKindSpecialized::While(while_node) => while_node.invoke(universe, args),
+                    MethodKindSpecialized::If(if_node) => if_node.invoke(universe, args),
+                    MethodKindSpecialized::IfTrueIfFalse(if_true_if_false_node) => if_true_if_false_node.invoke(universe, args),
+                    MethodKindSpecialized::ToDo(to_do_node) => to_do_node.invoke(universe, args),
+                    MethodKindSpecialized::ToByDo(to_by_do_node) => to_by_do_node.invoke(universe, args),
+                    MethodKindSpecialized::DownToDo(down_to_do_node) => down_to_do_node.invoke(universe, args),
+                }
+            }
             // since those two trivial methods don't need args, i guess it could be faster to handle them before args are even instantiated... probably not that useful though
             MethodKind::TrivialLiteral(trivial_literal) => trivial_literal.literal.evaluate(universe),
             MethodKind::TrivialGlobal(trivial_global) => trivial_global.evaluate(universe),

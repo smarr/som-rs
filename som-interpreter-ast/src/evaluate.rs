@@ -220,9 +220,13 @@ impl Evaluate for AstBinaryDispatch {
         let receiver = propagate!(self.dispatch_node.receiver.evaluate(universe));
         let (invokable, is_cache_hit) = self.dispatch_node.lookup_invokable(&receiver, universe);
 
+        universe.args_stack_for_gc.push(receiver);
         let arg = propagate!(self.arg.evaluate(universe));
+        universe.args_stack_for_gc.push(arg);
 
-        self.dispatch_node.dispatch_or_dnu(invokable, vec![receiver, arg], is_cache_hit, universe)
+        let idx_split_off = universe.args_stack_for_gc.len() - 2;
+        self.dispatch_node
+            .dispatch_or_dnu(invokable, universe.args_stack_for_gc.split_off(idx_split_off), is_cache_hit, universe)
     }
 }
 
@@ -231,10 +235,18 @@ impl Evaluate for AstTernaryDispatch {
         let receiver = propagate!(self.dispatch_node.receiver.evaluate(universe));
         let (invokable, is_cache_hit) = self.dispatch_node.lookup_invokable(&receiver, universe);
 
-        let arg1 = propagate!(self.arg1.evaluate(universe));
-        let arg2 = propagate!(self.arg2.evaluate(universe));
+        universe.args_stack_for_gc.push(receiver);
 
-        self.dispatch_node.dispatch_or_dnu(invokable, vec![receiver, arg1, arg2], is_cache_hit, universe)
+        let arg1 = propagate!(self.arg1.evaluate(universe));
+        universe.args_stack_for_gc.push(arg1);
+
+        let arg2 = propagate!(self.arg2.evaluate(universe));
+        universe.args_stack_for_gc.push(arg2);
+
+        let idx_split_off = universe.args_stack_for_gc.len() - 3;
+
+        self.dispatch_node
+            .dispatch_or_dnu(invokable, universe.args_stack_for_gc.split_off(idx_split_off), is_cache_hit, universe)
     }
 }
 
@@ -243,22 +255,22 @@ impl Evaluate for AstNAryDispatch {
         let receiver = propagate!(self.dispatch_node.receiver.evaluate(universe));
         let (invokable, is_cache_hit) = self.dispatch_node.lookup_invokable(&receiver, universe);
 
-        let args = {
-            let mut output = Vec::with_capacity(self.values.len() + 1);
-            output.push(receiver);
-            for expr in &mut self.values {
-                let value = propagate!(expr.evaluate(universe));
-                output.push(value);
-            }
-            output
-        };
+        universe.args_stack_for_gc.push(receiver);
+
+        for expr in &mut self.values {
+            let value = propagate!(expr.evaluate(universe));
+            universe.args_stack_for_gc.push(value);
+        }
 
         debug_assert!(
-            args.len() > 3,
+            self.values.len() > 2,
             "should be a specialized unary/binary/ternary node, not a generic N-ary node"
         );
 
-        self.dispatch_node.dispatch_or_dnu(invokable, args, is_cache_hit, universe)
+        let idx_split_off = universe.args_stack_for_gc.len() - (self.values.len() + 1);
+
+        self.dispatch_node
+            .dispatch_or_dnu(invokable, universe.args_stack_for_gc.split_off(idx_split_off), is_cache_hit, universe)
     }
 }
 

@@ -395,6 +395,10 @@ impl BaseValue {
     /// The value used as a reference must be long-lived: if it is dropped at any point before invoking this function, we'll get undefined behavior.
     /// In practice for our cases, this means any reference passed to this function must be A POINTER TO THE GC HEAP.
     pub unsafe fn as_mut_ptr(&self) -> *mut BaseValue {
+        debug_assert!(
+            self.is_ptr_type(),
+            "calling as_mut_ptr() on a value that's not a pointer, thus not meant to hold data to the GC heap: why?"
+        );
         self as *const Self as *mut Self
     }
 }
