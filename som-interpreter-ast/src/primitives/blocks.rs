@@ -26,6 +26,7 @@ pub mod block1 {
     fn restart(_: &mut Universe, _: Gc<Block>) -> Result<Return, Error> {
         #[cfg(feature = "inlining-disabled")]
         return Ok(Return::Restart);
+        #[cfg(not(feature = "inlining-disabled"))]
         panic!("calling restart even though inlining is enabled. we don't support this")
     }
 

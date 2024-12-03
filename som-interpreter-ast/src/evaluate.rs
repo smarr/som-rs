@@ -304,6 +304,7 @@ impl Evaluate for AstMethodDef {
     fn evaluate(&mut self, universe: &mut Universe) -> Return {
         let current_frame = universe.current_frame;
 
+        #[cfg(not(feature = "inlining-disabled"))]
         match self.body.evaluate(universe) {
             Return::NonLocal(value, frame) => {
                 if current_frame == frame {
@@ -313,8 +314,21 @@ impl Evaluate for AstMethodDef {
                 }
             }
             Return::Local(_) => Return::Local(current_frame.get_self()),
-            #[cfg(feature = "inlining-disabled")]
-            Return::Restart => continue,
+        }
+
+        #[cfg(feature = "inlining-disabled")]
+        loop {
+            match self.body.evaluate(universe) {
+                Return::NonLocal(value, frame) => {
+                    if current_frame == frame {
+                        break Return::Local(value);
+                    } else {
+                        break Return::NonLocal(value, frame);
+                    }
+                }
+                Return::Local(_) => break Return::Local(current_frame.get_self()),
+                Return::Restart => continue,
+            }
         }
     }
 }
