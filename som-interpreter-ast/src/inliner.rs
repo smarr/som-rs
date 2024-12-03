@@ -33,6 +33,7 @@ pub(crate) trait PrimMessageInliner {
 
 impl PrimMessageInliner for AstMethodCompilerCtxt<'_> {
     fn inline_if_possible(&mut self, msg: &ast::Message) -> Option<InlinedNode> {
+        // return None;
         match msg.signature.as_str() {
             "ifTrue:" => self.inline_if_true_or_if_false(msg, true),
             "ifFalse:" => self.inline_if_true_or_if_false(msg, false),
@@ -374,7 +375,11 @@ impl PrimMessageInliner for AstMethodCompilerCtxt<'_> {
             accumulator_idx: accumulator_arg_idx,
         };
 
-        // dbg!(&to_do_inlined_node);
+        // to be honest, should be handled by the code above somewhere, and not sure why that's necessary. still, good enough quickfix.
+        // though TODO investigate root cause, it's probably simple
+        self.scopes.last_mut()?.add_nbr_locals(1);
+
+        // dbg!(&to_do_inlined_node); std::process::exit(1);
 
         Some(InlinedNode::ToDoInlined(to_do_inlined_node))
     }

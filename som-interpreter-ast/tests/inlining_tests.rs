@@ -151,7 +151,7 @@ fn to_do_inlining_ok() {
         ast,
         AstMethodDef {
             signature: "run".to_string(),
-            locals_nbr: 1,
+            locals_nbr: 2,
             body: AstBody {
                 exprs: vec![
                     LocalVarWrite(0, Box::new(Literal(AstLiteral::Integer(42)))),

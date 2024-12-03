@@ -25,7 +25,7 @@ pub trait Invoke {
 
 impl Invoke for Method {
     fn invoke(&mut self, universe: &mut Universe, args: Vec<Value>) -> Return {
-        // println!("--- Invoking \"{:1}\" ({:2})", &self.signature, &self.holder.class().borrow().name);
+        // println!("--- Invoking \"{:1}\" ({:2})", &self.signature, &self.holder.class().name);
         // println!("--- ...with args: {:?}", &args);
 
         match &mut self.kind {

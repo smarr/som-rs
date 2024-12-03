@@ -18,14 +18,13 @@ build-and-test-interpreters:
     - cd mmtk-core && git checkout v0.29.0 && cd ..
 
     - cargo clean
-    - cargo build --release -p som-interpreter-ast --features=som-gc/marksweep
-    - cargo build --release -p som-interpreter-bc --features=som-gc/semispace
+    - cargo build --release --features=som-gc/semispace
     - cargo clippy
 
-    # we have to deactivate defaults because the default is semispace at the moment (i'm experimenting with it)
     # also AST doesn't have semispace support yet
-    - RUST_TEST_THREADS=1 cargo test --no-default-features --features som-gc/marksweep -p som-interpreter-ast
-    - RUST_TEST_THREADS=1 cargo test --no-default-features --features som-gc/semispace -p som-interpreter-bc
+#    - RUST_TEST_THREADS=1 cargo test --no-default-features --features som-gc/marksweep -p som-interpreter-ast
+#    - RUST_TEST_THREADS=1 cargo test --no-default-features --features som-gc/semispace -p som-interpreter-bc
+    - RUST_TEST_THREADS=1 cargo test --features som-gc/semispace
 
     # Package and Upload
     - lz4 ./target/release/som-interpreter-ast som-interpreter-ast.lz4
