@@ -1,4 +1,4 @@
-use crate::ast::{AstBlock, AstExpression, AstLiteral, InlinedNode};
+use crate::ast::{AstBlock, AstDispatchNode, AstExpression, AstLiteral, InlinedNode};
 use crate::value::Value;
 use crate::vm_objects::block::Block;
 use crate::vm_objects::class::Class;
@@ -252,6 +252,14 @@ fn visit_literal(literal: &AstLiteral, slot_visitor: &mut dyn SlotVisitor<SOMSlo
 }
 
 fn visit_expr(expr: &AstExpression, slot_visitor: &mut dyn SlotVisitor<SOMSlot>) {
+    fn visit_dispatch_node(dispatch_node: &AstDispatchNode, slot_visitor: &mut dyn SlotVisitor<SOMSlot>) {
+        visit_expr(&dispatch_node.receiver, slot_visitor);
+        if let Some(cache) = &dispatch_node.inline_cache {
+            slot_visitor.visit_slot(SOMSlot::from(&cache.0));
+            slot_visitor.visit_slot(SOMSlot::from(&cache.1));
+        }
+    }
+
     match expr {
         AstExpression::Block(blk) => slot_visitor.visit_slot(SOMSlot::from(blk)),
         AstExpression::Literal(lit) => visit_literal(lit, slot_visitor),
@@ -306,35 +314,19 @@ fn visit_expr(expr: &AstExpression, slot_visitor: &mut dyn SlotVisitor<SOMSlot>)
         | AstExpression::FieldWrite(_, expr)
         | AstExpression::NonLocalVarWrite(_, _, expr) => visit_expr(expr, slot_visitor),
         AstExpression::UnaryDispatch(dispatch) => {
-            visit_expr(&dispatch.dispatch_node.receiver, slot_visitor);
-            if let Some(cache) = &dispatch.dispatch_node.inline_cache {
-                slot_visitor.visit_slot(SOMSlot::from(&cache.0));
-                slot_visitor.visit_slot(SOMSlot::from(&cache.1));
-            }
+            visit_dispatch_node(&dispatch.dispatch_node, slot_visitor);
         }
         AstExpression::BinaryDispatch(dispatch) => {
-            visit_expr(&dispatch.dispatch_node.receiver, slot_visitor);
-            if let Some(cache) = &dispatch.dispatch_node.inline_cache {
-                slot_visitor.visit_slot(SOMSlot::from(&cache.0));
-                slot_visitor.visit_slot(SOMSlot::from(&cache.1));
-            }
+            visit_dispatch_node(&dispatch.dispatch_node, slot_visitor);
             visit_expr(&dispatch.arg, slot_visitor)
         }
         AstExpression::TernaryDispatch(dispatch) => {
-            visit_expr(&dispatch.dispatch_node.receiver, slot_visitor);
-            if let Some(cache) = &dispatch.dispatch_node.inline_cache {
-                slot_visitor.visit_slot(SOMSlot::from(&cache.0));
-                slot_visitor.visit_slot(SOMSlot::from(&cache.1));
-            }
+            visit_dispatch_node(&dispatch.dispatch_node, slot_visitor);
             visit_expr(&dispatch.arg1, slot_visitor);
             visit_expr(&dispatch.arg2, slot_visitor);
         }
         AstExpression::NAryDispatch(dispatch) => {
-            visit_expr(&dispatch.dispatch_node.receiver, slot_visitor);
-            if let Some(cache) = &dispatch.dispatch_node.inline_cache {
-                slot_visitor.visit_slot(SOMSlot::from(&cache.0));
-                slot_visitor.visit_slot(SOMSlot::from(&cache.1));
-            }
+            visit_dispatch_node(&dispatch.dispatch_node, slot_visitor);
             for arg in &dispatch.values {
                 visit_expr(arg, slot_visitor);
             }

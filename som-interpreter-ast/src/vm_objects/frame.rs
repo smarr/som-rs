@@ -7,6 +7,8 @@ use std::fmt::{Debug, Formatter};
 use std::marker::PhantomData;
 use std::ptr::NonNull;
 
+const FRAME_ARG_OFFSET: usize = size_of::<Frame>();
+
 /// Represents a stack frame.
 pub struct Frame {
     pub prev_frame: Gc<Frame>,
@@ -42,9 +44,13 @@ impl Frame {
                     *locals_addr = Value::NIL;
                     locals_addr = locals_addr.wrapping_add(1);
                 }
-                for i in (0..params.len()).rev() {
-                    frame_ptr.assign_arg(i as u8, params.pop().unwrap())
-                }
+
+                // for i in (0..params.len()).rev() {
+                //     frame_ptr.assign_arg(i as u8, params.pop().unwrap())
+                // }
+                let frame_arg_ptr = (frame_ptr.ptr + FRAME_ARG_OFFSET) as *mut Value;
+                std::slice::from_raw_parts_mut(frame_arg_ptr, params.len()).copy_from_slice(params.as_slice());
+
                 frame_ptr.prev_frame = *prev_frame;
             };
         };
@@ -110,7 +116,6 @@ impl Frame {
 
 // exact same as BC... but I'm not positive this isn't useful duplication in the long run? since we may want them to have different implems still
 pub trait FrameAccess {
-    const ARG_OFFSET: usize = size_of::<Frame>();
     fn get_self(&self) -> Value;
     fn lookup_argument(&self, idx: u8) -> &Value;
     fn assign_arg(&mut self, idx: u8, value: Value);
@@ -132,7 +137,7 @@ impl FrameAccess for Gc<Frame> {
 
     fn lookup_argument(&self, idx: u8) -> &Value {
         unsafe {
-            let arg_ptr = (self.ptr + Self::ARG_OFFSET + idx as usize * size_of::<Value>()) as *const Value;
+            let arg_ptr = (self.ptr + FRAME_ARG_OFFSET + idx as usize * size_of::<Value>()) as *const Value;
             &*arg_ptr
         }
     }
@@ -140,7 +145,7 @@ impl FrameAccess for Gc<Frame> {
     fn assign_arg(&mut self, idx: u8, value: Value) {
         // TODO: shouldn't assignments take refs?
         unsafe {
-            let arg_ptr = (self.ptr + Self::ARG_OFFSET + (idx as usize * size_of::<Value>())) as *mut Value;
+            let arg_ptr = (self.ptr + FRAME_ARG_OFFSET + (idx as usize * size_of::<Value>())) as *mut Value;
             *arg_ptr = value
         }
     }
@@ -149,7 +154,7 @@ impl FrameAccess for Gc<Frame> {
     fn lookup_local(&self, idx: u8) -> &Value {
         let nbr_args = self.nbr_args;
         unsafe {
-            let value_ptr = (self.ptr + Self::ARG_OFFSET + ((nbr_args + idx) as usize * size_of::<Value>())) as *const Value;
+            let value_ptr = (self.ptr + FRAME_ARG_OFFSET + ((nbr_args + idx) as usize * size_of::<Value>())) as *const Value;
             &*value_ptr
         }
     }
@@ -157,7 +162,7 @@ impl FrameAccess for Gc<Frame> {
     fn assign_local(&mut self, idx: u8, value: Value) {
         let nbr_args = self.nbr_args;
         unsafe {
-            let value_ptr = (self.ptr + Self::ARG_OFFSET + ((nbr_args + idx) as usize * size_of::<Value>())) as *mut Value;
+            let value_ptr = (self.ptr + FRAME_ARG_OFFSET + ((nbr_args + idx) as usize * size_of::<Value>())) as *mut Value;
             *value_ptr = value
         }
     }

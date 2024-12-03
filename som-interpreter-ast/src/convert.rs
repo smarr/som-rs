@@ -304,7 +304,7 @@ macro_rules! derive_stuff {
                 let mut args_iter = args.iter();
                 $(
                     #[allow(non_snake_case)]
-                    let $ty = $ty::from_args(args_iter.next().unwrap().clone(), universe).unwrap();
+                    let $ty = $ty::from_args(*args_iter.next().unwrap(), universe).unwrap();
                 )*
 
                 let result = (self)(universe, $($ty),*,).unwrap();

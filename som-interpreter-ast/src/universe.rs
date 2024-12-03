@@ -376,7 +376,7 @@ impl Universe {
         let frame = Frame::alloc_new_frame(nbr_locals, args, &self.current_frame, self.gc_interface);
         self.current_frame = frame;
         let ret = func(self);
-        self.current_frame = frame.prev_frame;
+        self.current_frame = self.current_frame.prev_frame;
         ret
     }
 
