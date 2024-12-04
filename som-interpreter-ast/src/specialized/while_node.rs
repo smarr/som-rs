@@ -21,7 +21,8 @@ impl Invoke for WhileNode {
         let nbr_locals = cond_block.block.nbr_locals;
 
         loop {
-            let cond_block_return = universe.with_frame(nbr_locals, vec![Value::Block(cond_block)], |universe| cond_block.evaluate(universe));
+            universe.stack_args.push(Value::Block(cond_block));
+            let cond_block_return = universe.with_frame(nbr_locals, 1, |universe| cond_block.evaluate(universe));
 
             let bool_val = match cond_block_return {
                 Return::Local(b_val) => match b_val.as_boolean() {
@@ -36,7 +37,8 @@ impl Invoke for WhileNode {
             } else {
                 let nbr_locals = body_block.block.nbr_locals;
 
-                propagate!(universe.with_frame(nbr_locals, vec![Value::Block(body_block)], |universe| body_block.evaluate(universe),));
+                universe.stack_args.push(Value::Block(body_block));
+                propagate!(universe.with_frame(nbr_locals, 1, |universe| body_block.evaluate(universe),));
             }
         }
     }

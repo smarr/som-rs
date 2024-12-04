@@ -376,8 +376,8 @@ impl Universe {
 }
 
 impl Universe {
-    pub fn with_frame<T>(&mut self, nbr_locals: u8, args: Vec<Value>, func: impl FnOnce(&mut Self) -> T) -> T {
-        let frame = Frame::alloc_new_frame(nbr_locals, args, self);
+    pub fn with_frame<T>(&mut self, nbr_locals: u8, nbr_args: usize, func: impl FnOnce(&mut Self) -> T) -> T {
+        let frame = Frame::alloc_new_frame(nbr_locals, nbr_args, self);
         self.current_frame = frame;
         let ret = func(self);
         self.current_frame = self.current_frame.prev_frame;

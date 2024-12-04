@@ -25,7 +25,8 @@ impl Invoke for IfTrueIfFalseNode {
         match block_to_evaluate.as_block() {
             Some(mut b) => {
                 let nbr_locals = b.block.nbr_locals;
-                universe.with_frame(nbr_locals, vec![Value::Block(b)], |universe| b.evaluate(universe))
+                universe.stack_args.push(Value::Block(b));
+                universe.with_frame(nbr_locals, 1, |universe| b.evaluate(universe))
             }
             None => Return::Local(*block_to_evaluate),
         }

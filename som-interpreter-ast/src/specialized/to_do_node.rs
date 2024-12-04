@@ -34,10 +34,9 @@ impl ToDoNode {
         let nbr_locals = body_block.block.nbr_locals;
 
         for i in start_int..=end_int {
-            propagate!(
-                universe.with_frame(nbr_locals, vec![Value::Block(body_block), Value::Integer(i)], |universe| body_block
-                    .evaluate(universe),)
-            );
+            universe.stack_args.push(Value::Block(body_block));
+            universe.stack_args.push(Value::Integer(i));
+            propagate!(universe.with_frame(nbr_locals, 2, |universe| body_block.evaluate(universe),));
         }
         Return::Local(Value::Integer(start_int))
     }
@@ -47,10 +46,9 @@ impl ToDoNode {
         let mut i = start_double;
 
         while i <= end_double {
-            propagate!(
-                universe.with_frame(nbr_locals, vec![Value::Block(body_block), Value::Double(i)], |universe| body_block
-                    .evaluate(universe),)
-            );
+            universe.stack_args.push(Value::Block(body_block));
+            universe.stack_args.push(Value::Double(i));
+            propagate!(universe.with_frame(nbr_locals, 2, |universe| body_block.evaluate(universe),));
             i += 1.0
         }
 

@@ -24,7 +24,8 @@ impl Invoke for IfNode {
         if bool_val != self.expected_bool {
             Return::Local(Value::NIL)
         } else {
-            universe.with_frame(nbr_locals, vec![Value::Block(body_block)], |universe| body_block.evaluate(universe))
+            universe.stack_args.push(Value::Block(body_block));
+            universe.with_frame(nbr_locals, 1, |universe| body_block.evaluate(universe))
         }
     }
 }

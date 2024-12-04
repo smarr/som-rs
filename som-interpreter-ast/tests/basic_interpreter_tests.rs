@@ -123,7 +123,8 @@ fn basic_interpreter_tests(universe: &mut Universe) {
         let mut compiler = AstMethodCompilerCtxt::new(universe.gc_interface);
         let mut ast = compiler.parse_expression(&ast_parser);
 
-        let output = universe.with_frame(0, vec![Value::SYSTEM], |universe| ast.evaluate(universe));
+        universe.stack_args.push(Value::SYSTEM);
+        let output = universe.with_frame(0, 1, |universe| ast.evaluate(universe));
 
         match &output {
             Return::Local(output) => assert_eq!(output, expected, "unexpected test output value"),

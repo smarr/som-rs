@@ -1,11 +1,9 @@
 use crate::universe::Universe;
 use crate::value::Value;
-use crate::FRAME_ARGS_PTR;
 use core::mem::size_of;
 use som_gc::gcref::Gc;
 use std::fmt::{Debug, Formatter};
 use std::marker::PhantomData;
-use std::ptr::NonNull;
 
 macro_rules! frame_args_ptr {
     ($base_ptr:expr) => {
@@ -35,33 +33,27 @@ pub struct Frame {
 }
 
 impl Frame {
-    pub fn alloc_new_frame(nbr_locals: u8, mut args: Vec<Value>, universe: &mut Universe) -> Gc<Self> {
-        let nbr_params = args.len();
+    pub fn alloc_new_frame(nbr_locals: u8, nbr_args: usize, universe: &mut Universe) -> Gc<Self> {
         let frame = Self {
             prev_frame: Gc::default(),
             nbr_locals,
-            nbr_args: nbr_params as u8,
+            nbr_args: nbr_args as u8,
             params_marker: PhantomData,
             locals_marker: PhantomData,
         };
-
-        unsafe {
-            FRAME_ARGS_PTR = NonNull::new(&mut args); // TODO: avoidable hack by relying on the global argument stack.
-        }
 
         let size = size_of::<Frame>() + ((frame.nbr_args + frame.nbr_locals) as usize * size_of::<Value>());
         let mut frame_ptr = universe.gc_interface.alloc_with_size(frame, size);
 
         unsafe {
-            let mut locals_addr = (frame_ptr.ptr + size_of::<Frame>() + (nbr_params * size_of::<Value>())) as *mut Value;
+            let mut locals_addr = (frame_ptr.ptr + size_of::<Frame>() + (nbr_args * size_of::<Value>())) as *mut Value;
             for _ in 0..nbr_locals {
                 *locals_addr = Value::NIL;
                 locals_addr = locals_addr.wrapping_add(1);
             }
 
-            std::slice::from_raw_parts_mut(frame_args_ptr!(frame_ptr), nbr_params).copy_from_slice(FRAME_ARGS_PTR.unwrap().as_ref().as_slice());
-
-            FRAME_ARGS_PTR = None;
+            let args = universe.stack_n_last_elems(nbr_args);
+            std::slice::from_raw_parts_mut(frame_args_ptr!(frame_ptr), nbr_args).copy_from_slice(args.as_slice());
 
             frame_ptr.prev_frame = universe.current_frame;
         };

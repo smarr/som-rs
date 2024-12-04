@@ -31,10 +31,9 @@ impl Invoke for ToByDoNode {
 
         let nbr_locals = body_block.block.nbr_locals;
         while i <= end_int {
-            propagate!(
-                universe.with_frame(nbr_locals, vec![Value::Block(body_block), Value::Integer(i)], |universe| body_block
-                    .evaluate(universe),)
-            );
+            universe.stack_args.push(Value::Block(body_block));
+            universe.stack_args.push(Value::Integer(i));
+            propagate!(universe.with_frame(nbr_locals, 2, |universe| body_block.evaluate(universe),));
             i += step_int;
         }
 

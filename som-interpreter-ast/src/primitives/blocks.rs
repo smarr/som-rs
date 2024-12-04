@@ -20,7 +20,8 @@ pub mod block1 {
 
     fn value(universe: &mut Universe, mut block: Gc<Block>) -> Result<Return, Error> {
         let nbr_locals = block.block.nbr_locals;
-        Ok(universe.with_frame(nbr_locals, vec![Value::Block(block)], |universe| block.evaluate(universe)))
+        universe.stack_args.push(Value::Block(block));
+        Ok(universe.with_frame(nbr_locals, 1, |universe| block.evaluate(universe)))
     }
 
     fn restart(_: &mut Universe, _: Gc<Block>) -> Result<Return, Error> {
@@ -55,8 +56,10 @@ pub mod block2 {
 
     fn value(universe: &mut Universe, mut block: Gc<Block>, argument: Value) -> Result<Return, Error> {
         let nbr_locals = block.block.nbr_locals;
+        universe.stack_args.push(Value::Block(block));
+        universe.stack_args.push(argument);
 
-        Ok(universe.with_frame(nbr_locals, vec![Value::Block(block), argument], |universe| block.evaluate(universe)))
+        Ok(universe.with_frame(nbr_locals, 2, |universe| block.evaluate(universe)))
     }
 
     /// Search for an instance primitive matching the given signature.
@@ -85,11 +88,11 @@ pub mod block3 {
     fn value_with(universe: &mut Universe, mut receiver: Gc<Block>, argument1: Value, argument2: Value) -> Result<Return, Error> {
         let nbr_locals = receiver.block.nbr_locals;
 
-        Ok(
-            universe.with_frame(nbr_locals, vec![Value::Block(receiver), argument1, argument2], |universe| {
-                receiver.evaluate(universe)
-            }),
-        )
+        universe.stack_args.push(Value::Block(receiver));
+        universe.stack_args.push(argument1);
+        universe.stack_args.push(argument2);
+
+        Ok(universe.with_frame(nbr_locals, 3, |universe| receiver.evaluate(universe)))
     }
 
     /// Search for an instance primitive matching the given signature.

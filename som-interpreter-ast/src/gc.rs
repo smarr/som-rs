@@ -5,7 +5,7 @@ use crate::vm_objects::class::Class;
 use crate::vm_objects::frame::{Frame, FrameAccess};
 use crate::vm_objects::instance::Instance;
 use crate::vm_objects::method::{Method, MethodKind};
-use crate::{FRAME_ARGS_PTR, UNIVERSE_RAW_PTR_CONST};
+use crate::UNIVERSE_RAW_PTR_CONST;
 use log::debug;
 use mmtk::util::ObjectReference;
 use mmtk::vm::{ObjectModel, SlotVisitor};
@@ -123,15 +123,6 @@ fn get_roots_in_mutator_thread(_mutator: &mut Mutator<SOMVM>) -> Vec<SOMSlot> {
 
         debug!("scanning roots: core classes");
         UNIVERSE_RAW_PTR_CONST.unwrap().as_mut().core.iter().for_each(|cls_ptr| to_process.push(SOMSlot::from(cls_ptr)));
-
-        if let Some(frame_args) = FRAME_ARGS_PTR {
-            debug!("scanning roots: frame arguments (frame allocation triggered a GC)");
-            for val in frame_args.as_ref() {
-                if val.is_ptr_type() {
-                    to_process.push(SOMSlot::from(val.as_mut_ptr()))
-                }
-            }
-        }
 
         debug!("scanning roots: global argument stack");
         for stored_arg in &UNIVERSE_RAW_PTR_CONST.unwrap().as_ref().stack_args {
