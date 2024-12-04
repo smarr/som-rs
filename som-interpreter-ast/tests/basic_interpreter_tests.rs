@@ -134,7 +134,6 @@ fn basic_interpreter_tests(universe: &mut Universe) {
 
 /// Runs the TestHarness, which handles many basic tests written in SOM
 #[rstest]
-#[ignore] // TODO REENABLE
 fn test_harness(universe: &mut Universe) {
     let args = ["TestHarness"].iter().map(|str| Value::String(universe.gc_interface.alloc(String::from(*str)))).collect();
 

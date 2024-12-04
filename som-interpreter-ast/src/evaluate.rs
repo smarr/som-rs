@@ -289,14 +289,18 @@ impl Evaluate for AstBody {
 
 impl Evaluate for AstMethodDef {
     fn evaluate(&mut self, universe: &mut Universe) -> Return {
-        let current_frame = universe.current_frame;
+        // HACK: we want to hold on to a reference to the current frame at that point in time.
+        // We can't copy/clone the pointer, because we want to have a reference to that pointer in case moving GC moves it.
+        // And we can't hold onto an immutable ref to universe while passing a mutable ref universe to `self.body.evaluate` lower down. Hence this hack.
+        // Not sure how to better solve that one, to be honest.
+        let current_frame = unsafe { &*(&universe.current_frame as *const Gc<Frame>) };
 
         #[cfg(not(feature = "inlining-disabled"))]
         match self.body.evaluate(universe) {
             Return::NonLocal(value, frame) => {
                 debug_assert!(frame.is_pointer_to_valid_space());
                 debug_assert!(current_frame.is_pointer_to_valid_space());
-                if current_frame == frame {
+                if *current_frame == frame {
                     Return::Local(value)
                 } else {
                     Return::NonLocal(value, frame)
@@ -309,7 +313,7 @@ impl Evaluate for AstMethodDef {
         loop {
             match self.body.evaluate(universe) {
                 Return::NonLocal(value, frame) => {
-                    if current_frame == frame {
+                    if *current_frame == frame {
                         break Return::Local(value);
                     } else {
                         break Return::NonLocal(value, frame);
