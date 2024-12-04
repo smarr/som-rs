@@ -180,11 +180,7 @@ fn print_stack_trace(interpreter: &mut Interpreter, _: &mut Universe, _: Value) 
 }
 
 fn full_gc(_: &mut Interpreter, universe: &mut Universe, _: Value) -> Result<bool, Error> {
-    const _: &str = "System>>#fullGC";
-
-    universe.gc_interface.full_gc_request();
-
-    Ok(true)
+    Ok(universe.gc_interface.full_gc_request())
 }
 
 fn gc_stats(_: &mut Interpreter, universe: &mut Universe, _: Value) -> Result<Gc<VecValue>, Error> {

@@ -133,6 +133,7 @@ fn get_roots_in_mutator_thread(_mutator: &mut Mutator<SOMVM>) -> Vec<SOMSlot> {
             }
         }
 
+        debug!("scanning roots: global argument stack");
         for stored_arg in &UNIVERSE_RAW_PTR_CONST.unwrap().as_ref().args_stack_for_gc {
             if stored_arg.is_ptr_type() {
                 to_process.push(SOMSlot::from(stored_arg.as_mut_ptr()))
@@ -242,12 +243,17 @@ pub fn scan_object<'a>(object: ObjectReference, slot_visitor: &'a mut (dyn SlotV
     }
 }
 
+/// Visits a value, via a specialized `SOMSlot` for value types.
+/// # Safety
+/// Values passed to this function MUST live on the GC heap, or the pointer generated from the reference will be invalid.
 unsafe fn visit_value<'a>(val: &Value, slot_visitor: &'a mut (dyn SlotVisitor<SOMSlot> + 'a)) {
     if val.is_ptr_type() {
         slot_visitor.visit_slot(SOMSlot::from(val.as_mut_ptr()))
     }
 }
 
+/// Visits a value, via a specialized `SOMSlot` for value types.
+/// For safety, literals passed to this function MUST live on the GC heap, but that's always the case for literals (at the moment).
 fn visit_literal(literal: &AstLiteral, slot_visitor: &mut dyn SlotVisitor<SOMSlot>) {
     match &literal {
         AstLiteral::Symbol(s) | AstLiteral::String(s) => slot_visitor.visit_slot(SOMSlot::from(s)),

@@ -88,9 +88,9 @@ impl Value {
     pub fn is_instance(self) -> bool {
         self.tag() == INSTANCE_TAG
     }
-    /// Returns whether this value is an invocable.
+    /// Returns whether this value is an invokable.
     #[inline(always)]
-    pub fn is_invocable(self) -> bool {
+    pub fn is_invokable(self) -> bool {
         self.tag() == INVOKABLE_TAG
     }
 
@@ -114,11 +114,17 @@ impl Value {
     pub fn as_instance(self) -> Option<Gc<Instance>> {
         self.is_instance().then(|| self.extract_gc_cell())
     }
-    /// Returns this value as an invocable, if such is its type.
+    /// Returns this value as an invokable, if such is its type.
     #[inline(always)]
     pub fn as_invokable(self) -> Option<Gc<Method>> {
-        self.is_invocable().then(|| self.extract_gc_cell())
+        self.is_invokable().then(|| self.extract_gc_cell())
     }
+
+    // /// Used for debugging.
+    // pub unsafe fn as_some_pointer<T>(self) -> Option<Gc<T>> {
+    //     self.is_ptr_type().then(|| self.extract_gc_cell())
+    // }
+
     #[allow(non_snake_case)]
     pub fn Array(value: Gc<VecValue>) -> Self {
         Self::new_array(value)

@@ -94,27 +94,6 @@ impl Frame {
         target_frame
     }
 
-    pub fn nth_frame_back_through_frame_list(current_frame: &Gc<Frame>, n: u8) -> Gc<Frame> {
-        debug_assert_ne!(n, 0);
-        let mut target_frame = *current_frame;
-        for _ in 1..n {
-            target_frame = target_frame.prev_frame;
-            if target_frame.is_empty() {
-                panic!("empty target frame");
-            }
-        }
-        target_frame
-    }
-
-    /// Get the method invocation frame for that frame.
-    pub fn method_frame(frame: &Gc<Frame>) -> Gc<Frame> {
-        if let Some(blk) = frame.lookup_argument(0).as_block() {
-            Frame::method_frame(&blk.frame)
-        } else {
-            *frame
-        }
-    }
-
     /// Returns the true size of a Frame, counting the heap stored right after it.
     pub fn get_true_size(nbr_args: u8, nbr_locals: u8) -> usize {
         size_of::<Frame>() + ((nbr_args + nbr_locals) as usize * size_of::<Value>())

@@ -44,7 +44,7 @@ impl Evaluate for AstExpression {
             Self::Block(blk) => blk.evaluate(universe),
             Self::LocalExit(expr) => {
                 let value = propagate!(expr.evaluate(universe));
-                Return::NonLocal(value, universe.current_frame) // not well named - Return::NonLocal means "exits the scope", so it can be a regular, local return.
+                Return::NonLocal(value, universe.current_frame)
             }
             Self::NonLocalExit(expr, scope) => {
                 debug_assert_ne!(*scope, 0);
@@ -182,22 +182,21 @@ impl AstDispatchNode {
     }
 
     #[inline(always)]
-    fn dispatch_or_dnu(&mut self, invokable: Option<Gc<Method>>, args: Vec<Value>, is_cache_hit: bool, universe: &mut Universe) -> Return {
+    fn dispatch_or_dnu(&mut self, mut args: Vec<Value>, universe: &mut Universe) -> Return {
+        let (invokable, is_cache_hit) = self.lookup_invokable(args.first().unwrap(), universe);
         match invokable {
             Some(mut invokable) => match is_cache_hit {
                 true => invokable.invoke(universe, args),
                 false => {
                     let receiver = *args.first().unwrap();
-                    let invoke_ret = invokable.invoke(universe, args);
-
                     let class_ref = receiver.class(universe);
+                    let invoke_ret = invokable.invoke(universe, args);
                     self.inline_cache = Some((class_ref, invokable));
 
                     invoke_ret
                 }
             },
             None => {
-                let mut args = args;
                 let receiver = args.remove(0);
                 universe
                     .does_not_understand(receiver, &self.signature, args)
@@ -210,30 +209,25 @@ impl AstDispatchNode {
 impl Evaluate for AstUnaryDispatch {
     fn evaluate(&mut self, universe: &mut Universe) -> Return {
         let receiver = propagate!(self.dispatch_node.receiver.evaluate(universe));
-        let (invokable, is_cache_hit) = self.dispatch_node.lookup_invokable(&receiver, universe);
-        self.dispatch_node.dispatch_or_dnu(invokable, vec![receiver], is_cache_hit, universe)
+        self.dispatch_node.dispatch_or_dnu(vec![receiver], universe)
     }
 }
 
 impl Evaluate for AstBinaryDispatch {
     fn evaluate(&mut self, universe: &mut Universe) -> Return {
         let receiver = propagate!(self.dispatch_node.receiver.evaluate(universe));
-        let (invokable, is_cache_hit) = self.dispatch_node.lookup_invokable(&receiver, universe);
-
         universe.args_stack_for_gc.push(receiver);
+
         let arg = propagate!(self.arg.evaluate(universe));
         universe.args_stack_for_gc.push(arg);
 
-        let idx_split_off = universe.args_stack_for_gc.len() - 2;
-        self.dispatch_node
-            .dispatch_or_dnu(invokable, universe.args_stack_for_gc.split_off(idx_split_off), is_cache_hit, universe)
+        self.dispatch_node.dispatch_or_dnu(universe.stack_n_last_elems(2), universe)
     }
 }
 
 impl Evaluate for AstTernaryDispatch {
     fn evaluate(&mut self, universe: &mut Universe) -> Return {
         let receiver = propagate!(self.dispatch_node.receiver.evaluate(universe));
-        let (invokable, is_cache_hit) = self.dispatch_node.lookup_invokable(&receiver, universe);
 
         universe.args_stack_for_gc.push(receiver);
 
@@ -243,17 +237,13 @@ impl Evaluate for AstTernaryDispatch {
         let arg2 = propagate!(self.arg2.evaluate(universe));
         universe.args_stack_for_gc.push(arg2);
 
-        let idx_split_off = universe.args_stack_for_gc.len() - 3;
-
-        self.dispatch_node
-            .dispatch_or_dnu(invokable, universe.args_stack_for_gc.split_off(idx_split_off), is_cache_hit, universe)
+        self.dispatch_node.dispatch_or_dnu(universe.stack_n_last_elems(3), universe)
     }
 }
 
 impl Evaluate for AstNAryDispatch {
     fn evaluate(&mut self, universe: &mut Universe) -> Return {
         let receiver = propagate!(self.dispatch_node.receiver.evaluate(universe));
-        let (invokable, is_cache_hit) = self.dispatch_node.lookup_invokable(&receiver, universe);
 
         universe.args_stack_for_gc.push(receiver);
 
@@ -267,10 +257,7 @@ impl Evaluate for AstNAryDispatch {
             "should be a specialized unary/binary/ternary node, not a generic N-ary node"
         );
 
-        let idx_split_off = universe.args_stack_for_gc.len() - (self.values.len() + 1);
-
-        self.dispatch_node
-            .dispatch_or_dnu(invokable, universe.args_stack_for_gc.split_off(idx_split_off), is_cache_hit, universe)
+        self.dispatch_node.dispatch_or_dnu(universe.stack_n_last_elems(self.values.len() + 1), universe)
     }
 }
 
@@ -292,7 +279,7 @@ impl Evaluate for AstSuperMessage {
             Some(mut invokable) => invokable.invoke(universe, args),
             None => {
                 let mut args = args;
-                args.remove(0);
+                let receiver = args.remove(0);
                 universe.does_not_understand(receiver, &self.signature, args).unwrap_or_else(|| {
                     panic!("could not find method '{}>>#{}'", receiver.class(universe).name(), self.signature)
                     // Return::Local(Value::Nil)
@@ -319,6 +306,8 @@ impl Evaluate for AstMethodDef {
         #[cfg(not(feature = "inlining-disabled"))]
         match self.body.evaluate(universe) {
             Return::NonLocal(value, frame) => {
+                debug_assert!(frame.is_pointer_to_valid_space());
+                debug_assert!(current_frame.is_pointer_to_valid_space());
                 if current_frame == frame {
                     Return::Local(value)
                 } else {

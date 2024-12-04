@@ -258,9 +258,9 @@ impl ValueEnum {
     pub fn is_instance(&self) -> bool {
         matches!(self, ValueEnum::Instance(_))
     }
-    /// Returns whether this value is an invocable.
+    /// Returns whether this value is an invokable.
     #[inline(always)]
-    pub fn is_invocable(&self) -> bool {
+    pub fn is_invokable(&self) -> bool {
         matches!(self, ValueEnum::Invokable(_))
     }
 
@@ -368,7 +368,7 @@ impl ValueEnum {
             None
         }
     }
-    /// Returns this value as an invocable, if such is its type.
+    /// Returns this value as an invokable, if such is its type.
     #[inline(always)]
     pub fn as_invokable(&self) -> Option<Gc<Method>> {
         if let Self::Invokable(v) = self {
@@ -492,7 +492,7 @@ impl ValueEnum {
     pub fn new_instance(value: Gc<Instance>) -> Self {
         ValueEnum::Instance(value)
     }
-    /// Returns a new invocable value.
+    /// Returns a new invokable value.
     #[inline(always)]
     pub fn new_invokable(value: Gc<Method>) -> Self {
         ValueEnum::Invokable(value)

@@ -63,7 +63,7 @@ pub enum MethodKindSpecialized {
 }
 
 impl MethodKind {
-    /// Whether this invocable is a primitive.
+    /// Whether this invokable is a primitive.
     pub fn is_primitive(&self) -> bool {
         matches!(self, Self::Primitive(_))
     }
@@ -104,7 +104,7 @@ impl Method {
         self.signature.as_str()
     }
 
-    /// Whether this invocable is a primitive.
+    /// Whether this invokable is a primitive.
     pub fn is_primitive(&self) -> bool {
         self.kind.is_primitive()
     }

@@ -5,9 +5,12 @@ use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
 
 /// A pointer to the heap for GC.
+///
+/// To note: it could be a `NonNull` instead, and have places that need a "default" value rely on Option<Gc<T>>.
+/// That might be a mild speedup for all I know.
 #[repr(transparent)]
 pub struct Gc<T> {
-    pub ptr: usize,
+    pub ptr: usize, // TODO: fine as is, but I'd rather not have the underlying pointer be public, and support arithmetic operations on Gc<T> directly.
     pub _phantom: PhantomData<T>,
 }
 
@@ -50,15 +53,10 @@ impl<T> Deref for Gc<T> {
 
     fn deref(&self) -> &T {
         unsafe {
-            let ptr = self.ptr as *const T;
             #[cfg(all(feature = "semispace", debug_assertions))]
-            {
-                // checking we're not holding onto references from the old space
-                let gc_interface = &**crate::MUTATOR_WRAPPER.get().unwrap();
-                if gc_interface.get_nbr_collections() % 2 == 1 && self.ptr.to_string().chars().nth(0).unwrap() == '2' {
-                    panic!("INVALID POINTER TO OLD SPACE");
-                }
-            }
+            assert!(self.is_pointer_to_valid_space(), "Pointer to invalid space.");
+
+            let ptr = self.ptr as *const T;
             &*ptr
         }
     }
@@ -67,16 +65,10 @@ impl<T> Deref for Gc<T> {
 impl<T> DerefMut for Gc<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         unsafe {
-            let ptr = self.ptr as *mut T;
             #[cfg(all(feature = "semispace", debug_assertions))]
-            {
-                // checking we're not holding onto references from the old space
-                let gc_interface = &**crate::MUTATOR_WRAPPER.get().unwrap();
-                if gc_interface.get_nbr_collections() % 2 == 1 && self.ptr.to_string().chars().nth(0).unwrap() == '2' {
-                    // dbg!(ptr as usize);
-                    panic!("INVALID MUT POINTER TO OLD SPACE");
-                }
-            }
+            assert!(self.is_pointer_to_valid_space(), "Pointer to invalid space.");
+
+            let ptr = self.ptr as *mut T;
             &mut *ptr
         }
     }
@@ -99,7 +91,7 @@ impl<T> From<u64> for Gc<T> {
     }
 }
 
-/// Convert an MMTk address into a GCRef.
+/// Convert an MMTk address into a GC pointer.
 impl<T> From<Address> for Gc<T> {
     fn from(ptr: Address) -> Self {
         Gc {
@@ -137,4 +129,29 @@ impl<T> Gc<T> {
     // pub unsafe fn unsafe_cast<U>(&self) -> *mut U {
     //     self.ptr as *mut U
     // }
+
+    #[cfg(feature = "semispace")]
+    /// Checks if the pointer points to a valid space.
+    /// Because of our semispace GC, pointers can move from one space to the other, and the number one bug cause is pointers not having been moved.
+    /// So this function is tremendously useful for debugging.
+    pub fn is_pointer_to_valid_space(&self) -> bool {
+        fn leftmost_digit(mut number: usize) -> u8 {
+            while number >= 10 {
+                number /= 10;
+            }
+            number as u8
+        }
+
+        let gc_interface = unsafe { &**crate::MUTATOR_WRAPPER.get().unwrap() };
+
+        // if we're collecting, we're handling both new and old pointers, so we just say they're all valid for simplicity.
+        if gc_interface.is_currently_collecting() {
+            return true;
+        }
+
+        match gc_interface.get_nbr_collections() % 2 == 0 {
+            true => leftmost_digit(self.ptr) == 2,
+            false => leftmost_digit(self.ptr) == 4,
+        }
+    }
 }

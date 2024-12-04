@@ -104,8 +104,8 @@ pub fn mmtk_is_mapped_address(address: Address) -> bool {
     memory_manager::is_mapped_address(address)
 }
 
-pub fn mmtk_handle_user_collection_request(tls: VMMutatorThread) {
-    memory_manager::handle_user_collection_request::<SOMVM>(mmtk(), tls);
+pub fn mmtk_handle_user_collection_request(tls: VMMutatorThread) -> bool {
+    memory_manager::handle_user_collection_request::<SOMVM>(mmtk(), tls)
 }
 
 pub fn mmtk_add_weak_candidate(reff: ObjectReference) {

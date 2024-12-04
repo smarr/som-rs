@@ -164,9 +164,8 @@ fn print_stack_trace(_: &mut Universe, _: Value) -> Result<bool, Error> {
     Ok(true)
 }
 
-fn full_gc(_: &mut Universe, _: Value) -> Result<Value, Error> {
-    // We don't do any garbage collection at all, so we return false.
-    Ok(Value::Boolean(false))
+fn full_gc(universe: &mut Universe, _: Value) -> Result<Value, Error> {
+    Ok(Value::Boolean(universe.gc_interface.full_gc_request()))
 }
 
 fn gc_stats(universe: &mut Universe, _: Value) -> Result<Gc<VecValue>, Error> {

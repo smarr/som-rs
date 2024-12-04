@@ -90,7 +90,7 @@ impl Value {
     pub fn new_instance(value: Gc<Instance>) -> Self {
         BaseValue::new(INSTANCE_TAG, u64::from(value)).into()
     }
-    /// Returns a new invocable value.
+    /// Returns a new invokable value.
     #[inline(always)]
     pub fn new_invokable(value: Gc<Method>) -> Self {
         BaseValue::new(INVOKABLE_TAG, u64::from(value)).into()
@@ -116,9 +116,9 @@ impl Value {
     pub fn is_instance(self) -> bool {
         self.tag() == INSTANCE_TAG
     }
-    /// Returns whether this value is an invocable.
+    /// Returns whether this value is an invokable.
     #[inline(always)]
-    pub fn is_invocable(self) -> bool {
+    pub fn is_invokable(self) -> bool {
         self.tag() == INVOKABLE_TAG
     }
 
@@ -143,10 +143,10 @@ impl Value {
     pub fn as_instance(self) -> Option<Gc<Instance>> {
         self.is_instance().then(|| self.extract_gc_cell())
     }
-    /// Returns this value as an invocable, if such is its type.
+    /// Returns this value as an invokable, if such is its type.
     #[inline(always)]
     pub fn as_invokable(self) -> Option<Gc<Method>> {
-        self.is_invocable().then(|| self.extract_gc_cell())
+        self.is_invokable().then(|| self.extract_gc_cell())
     }
 
     /// Get the class of the current value.

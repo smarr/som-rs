@@ -44,6 +44,7 @@ pub struct GCInterface {
     #[allow(unused)]
     alloc_bump_ptr: BumpPointer,
     mutator_thread: VMMutatorThread,
+    is_collecting: bool,
     start_the_world_count: usize,
     total_gc_time: std::time::Duration,
 }
@@ -74,6 +75,7 @@ impl GCInterface {
         let self_ = Box::new(Self {
             mutator_thread,
             mutator,
+            is_collecting: false,
             default_allocator,
             #[cfg(feature = "semispace")]
             alloc_bump_ptr: BumpPointer::default(),
@@ -247,8 +249,8 @@ impl GCInterface {
     }
 
     /// Dispatches a manual collection request to MMTk.
-    pub fn full_gc_request(&self) {
-        mmtk_handle_user_collection_request(self.mutator_thread);
+    pub fn full_gc_request(&self) -> bool {
+        mmtk_handle_user_collection_request(self.mutator_thread)
     }
 
     /// Returns the number of total GC collections.
@@ -264,12 +266,18 @@ impl GCInterface {
         self.total_gc_time.as_micros() as usize
     }
 
+    pub fn is_currently_collecting(&self) -> bool {
+        self.is_collecting
+    }
+
     pub(crate) fn block_for_gc(&mut self, _tls: VMMutatorThread) {
         debug!("block_for_gc: stopping the world!");
+        self.is_collecting = true;
         AtomicBool::store(&IS_WORLD_STOPPED, true, Ordering::SeqCst);
         let time_pre_gc = Instant::now();
         while AtomicBool::load(&IS_WORLD_STOPPED, Ordering::SeqCst) {}
         debug!("block_for_gc: world no longer stopped.");
+        self.is_collecting = false;
         self.total_gc_time += Instant::now() - time_pre_gc;
     }
 
