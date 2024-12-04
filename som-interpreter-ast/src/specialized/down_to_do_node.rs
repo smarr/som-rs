@@ -9,7 +9,8 @@ use som_gc::gcref::Gc;
 pub struct DownToDoNode {}
 
 impl Invoke for DownToDoNode {
-    fn invoke(&mut self, universe: &mut Universe, args: Vec<Value>) -> Return {
+    fn invoke(&mut self, universe: &mut Universe, nbr_args: usize) -> Return {
+        let args = universe.stack_n_last_elems(nbr_args);
         let start_int_val = args.first().unwrap();
         let end_int_val = args.get(1).unwrap();
         let body_block_val = args.get(2).unwrap();

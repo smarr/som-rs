@@ -36,7 +36,9 @@ pub struct TrivialGetterMethod {
 }
 
 impl Invoke for TrivialGetterMethod {
-    fn invoke(&mut self, _: &mut Universe, args: Vec<Value>) -> Return {
+    fn invoke(&mut self, universe: &mut Universe, nbr_args: usize) -> Return {
+        let args = universe.stack_n_last_elems(nbr_args);
+
         let arg = args.first().unwrap();
 
         if let Some(cls) = arg.as_class() {
@@ -55,7 +57,9 @@ pub struct TrivialSetterMethod {
 }
 
 impl Invoke for TrivialSetterMethod {
-    fn invoke(&mut self, _: &mut Universe, args: Vec<Value>) -> Return {
+    fn invoke(&mut self, universe: &mut Universe, nbr_args: usize) -> Return {
+        let args = universe.stack_n_last_elems(nbr_args);
+
         let val = args.get(1).unwrap();
         let rcvr = args.first().unwrap();
 

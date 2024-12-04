@@ -6,7 +6,8 @@ use crate::value::Value;
 pub struct IfTrueIfFalseNode {}
 
 impl Invoke for IfTrueIfFalseNode {
-    fn invoke(&mut self, universe: &mut Universe, args: Vec<Value>) -> Return {
+    fn invoke(&mut self, universe: &mut Universe, nbr_args: usize) -> Return {
+        let args = universe.stack_n_last_elems(nbr_args);
         let (cond_block_val, block_1_arg, block_2_arg) = unsafe { (args.get_unchecked(0), args.get_unchecked(1), args.get_unchecked(2)) };
 
         let bool_val = match cond_block_val.as_boolean() {

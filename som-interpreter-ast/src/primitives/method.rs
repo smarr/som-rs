@@ -1,7 +1,7 @@
 use super::PrimInfo;
 use crate::convert::Primitive;
 use crate::gc::VecValue;
-use crate::invokable::{Invoke, Return};
+use crate::invokable::Return;
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
 use crate::value::Value;
@@ -37,10 +37,12 @@ fn signature(universe: &mut Universe, invokable: Gc<Method>) -> Result<Value, Er
     Ok(Value::Symbol(sym))
 }
 
+#[allow(unused)]
 fn invoke_on_with(universe: &mut Universe, mut invokable: Gc<Method>, receiver: Value, arguments: Gc<VecValue>) -> Result<Return, Error> {
-    let args = std::iter::once(receiver).chain(arguments.iter().cloned()).collect();
+    todo!()
+    // let args = std::iter::once(receiver).chain(arguments.iter().cloned()).collect();
 
-    Ok(invokable.invoke(universe, args))
+    // Ok(invokable.invoke(universe, args))
 }
 
 /// Search for an instance primitive matching the given signature.

@@ -1,7 +1,7 @@
+use crate::universe::Universe;
 use crate::value::Value;
 use crate::FRAME_ARGS_PTR;
 use core::mem::size_of;
-use som_gc::gc_interface::GCInterface;
 use som_gc::gcref::Gc;
 use std::fmt::{Debug, Formatter};
 use std::marker::PhantomData;
@@ -35,38 +35,36 @@ pub struct Frame {
 }
 
 impl Frame {
-    pub fn alloc_new_frame(nbr_locals: u8, mut params: Vec<Value>, prev_frame: &Gc<Frame>, gc_interface: &mut GCInterface) -> Gc<Self> {
+    pub fn alloc_new_frame(nbr_locals: u8, mut args: Vec<Value>, universe: &mut Universe) -> Gc<Self> {
+        let nbr_params = args.len();
         let frame = Self {
             prev_frame: Gc::default(),
             nbr_locals,
-            nbr_args: params.len() as u8,
+            nbr_args: nbr_params as u8,
             params_marker: PhantomData,
             locals_marker: PhantomData,
         };
 
         unsafe {
-            FRAME_ARGS_PTR = NonNull::new(&mut params);
+            FRAME_ARGS_PTR = NonNull::new(&mut args); // TODO: avoidable hack by relying on the global argument stack.
         }
 
-        let post_alloc_closure = |mut frame_ptr: Gc<Frame>| {
-            unsafe {
-                let mut locals_addr = (frame_ptr.ptr + size_of::<Frame>() + (params.len() * size_of::<Value>())) as *mut Value;
-                for _ in 0..nbr_locals {
-                    *locals_addr = Value::NIL;
-                    locals_addr = locals_addr.wrapping_add(1);
-                }
-
-                std::slice::from_raw_parts_mut(frame_args_ptr!(frame_ptr), params.len()).copy_from_slice(params.as_slice());
-
-                frame_ptr.prev_frame = *prev_frame;
-            };
-        };
         let size = size_of::<Frame>() + ((frame.nbr_args + frame.nbr_locals) as usize * size_of::<Value>());
-        let frame_ptr = gc_interface.alloc_with_post_init(frame, size, post_alloc_closure);
+        let mut frame_ptr = universe.gc_interface.alloc_with_size(frame, size);
 
         unsafe {
+            let mut locals_addr = (frame_ptr.ptr + size_of::<Frame>() + (nbr_params * size_of::<Value>())) as *mut Value;
+            for _ in 0..nbr_locals {
+                *locals_addr = Value::NIL;
+                locals_addr = locals_addr.wrapping_add(1);
+            }
+
+            std::slice::from_raw_parts_mut(frame_args_ptr!(frame_ptr), nbr_params).copy_from_slice(FRAME_ARGS_PTR.unwrap().as_ref().as_slice());
+
             FRAME_ARGS_PTR = None;
-        }
+
+            frame_ptr.prev_frame = universe.current_frame;
+        };
 
         frame_ptr
     }

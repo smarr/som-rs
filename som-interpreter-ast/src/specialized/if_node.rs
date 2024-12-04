@@ -8,7 +8,9 @@ pub struct IfNode {
 }
 
 impl Invoke for IfNode {
-    fn invoke(&mut self, universe: &mut Universe, args: Vec<Value>) -> Return {
+    fn invoke(&mut self, universe: &mut Universe, nbr_args: usize) -> Return {
+        let args = universe.stack_n_last_elems(nbr_args);
+
         let cond_block_val = unsafe { args.get_unchecked(0) };
         let body_block_arg = unsafe { args.get_unchecked(1) };
 

@@ -6,7 +6,9 @@ use crate::value::Value;
 pub struct ToByDoNode {}
 
 impl Invoke for ToByDoNode {
-    fn invoke(&mut self, universe: &mut Universe, args: Vec<Value>) -> Return {
+    fn invoke(&mut self, universe: &mut Universe, nbr_args: usize) -> Return {
+        let args = universe.stack_n_last_elems(nbr_args);
+
         let start_int_val = args.first().unwrap();
         let step_int_val = args.get(1).unwrap();
         let end_int_val = args.get(2).unwrap();

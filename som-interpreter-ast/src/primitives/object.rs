@@ -67,7 +67,10 @@ fn perform(universe: &mut Universe, object: Value, sym: Interned) -> Result<Retu
     let method = object.lookup_method(universe, signature);
 
     match method {
-        Some(mut invokable) => Ok(invokable.invoke(universe, vec![object])),
+        Some(mut invokable) => {
+            universe.stack_args.push(object);
+            Ok(invokable.invoke(universe, 1))
+        }
         None => {
             let signature = signature.to_string();
             Ok(universe.does_not_understand(object, signature.as_str(), vec![object]).unwrap_or_else(|| {
@@ -89,8 +92,11 @@ fn perform_with_arguments(universe: &mut Universe, object: Value, sym: Interned,
             // let args = std::iter::once(object)
             //     .chain(arr.replace(Vec::default()))
             //     .collect();
-            let args = std::iter::once(object).chain((*arr).clone()).collect();
-            Ok(invokable.invoke(universe, args))
+            universe.stack_args.push(object);
+            for val in arr.0.iter() {
+                universe.stack_args.push(*val)
+            }
+            Ok(invokable.invoke(universe, arr.0.len() + 1))
         }
         None => {
             let signature = signature.to_string();
@@ -114,7 +120,10 @@ fn perform_in_super_class(universe: &mut Universe, object: Value, sym: Interned,
     let method = class.lookup_method(signature);
 
     match method {
-        Some(mut invokable) => Ok(invokable.invoke(universe, vec![object])),
+        Some(mut invokable) => {
+            universe.stack_args.push(object);
+            Ok(invokable.invoke(universe, 1))
+        }
         None => {
             let signature = signature.to_string();
             let args = vec![object];
@@ -141,13 +150,15 @@ fn perform_with_arguments_in_super_class(
     let method = class.lookup_method(signature);
 
     match method {
-        Some(mut invokable) => {
+        // Some(mut invokable) => {
+        Some(_invokable) => {
+            todo!();
             // let args = std::iter::once(object)
             //     .chain(arr.replace(Vec::default()))
             //     .collect();
-            let args = std::iter::once(object).chain((*arr).clone()).collect();
+            // let args = std::iter::once(object).chain((*arr).clone()).collect();
 
-            Ok(invokable.invoke(universe, args))
+            // Ok(invokable.invoke(universe, args))
         }
         None => {
             // let args = std::iter::once(object.clone())

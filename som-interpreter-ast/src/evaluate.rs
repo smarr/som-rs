@@ -50,11 +50,6 @@ impl Evaluate for AstExpression {
 
                 let value = propagate!(expr.evaluate(universe));
                 let method_frame = Frame::nth_frame_back(&universe.current_frame, *scope);
-                // let has_not_escaped = universe
-                //     .frames
-                //     .iter()
-                //     .rev()
-                //     .any(|live_frame| *live_frame == method_frame);
 
                 let has_not_escaped = {
                     let mut current_frame = universe.current_frame;
@@ -150,25 +145,25 @@ impl Evaluate for AstTerm {
 
 impl Evaluate for Gc<AstBlock> {
     fn evaluate(&mut self, universe: &mut Universe) -> Return {
-        let block = Block {
+        let mut block_ptr = universe.gc_interface.request_memory_for_type(size_of::<Block>());
+        *block_ptr = Block {
             block: *self,
             frame: universe.current_frame,
         };
-        let block_ptr = universe.gc_interface.alloc(block);
         Return::Local(Value::Block(block_ptr))
     }
 }
 
 impl AstDispatchNode {
     #[inline(always)]
-    fn lookup_and_dispatch(&mut self, mut args: Vec<Value>, universe: &mut Universe) -> Return {
-        let receiver = unsafe { args.first().unwrap_unchecked() };
+    fn lookup_and_dispatch(&mut self, nbr_args: usize, universe: &mut Universe) -> Return {
+        let receiver = unsafe { *universe.stack_args.iter().nth_back(nbr_args - 1).unwrap_unchecked() };
 
         let invokable = match &self.inline_cache {
             Some((cached_rcvr_ptr, mut method)) => {
                 if *cached_rcvr_ptr == receiver.class(universe) {
                     // dbg!("cache hit");
-                    return method.invoke(universe, args);
+                    return method.invoke(universe, nbr_args);
                 } else {
                     // dbg!("cache miss");
                     receiver.lookup_method(universe, &self.signature)
@@ -179,12 +174,13 @@ impl AstDispatchNode {
 
         match invokable {
             Some(mut invokable) => {
-                let receiver_class_ref = (*args.first().unwrap()).class(universe);
-                let invoke_ret = invokable.invoke(universe, args);
+                let receiver_class_ref = receiver.class(universe);
+                let invoke_ret = invokable.invoke(universe, nbr_args);
                 self.inline_cache = Some((receiver_class_ref, invokable));
                 invoke_ret
             }
             None => {
+                let mut args = universe.stack_n_last_elems(nbr_args);
                 let receiver = args.remove(0);
                 universe
                     .does_not_understand(receiver, &self.signature, args)
@@ -197,19 +193,20 @@ impl AstDispatchNode {
 impl Evaluate for AstUnaryDispatch {
     fn evaluate(&mut self, universe: &mut Universe) -> Return {
         let receiver = propagate!(self.dispatch_node.receiver.evaluate(universe));
-        self.dispatch_node.lookup_and_dispatch(vec![receiver], universe)
+        universe.stack_args.push(receiver);
+        self.dispatch_node.lookup_and_dispatch(1, universe)
     }
 }
 
 impl Evaluate for AstBinaryDispatch {
     fn evaluate(&mut self, universe: &mut Universe) -> Return {
         let receiver = propagate!(self.dispatch_node.receiver.evaluate(universe));
-        universe.args_stack_for_gc.push(receiver);
+        universe.stack_args.push(receiver);
 
         let arg = propagate!(self.arg.evaluate(universe));
-        universe.args_stack_for_gc.push(arg);
+        universe.stack_args.push(arg);
 
-        self.dispatch_node.lookup_and_dispatch(universe.stack_n_last_elems(2), universe)
+        self.dispatch_node.lookup_and_dispatch(2, universe)
     }
 }
 
@@ -217,15 +214,15 @@ impl Evaluate for AstTernaryDispatch {
     fn evaluate(&mut self, universe: &mut Universe) -> Return {
         let receiver = propagate!(self.dispatch_node.receiver.evaluate(universe));
 
-        universe.args_stack_for_gc.push(receiver);
+        universe.stack_args.push(receiver);
 
         let arg1 = propagate!(self.arg1.evaluate(universe));
-        universe.args_stack_for_gc.push(arg1);
+        universe.stack_args.push(arg1);
 
         let arg2 = propagate!(self.arg2.evaluate(universe));
-        universe.args_stack_for_gc.push(arg2);
+        universe.stack_args.push(arg2);
 
-        self.dispatch_node.lookup_and_dispatch(universe.stack_n_last_elems(3), universe)
+        self.dispatch_node.lookup_and_dispatch(3, universe)
     }
 }
 
@@ -233,11 +230,11 @@ impl Evaluate for AstNAryDispatch {
     fn evaluate(&mut self, universe: &mut Universe) -> Return {
         let receiver = propagate!(self.dispatch_node.receiver.evaluate(universe));
 
-        universe.args_stack_for_gc.push(receiver);
+        universe.stack_args.push(receiver);
 
         for expr in &mut self.values {
             let value = propagate!(expr.evaluate(universe));
-            universe.args_stack_for_gc.push(value);
+            universe.stack_args.push(value);
         }
 
         debug_assert!(
@@ -245,7 +242,7 @@ impl Evaluate for AstNAryDispatch {
             "should be a specialized unary/binary/ternary node, not a generic N-ary node"
         );
 
-        self.dispatch_node.lookup_and_dispatch(universe.stack_n_last_elems(self.values.len() + 1), universe)
+        self.dispatch_node.lookup_and_dispatch(self.values.len() + 1, universe)
     }
 }
 
@@ -253,20 +250,17 @@ impl Evaluate for AstSuperMessage {
     fn evaluate(&mut self, universe: &mut Universe) -> Return {
         let invokable = self.super_class.lookup_method(&self.signature);
         let receiver = universe.current_frame.get_self();
-        let args = {
-            let mut output = Vec::with_capacity(self.values.len() + 1);
-            output.push(receiver);
-            for expr in &mut self.values {
-                let value = propagate!(expr.evaluate(universe));
-                output.push(value);
-            }
-            output
-        };
+        universe.stack_args.push(receiver);
+
+        for expr in &mut self.values {
+            let value = propagate!(expr.evaluate(universe));
+            universe.stack_args.push(value);
+        }
 
         match invokable {
-            Some(mut invokable) => invokable.invoke(universe, args),
+            Some(mut invokable) => invokable.invoke(universe, self.values.len() + 1),
             None => {
-                let mut args = args;
+                let mut args = universe.stack_n_last_elems(self.values.len() + 1);
                 let receiver = args.remove(0);
                 universe.does_not_understand(receiver, &self.signature, args).unwrap_or_else(|| {
                     panic!("could not find method '{}>>#{}'", receiver.class(universe).name(), self.signature)

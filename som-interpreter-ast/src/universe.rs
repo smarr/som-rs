@@ -39,8 +39,8 @@ pub struct Universe {
     /// GC interface
     pub gc_interface: &'static mut GCInterface,
 
-    // we need to store them somehow.
-    pub args_stack_for_gc: Vec<Value>,
+    // we could pass arguments using the Rust stack, and we used to: but with moving GC, that makes them often unreachable, so we need to manage our own stack
+    pub stack_args: Vec<Value>,
 }
 
 impl Drop for Universe {
@@ -176,7 +176,7 @@ impl Universe {
                 false_class,
             },
             gc_interface,
-            args_stack_for_gc: vec![],
+            stack_args: vec![],
         })
     }
 
@@ -377,7 +377,7 @@ impl Universe {
 
 impl Universe {
     pub fn with_frame<T>(&mut self, nbr_locals: u8, args: Vec<Value>, func: impl FnOnce(&mut Self) -> T) -> T {
-        let frame = Frame::alloc_new_frame(nbr_locals, args, &self.current_frame, self.gc_interface);
+        let frame = Frame::alloc_new_frame(nbr_locals, args, self);
         self.current_frame = frame;
         let ret = func(self);
         self.current_frame = self.current_frame.prev_frame;
@@ -451,8 +451,8 @@ impl Universe {
     #[inline(always)]
     /// Remove N elements off the argument stack and return them as their own vector
     pub fn stack_n_last_elems(&mut self, n: usize) -> Vec<Value> {
-        let idx_split_off = self.args_stack_for_gc.len() - n;
-        self.args_stack_for_gc.split_off(idx_split_off)
+        let idx_split_off = self.stack_args.len() - n;
+        self.stack_args.split_off(idx_split_off)
     }
 }
 
@@ -461,7 +461,9 @@ impl Universe {
     pub fn escaped_block(&mut self, value: Value, block: Gc<Block>) -> Option<Return> {
         let mut initialize = value.lookup_method(self, "escapedBlock:")?;
 
-        let escaped_block_result = initialize.invoke(self, vec![value, Value::Block(block)]);
+        self.stack_args.push(value);
+        self.stack_args.push(Value::Block(block));
+        let escaped_block_result = initialize.invoke(self, 2);
         Some(escaped_block_result)
     }
 
@@ -474,7 +476,11 @@ impl Universe {
 
         // eprintln!("Couldn't invoke {}; exiting.", symbol.as_ref()); std::process::exit(1);
 
-        let dnu_result = initialize.invoke(self, vec![value, sym, args]);
+        self.stack_args.push(value);
+        self.stack_args.push(sym);
+        self.stack_args.push(args);
+
+        let dnu_result = initialize.invoke(self, 3);
         Some(dnu_result)
     }
 
@@ -483,7 +489,10 @@ impl Universe {
         let sym = self.intern_symbol(name.as_ref());
         let mut method = value.lookup_method(self, "unknownGlobal:")?;
 
-        let unknown_global_result = method.invoke(self, vec![value, Value::Symbol(sym)]);
+        self.stack_args.push(value);
+        self.stack_args.push(Value::Symbol(sym));
+
+        let unknown_global_result = method.invoke(self, 2);
         match unknown_global_result {
             Return::Local(value) | Return::NonLocal(value, _) => Some(Return::Local(value)),
             #[cfg(feature = "inlining-disabled")]
@@ -495,8 +504,9 @@ impl Universe {
     pub fn initialize(&mut self, args: Vec<Value>) -> Option<Return> {
         let mut initialize = Value::SYSTEM.lookup_method(self, "initialize:")?;
         let args = Value::Array(self.gc_interface.alloc(VecValue(args)));
-
-        let program_result = initialize.invoke(self, vec![Value::SYSTEM, args]);
+        self.stack_args.push(Value::SYSTEM);
+        self.stack_args.push(args);
+        let program_result = initialize.invoke(self, 2);
         Some(program_result)
     }
 }

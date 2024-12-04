@@ -120,6 +120,13 @@ impl Value {
         self.is_invokable().then(|| self.extract_gc_cell())
     }
 
+    /// Returns it at an arbitrary pointer. Used for debugging.
+    /// # Safety
+    /// "Don't"
+    pub unsafe fn as_something<T>(self) -> Option<Gc<T>> {
+        self.is_ptr_type().then(|| self.extract_gc_cell())
+    }
+
     // /// Used for debugging.
     // pub unsafe fn as_some_pointer<T>(self) -> Option<Gc<T>> {
     //     self.is_ptr_type().then(|| self.extract_gc_cell())
