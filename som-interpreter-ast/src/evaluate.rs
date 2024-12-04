@@ -7,7 +7,6 @@ use crate::invokable::{Invoke, Return};
 use crate::universe::Universe;
 use crate::vm_objects::block::Block;
 use crate::vm_objects::frame::{Frame, FrameAccess};
-use crate::vm_objects::method::Method;
 use crate::Value;
 use som_gc::gcref::Gc;
 
@@ -162,14 +161,14 @@ impl Evaluate for Gc<AstBlock> {
 
 impl AstDispatchNode {
     #[inline(always)]
-    fn lookup_invokable(&mut self, receiver: &Value, universe: &mut Universe) -> (Option<Gc<Method>>, bool) {
-        let mut is_cache_hit = false;
+    fn lookup_and_dispatch(&mut self, mut args: Vec<Value>, universe: &mut Universe) -> Return {
+        let receiver = unsafe { args.first().unwrap_unchecked() };
+
         let invokable = match &self.inline_cache {
-            Some((cached_rcvr_ptr, method)) => {
+            Some((cached_rcvr_ptr, mut method)) => {
                 if *cached_rcvr_ptr == receiver.class(universe) {
                     // dbg!("cache hit");
-                    is_cache_hit = true;
-                    Some(*method)
+                    return method.invoke(universe, args);
                 } else {
                     // dbg!("cache miss");
                     receiver.lookup_method(universe, &self.signature)
@@ -178,24 +177,13 @@ impl AstDispatchNode {
             None => receiver.lookup_method(universe, &self.signature),
         };
 
-        (invokable, is_cache_hit)
-    }
-
-    #[inline(always)]
-    fn dispatch_or_dnu(&mut self, mut args: Vec<Value>, universe: &mut Universe) -> Return {
-        let (invokable, is_cache_hit) = self.lookup_invokable(args.first().unwrap(), universe);
         match invokable {
-            Some(mut invokable) => match is_cache_hit {
-                true => invokable.invoke(universe, args),
-                false => {
-                    let receiver = *args.first().unwrap();
-                    let class_ref = receiver.class(universe);
-                    let invoke_ret = invokable.invoke(universe, args);
-                    self.inline_cache = Some((class_ref, invokable));
-
-                    invoke_ret
-                }
-            },
+            Some(mut invokable) => {
+                let receiver_class_ref = (*args.first().unwrap()).class(universe);
+                let invoke_ret = invokable.invoke(universe, args);
+                self.inline_cache = Some((receiver_class_ref, invokable));
+                invoke_ret
+            }
             None => {
                 let receiver = args.remove(0);
                 universe
@@ -209,7 +197,7 @@ impl AstDispatchNode {
 impl Evaluate for AstUnaryDispatch {
     fn evaluate(&mut self, universe: &mut Universe) -> Return {
         let receiver = propagate!(self.dispatch_node.receiver.evaluate(universe));
-        self.dispatch_node.dispatch_or_dnu(vec![receiver], universe)
+        self.dispatch_node.lookup_and_dispatch(vec![receiver], universe)
     }
 }
 
@@ -221,7 +209,7 @@ impl Evaluate for AstBinaryDispatch {
         let arg = propagate!(self.arg.evaluate(universe));
         universe.args_stack_for_gc.push(arg);
 
-        self.dispatch_node.dispatch_or_dnu(universe.stack_n_last_elems(2), universe)
+        self.dispatch_node.lookup_and_dispatch(universe.stack_n_last_elems(2), universe)
     }
 }
 
@@ -237,7 +225,7 @@ impl Evaluate for AstTernaryDispatch {
         let arg2 = propagate!(self.arg2.evaluate(universe));
         universe.args_stack_for_gc.push(arg2);
 
-        self.dispatch_node.dispatch_or_dnu(universe.stack_n_last_elems(3), universe)
+        self.dispatch_node.lookup_and_dispatch(universe.stack_n_last_elems(3), universe)
     }
 }
 
@@ -257,7 +245,7 @@ impl Evaluate for AstNAryDispatch {
             "should be a specialized unary/binary/ternary node, not a generic N-ary node"
         );
 
-        self.dispatch_node.dispatch_or_dnu(universe.stack_n_last_elems(self.values.len() + 1), universe)
+        self.dispatch_node.lookup_and_dispatch(universe.stack_n_last_elems(self.values.len() + 1), universe)
     }
 }
 

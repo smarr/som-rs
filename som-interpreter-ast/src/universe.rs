@@ -448,6 +448,7 @@ impl Universe {
         self.globals.insert(name.as_ref().to_string(), *value).map(|_| ())
     }
 
+    #[inline(always)]
     /// Remove N elements off the argument stack and return them as their own vector
     pub fn stack_n_last_elems(&mut self, n: usize) -> Vec<Value> {
         let idx_split_off = self.args_stack_for_gc.len() - n;
