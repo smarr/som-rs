@@ -302,6 +302,8 @@ impl PrimMessageInliner for AstMethodCompilerCtxt<'_> {
             _ => return None,
         };
 
+        // TODO: potential 30% speedup in Fibonacci just by hardcoding the case where the first block is a constant. We can also make the code more general (at no perf loss), but time is limited and all.
+
         let if_true_if_false_inlined_node = IfTrueIfFalseInlinedNode {
             expected_bool,
             cond_expr: self.parse_expression_with_inlining(&msg.receiver),

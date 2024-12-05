@@ -42,7 +42,6 @@ impl Invoke for Method {
             MethodKind::Specialized(specialized_kind) => {
                 // println!("--- Invoking specialized method \"{:1}\" ({:2})", &self.signature, &self.holder.class().name);
                 match specialized_kind {
-                    MethodKindSpecialized::ToDo(to_do_node) => to_do_node.invoke(universe, nbr_args),
                     MethodKindSpecialized::ToByDo(to_by_do_node) => to_by_do_node.invoke(universe, nbr_args),
                     MethodKindSpecialized::DownToDo(down_to_do_node) => down_to_do_node.invoke(universe, nbr_args),
                 }

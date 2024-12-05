@@ -2,7 +2,6 @@ use crate::ast::AstMethodDef;
 use crate::primitives::PrimitiveFn;
 use crate::specialized::down_to_do_node::DownToDoNode;
 use crate::specialized::to_by_do_node::ToByDoNode;
-use crate::specialized::to_do_node::ToDoNode;
 use crate::specialized::trivial_methods::{TrivialGetterMethod, TrivialGlobalMethod, TrivialLiteralMethod, TrivialSetterMethod};
 use crate::universe::Universe;
 use crate::vm_objects::class::Class;
@@ -45,8 +44,6 @@ impl PartialEq for MethodKind {
 /// Importantly, many of them go unused most of the time because we usually inline control flow nodes instead.
 #[derive(Debug, Clone, PartialEq)]
 pub enum MethodKindSpecialized {
-    /// Specialized: to:do:.
-    ToDo(ToDoNode),
     /// Specialized: to:by:do:.
     ToByDo(ToByDoNode),
     /// Specialized: downTo:do:.
