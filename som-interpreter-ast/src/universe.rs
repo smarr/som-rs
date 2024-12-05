@@ -10,7 +10,7 @@ use crate::invokable::{Invoke, Return};
 use crate::value::Value;
 use crate::vm_objects::block::Block;
 use crate::vm_objects::class::Class;
-use crate::vm_objects::frame::{Frame, FrameAccess};
+use crate::vm_objects::frame::Frame;
 use anyhow::{anyhow, Error};
 use som_core::core_classes::CoreClasses;
 use som_core::interner::{Interned, Interner};
@@ -397,25 +397,6 @@ impl Universe {
         self.interner.lookup(symbol)
     }
 
-    /// Search for a local binding.
-    pub fn lookup_local(&self, idx: u8) -> &Value {
-        self.current_frame.lookup_local(idx)
-    }
-
-    /// Look up a variable we know to have been defined in another scope.
-    pub fn lookup_non_local(&self, idx: u8, target_scope: u8) -> Value {
-        *Frame::nth_frame_back(&self.current_frame, target_scope).lookup_local(idx)
-    }
-
-    /// Look up a field.
-    pub fn lookup_field(&self, idx: u8) -> Value {
-        self.current_frame.lookup_field(idx)
-    }
-
-    pub fn lookup_arg(&self, idx: u8, scope: u8) -> Value {
-        *Frame::nth_frame_back(&self.current_frame, scope).lookup_argument(idx)
-    }
-
     /// Returns whether a global binding of the specified name exists.
     pub fn has_global(&self, name: impl AsRef<str>) -> bool {
         let name = name.as_ref();
@@ -426,24 +407,6 @@ impl Universe {
     pub fn lookup_global(&self, name: impl AsRef<str>) -> Option<Value> {
         let name = name.as_ref();
         self.globals.get(name).cloned()
-    }
-
-    /// Assign a value to a local binding.
-    pub fn assign_local(&mut self, idx: u8, value: &Value) {
-        self.current_frame.assign_local(idx, *value)
-    }
-
-    pub fn assign_non_local(&mut self, idx: u8, scope: u8, value: &Value) {
-        Frame::nth_frame_back(&self.current_frame, scope).assign_local(idx, *value)
-    }
-
-    pub fn assign_field(&mut self, idx: u8, value: &Value) {
-        // dbg!(&idx);
-        self.current_frame.assign_field(idx, value)
-    }
-
-    pub fn assign_arg(&mut self, idx: u8, scope: u8, value: &Value) {
-        Frame::nth_frame_back(&self.current_frame, scope).assign_arg(idx, *value)
     }
 
     /// Assign a value to a global binding.

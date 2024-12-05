@@ -23,22 +23,22 @@ impl Evaluate for AstExpression {
             Self::LocalVarWrite(idx, expr) => {
                 // TODO: this doesn't call the fastest path for evaluate, still has to dispatch the right expr even though it's always a var write. potential minor speedup there
                 let value = propagate!(expr.evaluate(universe));
-                universe.assign_local(*idx, &value);
+                universe.current_frame.assign_local(*idx, value);
                 Return::Local(value)
             }
             Self::NonLocalVarWrite(scope, idx, expr) => {
                 let value = propagate!(expr.evaluate(universe));
-                universe.assign_non_local(*idx, *scope, &value);
+                Frame::nth_frame_back(&universe.current_frame, *scope).assign_local(*idx, value);
                 Return::Local(value)
             }
             Self::FieldWrite(idx, expr) => {
                 let value = propagate!(expr.evaluate(universe));
-                universe.assign_field(*idx, &value);
+                universe.current_frame.assign_field(*idx, &value);
                 Return::Local(value)
             }
             Self::ArgWrite(scope, idx, expr) => {
                 let value = propagate!(expr.evaluate(universe));
-                universe.assign_arg(*idx, *scope, &value);
+                Frame::nth_frame_back(&universe.current_frame, *scope).assign_arg(*idx, value);
                 Return::Local(value)
             }
             Self::Block(blk) => blk.evaluate(universe),
@@ -87,10 +87,22 @@ impl Evaluate for AstExpression {
                 }
             }
             Self::Literal(literal) => literal.evaluate(universe),
-            Self::LocalVarRead(idx) => Return::Local(*universe.lookup_local(*idx)),
-            Self::NonLocalVarRead(scope, idx) => Return::Local(universe.lookup_non_local(*idx, *scope)),
-            Self::FieldRead(idx) => Return::Local(universe.lookup_field(*idx)),
-            Self::ArgRead(scope, idx) => Return::Local(universe.lookup_arg(*idx, *scope)),
+            Self::LocalVarRead(idx) => {
+                let local = universe.current_frame.lookup_local(*idx);
+                Return::Local(*local)
+            }
+            Self::NonLocalVarRead(scope, idx) => {
+                let non_local = *Frame::nth_frame_back(&universe.current_frame, *scope).lookup_local(*idx);
+                Return::Local(non_local)
+            }
+            Self::FieldRead(idx) => {
+                let field = universe.current_frame.lookup_field(*idx);
+                Return::Local(field)
+            }
+            Self::ArgRead(scope, idx) => {
+                let arg = *Frame::nth_frame_back(&universe.current_frame, *scope).lookup_argument(*idx);
+                Return::Local(arg)
+            }
             Self::GlobalRead(name) => universe
                 .lookup_global(name.as_str())
                 .map(Return::Local)
@@ -162,16 +174,16 @@ impl AstDispatchNode {
         let receiver = unsafe { *universe.stack_args.iter().nth_back(nbr_args - 1).unwrap_unchecked() };
 
         let invokable = match &self.inline_cache {
-           Some((cached_rcvr_ptr, mut method)) => {
-               if *cached_rcvr_ptr == receiver.class(universe) {
-                   // dbg!("cache hit");
-                   return method.invoke(universe, nbr_args);
-               } else {
-                   // dbg!("cache miss");
-                   receiver.lookup_method(universe, &self.signature)
-               }
-           }
-           None => receiver.lookup_method(universe, &self.signature),
+            Some((cached_rcvr_ptr, mut method)) => {
+                if *cached_rcvr_ptr == receiver.class(universe) {
+                    // dbg!("cache hit");
+                    return method.invoke(universe, nbr_args);
+                } else {
+                    // dbg!("cache miss");
+                    receiver.lookup_method(universe, &self.signature)
+                }
+            }
+            None => receiver.lookup_method(universe, &self.signature),
         };
 
         match invokable {

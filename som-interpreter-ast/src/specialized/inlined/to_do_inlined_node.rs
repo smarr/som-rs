@@ -3,6 +3,7 @@ use crate::evaluate::Evaluate;
 use crate::invokable::Return;
 use crate::universe::Universe;
 use crate::value::Value;
+use crate::vm_objects::frame::FrameAccess;
 use std::fmt::{Display, Formatter};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -37,7 +38,7 @@ impl Evaluate for ToDoInlinedNode {
 impl ToDoInlinedNode {
     fn int_loop(&mut self, universe: &mut Universe, start: i32, end: i32) -> Return {
         for i in start..=end {
-            universe.assign_local(self.accumulator_idx as u8, &Value::Integer(i));
+            universe.current_frame.assign_local(self.accumulator_idx as u8, Value::Integer(i));
             propagate!(self.body.evaluate(universe));
         }
 
@@ -48,7 +49,7 @@ impl ToDoInlinedNode {
         let mut i = start;
 
         while i <= end {
-            universe.assign_local(self.accumulator_idx as u8, &Value::Double(i));
+            universe.current_frame.assign_local(self.accumulator_idx as u8, Value::Double(i));
             propagate!(self.body.evaluate(universe));
             i += 1.0
         }
