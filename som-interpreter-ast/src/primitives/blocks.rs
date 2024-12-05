@@ -2,7 +2,6 @@ use super::PrimInfo;
 use crate::invokable::Return;
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
-use crate::value::Value;
 use once_cell::sync::Lazy;
 
 /// Primitives for the **Block** and **Block1** class.
@@ -17,9 +16,8 @@ pub mod block1 {
         Lazy::new(|| Box::new([("value", self::value.into_func(), true), ("restart", self::restart.into_func(), false)]));
     pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([]));
 
-    fn value(universe: &mut Universe, block: Gc<Block>) -> Result<Return, Error> {
-        let nbr_locals = block.block.nbr_locals;
-        universe.stack_args.push(Value::Block(block));
+    fn value(universe: &mut Universe) -> Result<Return, Error> {
+        let nbr_locals = universe.stack_args.last().unwrap().as_block().unwrap().block.nbr_locals;
         Ok(universe.eval_block_with_frame(nbr_locals, 1))
     }
 
@@ -45,21 +43,13 @@ pub mod block1 {
 pub mod block2 {
     use super::*;
     use crate::convert::Primitive;
-    use crate::vm_objects::block::Block;
     use anyhow::Error;
-    use som_gc::debug_assert_valid_semispace_ptr;
-    use som_gc::gcref::Gc;
 
     pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([("value:", self::value.into_func(), true)]));
     pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([]));
 
-    fn value(universe: &mut Universe, block: Gc<Block>, argument: Value) -> Result<Return, Error> {
-        debug_assert_valid_semispace_ptr!(block);
-
-        let nbr_locals = block.block.nbr_locals;
-        universe.stack_args.push(Value::Block(block));
-        universe.stack_args.push(argument);
-
+    fn value(universe: &mut Universe) -> Result<Return, Error> {
+        let nbr_locals = universe.stack_args.iter().nth_back(1).unwrap().as_block().unwrap().block.nbr_locals;
         Ok(universe.eval_block_with_frame(nbr_locals, 2))
     }
 
@@ -78,20 +68,13 @@ pub mod block2 {
 pub mod block3 {
     use super::*;
     use crate::convert::Primitive;
-    use crate::vm_objects::block::Block;
     use anyhow::Error;
-    use som_gc::gcref::Gc;
 
     pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([("value:with:", self::value_with.into_func(), true)]));
     pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([]));
 
-    fn value_with(universe: &mut Universe, receiver: Gc<Block>, argument1: Value, argument2: Value) -> Result<Return, Error> {
-        let nbr_locals = receiver.block.nbr_locals;
-
-        universe.stack_args.push(Value::Block(receiver));
-        universe.stack_args.push(argument1);
-        universe.stack_args.push(argument2);
-
+    fn value_with(universe: &mut Universe) -> Result<Return, Error> {
+        let nbr_locals = universe.stack_args.iter().nth_back(2).unwrap().as_block().unwrap().block.nbr_locals;
         Ok(universe.eval_block_with_frame(nbr_locals, 3))
     }
 

@@ -284,10 +284,10 @@ impl IntoValue for Gc<Method> {
 }
 
 pub trait Primitive<T>: Sized + Send + Sync + 'static {
-    fn invoke(&self, universe: &mut Universe, args: Vec<Value>) -> Return;
+    fn invoke(&self, universe: &mut Universe, nbr_args: usize) -> Return;
 
     fn into_func(self) -> &'static PrimitiveFn {
-        let boxed = Box::new(move |universe: &mut Universe, args: Vec<Value>| self.invoke(universe, args));
+        let boxed = Box::new(move |universe: &mut Universe, nbr_args: usize| self.invoke(universe, nbr_args));
         Box::leak(boxed)
     }
 }
@@ -300,7 +300,8 @@ macro_rules! derive_stuff {
             R: $crate::convert::IntoReturn,
             $($ty: $crate::convert::FromArgs),*,
         {
-            fn invoke(&self, universe: &mut $crate::universe::Universe, args: Vec<Value>) -> Return {
+            fn invoke(&self, universe: &mut $crate::universe::Universe, nbr_args: usize) -> Return {
+                let args = universe.stack_n_last_elems(nbr_args);
                 let mut args_iter = args.iter();
                 $(
                     #[allow(non_snake_case)]
@@ -400,3 +401,15 @@ derive_stuff!(_A, _B, _C);
 derive_stuff!(_A, _B, _C, _D);
 derive_stuff!(_A, _B, _C, _D, _E);
 derive_stuff!(_A, _B, _C, _D, _E, _F);
+
+// for blocks. TODO: from a macro instead.
+impl<F, R> Primitive<()> for F
+where
+    F: Fn(&mut Universe) -> Result<R, Error> + Send + Sync + 'static,
+    R: IntoReturn,
+{
+    fn invoke(&self, universe: &mut Universe, _nbr_args: usize) -> Return {
+        let result = self(universe).unwrap();
+        result.into_return(universe.gc_interface)
+    }
+}

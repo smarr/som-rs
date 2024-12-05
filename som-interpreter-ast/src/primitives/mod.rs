@@ -26,12 +26,11 @@ use anyhow::Error;
 use once_cell::sync::Lazy;
 
 use crate::universe::Universe;
-use crate::value::Value;
 
 /// A interpreter primitive (just a bare function pointer).
 // pub type PrimitiveFn = fn(universe: &mut UniverseAST, args: Vec<Value>)-> Result<Value, Error>;
 // pub type PrimitiveFn = dyn Fn(&mut UniverseAST, Vec<Value>) -> Result<Return, Error>
-pub type PrimitiveFn = dyn Fn(&mut Universe, Vec<Value>) -> Return + Send + Sync + 'static;
+pub type PrimitiveFn = dyn Fn(&mut Universe, usize) -> Return + Send + Sync + 'static;
 
 pub type PrimInfo = (&'static str, &'static PrimitiveFn, bool);
 

@@ -37,9 +37,8 @@ impl Invoke for Gc<Method> {
                 universe.eval_with_frame(method.locals_nbr, nbr_args, method)
             }
             MethodKind::Primitive(func) => {
-                let args = universe.stack_n_last_elems(nbr_args);
                 // println!("--- Invoking prim \"{:1}\" ({:2})", &self.signature, &self.holder.class().name);
-                func(universe, args)
+                func(universe, nbr_args)
             }
             MethodKind::Specialized(specialized_kind) => {
                 // println!("--- Invoking specialized method \"{:1}\" ({:2})", &self.signature, &self.holder.class().name);
