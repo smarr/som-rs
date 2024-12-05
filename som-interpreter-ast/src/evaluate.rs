@@ -21,7 +21,6 @@ impl Evaluate for AstExpression {
     fn evaluate(&mut self, universe: &mut Universe) -> Return {
         match self {
             Self::LocalVarWrite(idx, expr) => {
-                // TODO: this doesn't call the fastest path for evaluate, still has to dispatch the right expr even though it's always a var write. potential minor speedup there
                 let value = propagate!(expr.evaluate(universe));
                 universe.current_frame.assign_local(*idx, value);
                 Return::Local(value)

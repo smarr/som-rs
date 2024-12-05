@@ -107,10 +107,11 @@ impl FrameAccess for Gc<Frame> {
         let maybe_self_arg = *self.lookup_argument(0);
         match maybe_self_arg.as_block() {
             Some(blk) => blk.frame.get_self(),
-            None => maybe_self_arg, // it is self, we've reached the root
+            None => maybe_self_arg,
         }
     }
 
+    #[inline(always)]
     fn lookup_argument(&self, idx: u8) -> &Value {
         unsafe {
             let arg_ptr = frame_args_ptr!(self).add(idx as usize);
@@ -118,6 +119,7 @@ impl FrameAccess for Gc<Frame> {
         }
     }
 
+    #[inline(always)]
     fn assign_arg(&mut self, idx: u8, value: Value) {
         // TODO: shouldn't assignments take refs?
         unsafe {
@@ -126,7 +128,7 @@ impl FrameAccess for Gc<Frame> {
         }
     }
 
-    #[inline] // not sure if necessary
+    #[inline(always)]
     fn lookup_local(&self, idx: u8) -> &Value {
         unsafe {
             let value_ptr = frame_locals_ptr!(self, self.nbr_args as usize).add(idx as usize);
@@ -134,6 +136,7 @@ impl FrameAccess for Gc<Frame> {
         }
     }
 
+    #[inline(always)]
     fn assign_local(&mut self, idx: u8, value: Value) {
         unsafe {
             let value_ptr = frame_locals_ptr!(self, self.nbr_args as usize).add(idx as usize);
@@ -141,6 +144,7 @@ impl FrameAccess for Gc<Frame> {
         }
     }
 
+    #[inline(always)]
     fn lookup_field(&self, idx: u8) -> Value {
         let self_ = self.get_self();
         if let Some(instance) = self_.as_instance() {
@@ -152,6 +156,7 @@ impl FrameAccess for Gc<Frame> {
         }
     }
 
+    #[inline(always)]
     fn assign_field(&self, idx: u8, value: &Value) {
         let self_ = self.get_self();
         if let Some(mut instance) = self_.as_instance() {
