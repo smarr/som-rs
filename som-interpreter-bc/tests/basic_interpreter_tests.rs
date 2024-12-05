@@ -72,10 +72,10 @@ fn basic_interpreter_tests(universe: &mut Universe) {
             "CompilerSimplification testReturnConstantSymbol",
             Value::Symbol(universe.intern_symbol("constant")),
         ),
-        ("IfTrueIfFalse testIfTrueTrueResult", Value::Class(universe.integer_class())),
-        ("IfTrueIfFalse testIfTrueFalseResult", Value::Class(universe.nil_class())),
-        ("IfTrueIfFalse testIfFalseTrueResult", Value::Class(universe.nil_class())),
-        ("IfTrueIfFalse testIfFalseFalseResult", Value::Class(universe.integer_class())),
+        ("IfTrueIfFalse testIfTrueTrueResult", Value::Class(universe.core.integer_class())),
+        ("IfTrueIfFalse testIfTrueFalseResult", Value::Class(universe.core.nil_class())),
+        ("IfTrueIfFalse testIfFalseTrueResult", Value::Class(universe.core.nil_class())),
+        ("IfTrueIfFalse testIfFalseFalseResult", Value::Class(universe.core.integer_class())),
         ("CompilerSimplification testReturnConstantInt", Value::Integer(42)),
         ("CompilerSimplification testReturnSelf", Value::Class(compiler_simplification_class_ptr)),
         (
@@ -89,7 +89,7 @@ fn basic_interpreter_tests(universe: &mut Universe) {
         ("Hash testHash", Value::Integer(444)),
         ("Arrays testEmptyToInts", Value::Integer(3)),
         ("Arrays testPutAllInt", Value::Integer(5)),
-        ("Arrays testPutAllNil", Value::Class(universe.nil_class())),
+        ("Arrays testPutAllNil", Value::Class(universe.core.nil_class())),
         ("Arrays testPutAllBlock", Value::Integer(3)),
         ("Arrays testNewWithAll", Value::Integer(1)),
         ("BlockInlining testNoInlining", Value::Integer(1)),
@@ -97,7 +97,7 @@ fn basic_interpreter_tests(universe: &mut Universe) {
         ("BlockInlining testOneLevelInliningWithLocalShadowTrue", Value::Integer(2)),
         ("BlockInlining testOneLevelInliningWithLocalShadowFalse", Value::Integer(1)),
         ("BlockInlining testShadowDoesntStoreWrongLocal", Value::Integer(33)),
-        ("BlockInlining testShadowDoesntReadUnrelated", Value::Class(universe.nil_class())),
+        ("BlockInlining testShadowDoesntReadUnrelated", Value::Class(universe.core.nil_class())),
         ("BlockInlining testBlockNestedInIfTrue", Value::Integer(2)),
         ("BlockInlining testBlockNestedInIfFalse", Value::Integer(42)),
         ("BlockInlining testStackDisciplineTrue", Value::Integer(1)),
@@ -130,12 +130,12 @@ fn basic_interpreter_tests(universe: &mut Universe) {
 
         let class_def = som_parser::apply(lang::class_def(), tokens.as_slice()).unwrap();
 
-        let object_class = universe.object_class();
+        let object_class = universe.core.object_class();
         let class = compile_class(&mut universe.interner, &class_def, Some(&object_class), universe.gc_interface);
         assert!(class.is_some(), "could not compile test expression");
         let mut class = class.unwrap();
 
-        let metaclass_class = universe.metaclass_class();
+        let metaclass_class = universe.core.metaclass_class();
         class.set_super_class(&object_class);
         class.class().set_super_class(&object_class.class());
         class.class().set_class(&metaclass_class);

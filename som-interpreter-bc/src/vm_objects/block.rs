@@ -20,9 +20,9 @@ impl Block {
     /// Get the block's class.
     pub fn class(&self, universe: &Universe) -> Gc<Class> {
         match self.nb_parameters() {
-            0 => universe.block1_class(),
-            1 => universe.block2_class(),
-            2 => universe.block3_class(),
+            0 => universe.core.block1_class(),
+            1 => universe.core.block2_class(),
+            2 => universe.core.block3_class(),
             _ => panic!("no support for blocks with more than 2 parameters"),
         }
     }

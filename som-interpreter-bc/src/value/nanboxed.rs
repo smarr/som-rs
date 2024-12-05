@@ -153,26 +153,26 @@ impl Value {
     #[inline(always)]
     pub fn class(&self, universe: &Universe) -> Gc<Class> {
         match self.tag() {
-            NIL_TAG => universe.nil_class(),
-            SYSTEM_TAG => universe.system_class(),
+            NIL_TAG => universe.core.nil_class(),
+            SYSTEM_TAG => universe.core.system_class(),
             BOOLEAN_TAG => {
                 if self.as_boolean().unwrap() {
-                    universe.true_class()
+                    universe.core.true_class()
                 } else {
-                    universe.false_class()
+                    universe.core.false_class()
                 }
             }
-            INTEGER_TAG | BIG_INTEGER_TAG => universe.integer_class(),
-            SYMBOL_TAG => universe.symbol_class(),
-            STRING_TAG => universe.string_class(),
-            ARRAY_TAG => universe.array_class(),
+            INTEGER_TAG | BIG_INTEGER_TAG => universe.core.integer_class(),
+            SYMBOL_TAG => universe.core.symbol_class(),
+            STRING_TAG => universe.core.string_class(),
+            ARRAY_TAG => universe.core.array_class(),
             BLOCK_TAG => self.as_block().unwrap().class(universe),
             INSTANCE_TAG => self.as_instance().unwrap().class(),
             CLASS_TAG => self.as_class().unwrap().class(),
             INVOKABLE_TAG => self.as_invokable().unwrap().class(universe),
             _ => {
                 if self.is_double() {
-                    universe.double_class()
+                    universe.core.double_class()
                 } else {
                     panic!("unknown tag");
                 }

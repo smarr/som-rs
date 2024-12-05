@@ -50,7 +50,7 @@ fn get_method(method_txt: &str, method_name: &str, universe: &mut Universe) -> G
 
     let class_def = som_parser::apply(lang::class_def(), tokens.as_slice()).unwrap();
 
-    let object_class = universe.object_class();
+    let object_class = universe.core.object_class();
     let class = compile_class(&mut universe.interner, &class_def, Some(&object_class), universe.gc_interface);
     assert!(class.is_some(), "could not compile test expression");
 

@@ -78,9 +78,9 @@ impl Method {
 impl Method {
     pub fn class(&self, universe: &Universe) -> Gc<Class> {
         if self.is_primitive() {
-            universe.primitive_class()
+            universe.core.primitive_class()
         } else {
-            universe.method_class()
+            universe.core.method_class()
         }
     }
 

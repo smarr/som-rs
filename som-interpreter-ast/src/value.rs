@@ -186,26 +186,26 @@ impl Value {
     #[inline(always)]
     pub fn class(&self, universe: &Universe) -> Gc<Class> {
         match self.tag() {
-            NIL_TAG => universe.nil_class(),
-            SYSTEM_TAG => universe.system_class(),
+            NIL_TAG => universe.core.nil_class(),
+            SYSTEM_TAG => universe.core.system_class(),
             BOOLEAN_TAG => {
                 if self.as_boolean().unwrap() {
-                    universe.true_class()
+                    universe.core.true_class()
                 } else {
-                    universe.false_class()
+                    universe.core.false_class()
                 }
             }
-            INTEGER_TAG | BIG_INTEGER_TAG => universe.integer_class(),
-            SYMBOL_TAG => universe.symbol_class(),
-            STRING_TAG => universe.string_class(),
-            ARRAY_TAG => universe.array_class(),
+            INTEGER_TAG | BIG_INTEGER_TAG => universe.core.integer_class(),
+            SYMBOL_TAG => universe.core.symbol_class(),
+            STRING_TAG => universe.core.string_class(),
+            ARRAY_TAG => universe.core.array_class(),
             BLOCK_TAG => self.as_block().unwrap().class(universe),
             INSTANCE_TAG => self.as_instance().unwrap().class(),
             CLASS_TAG => self.as_class().unwrap().class(),
             INVOKABLE_TAG => self.as_invokable().unwrap().class(universe),
             _ => {
                 if self.is_double() {
-                    universe.double_class()
+                    universe.core.double_class()
                 } else {
                     panic!("unknown tag");
                 }
@@ -384,16 +384,16 @@ impl ValueEnum {
     /// Get the class of the current value.
     pub fn class(&self, universe: &Universe) -> Gc<Class> {
         match self {
-            Self::Nil => universe.nil_class(),
-            Self::System => universe.system_class(),
-            Self::Boolean(true) => universe.true_class(),
-            Self::Boolean(false) => universe.false_class(),
-            Self::Integer(_) => universe.integer_class(),
-            Self::BigInteger(_) => universe.integer_class(),
-            Self::Double(_) => universe.double_class(),
-            Self::Symbol(_) => universe.symbol_class(),
-            Self::String(_) => universe.string_class(),
-            Self::Array(_) => universe.array_class(),
+            Self::Nil => universe.core.nil_class(),
+            Self::System => universe.core.system_class(),
+            Self::Boolean(true) => universe.core.true_class(),
+            Self::Boolean(false) => universe.core.false_class(),
+            Self::Integer(_) => universe.core.integer_class(),
+            Self::BigInteger(_) => universe.core.integer_class(),
+            Self::Double(_) => universe.core.double_class(),
+            Self::Symbol(_) => universe.core.symbol_class(),
+            Self::String(_) => universe.core.string_class(),
+            Self::Array(_) => universe.core.array_class(),
             Self::Block(block) => block.class(universe),
             Self::Instance(instance_ptr) => instance_ptr.class(),
             Self::Class(class) => class.class(),
