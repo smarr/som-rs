@@ -84,7 +84,7 @@ impl Interpreter {
 
     /// Creates and allocates a new frame corresponding to a method.
     /// nbr_args is the number of arguments, including the self value, which it takes from the previous frame.
-    pub fn push_method_frame(&mut self, method: Gc<Method>, nbr_args: usize, mutator: &mut GCInterface) -> Gc<Frame> {
+    pub fn push_method_frame(&mut self, method: &Gc<Method>, nbr_args: usize, mutator: &mut GCInterface) -> Gc<Frame> {
         let frame_ptr = Frame::alloc_from_method_from_frame(method, nbr_args, &mut self.current_frame, mutator);
 
         self.bytecode_idx = 0;
@@ -457,7 +457,7 @@ impl Interpreter {
             }
         }
 
-        pub fn do_send(interpreter: &mut Interpreter, universe: &mut Universe, method: Option<Gc<Method>>, symbol: Interned, nb_params: usize) {
+        pub fn do_send(interpreter: &mut Interpreter, universe: &mut Universe, method: Option<&Gc<Method>>, symbol: Interned, nb_params: usize) {
             // we store the current bytecode idx to be able to correctly restore the bytecode state when we pop frames
             interpreter.current_frame.bytecode_idx = interpreter.bytecode_idx;
 
@@ -478,20 +478,10 @@ impl Interpreter {
                 return;
             };
 
-            match &*method {
+            match &**method {
                 Method::Defined(_) => {
                     // let name = &method.holder.name.clone();
                     // eprintln!("Invoking {:?} (in {:?})", &method.signature, &name);
-                    // if method.signature == "initializeWith:selector:arguments:" {
-                    //     dbg!("wow");
-                    // }
-                    // let filter_list = ["Integer", "Vector", "True", "Pair"];
-                    // let filter_list = [];
-
-                    // if !filter_list.contains(&name.as_str()) {
-                    // if !SYSTEM_CLASS_NAMES.contains(&name.as_str()) {
-                    // }
-
                     interpreter.push_method_frame(method, nb_params + 1, universe.gc_interface);
                 }
                 Method::Primitive(func, ..) => {
@@ -503,20 +493,25 @@ impl Interpreter {
             }
         }
 
-        fn resolve_method(frame: &mut Gc<Frame>, class: &Gc<Class>, signature: Interned, bytecode_idx: u16) -> Option<Gc<Method>> {
+        fn resolve_method(frame: &mut Gc<Frame>, class: &Gc<Class>, signature: Interned, bytecode_idx: u16) -> Option<&'static Gc<Method>> {
             // SAFETY: this access is actually safe because the bytecode compiler
             // makes sure the cache has as many entries as there are bytecode instructions,
             // therefore we can avoid doing any redundant bounds checks here.
             let maybe_found = unsafe { frame.get_inline_cache().get_unchecked_mut(bytecode_idx as usize) };
 
-            match maybe_found {
-                Some((receiver, method)) if receiver.ptr == class.ptr => Some(*method),
-                place @ None => {
-                    let found = class.lookup_method(signature);
-                    *place = found.map(|method| (*class, method));
-                    found
+            // SAFETY: unsafe access to a class method as a static reference. It *should* be safe because methods are never added or removed, so the pointer will always be valid.
+            // ...unless it is moved by GC, which is what this hack is for: by holding onto a pointer to the Gc<Method> pointer, if moved by Gc, we're still handling a valid value.
+            // This is a **HACK**: it may be possible to refactor the code to properly use lifetimes to inform the compiler that the lifetime of a method is completely tied to a class.
+            unsafe {
+                match maybe_found {
+                    Some((receiver, method)) if receiver.ptr == class.ptr => Some(&**method),
+                    place @ None => {
+                        let found = class.lookup_method_as_static_ref(signature);
+                        *place = found.map(|method| (*class, method));
+                        found
+                    }
+                    _ => class.lookup_method_as_static_ref(signature),
                 }
-                _ => class.lookup_method(signature),
             }
         }
 

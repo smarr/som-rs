@@ -133,7 +133,7 @@ pub fn scan_object<'a>(object: ObjectReference, slot_visitor: &'a mut (dyn SlotV
 
                         for (cls_ptr, method_ptr) in method.inline_cache.iter().flatten() {
                             slot_visitor.visit_slot(SOMSlot::from(cls_ptr));
-                            slot_visitor.visit_slot(SOMSlot::from(method_ptr));
+                            slot_visitor.visit_slot(SOMSlot::from(&**method_ptr));
                         }
 
                         for lit in &method.literals {

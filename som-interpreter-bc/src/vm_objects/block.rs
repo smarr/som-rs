@@ -5,7 +5,7 @@ use crate::vm_objects::method::{Method, MethodInfo};
 use som_gc::gcref::Gc;
 use std::fmt;
 
-pub type BodyInlineCache = Vec<Option<(Gc<Class>, Gc<Method>)>>;
+pub type BodyInlineCache = Vec<Option<(Gc<Class>, &'static Gc<Method>)>>;
 
 /// Represents an executable block.
 #[derive(Clone)]

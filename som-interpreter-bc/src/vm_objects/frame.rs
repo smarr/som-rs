@@ -45,7 +45,7 @@ pub struct Frame {
 
 impl Frame {
     pub fn alloc_from_method_from_frame(
-        method: Gc<Method>,
+        method: &Gc<Method>,
         nbr_args: usize,
         prev_frame: &mut Gc<Frame>,
         gc_interface: &mut GCInterface,
@@ -54,27 +54,27 @@ impl Frame {
         // Whatever rust thinks it CAN do with the prev_frame ref (likely assume it points to the same data), it can't do safely in some cases... So we tell it not to.
         std::hint::black_box(&prev_frame);
 
-        let (max_stack_size, nbr_locals) = match &*method {
+        let (max_stack_size, nbr_locals) = match &**method {
             Method::Defined(m_env) => (m_env.max_stack_size as usize, m_env.nbr_locals),
             _ => unreachable!("if we're allocating a method frame, it has to be defined."),
         };
 
         let size = Frame::get_true_size(max_stack_size, nbr_args, nbr_locals);
-
-        prev_frame.stack_push(Value::new_invokable(method));
-
         let mut frame_ptr: Gc<Frame> = gc_interface.request_memory_for_type(size);
 
-        let method = prev_frame.stack_pop().as_invokable().unwrap();
-        *frame_ptr = Frame::from_method(method);
+        *frame_ptr = Frame::from_method(*method);
+
         let args = prev_frame.stack_n_last_elements(nbr_args);
-
         Frame::init_frame_post_alloc(frame_ptr, args, max_stack_size, *prev_frame);
-
         prev_frame.remove_n_last_elements(nbr_args);
+
         frame_ptr
     }
 
+    /// Allocates a method, given some arguments directly as opposed to off of a previous frame's stack.
+    ///
+    /// Could also take a pointer to the method to not have to push it on the stack, like the normal-case frame method alloc function.
+    /// But it's a rare enough path that the perf impact would be none.
     pub fn alloc_from_method_with_args(method: Gc<Method>, args: &[Value], prev_frame: &mut Gc<Frame>, gc_interface: &mut GCInterface) -> Gc<Frame> {
         let (max_stack_size, nbr_locals) = match &*method {
             Method::Defined(m_env) => (m_env.max_stack_size as usize, m_env.nbr_locals),
