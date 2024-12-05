@@ -247,6 +247,7 @@ impl Universe {
     /// The frame assumes the arguments it needs are on the global argument stack.
     pub fn eval_with_frame<T: Evaluate>(&mut self, nbr_locals: u8, nbr_args: usize, invokable: &mut T) -> Return {
         let frame = Frame::alloc_new_frame(nbr_locals, nbr_args, self);
+        frame.debug_check_frame_addresses();
         self.current_frame = frame;
         let ret = invokable.evaluate(self);
         self.current_frame = self.current_frame.prev_frame;
@@ -256,6 +257,7 @@ impl Universe {
     /// Evaluates a block after pushing a new block frame.
     pub fn eval_block_with_frame(&mut self, nbr_locals: u8, nbr_args: usize) -> Return {
         let frame = Frame::alloc_new_frame(nbr_locals, nbr_args, self);
+        frame.debug_check_frame_addresses();
         self.current_frame = frame;
         let mut invokable = frame.lookup_argument(0).as_block().unwrap();
         let ret = invokable.evaluate(self);

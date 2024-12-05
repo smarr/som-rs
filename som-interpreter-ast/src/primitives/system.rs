@@ -4,6 +4,7 @@ use crate::primitives::{PrimInfo, PrimitiveFn};
 use crate::universe::Universe;
 use crate::value::Value;
 use anyhow::{bail, Context, Error};
+use num_bigint::BigInt;
 use once_cell::sync::Lazy;
 use som_core::interner::Interned;
 use som_gc::gcref::Gc;
@@ -169,15 +170,16 @@ fn full_gc(universe: &mut Universe, _: Value) -> Result<Value, Error> {
 }
 
 fn gc_stats(universe: &mut Universe, _: Value) -> Result<Gc<VecValue>, Error> {
-    let gc_interface = &universe.gc_interface;
+    let gc_interface = &mut universe.gc_interface;
+
     let total_gc = gc_interface.get_nbr_collections();
-    let total_gc_time = gc_interface.get_total_gc_time();
-    let total_bytes_alloc = gc_interface.get_used_bytes();
+    let total_gc_time = gc_interface.alloc(BigInt::from(gc_interface.get_total_gc_time()));
+    let total_bytes_bigint = gc_interface.alloc(BigInt::from(gc_interface.get_used_bytes()));
 
     Ok(universe.gc_interface.alloc(VecValue(vec![
         Value::Integer(total_gc as i32),
-        Value::Integer(total_gc_time as i32),
-        Value::Integer(total_bytes_alloc as i32),
+        Value::BigInteger(total_gc_time),
+        Value::BigInteger(total_bytes_bigint),
     ])))
 }
 

@@ -122,7 +122,9 @@ fn get_roots_in_mutator_thread(_mutator: &mut Mutator<SOMVM>) -> Vec<SOMSlot> {
         }
 
         debug!("scanning roots: core classes");
-        UNIVERSE_RAW_PTR_CONST.unwrap().as_mut().core.iter().for_each(|(_, cls_ptr)| to_process.push(SOMSlot::from(cls_ptr)));
+        for (_, cls_ptr) in UNIVERSE_RAW_PTR_CONST.unwrap().as_mut().core.iter() {
+            to_process.push(SOMSlot::from(cls_ptr))
+        }
 
         debug!("scanning roots: global argument stack");
         for stored_arg in &UNIVERSE_RAW_PTR_CONST.unwrap().as_ref().stack_args {

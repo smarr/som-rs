@@ -174,6 +174,9 @@ impl AstDispatchNode {
 
         let invokable = match &self.inline_cache {
             Some((cached_rcvr_ptr, mut method)) => {
+                debug_assert_valid_semispace_ptr!(receiver_class_ref);
+                debug_assert_valid_semispace_ptr!(method);
+
                 if *cached_rcvr_ptr == receiver.class(universe) {
                     // dbg!("cache hit");
                     return method.invoke(universe, nbr_args);
@@ -184,11 +187,14 @@ impl AstDispatchNode {
             }
             None => receiver.lookup_method(universe, &self.signature),
         };
+        // let invokable = receiver.lookup_method(universe, &self.signature);
 
         match invokable {
             Some(mut invokable) => {
                 let receiver_class_ref = receiver.class(universe);
                 let invoke_ret = invokable.invoke(universe, nbr_args);
+                debug_assert_valid_semispace_ptr!(receiver_class_ref);
+                debug_assert_valid_semispace_ptr!(invokable);
                 self.inline_cache = Some((receiver_class_ref, invokable));
                 invoke_ret
             }

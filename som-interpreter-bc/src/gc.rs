@@ -131,9 +131,10 @@ pub fn scan_object<'a>(object: ObjectReference, slot_visitor: &'a mut (dyn SlotV
                     Method::Defined(method) => {
                         slot_visitor.visit_slot(SOMSlot::from(&method.holder));
 
-                        for (cls_ptr, method_ptr) in method.inline_cache.iter().flatten() {
+                        for (cls_ptr, _method_ptr) in method.inline_cache.iter().flatten() {
                             slot_visitor.visit_slot(SOMSlot::from(cls_ptr));
-                            slot_visitor.visit_slot(SOMSlot::from(&**method_ptr));
+                            // since we store a "**Method", it's already adjusted by "*Method" being visited elsewhere
+                            // slot_visitor.visit_slot(SOMSlot::from(&**method_ptr));
                         }
 
                         for lit in &method.literals {

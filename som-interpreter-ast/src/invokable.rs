@@ -3,6 +3,7 @@ use crate::universe::Universe;
 use crate::value::Value;
 use crate::vm_objects::frame::Frame;
 use crate::vm_objects::method::{Method, MethodKind, MethodKindSpecialized};
+use som_gc::debug_assert_valid_semispace_ptr;
 use som_gc::gcref::Gc;
 
 /// Represents the kinds of possible returns from an invocation.
@@ -24,9 +25,11 @@ pub trait Invoke {
     fn invoke(&mut self, universe: &mut Universe, nbr_nbr: usize) -> Return;
 }
 
-impl Invoke for Method {
+impl Invoke for Gc<Method> {
     fn invoke(&mut self, universe: &mut Universe, nbr_args: usize) -> Return {
         // println!("--- ...with args: {:?}", &args);
+
+        debug_assert_valid_semispace_ptr!(self);
 
         match &mut self.kind {
             MethodKind::Defined(method) => {
@@ -35,7 +38,6 @@ impl Invoke for Method {
             }
             MethodKind::Primitive(func) => {
                 let args = universe.stack_n_last_elems(nbr_args);
-
                 // println!("--- Invoking prim \"{:1}\" ({:2})", &self.signature, &self.holder.class().name);
                 func(universe, args)
             }

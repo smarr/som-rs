@@ -11,6 +11,7 @@ use crate::value::convert::{Nil, Primitive, StringLike, System};
 use crate::value::Value;
 use crate::vm_objects::class::Class;
 use anyhow::{Context, Error};
+use num_bigint::BigInt;
 use once_cell::sync::Lazy;
 use som_core::interner::Interned;
 use som_gc::gcref::Gc;
@@ -184,15 +185,16 @@ fn full_gc(_: &mut Interpreter, universe: &mut Universe, _: Value) -> Result<boo
 }
 
 fn gc_stats(_: &mut Interpreter, universe: &mut Universe, _: Value) -> Result<Gc<VecValue>, Error> {
-    let gc_interface = &universe.gc_interface;
+    let gc_interface = &mut universe.gc_interface;
+
     let total_gc = gc_interface.get_nbr_collections();
-    let total_gc_time = gc_interface.get_total_gc_time();
-    let total_bytes_alloc = gc_interface.get_used_bytes();
+    let total_gc_time = gc_interface.alloc(BigInt::from(gc_interface.get_total_gc_time()));
+    let total_bytes_bigint = gc_interface.alloc(BigInt::from(gc_interface.get_used_bytes()));
 
     Ok(universe.gc_interface.alloc(VecValue(vec![
         Value::Integer(total_gc as i32),
-        Value::Integer(total_gc_time as i32),
-        Value::Integer(total_bytes_alloc as i32),
+        Value::BigInteger(total_gc_time),
+        Value::BigInteger(total_bytes_bigint),
     ])))
 }
 
