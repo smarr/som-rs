@@ -60,7 +60,7 @@ impl Universe {
     /// Initialize the universe from the given classpath, and given a heap size
     pub fn with_classpath_and_heap_size(classpath: Vec<PathBuf>, heap_size: usize) -> Result<Self, Error> {
         let interner = Interner::with_capacity(100);
-        let mut globals = HashMap::new();
+        let mut globals: HashMap<String, Value> = HashMap::new();
 
         let gc_interface = GCInterface::init(heap_size, get_callbacks_for_gc());
 
@@ -124,25 +124,31 @@ impl Universe {
         set_super_class(&mut true_class, &boolean_class, &metaclass_class);
         set_super_class(&mut false_class, &boolean_class, &metaclass_class);
 
-        globals.insert("Object".into(), Value::Class(object_class));
-        globals.insert("Class".into(), Value::Class(class_class));
-        globals.insert("Metaclass".into(), Value::Class(metaclass_class));
-        globals.insert("Nil".into(), Value::Class(nil_class));
-        globals.insert("Integer".into(), Value::Class(integer_class));
-        globals.insert("Array".into(), Value::Class(array_class));
-        globals.insert("Method".into(), Value::Class(method_class));
-        globals.insert("Symbol".into(), Value::Class(symbol_class));
-        globals.insert("Primitive".into(), Value::Class(primitive_class));
-        globals.insert("String".into(), Value::Class(string_class));
-        globals.insert("System".into(), Value::Class(system_class));
-        globals.insert("Double".into(), Value::Class(double_class));
-        globals.insert("Boolean".into(), Value::Class(boolean_class));
-        globals.insert("True".into(), Value::Class(true_class));
-        globals.insert("False".into(), Value::Class(false_class));
-        globals.insert("Block".into(), Value::Class(block_class));
-        globals.insert("Block1".into(), Value::Class(block1_class));
-        globals.insert("Block2".into(), Value::Class(block2_class));
-        globals.insert("Block3".into(), Value::Class(block3_class));
+        let core = CoreClasses {
+            object_class,
+            class_class,
+            metaclass_class,
+            nil_class,
+            integer_class,
+            array_class,
+            method_class,
+            symbol_class,
+            primitive_class,
+            string_class,
+            system_class,
+            double_class,
+            block_class,
+            block1_class,
+            block2_class,
+            block3_class,
+            boolean_class,
+            true_class,
+            false_class,
+        };
+
+        for (cls_name, core_cls) in core.iter() {
+            globals.insert(cls_name.into(), Value::Class(*core_cls));
+        }
 
         globals.insert("true".into(), Value::Boolean(true));
         globals.insert("false".into(), Value::Boolean(false));
@@ -155,27 +161,7 @@ impl Universe {
             classpath,
             current_frame: Gc::default(),
             start_time: Instant::now(),
-            core: CoreClasses {
-                object_class,
-                class_class,
-                metaclass_class,
-                nil_class,
-                integer_class,
-                array_class,
-                method_class,
-                symbol_class,
-                primitive_class,
-                string_class,
-                system_class,
-                double_class,
-                block_class,
-                block1_class,
-                block2_class,
-                block3_class,
-                boolean_class,
-                true_class,
-                false_class,
-            },
+            core,
             gc_interface,
             stack_args: vec![],
         })

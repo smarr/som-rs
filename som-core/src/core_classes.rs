@@ -129,25 +129,25 @@ impl<Class: Copy> CoreClasses<Class> {
     pub fn iter(&self) -> CoreClassesIter<Class> {
         CoreClassesIter {
             fields: vec![
-                &self.object_class,
-                &self.class_class,
-                &self.metaclass_class,
-                &self.nil_class,
-                &self.integer_class,
-                &self.double_class,
-                &self.array_class,
-                &self.method_class,
-                &self.primitive_class,
-                &self.symbol_class,
-                &self.string_class,
-                &self.system_class,
-                &self.block_class,
-                &self.block1_class,
-                &self.block2_class,
-                &self.block3_class,
-                &self.boolean_class,
-                &self.true_class,
-                &self.false_class,
+                ("Object", &self.object_class),
+                ("Class", &self.class_class),
+                ("Metaclass", &self.metaclass_class),
+                ("Nil", &self.nil_class),
+                ("Integer", &self.integer_class),
+                ("Double", &self.double_class),
+                ("Array", &self.array_class),
+                ("Method", &self.method_class),
+                ("Primitive", &self.primitive_class),
+                ("Symbol", &self.symbol_class),
+                ("String", &self.string_class),
+                ("System", &self.system_class),
+                ("Block", &self.block_class),
+                ("Block1", &self.block1_class),
+                ("Block2", &self.block2_class),
+                ("Block3", &self.block3_class),
+                ("Boolean", &self.boolean_class),
+                ("True", &self.true_class),
+                ("False", &self.false_class),
             ]
             .into_iter(),
         }
@@ -155,11 +155,11 @@ impl<Class: Copy> CoreClasses<Class> {
 }
 
 pub struct CoreClassesIter<'a, ClassPtr> {
-    fields: std::vec::IntoIter<&'a ClassPtr>,
+    fields: std::vec::IntoIter<(&'static str, &'a ClassPtr)>,
 }
 
 impl<'a, ClassPtr> Iterator for CoreClassesIter<'a, ClassPtr> {
-    type Item = &'a ClassPtr;
+    type Item = (&'static str, &'a ClassPtr);
 
     fn next(&mut self) -> Option<Self::Item> {
         self.fields.next()

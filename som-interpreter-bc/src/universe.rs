@@ -107,58 +107,42 @@ impl Universe {
         set_super_class(&mut true_class, &boolean_class, &metaclass_class);
         set_super_class(&mut false_class, &boolean_class, &metaclass_class);
 
-        #[rustfmt::skip] {
-            globals.push((interner.intern("Object"), Value::Class(object_class)));
-            globals.push((interner.intern("Class"), Value::Class(class_class)));
-            globals.push((interner.intern("Metaclass"), Value::Class(metaclass_class)));
-            globals.push((interner.intern("Nil"), Value::Class(nil_class)));
-            globals.push((interner.intern("Integer"), Value::Class(integer_class)));
-            globals.push((interner.intern("Array"), Value::Class(array_class)));
-            globals.push((interner.intern("Method"), Value::Class(method_class)));
-            globals.push((interner.intern("Symbol"), Value::Class(symbol_class)));
-            globals.push((interner.intern("Primitive"), Value::Class(primitive_class)));
-            globals.push((interner.intern("String"), Value::Class(string_class)));
-            globals.push((interner.intern("System"), Value::Class(system_class)));
-            globals.push((interner.intern("Double"), Value::Class(double_class)));
-            globals.push((interner.intern("Boolean"), Value::Class(boolean_class)));
-            globals.push((interner.intern("True"), Value::Class(true_class)));
-            globals.push((interner.intern("False"), Value::Class(false_class)));
-            globals.push((interner.intern("Block"), Value::Class(block_class)));
-            globals.push((interner.intern("Block1"), Value::Class(block1_class)));
-            globals.push((interner.intern("Block2"), Value::Class(block2_class)));
-            globals.push((interner.intern("Block3"), Value::Class(block3_class)));
-
-            globals.push((interner.intern("true"), Value::Boolean(true)));
-            globals.push((interner.intern("false"), Value::Boolean(false)));
-            globals.push((interner.intern("nil"), Value::NIL));
-            globals.push((interner.intern("system"), Value::SYSTEM));
+        let core = CoreClasses {
+            object_class,
+            class_class,
+            metaclass_class,
+            nil_class,
+            integer_class,
+            array_class,
+            method_class,
+            symbol_class,
+            primitive_class,
+            string_class,
+            system_class,
+            double_class,
+            block_class,
+            block1_class,
+            block2_class,
+            block3_class,
+            boolean_class,
+            true_class,
+            false_class,
         };
+
+        for (cls_name, global_cls) in core.iter() {
+            globals.push((interner.intern(cls_name), Value::Class(*global_cls)));
+        }
+
+        globals.push((interner.intern("true"), Value::Boolean(true)));
+        globals.push((interner.intern("false"), Value::Boolean(false)));
+        globals.push((interner.intern("nil"), Value::NIL));
+        globals.push((interner.intern("system"), Value::SYSTEM));
 
         Ok(Self {
             globals,
             interner,
             classpath,
-            core: CoreClasses {
-                object_class,
-                class_class,
-                metaclass_class,
-                nil_class,
-                integer_class,
-                array_class,
-                method_class,
-                symbol_class,
-                primitive_class,
-                string_class,
-                system_class,
-                double_class,
-                block_class,
-                block1_class,
-                block2_class,
-                block3_class,
-                boolean_class,
-                true_class,
-                false_class,
-            },
+            core,
             gc_interface,
         })
     }
