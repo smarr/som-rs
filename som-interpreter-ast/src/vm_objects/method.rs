@@ -1,12 +1,9 @@
 use crate::ast::AstMethodDef;
 use crate::primitives::PrimitiveFn;
 use crate::specialized::down_to_do_node::DownToDoNode;
-use crate::specialized::if_node::IfNode;
-use crate::specialized::if_true_if_false_node::IfTrueIfFalseNode;
 use crate::specialized::to_by_do_node::ToByDoNode;
 use crate::specialized::to_do_node::ToDoNode;
 use crate::specialized::trivial_methods::{TrivialGetterMethod, TrivialGlobalMethod, TrivialLiteralMethod, TrivialSetterMethod};
-use crate::specialized::while_node::WhileNode;
 use crate::universe::Universe;
 use crate::vm_objects::class::Class;
 use som_gc::gcref::Gc;
@@ -48,12 +45,6 @@ impl PartialEq for MethodKind {
 /// Importantly, many of them go unused most of the time because we usually inline control flow nodes instead.
 #[derive(Debug, Clone, PartialEq)]
 pub enum MethodKindSpecialized {
-    /// Specialized whileTrue:/whileFalse:
-    While(WhileNode),
-    /// Specialized: ifTrue/ifFalse.
-    If(IfNode),
-    /// Specialized: ifTrue:ifFalse.
-    IfTrueIfFalse(IfTrueIfFalseNode),
     /// Specialized: to:do:.
     ToDo(ToDoNode),
     /// Specialized: to:by:do:.

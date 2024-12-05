@@ -6,12 +6,9 @@ use crate::ast::{
 use crate::gc::VecAstLiteral;
 use crate::primitives::UNIMPLEM_PRIMITIVE;
 use crate::specialized::down_to_do_node::DownToDoNode;
-use crate::specialized::if_node::IfNode;
-use crate::specialized::if_true_if_false_node::IfTrueIfFalseNode;
 use crate::specialized::to_by_do_node::ToByDoNode;
 use crate::specialized::to_do_node::ToDoNode;
 use crate::specialized::trivial_methods::{TrivialGetterMethod, TrivialGlobalMethod, TrivialLiteralMethod, TrivialSetterMethod};
-use crate::specialized::while_node::WhileNode;
 use crate::vm_objects::class::Class;
 use crate::vm_objects::method::{MethodKind, MethodKindSpecialized};
 use som_core::ast;
@@ -71,11 +68,6 @@ impl<'a> AstMethodCompilerCtxt<'a> {
         // But we don't do inlining when e.g. the condition for ifTrue: isn't a block.
         // so there is *some* occasional benefit in having those specialized method nodes around for those cases.
         match method.signature.as_str() {
-            "ifTrue:" => MethodKind::Specialized(MethodKindSpecialized::If(IfNode { expected_bool: true })),
-            "ifFalse:" => MethodKind::Specialized(MethodKindSpecialized::If(IfNode { expected_bool: false })),
-            "ifTrue:ifFalse:" => MethodKind::Specialized(MethodKindSpecialized::IfTrueIfFalse(IfTrueIfFalseNode {})),
-            "whileTrue:" => MethodKind::Specialized(MethodKindSpecialized::While(WhileNode { expected_bool: true })),
-            "whileFalse:" => MethodKind::Specialized(MethodKindSpecialized::While(WhileNode { expected_bool: false })),
             "to:do:" => MethodKind::Specialized(MethodKindSpecialized::ToDo(ToDoNode {})),
             "to:by:do:" => MethodKind::Specialized(MethodKindSpecialized::ToByDo(ToByDoNode {})),
             "downTo:do:" => MethodKind::Specialized(MethodKindSpecialized::DownToDo(DownToDoNode {})),
