@@ -199,6 +199,5 @@ fn basic_benchmark_runner(universe: &mut Universe, #[case] benchmark_name: &str)
     let benchmark_harness_class = universe.lookup_global(intern_id.unwrap()).unwrap().as_class().unwrap();
 
     assert!(output.unwrap().is_instance());
-    dbg!(&output.unwrap().as_instance().unwrap().class.name);
     assert_eq!(output.unwrap().as_instance().unwrap().class, benchmark_harness_class)
 }

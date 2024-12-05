@@ -48,86 +48,31 @@ impl Universe {
 
         let gc_interface = GCInterface::init(heap_size, get_callbacks_for_gc());
 
-        let object_class = Self::load_system_class(&mut interner, classpath.as_slice(), "Object", gc_interface)?;
-        let mut class_class = Self::load_system_class(&mut interner, classpath.as_slice(), "Class", gc_interface)?;
-        let metaclass_class = Self::load_system_class(&mut interner, classpath.as_slice(), "Metaclass", gc_interface)?;
+        // TODO: really, we should take and set the superclass, like the AST does.
+        let mut core: CoreClasses<Gc<Class>> = CoreClasses::from_load_cls_fn(|name: &str, _super_cls: Option<Gc<Class>>| {
+            Self::load_system_class(&mut interner, classpath.as_slice(), name, gc_interface).unwrap()
+        });
 
-        let mut nil_class = Self::load_system_class(&mut interner, classpath.as_slice(), "Nil", gc_interface)?;
-        let mut integer_class = Self::load_system_class(&mut interner, classpath.as_slice(), "Integer", gc_interface)?;
-        let mut array_class = Self::load_system_class(&mut interner, classpath.as_slice(), "Array", gc_interface)?;
-        let mut method_class = Self::load_system_class(&mut interner, classpath.as_slice(), "Method", gc_interface)?;
-        let mut symbol_class = Self::load_system_class(&mut interner, classpath.as_slice(), "Symbol", gc_interface)?;
-        let mut primitive_class = Self::load_system_class(&mut interner, classpath.as_slice(), "Primitive", gc_interface)?;
-        let mut string_class = Self::load_system_class(&mut interner, classpath.as_slice(), "String", gc_interface)?;
-        let mut system_class = Self::load_system_class(&mut interner, classpath.as_slice(), "System", gc_interface)?;
-        let mut double_class = Self::load_system_class(&mut interner, classpath.as_slice(), "Double", gc_interface)?;
-
-        let mut block_class = Self::load_system_class(&mut interner, classpath.as_slice(), "Block", gc_interface)?;
-        let mut block1_class = Self::load_system_class(&mut interner, classpath.as_slice(), "Block1", gc_interface)?;
-        let mut block2_class = Self::load_system_class(&mut interner, classpath.as_slice(), "Block2", gc_interface)?;
-        let mut block3_class = Self::load_system_class(&mut interner, classpath.as_slice(), "Block3", gc_interface)?;
-
-        let mut boolean_class = Self::load_system_class(&mut interner, classpath.as_slice(), "Boolean", gc_interface)?;
-        let mut true_class = Self::load_system_class(&mut interner, classpath.as_slice(), "True", gc_interface)?;
-        let mut false_class = Self::load_system_class(&mut interner, classpath.as_slice(), "False", gc_interface)?;
-
-        // initializeSystemClass(objectClass, null, "Object");
-        // set_super_class(&object_class, &nil_class, &metaclass_class);
-        object_class.class().set_class(&metaclass_class);
-        object_class.class().set_super_class(&class_class);
-        // initializeSystemClass(classClass, objectClass, "Class");
-        set_super_class(&mut class_class, &object_class, &metaclass_class);
-        // initializeSystemClass(metaclassClass, classClass, "Metaclass");
-        set_super_class(&mut metaclass_class.clone(), &class_class, &metaclass_class);
-        // initializeSystemClass(nilClass, objectClass, "Nil");
-        set_super_class(&mut nil_class, &object_class, &metaclass_class);
-        // initializeSystemClass(arrayClass, objectClass, "Array");
-        set_super_class(&mut array_class, &object_class, &metaclass_class);
-        // initializeSystemClass(methodClass, arrayClass, "Method");
-        set_super_class(&mut method_class, &array_class, &metaclass_class);
-        // initializeSystemClass(stringClass, objectClass, "String");
-        set_super_class(&mut string_class, &object_class, &metaclass_class);
-        // initializeSystemClass(symbolClass, stringClass, "Symbol");
-        set_super_class(&mut symbol_class, &string_class, &metaclass_class);
-        // initializeSystemClass(integerClass, objectClass, "Integer");
-        set_super_class(&mut integer_class, &object_class, &metaclass_class);
-        // initializeSystemClass(primitiveClass, objectClass, "Primitive");
-        set_super_class(&mut primitive_class, &object_class, &metaclass_class);
-        // initializeSystemClass(doubleClass, objectClass, "Double");
-        set_super_class(&mut double_class, &object_class, &metaclass_class);
-
-        set_super_class(&mut system_class, &object_class, &metaclass_class);
-
-        set_super_class(&mut block_class, &object_class, &metaclass_class);
-        set_super_class(&mut block1_class, &block_class, &metaclass_class);
-        set_super_class(&mut block2_class, &block_class, &metaclass_class);
-        set_super_class(&mut block3_class, &block_class, &metaclass_class);
-
-        set_super_class(&mut boolean_class, &object_class, &metaclass_class);
-        set_super_class(&mut true_class, &boolean_class, &metaclass_class);
-        set_super_class(&mut false_class, &boolean_class, &metaclass_class);
-
-        let core = CoreClasses {
-            object_class,
-            class_class,
-            metaclass_class,
-            nil_class,
-            integer_class,
-            array_class,
-            method_class,
-            symbol_class,
-            primitive_class,
-            string_class,
-            system_class,
-            double_class,
-            block_class,
-            block1_class,
-            block2_class,
-            block3_class,
-            boolean_class,
-            true_class,
-            false_class,
-        };
+        core.object_class.class().set_class(&core.metaclass_class);
+        core.object_class.class().set_super_class(&core.class_class);
+        set_super_class(&mut core.class_class, &core.object_class, &core.metaclass_class);
+        set_super_class(&mut core.metaclass_class.clone(), &core.class_class, &core.metaclass_class);
+        set_super_class(&mut core.nil_class, &core.object_class, &core.metaclass_class);
+        set_super_class(&mut core.array_class, &core.object_class, &core.metaclass_class);
+        set_super_class(&mut core.method_class, &core.array_class, &core.metaclass_class);
+        set_super_class(&mut core.string_class, &core.object_class, &core.metaclass_class);
+        set_super_class(&mut core.symbol_class, &core.string_class, &core.metaclass_class);
+        set_super_class(&mut core.integer_class, &core.object_class, &core.metaclass_class);
+        set_super_class(&mut core.primitive_class, &core.object_class, &core.metaclass_class);
+        set_super_class(&mut core.double_class, &core.object_class, &core.metaclass_class);
+        set_super_class(&mut core.system_class, &core.object_class, &core.metaclass_class);
+        set_super_class(&mut core.block_class, &core.object_class, &core.metaclass_class);
+        set_super_class(&mut core.block1_class, &core.block_class, &core.metaclass_class);
+        set_super_class(&mut core.block2_class, &core.block_class, &core.metaclass_class);
+        set_super_class(&mut core.block3_class, &core.block_class, &core.metaclass_class);
+        set_super_class(&mut core.boolean_class, &core.object_class, &core.metaclass_class);
+        set_super_class(&mut core.true_class, &core.boolean_class, &core.metaclass_class);
+        set_super_class(&mut core.false_class, &core.boolean_class, &core.metaclass_class);
 
         for (cls_name, global_cls) in core.iter() {
             globals.push((interner.intern(cls_name), Value::Class(*global_cls)));

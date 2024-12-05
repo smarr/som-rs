@@ -3,7 +3,7 @@
 /// This struct allows to always keep a reference to important classes,
 /// even in case of modifications to global bindings by user-defined code.
 #[derive(Debug)]
-pub struct CoreClasses<ClassPtr: Copy> {
+pub struct CoreClasses<ClassPtr> {
     /// The **Object** class.
     pub object_class: ClassPtr,
     /// The **Class** class.
@@ -45,6 +45,45 @@ pub struct CoreClasses<ClassPtr: Copy> {
     pub true_class: ClassPtr,
     /// The **False** class.
     pub false_class: ClassPtr,
+}
+
+impl<ClassPtr: Copy> CoreClasses<ClassPtr> {
+    /// Loads core classes given a closure that returns a pointer to a class.
+    /// TODO: also take a closure to set_class and set_super_class to do the rest of the hooking up.
+    pub fn from_load_cls_fn<F>(mut load_system_cls: F) -> Self
+    where
+        F: FnMut(&str, Option<ClassPtr>) -> ClassPtr,
+        // F1: FnMut(&ClassPtr, &ClassPtr),
+        // F2: FnMut(&ClassPtr, &ClassPtr)
+    {
+        let object_class = load_system_cls("Object", None);
+        let class_class = load_system_cls("Class", Some(object_class));
+        let boolean_class = load_system_cls("Boolean", Some(object_class));
+        let block_class = load_system_cls("Block", Some(object_class));
+        let string_class = load_system_cls("String", Some(object_class));
+
+        Self {
+            metaclass_class: load_system_cls("Metaclass", Some(class_class)),
+            nil_class: load_system_cls("Nil", Some(object_class)),
+            integer_class: load_system_cls("Integer", Some(object_class)),
+            double_class: load_system_cls("Double", Some(object_class)),
+            array_class: load_system_cls("Array", Some(object_class)),
+            method_class: load_system_cls("Method", Some(object_class)),
+            primitive_class: load_system_cls("Primitive", Some(object_class)),
+            symbol_class: load_system_cls("Symbol", Some(string_class)),
+            system_class: load_system_cls("System", Some(object_class)),
+            block1_class: load_system_cls("Block1", Some(block_class)),
+            block2_class: load_system_cls("Block2", Some(block_class)),
+            block3_class: load_system_cls("Block3", Some(block_class)),
+            true_class: load_system_cls("True", Some(boolean_class)),
+            false_class: load_system_cls("False", Some(boolean_class)),
+            string_class,
+            block_class,
+            boolean_class,
+            object_class,
+            class_class,
+        }
+    }
 }
 
 impl<ClassPtr: Copy> CoreClasses<ClassPtr> {
