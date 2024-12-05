@@ -4,6 +4,14 @@ use std::fmt::{Debug, Formatter};
 use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
 
+#[macro_export]
+macro_rules! debug_assert_valid_semispace_ptr {
+    ($self:expr) => {
+        #[cfg(all(feature = "semispace", debug_assertions))]
+        assert!($self.is_pointer_to_valid_space(), "Pointer to invalid space.");
+    };
+}
+
 /// A pointer to the heap for GC.
 ///
 /// To note: it could be a `NonNull` instead, and have places that need a "default" value rely on Option<Gc<T>>.
@@ -53,8 +61,7 @@ impl<T> Deref for Gc<T> {
 
     fn deref(&self) -> &T {
         unsafe {
-            #[cfg(all(feature = "semispace", debug_assertions))]
-            assert!(self.is_pointer_to_valid_space(), "Pointer to invalid space.");
+            debug_assert_valid_semispace_ptr!(self);
 
             let ptr = self.ptr as *const T;
             &*ptr
@@ -65,8 +72,7 @@ impl<T> Deref for Gc<T> {
 impl<T> DerefMut for Gc<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         unsafe {
-            #[cfg(all(feature = "semispace", debug_assertions))]
-            assert!(self.is_pointer_to_valid_space(), "Pointer to invalid space.");
+            debug_assert_valid_semispace_ptr!(self);
 
             let ptr = self.ptr as *mut T;
             &mut *ptr

@@ -29,7 +29,7 @@ impl Evaluate for WhileInlinedNode {
     fn evaluate(&mut self, universe: &mut Universe) -> Return {
         loop {
             let cond_result = propagate!(self.cond_instrs.evaluate(universe));
-            debug_assert!(cond_result.is_boolean());
+            debug_assert!(cond_result.is_boolean()); // and since it's not a pointer, we don't need to push it to the stack to keep it reachable for GC
             if cond_result.as_boolean_unchecked() != self.expected_bool {
                 break;
             } else {

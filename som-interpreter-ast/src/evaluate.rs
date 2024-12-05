@@ -8,6 +8,7 @@ use crate::universe::Universe;
 use crate::vm_objects::block::Block;
 use crate::vm_objects::frame::{Frame, FrameAccess};
 use crate::Value;
+use som_gc::debug_assert_valid_semispace_ptr;
 use som_gc::gcref::Gc;
 
 /// The trait for evaluating AST nodes.
@@ -145,6 +146,7 @@ impl Evaluate for AstTerm {
 
 impl Evaluate for Gc<AstBlock> {
     fn evaluate(&mut self, universe: &mut Universe) -> Return {
+        debug_assert_valid_semispace_ptr!(self);
         let mut block_ptr = universe.gc_interface.request_memory_for_type(size_of::<Block>());
         *block_ptr = Block {
             block: *self,
@@ -160,16 +162,16 @@ impl AstDispatchNode {
         let receiver = unsafe { *universe.stack_args.iter().nth_back(nbr_args - 1).unwrap_unchecked() };
 
         let invokable = match &self.inline_cache {
-            Some((cached_rcvr_ptr, mut method)) => {
-                if *cached_rcvr_ptr == receiver.class(universe) {
-                    // dbg!("cache hit");
-                    return method.invoke(universe, nbr_args);
-                } else {
-                    // dbg!("cache miss");
-                    receiver.lookup_method(universe, &self.signature)
-                }
-            }
-            None => receiver.lookup_method(universe, &self.signature),
+           Some((cached_rcvr_ptr, mut method)) => {
+               if *cached_rcvr_ptr == receiver.class(universe) {
+                   // dbg!("cache hit");
+                   return method.invoke(universe, nbr_args);
+               } else {
+                   // dbg!("cache miss");
+                   receiver.lookup_method(universe, &self.signature)
+               }
+           }
+           None => receiver.lookup_method(universe, &self.signature),
         };
 
         match invokable {
@@ -292,8 +294,8 @@ impl Evaluate for AstMethodDef {
         #[cfg(not(feature = "inlining-disabled"))]
         match self.body.evaluate(universe) {
             Return::NonLocal(value, frame) => {
-                debug_assert!(frame.is_pointer_to_valid_space());
-                debug_assert!(current_frame.is_pointer_to_valid_space());
+                debug_assert_valid_semispace_ptr!(frame);
+                debug_assert_valid_semispace_ptr!(current_frame);
                 if *current_frame == frame {
                     Return::Local(value)
                 } else {

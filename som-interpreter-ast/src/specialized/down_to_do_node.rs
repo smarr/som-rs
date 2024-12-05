@@ -1,4 +1,3 @@
-use crate::evaluate::Evaluate;
 use crate::invokable::{Invoke, Return};
 use crate::universe::Universe;
 use crate::value::Value;
@@ -35,7 +34,7 @@ impl DownToDoNode {
         while i >= end_int {
             universe.stack_args.push(Value::Block(body_block));
             universe.stack_args.push(Value::Integer(i));
-            propagate!(universe.with_frame(nbr_locals, 2, |universe| body_block.evaluate(universe),));
+            propagate!(universe.eval_with_frame(nbr_locals, 2, &mut body_block));
             i -= 1;
         }
         Return::Local(Value::Integer(start_int))
@@ -47,7 +46,7 @@ impl DownToDoNode {
         while i >= end_double {
             universe.stack_args.push(Value::Block(body_block));
             universe.stack_args.push(Value::Double(i));
-            propagate!(universe.with_frame(nbr_locals, 2, |universe| body_block.evaluate(universe),));
+            propagate!(universe.eval_with_frame(nbr_locals, 2, &mut body_block));
             i -= 1.0;
         }
         Return::Local(Value::Double(start_double))

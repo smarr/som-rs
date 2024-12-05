@@ -150,7 +150,7 @@ pub fn scan_object<'a>(object: ObjectReference, slot_visitor: &'a mut (dyn SlotV
                     slot_visitor.visit_slot(SOMSlot::from(&frame.prev_frame));
                 }
 
-                // ew
+                // kinda ew
                 let gcref_frame: Gc<Frame> = Gc::from(object.to_raw_address());
 
                 for i in 0..frame.nbr_locals {

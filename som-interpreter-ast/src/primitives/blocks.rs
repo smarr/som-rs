@@ -9,7 +9,6 @@ use once_cell::sync::Lazy;
 pub mod block1 {
     use super::*;
     use crate::convert::Primitive;
-    use crate::evaluate::Evaluate;
     use crate::vm_objects::block::Block;
     use anyhow::Error;
     use som_gc::gcref::Gc;
@@ -21,7 +20,7 @@ pub mod block1 {
     fn value(universe: &mut Universe, mut block: Gc<Block>) -> Result<Return, Error> {
         let nbr_locals = block.block.nbr_locals;
         universe.stack_args.push(Value::Block(block));
-        Ok(universe.with_frame(nbr_locals, 1, |universe| block.evaluate(universe)))
+        Ok(universe.eval_with_frame(nbr_locals, 1, &mut block))
     }
 
     fn restart(_: &mut Universe, _: Gc<Block>) -> Result<Return, Error> {
@@ -46,20 +45,22 @@ pub mod block1 {
 pub mod block2 {
     use super::*;
     use crate::convert::Primitive;
-    use crate::evaluate::Evaluate;
     use crate::vm_objects::block::Block;
     use anyhow::Error;
+    use som_gc::debug_assert_valid_semispace_ptr;
     use som_gc::gcref::Gc;
 
     pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([("value:", self::value.into_func(), true)]));
     pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([]));
 
     fn value(universe: &mut Universe, mut block: Gc<Block>, argument: Value) -> Result<Return, Error> {
+        debug_assert_valid_semispace_ptr!(block);
+
         let nbr_locals = block.block.nbr_locals;
         universe.stack_args.push(Value::Block(block));
         universe.stack_args.push(argument);
 
-        Ok(universe.with_frame(nbr_locals, 2, |universe| block.evaluate(universe)))
+        Ok(universe.eval_with_frame(nbr_locals, 2, &mut block))
     }
 
     /// Search for an instance primitive matching the given signature.
@@ -77,7 +78,6 @@ pub mod block2 {
 pub mod block3 {
     use super::*;
     use crate::convert::Primitive;
-    use crate::evaluate::Evaluate;
     use crate::vm_objects::block::Block;
     use anyhow::Error;
     use som_gc::gcref::Gc;
@@ -92,7 +92,7 @@ pub mod block3 {
         universe.stack_args.push(argument1);
         universe.stack_args.push(argument2);
 
-        Ok(universe.with_frame(nbr_locals, 3, |universe| receiver.evaluate(universe)))
+        Ok(universe.eval_with_frame(nbr_locals, 3, &mut receiver))
     }
 
     /// Search for an instance primitive matching the given signature.

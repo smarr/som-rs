@@ -4,6 +4,7 @@ use std::io;
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
+use crate::evaluate::Evaluate;
 use crate::gc::{get_callbacks_for_gc, VecValue};
 use crate::invokable::{Invoke, Return};
 use crate::value::Value;
@@ -376,10 +377,12 @@ impl Universe {
 }
 
 impl Universe {
-    pub fn with_frame<T>(&mut self, nbr_locals: u8, nbr_args: usize, func: impl FnOnce(&mut Self) -> T) -> T {
+    /// Evaluates a method, block or other after pushing a new frame onto the stack.
+    /// The frame assumes the arguments it needs are on the global argument stack.
+    pub fn eval_with_frame<T: Evaluate>(&mut self, nbr_locals: u8, nbr_args: usize, invokable: &mut T) -> Return {
         let frame = Frame::alloc_new_frame(nbr_locals, nbr_args, self);
         self.current_frame = frame;
-        let ret = func(self);
+        let ret = invokable.evaluate(self);
         self.current_frame = self.current_frame.prev_frame;
         ret
     }

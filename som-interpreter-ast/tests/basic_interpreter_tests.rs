@@ -1,6 +1,5 @@
 use rstest::{fixture, rstest};
 use som_interpreter_ast::compiler::compile::AstMethodCompilerCtxt;
-use som_interpreter_ast::evaluate::Evaluate;
 use som_interpreter_ast::invokable::Return;
 use som_interpreter_ast::universe::Universe;
 use som_interpreter_ast::value::Value;
@@ -124,7 +123,7 @@ fn basic_interpreter_tests(universe: &mut Universe) {
         let mut ast = compiler.parse_expression(&ast_parser);
 
         universe.stack_args.push(Value::SYSTEM);
-        let output = universe.with_frame(0, 1, |universe| ast.evaluate(universe));
+        let output = universe.eval_with_frame(0, 1, &mut ast);
 
         match &output {
             Return::Local(output) => assert_eq!(output, expected, "unexpected test output value"),

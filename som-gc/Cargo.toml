@@ -21,6 +21,7 @@ num-bigint = "0.4.3"
 
 [features]
 default = ["semispace"]
+# default = ["marksweep"]
 
 #default = ["mmtk/extreme_assertions"]
 

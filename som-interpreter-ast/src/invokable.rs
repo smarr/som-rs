@@ -31,7 +31,7 @@ impl Invoke for Method {
         match &mut self.kind {
             MethodKind::Defined(method) => {
                 // println!("--- Invoking \"{:1}\" ({:2})", &self.signature, &self.holder.class().name);
-                universe.with_frame(method.locals_nbr, nbr_args, |universe| method.evaluate(universe))
+                universe.eval_with_frame(method.locals_nbr, nbr_args, method)
             }
             MethodKind::Primitive(func) => {
                 let args = universe.stack_n_last_elems(nbr_args);
