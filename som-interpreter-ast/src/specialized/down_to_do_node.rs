@@ -28,25 +28,25 @@ impl Invoke for DownToDoNode {
 }
 
 impl DownToDoNode {
-    fn do_int_loop(start_int: i32, end_int: i32, mut body_block: Gc<Block>, universe: &mut Universe) -> Return {
+    fn do_int_loop(start_int: i32, end_int: i32, body_block: Gc<Block>, universe: &mut Universe) -> Return {
         let nbr_locals = body_block.block.nbr_locals;
         let mut i = start_int;
         while i >= end_int {
             universe.stack_args.push(Value::Block(body_block));
             universe.stack_args.push(Value::Integer(i));
-            propagate!(universe.eval_with_frame(nbr_locals, 2, &mut body_block));
+            propagate!(universe.eval_block_with_frame(nbr_locals, 2));
             i -= 1;
         }
         Return::Local(Value::Integer(start_int))
     }
 
-    fn do_double_loop(start_double: f64, end_double: f64, mut body_block: Gc<Block>, universe: &mut Universe) -> Return {
+    fn do_double_loop(start_double: f64, end_double: f64, body_block: Gc<Block>, universe: &mut Universe) -> Return {
         let nbr_locals = body_block.block.nbr_locals;
         let mut i = start_double;
         while i >= end_double {
             universe.stack_args.push(Value::Block(body_block));
             universe.stack_args.push(Value::Double(i));
-            propagate!(universe.eval_with_frame(nbr_locals, 2, &mut body_block));
+            propagate!(universe.eval_block_with_frame(nbr_locals, 2));
             i -= 1.0;
         }
         Return::Local(Value::Double(start_double))

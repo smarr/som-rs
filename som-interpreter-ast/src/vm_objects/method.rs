@@ -24,7 +24,7 @@ pub enum MethodKind {
     TrivialGetter(TrivialGetterMethod),
     /// A trivial setter method
     TrivialSetter(TrivialSetterMethod),
-    /// A call to a specialized method
+    /// A call to a specialized method. TODO: really, those should be inlined instead. Unless we add a lot more specialized nodes.
     Specialized(MethodKindSpecialized),
 }
 

@@ -10,7 +10,7 @@ use crate::invokable::{Invoke, Return};
 use crate::value::Value;
 use crate::vm_objects::block::Block;
 use crate::vm_objects::class::Class;
-use crate::vm_objects::frame::Frame;
+use crate::vm_objects::frame::{Frame, FrameAccess};
 use anyhow::{anyhow, Error};
 use som_core::core_classes::CoreClasses;
 use som_core::interner::{Interned, Interner};
@@ -243,11 +243,21 @@ impl Universe {
 }
 
 impl Universe {
-    /// Evaluates a method, block or other after pushing a new frame onto the stack.
+    /// Evaluates a method or other after pushing a new frame onto the stack.
     /// The frame assumes the arguments it needs are on the global argument stack.
     pub fn eval_with_frame<T: Evaluate>(&mut self, nbr_locals: u8, nbr_args: usize, invokable: &mut T) -> Return {
         let frame = Frame::alloc_new_frame(nbr_locals, nbr_args, self);
         self.current_frame = frame;
+        let ret = invokable.evaluate(self);
+        self.current_frame = self.current_frame.prev_frame;
+        ret
+    }
+
+    /// Evaluates a block after pushing a new block frame.
+    pub fn eval_block_with_frame(&mut self, nbr_locals: u8, nbr_args: usize) -> Return {
+        let frame = Frame::alloc_new_frame(nbr_locals, nbr_args, self);
+        self.current_frame = frame;
+        let mut invokable = frame.lookup_argument(0).as_block().unwrap();
         let ret = invokable.evaluate(self);
         self.current_frame = self.current_frame.prev_frame;
         ret

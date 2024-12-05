@@ -17,10 +17,10 @@ pub mod block1 {
         Lazy::new(|| Box::new([("value", self::value.into_func(), true), ("restart", self::restart.into_func(), false)]));
     pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([]));
 
-    fn value(universe: &mut Universe, mut block: Gc<Block>) -> Result<Return, Error> {
+    fn value(universe: &mut Universe, block: Gc<Block>) -> Result<Return, Error> {
         let nbr_locals = block.block.nbr_locals;
         universe.stack_args.push(Value::Block(block));
-        Ok(universe.eval_with_frame(nbr_locals, 1, &mut block))
+        Ok(universe.eval_block_with_frame(nbr_locals, 1))
     }
 
     fn restart(_: &mut Universe, _: Gc<Block>) -> Result<Return, Error> {
@@ -53,14 +53,14 @@ pub mod block2 {
     pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([("value:", self::value.into_func(), true)]));
     pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([]));
 
-    fn value(universe: &mut Universe, mut block: Gc<Block>, argument: Value) -> Result<Return, Error> {
+    fn value(universe: &mut Universe, block: Gc<Block>, argument: Value) -> Result<Return, Error> {
         debug_assert_valid_semispace_ptr!(block);
 
         let nbr_locals = block.block.nbr_locals;
         universe.stack_args.push(Value::Block(block));
         universe.stack_args.push(argument);
 
-        Ok(universe.eval_with_frame(nbr_locals, 2, &mut block))
+        Ok(universe.eval_block_with_frame(nbr_locals, 2))
     }
 
     /// Search for an instance primitive matching the given signature.
@@ -85,14 +85,14 @@ pub mod block3 {
     pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([("value:with:", self::value_with.into_func(), true)]));
     pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([]));
 
-    fn value_with(universe: &mut Universe, mut receiver: Gc<Block>, argument1: Value, argument2: Value) -> Result<Return, Error> {
+    fn value_with(universe: &mut Universe, receiver: Gc<Block>, argument1: Value, argument2: Value) -> Result<Return, Error> {
         let nbr_locals = receiver.block.nbr_locals;
 
         universe.stack_args.push(Value::Block(receiver));
         universe.stack_args.push(argument1);
         universe.stack_args.push(argument2);
 
-        Ok(universe.eval_with_frame(nbr_locals, 3, &mut receiver))
+        Ok(universe.eval_block_with_frame(nbr_locals, 3))
     }
 
     /// Search for an instance primitive matching the given signature.

@@ -63,9 +63,6 @@ impl<'a> AstMethodCompilerCtxt<'a> {
     }
 
     pub fn get_method_kind(method: &ast::MethodDef, class: Option<Gc<Class>>, gc_interface: &mut GCInterface) -> MethodKind {
-        // NB: these If/IfTrueIfFalse/While are very rare cases, since we normally inline those functions.
-        // But we don't do inlining when e.g. the condition for ifTrue: isn't a block.
-        // so there is *some* occasional benefit in having those specialized method nodes around for those cases.
         match method.signature.as_str() {
             "to:by:do:" => MethodKind::Specialized(MethodKindSpecialized::ToByDo(ToByDoNode {})),
             "downTo:do:" => MethodKind::Specialized(MethodKindSpecialized::DownToDo(DownToDoNode {})),

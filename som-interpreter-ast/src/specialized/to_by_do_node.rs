@@ -14,7 +14,7 @@ impl Invoke for ToByDoNode {
         let end_int_val = args.get(2).unwrap();
         let body_block_val = args.get(3).unwrap();
 
-        let (start_int, end_int, step_int, mut body_block) = match (
+        let (start_int, end_int, step_int, body_block) = match (
             start_int_val.as_integer(),
             step_int_val.as_integer(),
             end_int_val.as_integer(),
@@ -33,7 +33,7 @@ impl Invoke for ToByDoNode {
         while i <= end_int {
             universe.stack_args.push(Value::Block(body_block));
             universe.stack_args.push(Value::Integer(i));
-            propagate!(universe.eval_with_frame(nbr_locals, 2, &mut body_block));
+            propagate!(universe.eval_block_with_frame(nbr_locals, 2));
             i += step_int;
         }
 
