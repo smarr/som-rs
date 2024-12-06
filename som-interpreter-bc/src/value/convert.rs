@@ -299,72 +299,16 @@ impl IntoValue for Gc<Method> {
 }
 
 pub trait Primitive<T>: Sized + Send + Sync + 'static {
-    fn invoke(&self, interpreter: &mut Interpreter, universe: &mut Universe, nbr_params: usize) -> Result<(), Error>;
+    fn invoke(&self, interpreter: &mut Interpreter, universe: &mut Universe) -> Result<(), Error>;
 
     fn into_func(self) -> &'static PrimitiveFn {
-        let boxed =
-            Box::new(move |interpreter: &mut Interpreter, universe: &mut Universe, nbr_params: usize| self.invoke(interpreter, universe, nbr_params));
+        let boxed = Box::new(move |interpreter: &mut Interpreter, universe: &mut Universe| self.invoke(interpreter, universe));
         Box::leak(boxed)
     }
 }
 
 pub trait IntoReturn {
     fn into_return(self, interpreter: &mut Interpreter, heap: &mut GCInterface) -> Result<(), Error>;
-}
-
-macro_rules! reverse {
-    ($interpreter:expr, $universe:expr, [], [ $($ty:ident),* $(,)? ]) => {
-        $(
-            #[allow(non_snake_case)]
-            let $ty = $ty::from_args($interpreter, $universe)?;
-        )*
-    };
-    ($interpreter:expr, $universe:expr, [ $ty:ident $(,)? ], [ $($ty2:ident),* $(,)? ]) => {
-        reverse!($interpreter, $universe, [], [ $ty , $($ty2),* ])
-    };
-    ($interpreter:expr, $universe:expr, [ $ty:ident , $($ty1:ident),* $(,)? ], [ $($ty2:ident),* $(,)? ]) => {
-        reverse!($interpreter, $universe, [ $($ty1),* ], [ $ty , $($ty2),* ])
-    };
-}
-
-macro_rules! derive_stuff {
-    ($($ty:ident),* $(,)?) => {
-        impl <$($ty: $crate::value::convert::IntoValue),*> $crate::value::convert::IntoValue for ($($ty),*,) {
-            fn into_value(&self, gc_interface: &mut GCInterface) -> $crate::value::Value {
-                #[allow(non_snake_case)]
-                let ($($ty),*,) = self;
-                let values = vec![
-                $(
-                    $crate::value::convert::IntoValue::into_value($ty, gc_interface),
-                )*];
-                let allocated = gc_interface.alloc(VecValue(values));
-                $crate::value::Value::Array(allocated)
-            }
-        }
-
-        impl <$($ty: $crate::value::convert::FromArgs),*> $crate::value::convert::FromArgs for ($($ty),*,) {
-            fn from_args(interpreter: &mut $crate::interpreter::Interpreter, universe: &mut $crate::universe::Universe) -> Result<Self, Error> {
-                $(
-                    #[allow(non_snake_case)]
-                    let $ty = $ty::from_args(interpreter, universe)?;
-                )*
-                Ok(($($ty),*,))
-            }
-        }
-
-        impl <F, R, $($ty),*> $crate::value::convert::Primitive<($($ty),*,)> for F
-        where
-            F: Fn(&mut $crate::interpreter::Interpreter, &mut $crate::universe::Universe, $($ty),*) -> Result<R, Error> + Send + Sync + 'static,
-            R: $crate::value::convert::IntoReturn,
-            $($ty: $crate::value::convert::FromArgs),*,
-        {
-            fn invoke(&self, interpreter: &mut $crate::interpreter::Interpreter, universe: &mut $crate::universe::Universe, _nbr_params: usize) -> Result<(), Error> {
-                reverse!(interpreter, universe, [$($ty),*], []);
-                let result = (self)(interpreter, universe, $($ty),*,)?;
-                result.into_return(interpreter, &mut universe.gc_interface)
-            }
-        }
-    };
 }
 
 impl<T: IntoValue> IntoReturn for T {
@@ -432,6 +376,61 @@ impl IntoValue for DoubleLike {
     }
 }
 
+macro_rules! reverse {
+    ($interpreter:expr, $universe:expr, [], [ $($ty:ident),* $(,)? ]) => {
+        $(
+            #[allow(non_snake_case)]
+            let $ty = $ty::from_args($interpreter, $universe)?;
+        )*
+    };
+    ($interpreter:expr, $universe:expr, [ $ty:ident $(,)? ], [ $($ty2:ident),* $(,)? ]) => {
+        reverse!($interpreter, $universe, [], [ $ty , $($ty2),* ])
+    };
+    ($interpreter:expr, $universe:expr, [ $ty:ident , $($ty1:ident),* $(,)? ], [ $($ty2:ident),* $(,)? ]) => {
+        reverse!($interpreter, $universe, [ $($ty1),* ], [ $ty , $($ty2),* ])
+    };
+}
+
+macro_rules! derive_stuff {
+    ($($ty:ident),* $(,)?) => {
+        impl <$($ty: $crate::value::convert::IntoValue),*> $crate::value::convert::IntoValue for ($($ty),*,) {
+            fn into_value(&self, gc_interface: &mut GCInterface) -> $crate::value::Value {
+                #[allow(non_snake_case)]
+                let ($($ty),*,) = self;
+                let values = vec![
+                $(
+                    $crate::value::convert::IntoValue::into_value($ty, gc_interface),
+                )*];
+                let allocated = gc_interface.alloc(VecValue(values));
+                $crate::value::Value::Array(allocated)
+            }
+        }
+
+        impl <$($ty: $crate::value::convert::FromArgs),*> $crate::value::convert::FromArgs for ($($ty),*,) {
+            fn from_args(interpreter: &mut $crate::interpreter::Interpreter, universe: &mut $crate::universe::Universe) -> Result<Self, Error> {
+                $(
+                    #[allow(non_snake_case)]
+                    let $ty = $ty::from_args(interpreter, universe)?;
+                )*
+                Ok(($($ty),*,))
+            }
+        }
+
+        impl <F, R, $($ty),*> $crate::value::convert::Primitive<($($ty),*,)> for F
+        where
+            F: Fn(&mut $crate::interpreter::Interpreter, &mut $crate::universe::Universe, $($ty),*) -> Result<R, Error> + Send + Sync + 'static,
+            R: $crate::value::convert::IntoReturn,
+            $($ty: $crate::value::convert::FromArgs),*,
+        {
+            fn invoke(&self, interpreter: &mut $crate::interpreter::Interpreter, universe: &mut $crate::universe::Universe) -> Result<(), Error> {
+                reverse!(interpreter, universe, [$($ty),*], []);
+                let result = (self)(interpreter, universe, $($ty),*,)?;
+                result.into_return(interpreter, &mut universe.gc_interface)
+            }
+        }
+    };
+}
+
 derive_stuff!(_A);
 derive_stuff!(_A, _B);
 derive_stuff!(_A, _B, _C);
@@ -445,12 +444,7 @@ where
     F: Fn(&mut crate::interpreter::Interpreter, &mut crate::universe::Universe) -> Result<R, Error> + Send + Sync + 'static,
     R: crate::value::convert::IntoReturn,
 {
-    fn invoke(
-        &self,
-        interpreter: &mut crate::interpreter::Interpreter,
-        universe: &mut crate::universe::Universe,
-        _nbr_params: usize,
-    ) -> Result<(), Error> {
+    fn invoke(&self, interpreter: &mut crate::interpreter::Interpreter, universe: &mut crate::universe::Universe) -> Result<(), Error> {
         let result = (self)(interpreter, universe)?;
         result.into_return(interpreter, universe.gc_interface)
     }
