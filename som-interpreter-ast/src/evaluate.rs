@@ -143,7 +143,7 @@ impl Evaluate for AstLiteral {
             Self::Integer(int) => Return::Local(Value::Integer(*int)),
             Self::BigInteger(bigint) => Return::Local(Value::BigInteger(*bigint)),
             Self::Double(double) => Return::Local(Value::Double(*double)),
-            Self::Symbol(sym) => Return::Local(Value::Symbol(universe.intern_symbol(sym))),
+            Self::Symbol(sym) => Return::Local(Value::Symbol(*sym)),
             Self::String(string) => Return::Local(Value::String(*string)),
         }
     }
@@ -182,10 +182,10 @@ impl AstDispatchNode {
                     return method.invoke(universe, nbr_args);
                 } else {
                     // dbg!("cache miss");
-                    receiver.lookup_method(universe, &self.signature)
+                    receiver.lookup_method(universe, self.signature)
                 }
             }
-            None => receiver.lookup_method(universe, &self.signature),
+            None => receiver.lookup_method(universe, self.signature),
         };
         // let invokable = receiver.lookup_method(universe, &self.signature);
 
@@ -201,9 +201,13 @@ impl AstDispatchNode {
             None => {
                 let mut args = universe.stack_n_last_elems(nbr_args);
                 let receiver = args.remove(0);
-                universe
-                    .does_not_understand(receiver, &self.signature, args)
-                    .unwrap_or_else(|| panic!("could not find method '{}>>#{}'", receiver.class(universe).name(), self.signature))
+                universe.does_not_understand(receiver, self.signature, args).unwrap_or_else(|| {
+                    panic!(
+                        "could not find method '{}>>#{}'",
+                        receiver.class(universe).name(),
+                        universe.lookup_symbol(self.signature)
+                    )
+                })
             }
         }
     }
@@ -267,7 +271,7 @@ impl Evaluate for AstNAryDispatch {
 
 impl Evaluate for AstSuperMessage {
     fn evaluate(&mut self, universe: &mut Universe) -> Return {
-        let invokable = self.super_class.lookup_method(&self.signature);
+        let invokable = self.super_class.lookup_method(self.signature);
         let receiver = universe.current_frame.get_self();
         universe.stack_args.push(receiver);
 
@@ -281,8 +285,12 @@ impl Evaluate for AstSuperMessage {
             None => {
                 let mut args = universe.stack_n_last_elems(self.values.len() + 1);
                 let receiver = args.remove(0);
-                universe.does_not_understand(receiver, &self.signature, args).unwrap_or_else(|| {
-                    panic!("could not find method '{}>>#{}'", receiver.class(universe).name(), self.signature)
+                universe.does_not_understand(receiver, self.signature, args).unwrap_or_else(|| {
+                    panic!(
+                        "could not find method '{}>>#{}'",
+                        receiver.class(universe).name(),
+                        universe.lookup_symbol(self.signature)
+                    )
                     // Return::Local(Value::Nil)
                 })
             }

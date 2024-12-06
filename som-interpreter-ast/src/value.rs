@@ -214,7 +214,7 @@ impl Value {
     }
 
     /// Search for a given method for this value.
-    pub fn lookup_method(&self, universe: &Universe, signature: &str) -> Option<Gc<Method>> {
+    pub fn lookup_method(&self, universe: &Universe, signature: Interned) -> Option<Gc<Method>> {
         self.class(universe).lookup_method(signature)
     }
 
@@ -403,7 +403,7 @@ impl ValueEnum {
 
     /// Search for a given method for this value.
     #[inline(always)]
-    pub fn lookup_method(&self, universe: &Universe, signature: &str) -> Option<Gc<Method>> {
+    pub fn lookup_method(&self, universe: &Universe, signature: Interned) -> Option<Gc<Method>> {
         self.class(universe).lookup_method(signature)
     }
 

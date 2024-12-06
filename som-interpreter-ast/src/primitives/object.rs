@@ -63,8 +63,7 @@ fn eq(_: &mut Universe, receiver: Value, other: Value) -> Result<Value, Error> {
 fn perform(universe: &mut Universe, object: Value, sym: Interned) -> Result<Return, Error> {
     const SIGNATURE: &str = "Object>>#perform:";
 
-    let signature = universe.lookup_symbol(sym);
-    let method = object.lookup_method(universe, signature);
+    let method = object.lookup_method(universe, sym);
 
     match method {
         Some(mut invokable) => {
@@ -72,9 +71,13 @@ fn perform(universe: &mut Universe, object: Value, sym: Interned) -> Result<Retu
             Ok(invokable.invoke(universe, 1))
         }
         None => {
-            let signature = signature.to_string();
-            Ok(universe.does_not_understand(object, signature.as_str(), vec![object]).unwrap_or_else(|| {
-                panic!("'{}': method '{}' not found for '{}'", SIGNATURE, signature, object.to_string(universe))
+            Ok(universe.does_not_understand(object, sym, vec![object]).unwrap_or_else(|| {
+                panic!(
+                    "'{}': method '{}' not found for '{}'",
+                    SIGNATURE,
+                    universe.lookup_symbol(sym),
+                    object.to_string(universe)
+                )
                 // Ok(Value::Nil)
             }))
         }
@@ -84,8 +87,7 @@ fn perform(universe: &mut Universe, object: Value, sym: Interned) -> Result<Retu
 fn perform_with_arguments(universe: &mut Universe, object: Value, sym: Interned, arr: Gc<VecValue>) -> Result<Return, Error> {
     const SIGNATURE: &str = "Object>>#perform:withArguments:";
 
-    let signature = universe.lookup_symbol(sym);
-    let method = object.lookup_method(universe, signature);
+    let method = object.lookup_method(universe, sym);
 
     match method {
         Some(mut invokable) => {
@@ -99,14 +101,18 @@ fn perform_with_arguments(universe: &mut Universe, object: Value, sym: Interned,
             Ok(invokable.invoke(universe, arr.0.len() + 1))
         }
         None => {
-            let signature = signature.to_string();
             // let args = std::iter::once(object.clone())
             //     .chain(arr.replace(Vec::default()))
             //     .collect();
             let args = std::iter::once(object).chain((*arr).clone()).collect();
 
-            Ok(universe.does_not_understand(object, signature.as_str(), args).unwrap_or_else(|| {
-                panic!("'{}': method '{}' not found for '{}'", SIGNATURE, signature, object.to_string(universe))
+            Ok(universe.does_not_understand(object, sym, args).unwrap_or_else(|| {
+                panic!(
+                    "'{}': method '{}' not found for '{}'",
+                    SIGNATURE,
+                    universe.lookup_symbol(sym),
+                    object.to_string(universe)
+                )
                 // Ok(Value::Nil)
             }))
         }
@@ -116,8 +122,7 @@ fn perform_with_arguments(universe: &mut Universe, object: Value, sym: Interned,
 fn perform_in_super_class(universe: &mut Universe, object: Value, sym: Interned, class: Gc<Class>) -> Result<Return, Error> {
     const SIGNATURE: &str = "Object>>#perform:inSuperclass:";
 
-    let signature = universe.lookup_symbol(sym);
-    let method = class.lookup_method(signature);
+    let method = class.lookup_method(sym);
 
     match method {
         Some(mut invokable) => {
@@ -125,14 +130,16 @@ fn perform_in_super_class(universe: &mut Universe, object: Value, sym: Interned,
             Ok(invokable.invoke(universe, 1))
         }
         None => {
-            let signature = signature.to_string();
             let args = vec![object];
-            Ok(
-                universe.does_not_understand(Value::Class(class), signature.as_str(), args).unwrap_or_else(|| {
-                    panic!("'{}': method '{}' not found for '{}'", SIGNATURE, signature, object.to_string(universe))
-                    // Ok(Value::Nil)
-                }),
-            )
+            Ok(universe.does_not_understand(Value::Class(class), sym, args).unwrap_or_else(|| {
+                panic!(
+                    "'{}': method '{}' not found for '{}'",
+                    SIGNATURE,
+                    universe.lookup_symbol(sym),
+                    object.to_string(universe)
+                )
+                // Ok(Value::Nil)
+            }))
         }
     }
 }
@@ -146,8 +153,7 @@ fn perform_with_arguments_in_super_class(
 ) -> Result<Return, Error> {
     const SIGNATURE: &str = "Object>>#perform:withArguments:inSuperclass:";
 
-    let signature = universe.lookup_symbol(sym);
-    let method = class.lookup_method(signature);
+    let method = class.lookup_method(sym);
 
     match method {
         // Some(mut invokable) => {
@@ -166,13 +172,15 @@ fn perform_with_arguments_in_super_class(
             //     .collect();
             let args = std::iter::once(object).chain((*arr).clone()).collect();
 
-            let signature = signature.to_string();
-            Ok(
-                universe.does_not_understand(Value::Class(class), signature.as_str(), args).unwrap_or_else(|| {
-                    panic!("'{}': method '{}' not found for '{}'", SIGNATURE, signature, object.to_string(universe))
-                    // Ok(Value::Nil)
-                }),
-            )
+            Ok(universe.does_not_understand(Value::Class(class), sym, args).unwrap_or_else(|| {
+                panic!(
+                    "'{}': method '{}' not found for '{}'",
+                    SIGNATURE,
+                    universe.lookup_symbol(sym),
+                    object.to_string(universe)
+                )
+                // Ok(Value::Nil)
+            }))
         }
     }
 }

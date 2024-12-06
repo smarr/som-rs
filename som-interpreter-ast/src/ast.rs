@@ -57,7 +57,7 @@ pub enum AstExpression {
 #[derive(Debug, Clone, PartialEq)]
 pub enum AstLiteral {
     /// Represents a symbol literal (eg. `#foo`).
-    Symbol(Gc<String>),
+    Symbol(Interned),
     /// Represents a string literal (eg. `'hello'`).
     String(Gc<String>),
     /// Represents a decimal number literal (eg. `3.14`).
@@ -86,7 +86,7 @@ pub type CacheEntry = (Gc<Class>, Gc<Method>);
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct AstDispatchNode {
-    pub signature: String,
+    pub signature: Interned,
     pub receiver: AstExpression,
     pub inline_cache: Option<CacheEntry>,
 }
@@ -119,7 +119,7 @@ pub struct AstNAryDispatch {
 #[derive(Debug, Clone, PartialEq)]
 pub struct AstSuperMessage {
     pub super_class: Gc<Class>,
-    pub signature: String,
+    pub signature: Interned,
     pub values: Vec<AstExpression>,
     // NB: no inline cache. I don't think it's super worth it since super calls are uncommon. Easy to implement though
 }
@@ -191,19 +191,19 @@ impl Display for AstExpression {
                 write!(indented(f), "{}", expr)
             }
             AstExpression::UnaryDispatch(op) => {
-                writeln!(f, "UnaryDispatch \"{}\":", op.dispatch_node.signature)?;
+                writeln!(f, "UnaryDispatch \"{:?}\":", op.dispatch_node.signature)?;
                 writeln!(indented(f), "Receiver:")?;
                 write!(indented(&mut indented(f)), "{}", op.dispatch_node.receiver)
             }
             AstExpression::BinaryDispatch(op) => {
-                writeln!(f, "BinaryDispatch \"{}\":", op.dispatch_node.signature)?;
+                writeln!(f, "BinaryDispatch \"{:?}\":", op.dispatch_node.signature)?;
                 writeln!(indented(f), "Receiver:")?;
                 write!(indented(&mut indented(f)), "{}", op.dispatch_node.receiver)?;
                 writeln!(indented(f), "arg:")?;
                 write!(indented(&mut indented(f)), "{}", op.arg)
             }
             AstExpression::TernaryDispatch(op) => {
-                writeln!(f, "TernaryDispatch \"{}\":", op.dispatch_node.signature)?;
+                writeln!(f, "TernaryDispatch \"{:?}\":", op.dispatch_node.signature)?;
                 writeln!(indented(f), "Receiver:")?;
                 write!(indented(&mut indented(f)), "{}", op.dispatch_node.receiver)?;
                 writeln!(indented(f), "arg1:")?;
@@ -212,7 +212,7 @@ impl Display for AstExpression {
                 write!(indented(&mut indented(f)), "{}", op.arg2)
             }
             AstExpression::NAryDispatch(msg) => {
-                writeln!(f, "N-AryDispatch \"{}\":", msg.dispatch_node.signature)?;
+                writeln!(f, "N-AryDispatch \"{:?}\":", msg.dispatch_node.signature)?;
                 writeln!(indented(f), "Receiver:")?;
                 write!(indented(&mut indented(f)), "{}", msg.dispatch_node.receiver)?;
                 writeln!(indented(f), "Values: {}", if msg.values.is_empty() { "(none)" } else { "" })?;
@@ -222,7 +222,7 @@ impl Display for AstExpression {
                 Ok(())
             }
             AstExpression::SuperMessage(msg) => {
-                writeln!(f, "SuperMessage \"{}\":", msg.signature)?;
+                writeln!(f, "SuperMessage \"{:?}\":", msg.signature)?;
                 writeln!(indented(f), "Receiver: {}", msg.super_class.name)?;
                 writeln!(indented(f), "Values: {}", if msg.values.is_empty() { "(none)" } else { "" })?;
                 for value in &msg.values {

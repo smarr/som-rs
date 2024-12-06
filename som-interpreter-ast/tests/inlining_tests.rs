@@ -78,7 +78,7 @@ fn if_false_inlining_ok(mut interner: Interner) {
                     expected_bool: false,
                     cond_expr: BinaryDispatch(Box::new(AstBinaryDispatch {
                         dispatch_node: AstDispatchNode {
-                            signature: "==".to_string(),
+                            signature: interner.reverse_lookup("==").unwrap(),
                             receiver: LocalVarRead(0),
                             inline_cache: None
                         },
@@ -112,14 +112,14 @@ pub fn recursive_inlining(mut interner: Interner) {
         AstBody:
             IfInlinedNode (expected bool: false):
                 condition expr:\
-                    UnaryDispatch \"isNil\":
+                    UnaryDispatch \"Interned(0)\":
                         Receiver:
                             LocalVarRead(1)
                 body block:
                     AstBody:
-                        BinaryDispatch \"do:\":
+                        BinaryDispatch \"Interned(1)\":
                             Receiver:
-                                UnaryDispatch \"keys\":
+                                UnaryDispatch \"Interned(2)\":
                                     Receiver:
                                         LocalVarRead(1)
                             arg:
@@ -127,7 +127,7 @@ pub fn recursive_inlining(mut interner: Interner) {
                                     AstBlock(1 params, 0 locals):
                                         IfInlinedNode (expected bool: true):
                                             condition expr:
-                                                BinaryDispatch \"=\":
+                                                BinaryDispatch \"Interned(3)\":
                                                     Receiver:
                                                         ArgRead(0, 1)
                                                     arg:
@@ -135,7 +135,7 @@ pub fn recursive_inlining(mut interner: Interner) {
                                             body block:
                                                 AstBody:
                                                     NonLocalExit(1)
-                                                        GlobalRead(Interned(0))";
+                                                        GlobalRead(Interned(4))";
 
     let resolve = get_ast(contains_key_txt, &mut interner);
 
@@ -168,10 +168,10 @@ fn to_do_inlining_ok(mut interner: Interner) {
                         body: AstBody {
                             exprs: vec![UnaryDispatch(Box::new(AstUnaryDispatch {
                                 dispatch_node: AstDispatchNode {
-                                    signature: "println".to_string(),
+                                    signature: interner.reverse_lookup("println").unwrap(),
                                     receiver: BinaryDispatch(Box::new(AstBinaryDispatch {
                                         dispatch_node: AstDispatchNode {
-                                            signature: "+".to_string(),
+                                            signature: interner.reverse_lookup("+").unwrap(),
                                             receiver: LocalVarRead(0),
                                             inline_cache: None,
                                         },

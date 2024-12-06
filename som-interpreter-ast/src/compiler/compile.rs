@@ -216,6 +216,8 @@ impl<'a> AstMethodCompilerCtxt<'a> {
             }
         }
 
+        let interned_signature = self.interner.intern(msg.signature.as_str());
+
         if msg.receiver == Expression::GlobalRead(String::from("super")) {
             return AstExpression::SuperMessage(Box::new(AstSuperMessage {
                 super_class: self
@@ -223,7 +225,7 @@ impl<'a> AstMethodCompilerCtxt<'a> {
                     .unwrap()
                     .super_class
                     .unwrap_or_else(|| panic!("no super class set, even though the method has a super call?")),
-                signature: msg.signature.clone(),
+                signature: interned_signature,
                 values: msg.values.iter().map(|e| expr_parsing_func(self, e)).collect(),
             }));
         }
@@ -233,14 +235,14 @@ impl<'a> AstMethodCompilerCtxt<'a> {
             0 => AstExpression::UnaryDispatch(Box::new(AstUnaryDispatch {
                 dispatch_node: AstDispatchNode {
                     receiver,
-                    signature: msg.signature.clone(),
+                    signature: interned_signature,
                     inline_cache: None,
                 },
             })),
             1 => AstExpression::BinaryDispatch(Box::new(AstBinaryDispatch {
                 dispatch_node: AstDispatchNode {
                     receiver,
-                    signature: msg.signature.clone(),
+                    signature: interned_signature,
                     inline_cache: None,
                 },
                 arg: expr_parsing_func(self, msg.values.first().unwrap()),
@@ -248,7 +250,7 @@ impl<'a> AstMethodCompilerCtxt<'a> {
             2 => AstExpression::TernaryDispatch(Box::new(AstTernaryDispatch {
                 dispatch_node: AstDispatchNode {
                     receiver,
-                    signature: msg.signature.clone(),
+                    signature: interned_signature,
                     inline_cache: None,
                 },
                 arg1: expr_parsing_func(self, msg.values.first().unwrap()),
@@ -257,7 +259,7 @@ impl<'a> AstMethodCompilerCtxt<'a> {
             _ => AstExpression::NAryDispatch(Box::new(AstNAryDispatch {
                 dispatch_node: AstDispatchNode {
                     receiver,
-                    signature: msg.signature.clone(),
+                    signature: interned_signature,
                     inline_cache: None,
                 },
                 values: msg.values.iter().map(|e| expr_parsing_func(self, e)).collect(),
@@ -304,8 +306,8 @@ impl<'a> AstMethodCompilerCtxt<'a> {
                 AstLiteral::String(str_ptr)
             }
             Literal::Symbol(str) => {
-                let str_ptr = self.gc_interface.alloc(str.clone());
-                AstLiteral::Symbol(str_ptr)
+                let interned_sym = self.interner.intern(str.as_str());
+                AstLiteral::Symbol(interned_sym)
             }
             Literal::Double(double) => AstLiteral::Double(*double),
             Literal::Integer(int) => AstLiteral::Integer(*int),

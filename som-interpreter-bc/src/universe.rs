@@ -43,7 +43,7 @@ impl Universe {
 
     /// Initialize the universe from the given classpath and heap size.
     pub fn with_classpath_and_heap_size(classpath: Vec<PathBuf>, heap_size: usize) -> Result<Self, Error> {
-        let mut interner = Interner::with_capacity(100);
+        let mut interner = Interner::with_capacity(200);
         let mut globals = vec![];
 
         let gc_interface = GCInterface::init(heap_size, get_callbacks_for_gc());

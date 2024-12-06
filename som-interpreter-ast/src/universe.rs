@@ -59,7 +59,7 @@ impl Universe {
 
     /// Initialize the universe from the given classpath, and given a heap size
     pub fn with_classpath_and_heap_size(classpath: Vec<PathBuf>, heap_size: usize) -> Result<Self, Error> {
-        let mut interner = Interner::with_capacity(100);
+        let mut interner = Interner::with_capacity(200);
         let mut globals: HashMap<Interned, Value> = HashMap::new();
 
         let gc_interface = GCInterface::init(heap_size, get_callbacks_for_gc());
@@ -268,7 +268,8 @@ impl Universe {
 impl Universe {
     /// Call `escapedBlock:` on the given value, if it is defined.
     pub fn escaped_block(&mut self, value: Value, block: Gc<Block>) -> Option<Return> {
-        let mut initialize = value.lookup_method(self, "escapedBlock:")?;
+        let method_name = self.intern_symbol("escapedBlock:");
+        let mut initialize = value.lookup_method(self, method_name)?;
 
         self.stack_args.push(value);
         self.stack_args.push(Value::Block(block));
@@ -277,9 +278,9 @@ impl Universe {
     }
 
     /// Call `doesNotUnderstand:` on the given value, if it is defined.
-    pub fn does_not_understand(&mut self, value: Value, symbol: impl AsRef<str>, args: Vec<Value>) -> Option<Return> {
-        let mut initialize = value.lookup_method(self, "doesNotUnderstand:arguments:")?;
-        let sym = self.intern_symbol(symbol.as_ref());
+    pub fn does_not_understand(&mut self, value: Value, sym: Interned, args: Vec<Value>) -> Option<Return> {
+        let method_name = self.intern_symbol("doesNotUnderstand:arguments:");
+        let mut initialize = value.lookup_method(self, method_name)?;
         let sym = Value::Symbol(sym);
         let args = Value::Array(self.gc_interface.alloc(VecValue(args)));
 
@@ -295,7 +296,8 @@ impl Universe {
 
     /// Call `unknownGlobal:` on the given value, if it is defined.
     pub fn unknown_global(&mut self, value: Value, sym: Interned) -> Option<Return> {
-        let mut method = value.lookup_method(self, "unknownGlobal:")?;
+        let method_name = self.intern_symbol("unknownGlobal:");
+        let mut method = value.lookup_method(self, method_name)?;
 
         self.stack_args.push(value);
         self.stack_args.push(Value::Symbol(sym));
@@ -310,7 +312,8 @@ impl Universe {
 
     /// Call `System>>#initialize:` with the given name, if it is defined.
     pub fn initialize(&mut self, args: Vec<Value>) -> Option<Return> {
-        let mut initialize = Value::SYSTEM.lookup_method(self, "initialize:")?;
+        let method_name = self.interner.intern("initialize:");
+        let mut initialize = Value::SYSTEM.lookup_method(self, method_name)?;
         let args = Value::Array(self.gc_interface.alloc(VecValue(args)));
         self.stack_args.push(Value::SYSTEM);
         self.stack_args.push(args);

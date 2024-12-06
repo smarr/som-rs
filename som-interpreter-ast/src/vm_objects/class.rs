@@ -6,7 +6,7 @@ use crate::value::Value;
 use crate::vm_objects::method::{Method, MethodKind};
 use indexmap::IndexMap;
 use som_core::ast::ClassDef;
-use som_core::interner::Interner;
+use som_core::interner::{Interned, Interner};
 use som_gc::gc_interface::GCInterface;
 use som_gc::gcref::Gc;
 
@@ -33,7 +33,7 @@ pub struct Class {
     /// The class' fields names.
     pub field_names: Vec<String>,
     /// The class' methods/invokables.
-    pub methods: IndexMap<String, Gc<Method>>,
+    pub methods: IndexMap<Interned, Gc<Method>>,
     /// Is this class a static one ?
     pub is_static: bool,
 }
@@ -105,7 +105,7 @@ impl Class {
 
         let mut instance_class_gc_ptr = gc_interface.alloc(instance_class);
 
-        let mut static_methods: IndexMap<String, Gc<Method>> = defn
+        let mut static_methods: IndexMap<Interned, Gc<Method>> = defn
             .static_methods
             .iter()
             .map(|method| {
@@ -116,13 +116,15 @@ impl Class {
                     signature: signature.clone(),
                     holder: static_class_gc_ptr,
                 };
-                (signature, gc_interface.alloc(method))
+                (interner.intern(signature.as_str()), gc_interface.alloc(method))
             })
             .collect();
 
         if let Some(primitives) = primitives::get_class_primitives(&defn.name) {
             for (signature, primitive, warning) in primitives {
-                if *warning && !static_methods.contains_key(*signature) {
+                let interned_signature = interner.intern(signature);
+
+                if *warning && !static_methods.contains_key(&interned_signature) {
                     eprintln!("Warning: Primitive '{}' is not in class definition for class '{}'", signature, defn.name);
                 }
 
@@ -131,28 +133,30 @@ impl Class {
                     signature: signature.to_string(),
                     holder: static_class_gc_ptr,
                 };
-                static_methods.insert(signature.to_string(), gc_interface.alloc(method));
+                static_methods.insert(interned_signature, gc_interface.alloc(method));
             }
         }
 
-        let mut instance_methods: IndexMap<String, Gc<Method>> = defn
+        let mut instance_methods: IndexMap<Interned, Gc<Method>> = defn
             .instance_methods
             .iter()
             .map(|method| {
-                let signature = method.signature.clone();
+                let interned_signature = interner.intern(&method.signature);
                 let kind = AstMethodCompilerCtxt::get_method_kind(method, Some(instance_class_gc_ptr), gc_interface, interner);
                 let method = Method {
                     kind,
-                    signature: signature.clone(),
+                    signature: method.signature.clone(),
                     holder: instance_class_gc_ptr,
                 };
-                (signature, gc_interface.alloc(method))
+                (interned_signature, gc_interface.alloc(method))
             })
             .collect();
 
         if let Some(primitives) = primitives::get_instance_primitives(&defn.name) {
             for (signature, primitive, warning) in primitives {
-                if *warning && !instance_methods.contains_key(*signature) {
+                let interned_signature = interner.intern(signature);
+
+                if *warning && !instance_methods.contains_key(&interned_signature) {
                     eprintln!("Warning: Primitive '{}' is not in class definition for class '{}'", signature, defn.name);
                 }
 
@@ -161,7 +165,7 @@ impl Class {
                     signature: signature.to_string(),
                     holder: instance_class_gc_ptr,
                 };
-                instance_methods.insert(signature.to_string(), gc_interface.alloc(method));
+                instance_methods.insert(interned_signature, gc_interface.alloc(method));
             }
         }
 
@@ -204,9 +208,8 @@ impl Class {
     }
 
     /// Search for a given method within this class.
-    pub fn lookup_method(&self, signature: impl AsRef<str>) -> Option<Gc<Method>> {
-        let signature = signature.as_ref();
-        self.methods.get(signature).cloned().or_else(|| self.super_class?.lookup_method(signature))
+    pub fn lookup_method(&self, signature: Interned) -> Option<Gc<Method>> {
+        self.methods.get(&signature).cloned().or_else(|| self.super_class?.lookup_method(signature))
     }
 
     /// Search for a local binding.

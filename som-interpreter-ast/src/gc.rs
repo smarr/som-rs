@@ -249,10 +249,10 @@ unsafe fn visit_value<'a>(val: &Value, slot_visitor: &'a mut (dyn SlotVisitor<SO
 /// For safety, literals passed to this function MUST live on the GC heap, but that's always the case for literals (at the moment).
 fn visit_literal(literal: &AstLiteral, slot_visitor: &mut dyn SlotVisitor<SOMSlot>) {
     match &literal {
-        AstLiteral::Symbol(s) | AstLiteral::String(s) => slot_visitor.visit_slot(SOMSlot::from(s)),
+        AstLiteral::String(s) => slot_visitor.visit_slot(SOMSlot::from(s)),
         AstLiteral::BigInteger(big_int) => slot_visitor.visit_slot(SOMSlot::from(big_int)),
         AstLiteral::Array(arr) => slot_visitor.visit_slot(SOMSlot::from(arr)),
-        AstLiteral::Double(_) | AstLiteral::Integer(_) => {}
+        AstLiteral::Symbol(_) | AstLiteral::Double(_) | AstLiteral::Integer(_) => {}
     }
 }
 
