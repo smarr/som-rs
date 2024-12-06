@@ -29,6 +29,6 @@ run_benchmarks() {
 }
 
 run_benchmarks "ast" &
-#run_benchmarks "bc" &
+run_benchmarks "bc" &
 
 wait

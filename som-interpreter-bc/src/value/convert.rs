@@ -299,10 +299,11 @@ impl IntoValue for Gc<Method> {
 }
 
 pub trait Primitive<T>: Sized + Send + Sync + 'static {
-    fn invoke(&self, interpreter: &mut Interpreter, universe: &mut Universe) -> Result<(), Error>;
+    fn invoke(&self, interpreter: &mut Interpreter, universe: &mut Universe, nbr_params: usize) -> Result<(), Error>;
 
     fn into_func(self) -> &'static PrimitiveFn {
-        let boxed = Box::new(move |interpreter: &mut Interpreter, universe: &mut Universe| self.invoke(interpreter, universe));
+        let boxed =
+            Box::new(move |interpreter: &mut Interpreter, universe: &mut Universe, nbr_params: usize| self.invoke(interpreter, universe, nbr_params));
         Box::leak(boxed)
     }
 }
@@ -357,7 +358,7 @@ macro_rules! derive_stuff {
             R: $crate::value::convert::IntoReturn,
             $($ty: $crate::value::convert::FromArgs),*,
         {
-            fn invoke(&self, interpreter: &mut $crate::interpreter::Interpreter, universe: &mut $crate::universe::Universe) -> Result<(), Error> {
+            fn invoke(&self, interpreter: &mut $crate::interpreter::Interpreter, universe: &mut $crate::universe::Universe, _nbr_params: usize) -> Result<(), Error> {
                 reverse!(interpreter, universe, [$($ty),*], []);
                 let result = (self)(interpreter, universe, $($ty),*,)?;
                 result.into_return(interpreter, &mut universe.gc_interface)
@@ -431,25 +432,26 @@ impl IntoValue for DoubleLike {
     }
 }
 
-// impl<F> Primitive<()> for F
-// where
-//     F: Fn(&mut Interpreter, &mut Universe) -> Result<(), Error>
-//     + Send
-//     + Sync
-//     + 'static,
-// {
-//     fn invoke(
-//         &self,
-//         interpreter: &mut Interpreter,
-//         universe: &mut Universe,
-//     ) -> Result<(), Error> {
-//         (self)(interpreter, universe)
-//     }
-// }
-
 derive_stuff!(_A);
 derive_stuff!(_A, _B);
 derive_stuff!(_A, _B, _C);
 derive_stuff!(_A, _B, _C, _D);
 derive_stuff!(_A, _B, _C, _D, _E);
 derive_stuff!(_A, _B, _C, _D, _E, _F);
+
+// TODO: adapt macro instead
+impl<F, R> crate::value::convert::Primitive<()> for F
+where
+    F: Fn(&mut crate::interpreter::Interpreter, &mut crate::universe::Universe) -> Result<R, Error> + Send + Sync + 'static,
+    R: crate::value::convert::IntoReturn,
+{
+    fn invoke(
+        &self,
+        interpreter: &mut crate::interpreter::Interpreter,
+        universe: &mut crate::universe::Universe,
+        _nbr_params: usize,
+    ) -> Result<(), Error> {
+        let result = (self)(interpreter, universe)?;
+        result.into_return(interpreter, universe.gc_interface)
+    }
+}

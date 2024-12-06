@@ -2,7 +2,6 @@ use crate::compiler::Literal;
 use crate::gc::VecValue;
 use crate::universe::Universe;
 use crate::value::Value;
-use crate::vm_objects::block::Block;
 use crate::vm_objects::class::Class;
 use crate::vm_objects::frame::Frame;
 use crate::vm_objects::instance::Instance;
@@ -94,7 +93,7 @@ impl Interpreter {
     }
 
     /// Creates and allocates a new frame corresponding to a method, with arguments provided.
-    /// Used in primitives and
+    /// Used in primitives and corner cases like DNU calls.
     pub fn push_method_frame_with_args(&mut self, method: Gc<Method>, args: &[Value], mutator: &mut GCInterface) -> Gc<Frame> {
         let frame_ptr = Frame::alloc_from_method_with_args(method, args, &mut self.current_frame, mutator);
 
@@ -106,10 +105,8 @@ impl Interpreter {
     }
 
     /// Creates and allocates a new frame corresponding to a method.
-    /// Always passes arguments directly since we don't take them as a slice off the previous frame, like we do for methods.
-    /// ...which would likely be faster, actually. TODO.
-    pub fn push_block_frame_with_args(&mut self, block: Gc<Block>, args: &[Value], mutator: &mut GCInterface) -> Gc<Frame> {
-        let frame_ptr = Frame::alloc_from_block(block, args, &mut self.current_frame, mutator);
+    pub fn push_block_frame(&mut self, nbr_args: usize, mutator: &mut GCInterface) -> Gc<Frame> {
+        let frame_ptr = Frame::alloc_from_block(nbr_args, &mut self.current_frame, mutator);
         self.bytecode_idx = 0;
         self.current_bytecodes = frame_ptr.get_bytecode_ptr();
         self.current_frame = frame_ptr;
@@ -486,7 +483,7 @@ impl Interpreter {
                 }
                 Method::Primitive(func, ..) => {
                     // eprintln!("Invoking prim {:?} (in {:?})", &method.signature, &method.holder.name);
-                    func(interpreter, universe)
+                    func(interpreter, universe, nb_params)
                         .with_context(|| anyhow::anyhow!("error calling primitive `{}`", universe.lookup_symbol(symbol)))
                         .unwrap();
                 }

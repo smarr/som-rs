@@ -71,6 +71,35 @@ impl Frame {
         frame_ptr
     }
 
+    /// Allocates a frame for a block.
+    /// We assume that the block is on the stack of the previous frame, as is the case when calling
+    /// the primitive functions that create new blocks. We do this to make sure it's reachable
+    /// during GC.
+    pub fn alloc_from_block(nbr_args: usize, prev_frame: &mut Gc<Frame>, gc_interface: &mut GCInterface) -> Gc<Frame> {
+        std::hint::black_box(&prev_frame);
+
+        let (max_stack_size, nbr_locals) = {
+            let block_value = prev_frame.stack_nth_back(nbr_args - 1);
+            let block = block_value.as_block().unwrap();
+            {
+                let block_env = block.blk_info.get_env();
+                (block_env.max_stack_size as usize, block_env.nbr_locals)
+            }
+        };
+
+        let size = Frame::get_true_size(max_stack_size, nbr_locals, nbr_args);
+
+        let mut frame_ptr: Gc<Frame> = gc_interface.request_memory_for_type(size);
+        let block_value = prev_frame.stack_nth_back(nbr_args - 1);
+        *frame_ptr = Frame::from_block(block_value.as_block().unwrap());
+
+        let args = prev_frame.stack_n_last_elements(nbr_args);
+        Frame::init_frame_post_alloc(frame_ptr, args, max_stack_size, *prev_frame);
+        prev_frame.remove_n_last_elements(nbr_args);
+
+        frame_ptr
+    }
+
     /// Allocates a method, given some arguments directly as opposed to off of a previous frame's stack.
     ///
     /// Could also take a pointer to the method to not have to push it on the stack, like the normal-case frame method alloc function.
@@ -101,40 +130,6 @@ impl Frame {
                 *prev_frame,
             );
 
-            HACK_FRAME_FRAME_ARGS_PTR = None;
-        }
-
-        frame_ptr
-    }
-
-    pub fn alloc_from_block(block: Gc<Block>, args: &[Value], prev_frame: &mut Gc<Frame>, gc_interface: &mut GCInterface) -> Gc<Frame> {
-        std::hint::black_box(&prev_frame);
-
-        let max_stack_size = block.blk_info.get_env().max_stack_size as usize;
-        let nbr_locals = block.blk_info.get_env().nbr_locals;
-
-        let size = Frame::get_true_size(max_stack_size, nbr_locals, args.len());
-
-        unsafe {
-            HACK_FRAME_FRAME_ARGS_PTR = Some(Vec::from(args));
-        }
-
-        prev_frame.stack_push(Value::new_block(block));
-
-        let mut frame_ptr: Gc<Frame> = gc_interface.request_memory_for_type(size);
-
-        unsafe {
-            let block = prev_frame.stack_pop().as_block().unwrap();
-            *frame_ptr = Frame::from_block(block);
-            Frame::init_frame_post_alloc(
-                frame_ptr,
-                HACK_FRAME_FRAME_ARGS_PTR.as_ref().unwrap().as_slice(),
-                max_stack_size,
-                *prev_frame,
-            );
-        }
-
-        unsafe {
             HACK_FRAME_FRAME_ARGS_PTR = None;
         }
 

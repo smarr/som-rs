@@ -28,7 +28,7 @@ use once_cell::sync::Lazy;
 
 // TODO we're missing several primitive changes from master originally
 
-pub type PrimitiveFn = dyn Fn(&mut Interpreter, &mut Universe) -> Result<(), Error> + Send + Sync + 'static;
+pub type PrimitiveFn = dyn Fn(&mut Interpreter, &mut Universe, usize) -> Result<(), Error> + Send + Sync + 'static;
 
 pub type PrimInfo = (&'static str, &'static PrimitiveFn, bool);
 
