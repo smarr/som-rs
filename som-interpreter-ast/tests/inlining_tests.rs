@@ -1,3 +1,5 @@
+use rstest::{fixture, rstest};
+use som_core::interner::Interner;
 use som_gc::gc_interface::GCInterface;
 use som_interpreter_ast::ast::AstExpression::*;
 use som_interpreter_ast::ast::InlinedNode::IfInlined;
@@ -10,24 +12,29 @@ use som_interpreter_ast::universe::DEFAULT_HEAP_SIZE;
 use som_lexer::{Lexer, Token};
 use som_parser::lang;
 
-fn get_ast(class_txt: &str) -> AstMethodDef {
+#[fixture]
+fn interner() -> Interner {
+    Interner::with_capacity(20)
+}
+
+fn get_ast(class_txt: &str, interner: &mut Interner) -> AstMethodDef {
     let mut lexer = Lexer::new(class_txt).skip_comments(true).skip_whitespace(true);
     let tokens: Vec<Token> = lexer.by_ref().collect();
     assert!(lexer.text().is_empty(), "could not fully tokenize test expression");
 
     let method_def = som_parser::apply(lang::instance_method_def(), tokens.as_slice()).unwrap();
 
-    AstMethodCompilerCtxt::parse_method_def(&method_def, None, GCInterface::init(DEFAULT_HEAP_SIZE, get_callbacks_for_gc()))
+    AstMethodCompilerCtxt::parse_method_def(&method_def, None, GCInterface::init(DEFAULT_HEAP_SIZE, get_callbacks_for_gc()), interner)
 }
 
-#[test]
-fn if_true_inlining_ok() {
+#[rstest]
+fn if_true_inlining_ok(mut interner: Interner) {
     let very_basic = "run = (
         true ifTrue: [ ^true ].
         ^ false
     )";
 
-    let ast = get_ast(very_basic);
+    let ast = get_ast(very_basic, &mut interner);
 
     assert_eq!(
         ast,
@@ -38,20 +45,20 @@ fn if_true_inlining_ok() {
                 exprs: vec![
                     InlinedCall(Box::new(IfInlined(IfInlinedNode {
                         expected_bool: true,
-                        cond_expr: GlobalRead(Box::new("true".to_string())),
+                        cond_expr: GlobalRead(interner.reverse_lookup("true").unwrap()),
                         body_instrs: AstBody {
-                            exprs: vec![LocalExit(Box::new(GlobalRead(Box::new("true".to_string()))))],
+                            exprs: vec![LocalExit(Box::new(GlobalRead(interner.reverse_lookup("true").unwrap())))],
                         },
                     },),)),
-                    LocalExit(Box::new(GlobalRead(Box::new("false".to_string())))),
+                    LocalExit(Box::new(GlobalRead(interner.reverse_lookup("false").unwrap()))),
                 ],
             },
         }
     );
 }
 
-#[test]
-fn if_false_inlining_ok() {
+#[rstest]
+fn if_false_inlining_ok(mut interner: Interner) {
     // based on the method of the same name defined in System
     let method_txt2 = "resolve: a = (
         | class |
@@ -59,7 +66,7 @@ fn if_false_inlining_ok() {
             ^class ].
     )";
 
-    let resolve = get_ast(method_txt2);
+    let resolve = get_ast(method_txt2, &mut interner);
 
     assert_eq!(
         resolve,
@@ -75,7 +82,7 @@ fn if_false_inlining_ok() {
                             receiver: LocalVarRead(0),
                             inline_cache: None
                         },
-                        arg: GlobalRead(Box::new("nil".to_string())),
+                        arg: GlobalRead(interner.reverse_lookup("nil").unwrap()),
                     }),),
                     body_instrs: AstBody {
                         exprs: vec![LocalExit(Box::new(LocalVarRead(0)))]
@@ -86,8 +93,8 @@ fn if_false_inlining_ok() {
     );
 }
 
-#[test]
-pub fn recursive_inlining() {
+#[rstest]
+pub fn recursive_inlining(mut interner: Interner) {
     // from Hashtable.
     let contains_key_txt = "containsKey: key = ( 
         | idx e | 
@@ -128,9 +135,9 @@ pub fn recursive_inlining() {
                                             body block:
                                                 AstBody:
                                                     NonLocalExit(1)
-                                                        GlobalRead(true)";
+                                                        GlobalRead(Interned(0))";
 
-    let resolve = get_ast(contains_key_txt);
+    let resolve = get_ast(contains_key_txt, &mut interner);
 
     let cleaned_ast_answer: String = ast_answer.chars().filter(|c| !c.is_whitespace()).collect();
     let cleaned_resolve: String = resolve.to_string().chars().filter(|c| !c.is_whitespace()).collect();
@@ -138,15 +145,15 @@ pub fn recursive_inlining() {
     assert_eq!(cleaned_ast_answer, cleaned_resolve);
 }
 
-#[test]
-fn to_do_inlining_ok() {
+#[rstest]
+fn to_do_inlining_ok(mut interner: Interner) {
     let to_do_str = "run = (
         | a |
         a := 42.
         1 to: 50 do: [ :i | (a + i) println ].
     )";
+    let ast = get_ast(to_do_str, &mut interner);
 
-    let ast = get_ast(to_do_str);
     assert_eq!(
         ast,
         AstMethodDef {

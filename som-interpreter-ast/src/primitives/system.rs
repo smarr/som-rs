@@ -84,34 +84,29 @@ fn error_println(universe: &mut Universe, _: Value, string: StringLike) -> Resul
 fn load(universe: &mut Universe, _: Value, class_name: Interned) -> Result<Value, Error> {
     const SIGNATURE: &str = "System>>#load:";
 
-    let name = universe.lookup_symbol(class_name).to_string();
-
-    if let Some(cached_class) = universe.lookup_global(&name) {
+    if let Some(cached_class) = universe.lookup_global(class_name) {
         if cached_class.is_class() {
             return Ok(cached_class);
         }
     }
 
-    match universe.load_class(name) {
+    let class_name_str = universe.lookup_symbol(class_name).to_string();
+    match universe.load_class(class_name_str) {
         Ok(class) => Ok(Value::Class(class)),
         Err(err) => bail!(format!("'{}': {}", SIGNATURE, err)),
     }
 }
 
 fn has_global(universe: &mut Universe, _: Value, name: Interned) -> Result<Value, Error> {
-    const _: &str = "System>>#hasGlobal:";
-    let symbol = universe.lookup_symbol(name);
-    Ok(Value::Boolean(universe.has_global(symbol)))
+    Ok(Value::Boolean(universe.has_global(name)))
 }
 
-fn global(universe: &mut Universe, _: Value, name: Interned) -> Result<Value, Error> {
-    let symbol = universe.lookup_symbol(name);
-    Ok(universe.lookup_global(symbol).unwrap_or(Value::NIL))
+fn global(universe: &mut Universe, _: Value, sym: Interned) -> Result<Value, Error> {
+    Ok(universe.lookup_global(sym).unwrap_or(Value::NIL))
 }
 
 fn global_put(universe: &mut Universe, _: Value, name: Interned, value: Value) -> Result<Value, Error> {
-    let symbol = universe.lookup_symbol(name).to_string();
-    universe.assign_global(symbol, &value);
+    universe.assign_global(name, &value);
     Ok(value)
 }
 

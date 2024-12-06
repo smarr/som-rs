@@ -9,6 +9,7 @@ use crate::vm_objects::class::Class;
 use crate::vm_objects::method::Method;
 use indenter::indented;
 use num_bigint::BigInt;
+use som_core::interner::Interned;
 use som_gc::gcref::Gc;
 use std::fmt::Write;
 use std::fmt::{Debug, Display, Formatter};
@@ -30,7 +31,7 @@ pub struct AstBody {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum AstExpression {
-    GlobalRead(Box<String>),
+    GlobalRead(Interned),
     LocalVarRead(u8),
     NonLocalVarRead(u8, u8),
     ArgRead(u8, u8),
@@ -166,7 +167,7 @@ impl Display for AstBlock {
 impl Display for AstExpression {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            AstExpression::GlobalRead(name) => writeln!(f, "GlobalRead({})", name),
+            AstExpression::GlobalRead(name) => writeln!(f, "GlobalRead({:?})", name),
             AstExpression::LocalVarRead(index) => writeln!(f, "LocalVarRead({})", index),
             AstExpression::NonLocalVarRead(level, index) => {
                 writeln!(f, "NonLocalVarRead({}, {})", level, index)

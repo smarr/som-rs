@@ -12,6 +12,7 @@ use crate::vm_objects::class::Class;
 use crate::vm_objects::method::{MethodKind, MethodKindSpecialized};
 use som_core::ast;
 use som_core::ast::{Expression, Literal, MethodBody};
+use som_core::interner::Interner;
 use som_gc::gc_interface::GCInterface;
 use som_gc::gcref::Gc;
 use std::panic;
@@ -23,6 +24,8 @@ pub struct AstMethodCompilerCtxt<'a> {
     pub(crate) scopes: Vec<AstScopeCtxt>,
     /// The interface to the GC to allocate anything we want during parsing.
     pub(crate) gc_interface: &'a mut GCInterface,
+    /// For string interning during compilation.
+    pub(crate) interner: &'a mut Interner,
 }
 
 #[derive(Debug, Default)]
@@ -54,24 +57,25 @@ impl AstScopeCtxt {
 }
 
 impl<'a> AstMethodCompilerCtxt<'a> {
-    pub fn new(gc_interface: &'a mut GCInterface) -> Self {
+    pub fn new(gc_interface: &'a mut GCInterface, interner: &'a mut Interner) -> Self {
         Self {
             class: None,
             scopes: vec![],
             gc_interface,
+            interner,
         }
     }
 
-    pub fn get_method_kind(method: &ast::MethodDef, class: Option<Gc<Class>>, gc_interface: &mut GCInterface) -> MethodKind {
+    pub fn get_method_kind(method: &ast::MethodDef, class: Option<Gc<Class>>, gc_interface: &mut GCInterface, interner: &mut Interner) -> MethodKind {
         match method.signature.as_str() {
             "to:by:do:" => MethodKind::Specialized(MethodKindSpecialized::ToByDo(ToByDoNode {})),
             "downTo:do:" => MethodKind::Specialized(MethodKindSpecialized::DownToDo(DownToDoNode {})),
             _ => match method.body {
                 MethodBody::Primitive => MethodKind::Primitive(&*UNIMPLEM_PRIMITIVE),
                 MethodBody::Body { .. } => {
-                    let ast_method_def = AstMethodCompilerCtxt::parse_method_def(method, class, gc_interface);
+                    let ast_method_def = AstMethodCompilerCtxt::parse_method_def(method, class, gc_interface, interner);
 
-                    if let Some(trivial_method_kind) = AstMethodCompilerCtxt::make_trivial_method_if_possible(&ast_method_def) {
+                    if let Some(trivial_method_kind) = AstMethodCompilerCtxt::make_trivial_method_if_possible(&ast_method_def, interner) {
                         trivial_method_kind
                     } else {
                         MethodKind::Defined(ast_method_def)
@@ -81,7 +85,7 @@ impl<'a> AstMethodCompilerCtxt<'a> {
         }
     }
 
-    pub(crate) fn make_trivial_method_if_possible(method_def: &AstMethodDef) -> Option<MethodKind> {
+    pub(crate) fn make_trivial_method_if_possible(method_def: &AstMethodDef, _interner: &mut Interner) -> Option<MethodKind> {
         if method_def.locals_nbr != 0 || method_def.body.exprs.len() != 1 {
             return None;
         }
@@ -93,9 +97,7 @@ impl<'a> AstMethodCompilerCtxt<'a> {
                         Some(MethodKind::TrivialLiteral(TrivialLiteralMethod { literal: lit.clone() }))
                         // todo avoid clone by moving code to previous function tbh
                     }
-                    AstExpression::GlobalRead(global) => Some(MethodKind::TrivialGlobal(TrivialGlobalMethod {
-                        global_name: *global.clone(),
-                    })),
+                    AstExpression::GlobalRead(global) => Some(MethodKind::TrivialGlobal(TrivialGlobalMethod { global_name: *global })),
                     AstExpression::FieldRead(idx) => Some(MethodKind::TrivialGetter(TrivialGetterMethod { field_idx: *idx })),
                     _ => None,
                 }
@@ -110,7 +112,12 @@ impl<'a> AstMethodCompilerCtxt<'a> {
 
     /// Transforms a generic MethodDef into an AST-specific one.
     /// Note: public since it's used in tests.
-    pub fn parse_method_def(method_def: &ast::MethodDef, class: Option<Gc<Class>>, gc_interface: &mut GCInterface) -> AstMethodDef {
+    pub fn parse_method_def(
+        method_def: &ast::MethodDef,
+        class: Option<Gc<Class>>,
+        gc_interface: &mut GCInterface,
+        interner: &mut Interner,
+    ) -> AstMethodDef {
         let (body, locals_nbr) = match &method_def.body {
             MethodBody::Primitive => {
                 unreachable!("unimplemented primitive")
@@ -121,6 +128,7 @@ impl<'a> AstMethodCompilerCtxt<'a> {
                     class,
                     scopes: vec![AstScopeCtxt::init(args_nbr, *locals_nbr, false)],
                     gc_interface,
+                    interner,
                 };
 
                 (ctxt.parse_body(body), ctxt.scopes.last().unwrap().get_nbr_locals() as u8)
@@ -257,18 +265,18 @@ impl<'a> AstMethodCompilerCtxt<'a> {
         }
     }
 
-    pub(crate) fn global_or_field_read_from_superclass(&self, name: String) -> AstExpression {
+    pub(crate) fn global_or_field_read_from_superclass(&mut self, name: String) -> AstExpression {
         if name.as_str() == "super" {
             return AstExpression::ArgRead((self.scopes.len() - 1) as u8, 0);
         }
 
         if self.class.is_none() {
-            return AstExpression::GlobalRead(Box::new(name.clone()));
+            return AstExpression::GlobalRead(self.interner.intern(name.as_str()));
         }
 
         match self.class.unwrap().get_field_offset_by_name(&name) {
             Some(offset) => AstExpression::FieldRead(offset as u8),
-            _ => AstExpression::GlobalRead(Box::new(name.clone())),
+            _ => AstExpression::GlobalRead(self.interner.intern(name.as_str())),
         }
     }
 

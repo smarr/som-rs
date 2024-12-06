@@ -6,6 +6,7 @@ use crate::value::Value;
 use crate::vm_objects::method::{Method, MethodKind};
 use indexmap::IndexMap;
 use som_core::ast::ClassDef;
+use som_core::interner::Interner;
 use som_gc::gc_interface::GCInterface;
 use som_gc::gcref::Gc;
 
@@ -52,7 +53,12 @@ impl Class {
     /// Load up a class from its class definition from the AST.
     /// NB: super_class is only ever None for one class: the core Object class, which all other classes inherit from.
     /// NB: while it takes the super_class as argument, it's not in charge of hooking it up to the class itself. That's `set_super_class`. Might need changing for clarity.
-    pub fn from_class_def(defn: ClassDef, super_class: Option<Gc<Class>>, gc_interface: &mut GCInterface) -> Result<Gc<Class>, String> {
+    pub fn from_class_def(
+        defn: ClassDef,
+        super_class: Option<Gc<Class>>,
+        gc_interface: &mut GCInterface,
+        interner: &mut Interner,
+    ) -> Result<Gc<Class>, String> {
         let static_locals = {
             let mut static_locals = IndexMap::new();
             for field in defn.static_locals.iter() {
@@ -104,7 +110,7 @@ impl Class {
             .iter()
             .map(|method| {
                 let signature = method.signature.clone();
-                let kind = AstMethodCompilerCtxt::get_method_kind(method, Some(static_class_gc_ptr), gc_interface);
+                let kind = AstMethodCompilerCtxt::get_method_kind(method, Some(static_class_gc_ptr), gc_interface, interner);
                 let method = Method {
                     kind,
                     signature: signature.clone(),
@@ -134,7 +140,7 @@ impl Class {
             .iter()
             .map(|method| {
                 let signature = method.signature.clone();
-                let kind = AstMethodCompilerCtxt::get_method_kind(method, Some(instance_class_gc_ptr), gc_interface);
+                let kind = AstMethodCompilerCtxt::get_method_kind(method, Some(instance_class_gc_ptr), gc_interface, interner);
                 let method = Method {
                     kind,
                     signature: signature.clone(),

@@ -120,7 +120,7 @@ fn basic_interpreter_tests(universe: &mut Universe) {
         assert!(lexer.text().is_empty(), "could not fully tokenize test expression");
 
         let ast_parser = som_parser::apply(lang::expression(), tokens.as_slice()).unwrap();
-        let mut compiler = AstMethodCompilerCtxt::new(universe.gc_interface);
+        let mut compiler = AstMethodCompilerCtxt::new(universe.gc_interface, &mut universe.interner);
         let mut ast = compiler.parse_expression(&ast_parser);
 
         universe.stack_args.push(Value::SYSTEM);
@@ -167,7 +167,8 @@ fn basic_benchmark_runner(universe: &mut Universe, #[case] benchmark_name: &str)
         .collect();
 
     let output = universe.initialize(args).unwrap();
-    let benchmark_harness_class = universe.lookup_global("BenchmarkHarness").unwrap().as_class().unwrap();
+    let benchmark_harness_str = universe.intern_symbol("BenchmarkHarness");
+    let benchmark_harness_class = universe.lookup_global(benchmark_harness_str).unwrap().as_class().unwrap();
 
     match output {
         Return::Local(val) => {

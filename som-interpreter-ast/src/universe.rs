@@ -28,7 +28,7 @@ pub struct Universe {
     /// The string interner for symbols.
     pub interner: Interner,
     /// The known global bindings.
-    pub globals: HashMap<String, Value>,
+    pub globals: HashMap<Interned, Value>,
     /// The path to search in for new classes.
     pub classpath: Vec<PathBuf>,
     /// The current frame for the operation
@@ -59,13 +59,13 @@ impl Universe {
 
     /// Initialize the universe from the given classpath, and given a heap size
     pub fn with_classpath_and_heap_size(classpath: Vec<PathBuf>, heap_size: usize) -> Result<Self, Error> {
-        let interner = Interner::with_capacity(100);
-        let mut globals: HashMap<String, Value> = HashMap::new();
+        let mut interner = Interner::with_capacity(100);
+        let mut globals: HashMap<Interned, Value> = HashMap::new();
 
         let gc_interface = GCInterface::init(heap_size, get_callbacks_for_gc());
 
         let mut core: CoreClasses<Gc<Class>> = CoreClasses::from_load_cls_fn(|name: &str, super_cls: Option<Gc<Class>>| {
-            Self::load_system_class(classpath.as_slice(), name, super_cls, gc_interface).unwrap()
+            Self::load_system_class(classpath.as_slice(), name, super_cls, gc_interface, &mut interner).unwrap()
         });
 
         // TODO: these can be removed for the most part - in the AST at least, we set a lot of super class relationships when loading system classes directly.
@@ -103,13 +103,13 @@ impl Universe {
         set_super_class(&mut core.false_class, &core.boolean_class, &core.metaclass_class);
 
         for (cls_name, core_cls) in core.iter() {
-            globals.insert(cls_name.into(), Value::Class(*core_cls));
+            globals.insert(interner.intern(cls_name), Value::Class(*core_cls));
         }
 
-        globals.insert("true".into(), Value::Boolean(true));
-        globals.insert("false".into(), Value::Boolean(false));
-        globals.insert("nil".into(), Value::NIL);
-        globals.insert("system".into(), Value::SYSTEM);
+        globals.insert(interner.intern("true"), Value::Boolean(true));
+        globals.insert(interner.intern("false"), Value::Boolean(false));
+        globals.insert(interner.intern("nil"), Value::NIL);
+        globals.insert(interner.intern("system"), Value::SYSTEM);
 
         Ok(Self {
             globals,
@@ -151,51 +151,17 @@ impl Universe {
             }
 
             let super_class = if let Some(ref super_class) = defn.super_class {
-                self.lookup_global(super_class).and_then(Value::as_class).unwrap_or_else(|| self.load_class(super_class).unwrap())
+                let symbol = self.intern_symbol(super_class.as_str());
+                self.lookup_global(symbol).and_then(Value::as_class).unwrap_or_else(|| self.load_class(super_class).unwrap())
             } else {
                 self.core.object_class
             };
 
-            let mut class = Class::from_class_def(defn, Some(super_class), self.gc_interface).map_err(Error::msg)?;
+            let mut class = Class::from_class_def(defn, Some(super_class), self.gc_interface, &mut self.interner).map_err(Error::msg)?;
             set_super_class(&mut class, &super_class, &self.core.metaclass_class);
 
-            /*fn has_duplicated_field(class: &SOMRef<Class>) -> Option<(String, (String, String))> {
-                let super_class_iterator = std::iter::successors(Some(class), |class| {
-                    class.borrow().super_class()
-                });
-                let mut map = HashMap::<String, String>::new();
-                for class in super_class_iterator {
-                    let class_name = class.borrow().name().to_string();
-                    for (field, _) in class.borrow().locals.iter() {
-                        let field_name = field;
-                        match map.entry(field_name) {
-                            Entry::Occupied(entry) => {
-                                return Some((field_name, (class_name, entry.get())))
-                            }
-                            Entry::Vacant(v) => {
-                                v.insert(class_name);
-                            }
-                        }
-                    }
-                }
-                return None;
-            }*/
-
-            /*if let Some((field, (c1, c2))) = has_duplicated_field(&class) {
-                return Err(anyhow!(
-                    "the field named '{}' is defined more than once (by '{}' and '{}', where the latter inherits from the former)",
-                    field, c1, c2,
-                ));
-            }
-
-            if let Some((field, (c1, c2))) = has_duplicated_field(&class.borrow().class()) {
-                return Err(anyhow!(
-                    "the field named '{}' is defined more than once (by '{}' and '{}', where the latter inherits from the former)",
-                    field, c1, c2,
-                ));
-            }*/
-
-            self.globals.insert(class.name().to_string(), Value::Class(class));
+            let symbol = self.intern_symbol(class.name());
+            self.globals.insert(symbol, Value::Class(class));
 
             return Ok(class);
         }
@@ -209,6 +175,7 @@ impl Universe {
         class_name: impl Into<String>,
         super_class: Option<Gc<Class>>,
         gc_interface: &mut GCInterface,
+        interner: &mut Interner,
     ) -> Result<Gc<Class>, Error> {
         let class_name = class_name.into();
         for path in classpath {
@@ -235,7 +202,7 @@ impl Universe {
                 return Err(anyhow!("{}: class name is different from file name.", path.display(),));
             }
 
-            return Class::from_class_def(defn, super_class, gc_interface).map_err(Error::msg);
+            return Class::from_class_def(defn, super_class, gc_interface, interner).map_err(Error::msg);
         }
 
         Err(anyhow!("could not find the '{}' system class", class_name))
@@ -276,20 +243,18 @@ impl Universe {
     }
 
     /// Returns whether a global binding of the specified name exists.
-    pub fn has_global(&self, name: impl AsRef<str>) -> bool {
-        let name = name.as_ref();
-        self.globals.contains_key(name)
+    pub fn has_global(&self, name: Interned) -> bool {
+        self.globals.contains_key(&name)
     }
 
     /// Search for a global binding.
-    pub fn lookup_global(&self, name: impl AsRef<str>) -> Option<Value> {
-        let name = name.as_ref();
-        self.globals.get(name).cloned()
+    pub fn lookup_global(&self, name: Interned) -> Option<Value> {
+        self.globals.get(&name).cloned()
     }
 
     /// Assign a value to a global binding.
-    pub fn assign_global(&mut self, name: impl AsRef<str>, value: &Value) -> Option<()> {
-        self.globals.insert(name.as_ref().to_string(), *value).map(|_| ())
+    pub fn assign_global(&mut self, name: Interned, value: &Value) -> Option<()> {
+        self.globals.insert(name, *value).map(|_| ())
     }
 
     #[inline(always)]
@@ -329,8 +294,7 @@ impl Universe {
     }
 
     /// Call `unknownGlobal:` on the given value, if it is defined.
-    pub fn unknown_global(&mut self, value: Value, name: impl AsRef<str>) -> Option<Return> {
-        let sym = self.intern_symbol(name.as_ref());
+    pub fn unknown_global(&mut self, value: Value, sym: Interned) -> Option<Return> {
         let mut method = value.lookup_method(self, "unknownGlobal:")?;
 
         self.stack_args.push(value);

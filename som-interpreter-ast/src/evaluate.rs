@@ -103,12 +103,12 @@ impl Evaluate for AstExpression {
                 Return::Local(arg)
             }
             Self::GlobalRead(name) => universe
-                .lookup_global(name.as_str())
+                .lookup_global(*name)
                 .map(Return::Local)
                 .or_else(|| {
                     let frame = universe.current_frame;
                     let self_value = frame.get_self();
-                    universe.unknown_global(self_value, name.as_str())
+                    universe.unknown_global(self_value, *name)
                 })
                 .unwrap_or_else(|| panic!("global not found and unknown_global call failed somehow?")),
             Self::UnaryDispatch(un_op) => un_op.evaluate(universe),
