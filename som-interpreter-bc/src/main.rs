@@ -3,14 +3,13 @@
 //!
 #![warn(missing_docs)]
 
-use std::path::PathBuf;
-use std::ptr::NonNull;
-
 use anyhow::{bail, Context};
 #[cfg(feature = "jemalloc")]
 use jemallocator::Jemalloc;
 use som_gc::gcref::Gc;
 use som_interpreter_bc::vm_objects::class::Class;
+use std::path::PathBuf;
+use std::sync::atomic::Ordering;
 use structopt::StructOpt;
 mod shell;
 
@@ -99,10 +98,8 @@ fn run() -> anyhow::Result<()> {
 
     let mut interpreter = universe.initialize(args).expect("issue running program");
 
-    unsafe {
-        INTERPRETER_RAW_PTR_CONST = NonNull::new(&mut interpreter);
-        UNIVERSE_RAW_PTR_CONST = NonNull::new(&mut universe);
-    }
+    INTERPRETER_RAW_PTR_CONST.store(&mut interpreter, Ordering::SeqCst);
+    UNIVERSE_RAW_PTR_CONST.store(&mut universe, Ordering::SeqCst);
 
     interpreter.run(&mut universe);
 

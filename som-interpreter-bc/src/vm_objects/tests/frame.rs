@@ -10,7 +10,7 @@ use som_lexer::{Lexer, Token};
 use som_parser::lang;
 use std::cell::OnceCell;
 use std::path::PathBuf;
-use std::ptr::NonNull;
+use std::sync::atomic::Ordering;
 
 // TODO: instead of a universe cell, these should all use some mocks..
 static mut UNIVERSE_CELL: OnceCell<Universe> = OnceCell::new();
@@ -34,7 +34,7 @@ pub fn universe<'a>() -> &'a mut Universe {
         });
 
         let mut_universe_ref = UNIVERSE_CELL.get_mut().unwrap();
-        UNIVERSE_RAW_PTR_CONST = NonNull::new(mut_universe_ref);
+        UNIVERSE_RAW_PTR_CONST.store(mut_universe_ref, Ordering::SeqCst);
         mut_universe_ref
     }
 }

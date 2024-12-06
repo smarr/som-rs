@@ -3,12 +3,11 @@
 //!
 #![warn(missing_docs)]
 
-use std::path::PathBuf;
-use std::ptr::NonNull;
-
 use anyhow::anyhow;
 #[cfg(feature = "jemalloc")]
 use jemallocator::Jemalloc;
+use std::path::PathBuf;
+use std::sync::atomic::Ordering;
 use structopt::StructOpt;
 
 mod shell;
@@ -71,9 +70,7 @@ fn main() -> anyhow::Result<()> {
                 }
             };
 
-            unsafe {
-                UNIVERSE_RAW_PTR_CONST = NonNull::new(&mut universe);
-            }
+            UNIVERSE_RAW_PTR_CONST.store(&mut universe, Ordering::SeqCst);
 
             let args = std::iter::once(String::from(file_stem))
                 .chain(opts.args.iter().cloned())

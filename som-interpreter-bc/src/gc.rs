@@ -201,12 +201,12 @@ fn get_roots_in_mutator_thread(_mutator: &mut Mutator<SOMVM>) -> Vec<SOMSlot> {
         let mut to_process: Vec<SOMSlot> = vec![];
 
         assert!(
-            UNIVERSE_RAW_PTR_CONST.is_some() && INTERPRETER_RAW_PTR_CONST.is_some(),
+            !(*UNIVERSE_RAW_PTR_CONST.as_ptr()).is_null() && !(*INTERPRETER_RAW_PTR_CONST.as_ptr()).is_null(),
             "GC triggered while the system wasn't finished initializing."
         );
 
         // walk the frame list.
-        let current_frame_addr = &INTERPRETER_RAW_PTR_CONST.unwrap().as_ref().current_frame;
+        let current_frame_addr = &(**INTERPRETER_RAW_PTR_CONST.as_ptr()).current_frame;
         debug!(
             "scanning root: current_frame (method: {})",
             current_frame_addr.current_context.get_env().signature
@@ -215,14 +215,14 @@ fn get_roots_in_mutator_thread(_mutator: &mut Mutator<SOMVM>) -> Vec<SOMSlot> {
 
         // walk globals (includes core classes)
         debug!("scanning roots: globals");
-        for (_name, val) in UNIVERSE_RAW_PTR_CONST.unwrap().as_mut().globals.iter_mut() {
+        for (_name, val) in (**UNIVERSE_RAW_PTR_CONST.as_ptr()).globals.iter_mut() {
             if val.is_ptr_type() {
                 to_process.push(SOMSlot::from(val.as_mut_ptr()));
             }
         }
 
         // we update the core classes in their class also though, to properly move them
-        UNIVERSE_RAW_PTR_CONST.unwrap().as_mut().core.iter().for_each(|(_, cls_ptr)| to_process.push(SOMSlot::from(cls_ptr)));
+        (**UNIVERSE_RAW_PTR_CONST.as_ptr()).core.iter().for_each(|(_, cls_ptr)| to_process.push(SOMSlot::from(cls_ptr)));
 
         if HACK_INSTANCE_CLASS_PTR.is_some() {
             to_process.push(SOMSlot::from(HACK_INSTANCE_CLASS_PTR.as_ref().unwrap()));

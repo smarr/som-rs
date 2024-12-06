@@ -10,7 +10,7 @@ use crate::interpreter::Interpreter;
 use crate::universe::Universe;
 use crate::value::Value;
 use som_gc::gcref::Gc;
-use std::ptr::NonNull;
+use std::sync::atomic::AtomicPtr;
 use vm_objects::class::Class;
 
 /// VM objects.
@@ -36,9 +36,10 @@ pub mod gc;
 pub mod debug;
 
 /// Raw pointer needed to trace GC roots. Meant to be accessed only non-mutably, hence the "CONST" in the name.
-pub static mut UNIVERSE_RAW_PTR_CONST: Option<NonNull<Universe>> = None;
+pub static UNIVERSE_RAW_PTR_CONST: AtomicPtr<Universe> = AtomicPtr::new(std::ptr::null_mut());
+
 /// See `UNIVERSE_RAW_PTR_CONST`.
-pub static mut INTERPRETER_RAW_PTR_CONST: Option<NonNull<Interpreter>> = None;
+pub static INTERPRETER_RAW_PTR_CONST: AtomicPtr<Interpreter> = AtomicPtr::new(std::ptr::null_mut());
 
 /// Hack! at the moment, we pass a copied reference to a class' method when allocating a frame. When GC triggers from a frame allocation, that pointer isn't a root and doesn't get moved.
 /// that one's the ugliest of hacks and we can definitely remove it somehow..

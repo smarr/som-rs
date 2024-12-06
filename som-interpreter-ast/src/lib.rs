@@ -4,7 +4,7 @@
 
 use crate::universe::Universe;
 use crate::value::Value;
-use std::ptr::NonNull;
+use std::sync::atomic::AtomicPtr;
 
 macro_rules! propagate {
     ($expr:expr) => {
@@ -42,4 +42,5 @@ pub mod specialized;
 pub mod value;
 
 /// Raw pointer needed to trace GC roots. Meant to be accessed only non-mutably, hence the "CONST" in the name.
-pub static mut UNIVERSE_RAW_PTR_CONST: Option<NonNull<Universe>> = None;
+/// TODO: actually enforce that non-mutable access.
+pub static UNIVERSE_RAW_PTR_CONST: AtomicPtr<Universe> = AtomicPtr::new(std::ptr::null_mut());

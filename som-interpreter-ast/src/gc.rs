@@ -103,32 +103,31 @@ fn get_roots_in_mutator_thread(_mutator: &mut Mutator<SOMVM>) -> Vec<SOMSlot> {
     unsafe {
         let mut to_process: Vec<SOMSlot> = vec![];
 
-        // TODO: this shouldn't use a mutable ref, to be honest.
-        #[allow(static_mut_refs)]
-        if UNIVERSE_RAW_PTR_CONST.is_none() {
-            panic!("GC triggered while the system wasn't finished initializing.")
-        }
+        assert!(
+            !(*UNIVERSE_RAW_PTR_CONST.as_ptr()).is_null(),
+            "GC triggered while the system wasn't finished initializing."
+        );
 
         // walk the frame list.
-        let current_frame_addr = &UNIVERSE_RAW_PTR_CONST.unwrap().as_ref().current_frame;
+        let current_frame_addr = &(**UNIVERSE_RAW_PTR_CONST.as_ptr()).current_frame;
         debug!("scanning root: current_frame");
         to_process.push(SOMSlot::from(current_frame_addr));
 
         // walk globals (includes core classes, but we also need to move the refs in the CoreClasses class)
         debug!("scanning roots: globals");
-        for (_name, val) in UNIVERSE_RAW_PTR_CONST.unwrap().as_ref().globals.iter() {
+        for (_name, val) in (**UNIVERSE_RAW_PTR_CONST.as_ptr()).globals.iter() {
             if val.is_ptr_type() {
                 to_process.push(SOMSlot::from(val.as_mut_ptr()))
             }
         }
 
         debug!("scanning roots: core classes");
-        for (_, cls_ptr) in UNIVERSE_RAW_PTR_CONST.unwrap().as_mut().core.iter() {
+        for (_, cls_ptr) in (**UNIVERSE_RAW_PTR_CONST.as_ptr()).core.iter() {
             to_process.push(SOMSlot::from(cls_ptr))
         }
 
         debug!("scanning roots: global argument stack");
-        for stored_arg in &UNIVERSE_RAW_PTR_CONST.unwrap().as_ref().stack_args {
+        for stored_arg in &(**UNIVERSE_RAW_PTR_CONST.as_ptr()).stack_args {
             if stored_arg.is_ptr_type() {
                 to_process.push(SOMSlot::from(stored_arg.as_mut_ptr()))
             }

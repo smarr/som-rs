@@ -7,7 +7,8 @@ use som_interpreter_ast::UNIVERSE_RAW_PTR_CONST;
 use som_lexer::{Lexer, Token};
 use som_parser::lang;
 use std::cell::OnceCell;
-use std::{path::PathBuf, ptr::NonNull};
+use std::path::PathBuf;
+use std::sync::atomic::Ordering;
 
 static mut UNIVERSE_CELL: OnceCell<Universe> = OnceCell::new();
 
@@ -30,7 +31,7 @@ pub fn universe<'a>() -> &'a mut Universe {
         });
 
         let mut_universe_ref = UNIVERSE_CELL.get_mut().unwrap();
-        UNIVERSE_RAW_PTR_CONST = NonNull::new(mut_universe_ref);
+        UNIVERSE_RAW_PTR_CONST.store(mut_universe_ref, Ordering::SeqCst);
         mut_universe_ref
     }
 }

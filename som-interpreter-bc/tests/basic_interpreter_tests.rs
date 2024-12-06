@@ -9,7 +9,7 @@ use som_lexer::{Lexer, Token};
 use som_parser::lang;
 use std::cell::OnceCell;
 use std::path::PathBuf;
-use std::ptr::NonNull;
+use std::sync::atomic::Ordering;
 
 #[allow(static_mut_refs)]
 static mut UNIVERSE_CELL: OnceCell<Universe> = OnceCell::new();
@@ -33,7 +33,8 @@ pub fn universe<'a>() -> &'a mut Universe {
         });
 
         let mut_universe_ref = UNIVERSE_CELL.get_mut().unwrap();
-        UNIVERSE_RAW_PTR_CONST = NonNull::new(mut_universe_ref);
+        UNIVERSE_RAW_PTR_CONST.store(mut_universe_ref, Ordering::SeqCst);
+
         mut_universe_ref
     }
 }
@@ -158,9 +159,7 @@ fn test_harness(universe: &mut Universe) {
     let mut interpreter = universe.initialize(args).unwrap();
 
     // needed for GC
-    unsafe {
-        INTERPRETER_RAW_PTR_CONST = NonNull::new(&mut interpreter);
-    }
+    INTERPRETER_RAW_PTR_CONST.store(&mut interpreter, Ordering::SeqCst);
 
     assert_eq!(interpreter.run(universe), Some(Value::INTEGER_ZERO))
 }
@@ -187,9 +186,7 @@ fn basic_benchmark_runner(universe: &mut Universe, #[case] benchmark_name: &str)
 
     let mut interpreter = universe.initialize(args).unwrap();
 
-    unsafe {
-        INTERPRETER_RAW_PTR_CONST = NonNull::new(&mut interpreter);
-    }
+    INTERPRETER_RAW_PTR_CONST.store(&mut interpreter, Ordering::SeqCst);
 
     let output = interpreter.run(universe);
 
