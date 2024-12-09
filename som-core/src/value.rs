@@ -212,18 +212,18 @@ impl BaseValue {
     pub fn new_big_integer<BigIntPtr>(value: BigIntPtr) -> Self
     where
         u64: From<BigIntPtr>,
-        BigIntPtr: Deref<Target = BigInt>,
+        BigIntPtr: Deref<Target = BigInt> + From<u64>,
     {
-        Self::new(BIG_INTEGER_TAG, u64::from(value))
+        TypedPtrValue::new(value).into()
     }
     /// Returns a new string value.
     #[inline(always)]
     pub fn new_string<StringPtr>(value: StringPtr) -> Self
     where
         u64: From<StringPtr>,
-        StringPtr: Deref<Target = String>,
+        StringPtr: Deref<Target = String> + From<u64>,
     {
-        Self::new(STRING_TAG, u64::from(value))
+        TypedPtrValue::new(value).into()
     }
 
     // --------
@@ -393,7 +393,7 @@ impl BaseValue {
     pub fn BigInteger<BigIntPtr>(value: BigIntPtr) -> Self
     where
         u64: From<BigIntPtr>,
-        BigIntPtr: Deref<Target = BigInt>,
+        BigIntPtr: Deref<Target = BigInt> + From<u64>,
     {
         Self::new_big_integer(value)
     }
@@ -403,7 +403,7 @@ impl BaseValue {
     pub fn String<Ptr>(value: Ptr) -> Self
     where
         u64: From<Ptr>,
-        Ptr: Deref<Target = String>,
+        Ptr: Deref<Target = String> + From<u64>,
     {
         Self::new_string(value)
     }
@@ -502,5 +502,17 @@ impl<T, PTR> From<BaseValue> for TypedPtrValue<T, PTR> {
 impl<T, PTR> From<TypedPtrValue<T, PTR>> for BaseValue {
     fn from(val: TypedPtrValue<T, PTR>) -> Self {
         val.value
+    }
+}
+
+impl HasPointerTag for String {
+    fn get_tag() -> u64 {
+        STRING_TAG
+    }
+}
+
+impl HasPointerTag for BigInt {
+    fn get_tag() -> u64 {
+        BIG_INTEGER_TAG
     }
 }

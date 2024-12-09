@@ -177,12 +177,6 @@ impl FromArgs<'_> for Interned {
     }
 }
 
-impl FromArgs<'_> for Gc<String> {
-    fn from_args(arg: &Value, _: &mut Universe) -> Result<Self, Error> {
-        arg.as_string().context("could not resolve `Value` as `String`")
-    }
-}
-
 impl<T> FromArgs<'_> for HeapValPtr<T>
 where
     T: HasPointerTag,
