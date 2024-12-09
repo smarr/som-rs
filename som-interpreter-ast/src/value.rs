@@ -1,5 +1,6 @@
 use crate::gc::VecValue;
 use crate::universe::Universe;
+use crate::value_ptr::{HasPointerTag, ValuePtr};
 use crate::vm_objects::block::Block;
 use crate::vm_objects::class::Class;
 use crate::vm_objects::instance::Instance;
@@ -14,18 +15,18 @@ use std::fmt;
 use std::ops::Deref;
 
 /// Tag bits for the `Array` type.
-const ARRAY_TAG: u64 = 0b010 | CELL_BASE_TAG;
+pub(crate) const ARRAY_TAG: u64 = 0b010 | CELL_BASE_TAG;
 /// Tag bits for the `Block` type.
-const BLOCK_TAG: u64 = 0b100 | CELL_BASE_TAG;
+pub(crate) const BLOCK_TAG: u64 = 0b100 | CELL_BASE_TAG;
 /// Tag bits for the `Class` type.
-const CLASS_TAG: u64 = 0b101 | CELL_BASE_TAG;
+pub(crate) const CLASS_TAG: u64 = 0b101 | CELL_BASE_TAG;
 /// Tag bits for the `Instance` type.
-const INSTANCE_TAG: u64 = 0b110 | CELL_BASE_TAG;
+pub(crate) const INSTANCE_TAG: u64 = 0b110 | CELL_BASE_TAG;
 /// Tag bits for the `Invokable` type.
-const INVOKABLE_TAG: u64 = 0b111 | CELL_BASE_TAG;
+pub(crate) const INVOKABLE_TAG: u64 = 0b111 | CELL_BASE_TAG;
 
 #[derive(Clone, Copy)]
-pub struct Value(BaseValue);
+pub struct Value(pub(crate) BaseValue);
 
 impl Deref for Value {
     type Target = BaseValue;
@@ -42,82 +43,30 @@ impl From<BaseValue> for Value {
 }
 
 impl Value {
-    /// Returns a new array value.
-    #[inline(always)]
-    pub fn new_array(value: Gc<VecValue>) -> Self {
-        BaseValue::new(ARRAY_TAG, u64::from(value)).into()
-    }
-    /// Returns a new block value.
-    #[inline(always)]
-    pub fn new_block(value: Gc<Block>) -> Self {
-        BaseValue::new(BLOCK_TAG, u64::from(value)).into()
-    }
-    /// Returns a new class value.
-    #[inline(always)]
-    pub fn new_class(value: Gc<Class>) -> Self {
-        BaseValue::new(CLASS_TAG, u64::from(value)).into()
-    }
-    /// Returns a new instance value.
-    #[inline(always)]
-    pub fn new_instance(value: Gc<Instance>) -> Self {
-        BaseValue::new(INSTANCE_TAG, u64::from(value)).into()
-    }
-    /// Returns a new invokable value.
-    #[inline(always)]
-    pub fn new_invokable(value: Gc<Method>) -> Self {
-        BaseValue::new(INVOKABLE_TAG, u64::from(value)).into()
-    }
-
-    #[inline(always)]
-    pub fn is_array(self) -> bool {
-        self.tag() == ARRAY_TAG
-    }
-    /// Returns whether this value is a block.
-    #[inline(always)]
-    pub fn is_block(self) -> bool {
-        self.tag() == BLOCK_TAG
-    }
-
-    /// Returns whether this value is a class.
-    #[inline(always)]
-    pub fn is_class(self) -> bool {
-        self.tag() == CLASS_TAG
-    }
-    /// Returns whether this value is an instance.
-    #[inline(always)]
-    pub fn is_instance(self) -> bool {
-        self.tag() == INSTANCE_TAG
-    }
-    /// Returns whether this value is an invokable.
-    #[inline(always)]
-    pub fn is_invokable(self) -> bool {
-        self.tag() == INVOKABLE_TAG
-    }
-
     /// Returns this value as an array, if such is its type.
     #[inline(always)]
     pub fn as_array(self) -> Option<Gc<VecValue>> {
-        self.is_array().then(|| self.extract_gc_cell())
+        self.as_value_ptr::<VecValue>()
     }
     /// Returns this value as a block, if such is its type.
     #[inline(always)]
     pub fn as_block(self) -> Option<Gc<Block>> {
-        self.is_block().then(|| self.extract_gc_cell())
+        self.as_value_ptr::<Block>()
     }
     /// Returns this value as a class, if such is its type.
     #[inline(always)]
     pub fn as_class(self) -> Option<Gc<Class>> {
-        self.is_class().then(|| self.extract_gc_cell())
+        self.as_value_ptr::<Class>()
     }
     /// Returns this value as an instance, if such is its type.
     #[inline(always)]
     pub fn as_instance(self) -> Option<Gc<Instance>> {
-        self.is_instance().then(|| self.extract_gc_cell())
+        self.as_value_ptr::<Instance>()
     }
     /// Returns this value as an invokable, if such is its type.
     #[inline(always)]
     pub fn as_invokable(self) -> Option<Gc<Method>> {
-        self.is_invokable().then(|| self.extract_gc_cell())
+        self.as_value_ptr::<Method>()
     }
 
     /// Returns it at an arbitrary pointer. Used for debugging.
@@ -134,27 +83,39 @@ impl Value {
 
     #[allow(non_snake_case)]
     pub fn Array(value: Gc<VecValue>) -> Self {
-        Self::new_array(value)
+        ValuePtr::new(value).into()
     }
     #[allow(non_snake_case)]
     #[inline(always)]
     pub fn Block(value: Gc<Block>) -> Self {
-        Self::new_block(value)
+        ValuePtr::new(value).into()
     }
 
     #[allow(non_snake_case)]
     pub fn Class(value: Gc<Class>) -> Self {
-        Self::new_class(value)
+        ValuePtr::new(value).into()
     }
 
     #[allow(non_snake_case)]
     pub fn Instance(value: Gc<Instance>) -> Self {
-        Self::new_instance(value)
+        ValuePtr::new(value).into()
     }
 
     #[allow(non_snake_case)]
     pub fn Invokable(value: Gc<Method>) -> Self {
-        Self::new_invokable(value)
+        ValuePtr::new(value).into()
+    }
+
+    #[inline(always)]
+    pub fn is_value_ptr<T: HasPointerTag>(&self) -> bool {
+        let value_ptr: ValuePtr<T> = (*self).into();
+        value_ptr.is_valid_ptr_to()
+    }
+
+    #[inline(always)]
+    pub fn as_value_ptr<T: HasPointerTag>(&self) -> Option<Gc<T>> {
+        let value_ptr: ValuePtr<T> = (*self).into();
+        value_ptr.get_ptr()
     }
 }
 
@@ -202,7 +163,7 @@ impl Value {
             BLOCK_TAG => self.as_block().unwrap().class(universe),
             INSTANCE_TAG => self.as_instance().unwrap().class(),
             CLASS_TAG => self.as_class().unwrap().class(),
-            INVOKABLE_TAG => self.as_invokable().unwrap().class(universe),
+            INVOKABLE_TAG => self.as_value_ptr::<Method>().unwrap().class(universe),
             _ => {
                 if self.is_double() {
                     universe.core.double_class()
@@ -251,7 +212,7 @@ impl Value {
             }
             CLASS_TAG => self.as_class().unwrap().name().to_string(),
             INVOKABLE_TAG => {
-                let invokable = self.as_invokable().unwrap();
+                let invokable = self.as_value_ptr::<Method>().unwrap();
                 format!("{}>>#{}", invokable.holder.name(), invokable.signature(),)
             }
             _ => {
@@ -289,7 +250,7 @@ impl From<Value> for ValueEnum {
             Self::Instance(value)
         } else if let Some(value) = value.as_class() {
             Self::Class(value)
-        } else if let Some(value) = value.as_invokable() {
+        } else if let Some(value) = value.as_value_ptr::<Method>() {
             Self::Invokable(value)
         } else {
             todo!()
@@ -310,10 +271,10 @@ impl From<ValueEnum> for Value {
             ValueEnum::String(value) => Self::new_string(value),
             // ValueEnum::Array(value) => Self::new_array(value),
             ValueEnum::Array(_value) => unimplemented!("no impl for arr, same as BC"),
-            ValueEnum::Block(value) => Self::new_block(value),
-            ValueEnum::Instance(value) => Self::new_instance(value),
-            ValueEnum::Class(value) => Self::new_class(value),
-            ValueEnum::Invokable(value) => Self::new_invokable(value),
+            ValueEnum::Block(value) => ValuePtr::new(value).into(),
+            ValueEnum::Instance(value) => ValuePtr::new(value).into(),
+            ValueEnum::Class(value) => ValuePtr::new(value).into(),
+            ValueEnum::Invokable(value) => ValuePtr::new(value).into(),
         }
     }
 }

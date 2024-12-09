@@ -1,14 +1,13 @@
 use std::hash::{Hash, Hasher};
 use std::ops::Deref;
 
-use num_bigint::BigInt;
-use som_gc::gcref::Gc;
-
 use crate::value::Value;
 use crate::vm_objects::block::Block;
 use crate::vm_objects::class::Class;
 use crate::vm_objects::instance::Instance;
 use crate::vm_objects::method::Method;
+use num_bigint::BigInt;
+use som_gc::gcref::Gc;
 
 impl Hash for Value {
     fn hash<H: Hasher>(&self, hasher: &mut H) {
@@ -50,7 +49,7 @@ impl Hash for Value {
             for i in 0..instance.class.fields.len() {
                 instance.lookup_field(i as u8).hash(hasher)
             }
-        } else if let Some(value) = self.as_invokable() {
+        } else if let Some(value) = self.as_value_ptr::<Method>() {
             hasher.write(b"#mthd#");
             value.hash(hasher);
         } else {

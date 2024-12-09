@@ -256,12 +256,26 @@ impl Universe {
     pub fn assign_global(&mut self, name: Interned, value: &Value) -> Option<()> {
         self.globals.insert(name, *value).map(|_| ())
     }
+}
 
-    #[inline(always)]
-    /// Remove N elements off the argument stack and return them as their own vector
+// --- Stack operations. They should be in another class than Universe anyway, to prevent some unsafe bits
+impl Universe {
+    /// Remove N elements off the argument stack and return them as their own vector.
+    /// The default way of getting elements off of the stack.
     pub fn stack_n_last_elems(&mut self, n: usize) -> Vec<Value> {
         let idx_split_off = self.stack_args.len() - n;
         self.stack_args.split_off(idx_split_off)
+    }
+
+    pub fn stack_borrow_n_last_elems(&self, n: usize) -> &[Value] {
+        let idx_split_off = self.stack_args.len() - n;
+        &self.stack_args.as_slice()[idx_split_off..]
+    }
+
+    /// Pop the last n elements of the stack.
+    pub fn stack_pop_n(&mut self, n: usize) {
+        let new_len = self.stack_args.len() - n;
+        self.stack_args.truncate(new_len)
     }
 }
 

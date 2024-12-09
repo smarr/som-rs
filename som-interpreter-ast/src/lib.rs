@@ -40,6 +40,8 @@ pub mod gc;
 pub mod specialized;
 /// Facilities for manipulating values.
 pub mod value;
+/// For values that are to pointer types.
+pub mod value_ptr;
 
 /// Raw pointer needed to trace GC roots. Meant to be accessed only non-mutably, hence the "CONST" in the name.
 /// TODO: actually enforce that non-mutable access.

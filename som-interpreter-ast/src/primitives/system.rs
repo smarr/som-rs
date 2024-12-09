@@ -3,6 +3,7 @@ use crate::gc::VecValue;
 use crate::primitives::{PrimInfo, PrimitiveFn};
 use crate::universe::Universe;
 use crate::value::Value;
+use crate::vm_objects::class::Class;
 use anyhow::{bail, Context, Error};
 use num_bigint::BigInt;
 use once_cell::sync::Lazy;
@@ -85,7 +86,7 @@ fn load(universe: &mut Universe, _: Value, class_name: Interned) -> Result<Value
     const SIGNATURE: &str = "System>>#load:";
 
     if let Some(cached_class) = universe.lookup_global(class_name) {
-        if cached_class.is_class() {
+        if cached_class.is_value_ptr::<Class>() {
             return Ok(cached_class);
         }
     }

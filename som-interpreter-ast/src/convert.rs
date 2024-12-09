@@ -207,7 +207,7 @@ impl FromArgs for Gc<Block> {
 
 impl FromArgs for Gc<Method> {
     fn from_args(arg: Value, _: &mut Universe) -> Result<Self, Error> {
-        arg.as_invokable().context("could not resolve `Value` as `Method`")
+        arg.as_value_ptr::<Method>().context("could not resolve `Value` as `Method`")
     }
 }
 

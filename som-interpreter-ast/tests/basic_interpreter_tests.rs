@@ -3,6 +3,7 @@ use som_interpreter_ast::compiler::compile::AstMethodCompilerCtxt;
 use som_interpreter_ast::invokable::Return;
 use som_interpreter_ast::universe::Universe;
 use som_interpreter_ast::value::Value;
+use som_interpreter_ast::vm_objects::instance::Instance;
 use som_interpreter_ast::UNIVERSE_RAW_PTR_CONST;
 use som_lexer::{Lexer, Token};
 use som_parser::lang;
@@ -172,7 +173,7 @@ fn basic_benchmark_runner(universe: &mut Universe, #[case] benchmark_name: &str)
 
     match output {
         Return::Local(val) => {
-            assert!(val.is_instance());
+            assert!(val.is_value_ptr::<Instance>());
             assert_eq!(val.as_instance().unwrap().class, benchmark_harness_class)
             // TODO: is that correct/enough?
         }
