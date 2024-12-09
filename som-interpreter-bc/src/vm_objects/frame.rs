@@ -116,7 +116,7 @@ impl Frame {
             HACK_FRAME_FRAME_ARGS_PTR = Some(Vec::from(args));
         }
 
-        prev_frame.stack_push(Value::new_invokable(method));
+        prev_frame.stack_push(Value::Invokable(method));
 
         let mut frame_ptr: Gc<Frame> = gc_interface.request_memory_for_type(size);
 

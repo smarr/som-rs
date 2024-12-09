@@ -86,7 +86,7 @@ fn load(universe: &mut Universe, _: Value, class_name: Interned) -> Result<Value
     const SIGNATURE: &str = "System>>#load:";
 
     if let Some(cached_class) = universe.lookup_global(class_name) {
-        if cached_class.is_value_ptr::<Class>() {
+        if cached_class.is_ptr::<Class, Gc<Class>>() {
             return Ok(cached_class);
         }
     }

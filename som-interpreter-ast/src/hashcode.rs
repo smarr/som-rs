@@ -49,7 +49,7 @@ impl Hash for Value {
             for i in 0..instance.class.fields.len() {
                 instance.lookup_field(i as u8).hash(hasher)
             }
-        } else if let Some(value) = self.as_value_ptr::<Method>() {
+        } else if let Some(value) = self.as_invokable() {
             hasher.write(b"#mthd#");
             value.hash(hasher);
         } else {

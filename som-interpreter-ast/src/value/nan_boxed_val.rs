@@ -1,4 +1,3 @@
-use super::value_ptr::{HasPointerTag, ValuePtr};
 use crate::gc::VecValue;
 use crate::universe::Universe;
 use crate::value::Value;
@@ -41,30 +40,40 @@ impl From<BaseValue> for Value {
 }
 
 impl Value {
+    #[inline(always)]
+    pub fn is_value_gc_ptr<T: HasPointerTag>(&self) -> bool {
+        self.0.is_ptr::<T, Gc<T>>()
+    }
+
+    #[inline(always)]
+    pub fn as_value_gc_ptr<T: HasPointerTag>(&self) -> Option<Gc<T>> {
+        self.0.as_ptr::<T, Gc<T>>()
+    }
+
     /// Returns this value as an array, if such is its type.
     #[inline(always)]
     pub fn as_array(self) -> Option<Gc<VecValue>> {
-        self.as_value_ptr::<VecValue>()
+        self.as_value_gc_ptr::<VecValue>()
     }
     /// Returns this value as a block, if such is its type.
     #[inline(always)]
     pub fn as_block(self) -> Option<Gc<Block>> {
-        self.as_value_ptr::<Block>()
+        self.as_value_gc_ptr::<Block>()
     }
     /// Returns this value as a class, if such is its type.
     #[inline(always)]
     pub fn as_class(self) -> Option<Gc<Class>> {
-        self.as_value_ptr::<Class>()
+        self.as_value_gc_ptr::<Class>()
     }
     /// Returns this value as an instance, if such is its type.
     #[inline(always)]
     pub fn as_instance(self) -> Option<Gc<Instance>> {
-        self.as_value_ptr::<Instance>()
+        self.as_value_gc_ptr::<Instance>()
     }
     /// Returns this value as an invokable, if such is its type.
     #[inline(always)]
     pub fn as_invokable(self) -> Option<Gc<Method>> {
-        self.as_value_ptr::<Method>()
+        self.as_value_gc_ptr::<Method>()
     }
 
     /// Returns it at an arbitrary pointer. Used for debugging.
@@ -102,18 +111,6 @@ impl Value {
     #[allow(non_snake_case)]
     pub fn Invokable(value: Gc<Method>) -> Self {
         ValuePtr::new(value).into()
-    }
-
-    #[inline(always)]
-    pub fn is_value_ptr<T: HasPointerTag>(&self) -> bool {
-        let value_ptr: ValuePtr<T> = (*self).into();
-        value_ptr.is_valid_ptr_to()
-    }
-
-    #[inline(always)]
-    pub fn as_value_ptr<T: HasPointerTag>(&self) -> Option<Gc<T>> {
-        let value_ptr: ValuePtr<T> = (*self).into();
-        value_ptr.get_ptr()
     }
 }
 
@@ -161,7 +158,7 @@ impl Value {
             BLOCK_TAG => self.as_block().unwrap().class(universe),
             INSTANCE_TAG => self.as_instance().unwrap().class(),
             CLASS_TAG => self.as_class().unwrap().class(),
-            INVOKABLE_TAG => self.as_value_ptr::<Method>().unwrap().class(universe),
+            INVOKABLE_TAG => self.as_value_gc_ptr::<Method>().unwrap().class(universe),
             _ => {
                 if self.is_double() {
                     universe.core.double_class()
@@ -210,7 +207,7 @@ impl Value {
             }
             CLASS_TAG => self.as_class().unwrap().name().to_string(),
             INVOKABLE_TAG => {
-                let invokable = self.as_value_ptr::<Method>().unwrap();
+                let invokable = self.as_value_gc_ptr::<Method>().unwrap();
                 format!("{}>>#{}", invokable.holder.name(), invokable.signature(),)
             }
             _ => {
@@ -248,7 +245,7 @@ impl From<Value> for ValueEnum {
             Self::Instance(value)
         } else if let Some(value) = value.as_class() {
             Self::Class(value)
-        } else if let Some(value) = value.as_value_ptr::<Method>() {
+        } else if let Some(value) = value.as_value_gc_ptr::<Method>() {
             Self::Invokable(value)
         } else {
             todo!()

@@ -1,5 +1,6 @@
 use crate::interner::Interned;
 use num_bigint::BigInt;
+use std::marker::PhantomData;
 use std::ops::Deref;
 
 static_assertions::const_assert_eq!(size_of::<f64>(), 8);
@@ -340,6 +341,25 @@ impl BaseValue {
         self.is_symbol().then_some(Interned((self.encoded & 0xFFFFFFFF) as u32))
     }
 
+    #[inline(always)]
+    pub fn is_ptr<T, PTR>(&self) -> bool
+    where
+        T: HasPointerTag,
+        PTR: Deref<Target = T> + From<u64> + Into<u64>,
+    {
+        let value_ptr: ValuePtr<T, PTR> = (*self).into();
+        value_ptr.is_valid()
+    }
+
+    #[inline(always)]
+    pub fn as_ptr<T: HasPointerTag, PTR>(&self) -> Option<PTR>
+    where
+        PTR: Deref<Target = T> + From<u64> + Into<u64>,
+    {
+        let value_ptr: ValuePtr<T, PTR> = (*self).into();
+        value_ptr.get()
+    }
+
     // ----------------
 
     // these are all for backwards compatibility (i.e.: i don't want to do massive amounts of refactoring), but also maybe clever-ish replacement with normal Value enums
@@ -421,4 +441,65 @@ macro_rules! delegate_to_base_value {
             }
         )*
     };
+}
+
+#[repr(transparent)]
+pub struct ValuePtr<T, PTR> {
+    value: BaseValue,
+    _phantom: PhantomData<T>,
+    _phantom2: PhantomData<PTR>,
+}
+
+pub trait HasPointerTag {
+    fn get_tag() -> u64;
+}
+
+impl<T, PTR> ValuePtr<T, PTR>
+where
+    T: HasPointerTag,
+    PTR: Deref<Target = T> + Into<u64> + From<u64>,
+{
+    pub fn new(value: PTR) -> Self {
+        Self {
+            value: BaseValue::new(T::get_tag(), value.into()),
+            _phantom: PhantomData,
+            _phantom2: PhantomData,
+        }
+    }
+
+    #[inline(always)]
+    pub fn is_valid(&self) -> bool {
+        self.value.tag() == T::get_tag()
+    }
+
+    /// Returns the underlying pointer value.
+    #[inline(always)]
+    pub fn get(&self) -> Option<PTR> {
+        self.is_valid().then(|| self.value.extract_gc_cell())
+    }
+
+    /// Returns the underlying pointer value, without checking if it is valid.
+    /// # Safety
+    /// Fine to invoke so long as we've previously checked we're working with a valid pointer.
+    #[inline(always)]
+    pub unsafe fn get_unchecked(&self) -> PTR {
+        debug_assert!(self.get().is_some());
+        self.value.extract_gc_cell()
+    }
+}
+
+impl<T, PTR> From<BaseValue> for ValuePtr<T, PTR> {
+    fn from(value: BaseValue) -> Self {
+        Self {
+            value,
+            _phantom: PhantomData,
+            _phantom2: PhantomData,
+        }
+    }
+}
+
+impl<T, PTR> From<ValuePtr<T, PTR>> for BaseValue {
+    fn from(val: ValuePtr<T, PTR>) -> Self {
+        val.value
+    }
 }

@@ -9,6 +9,7 @@ pub mod nanboxed;
 
 /// Our enum based type
 pub mod value_enum;
+mod value_ptr;
 
 /// Represents an SOM value.
 #[derive(Clone, Copy)]

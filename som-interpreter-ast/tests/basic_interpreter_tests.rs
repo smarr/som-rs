@@ -1,4 +1,5 @@
 use rstest::{fixture, rstest};
+use som_gc::gcref::Gc;
 use som_interpreter_ast::compiler::compile::AstMethodCompilerCtxt;
 use som_interpreter_ast::invokable::Return;
 use som_interpreter_ast::universe::Universe;
@@ -173,7 +174,7 @@ fn basic_benchmark_runner(universe: &mut Universe, #[case] benchmark_name: &str)
 
     match output {
         Return::Local(val) => {
-            assert!(val.is_value_ptr::<Instance>());
+            assert!(val.is_ptr::<Instance, Gc<Instance>>());
             assert_eq!(val.as_instance().unwrap().class, benchmark_harness_class)
             // TODO: is that correct/enough?
         }

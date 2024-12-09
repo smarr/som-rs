@@ -1,5 +1,5 @@
-use super::nan_boxed_val::{ARRAY_TAG, BLOCK_TAG, CLASS_TAG, INSTANCE_TAG, INVOKABLE_TAG};
 use crate::gc::VecValue;
+use crate::value::nanboxed::{ARRAY_TAG, BLOCK_TAG, CLASS_TAG, INSTANCE_TAG, INVOKABLE_TAG};
 use crate::value::Value;
 use crate::vm_objects::block::Block;
 use crate::vm_objects::class::Class;

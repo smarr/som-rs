@@ -16,15 +16,15 @@ use std::fmt::{Debug, Formatter};
 use std::ops::Deref;
 
 /// Tag bits for the `Array` type.
-const ARRAY_TAG: u64 = 0b010 | CELL_BASE_TAG;
+pub(crate) const ARRAY_TAG: u64 = 0b010 | CELL_BASE_TAG;
 /// Tag bits for the `Block` type.
-const BLOCK_TAG: u64 = 0b100 | CELL_BASE_TAG;
+pub(crate) const BLOCK_TAG: u64 = 0b100 | CELL_BASE_TAG;
 /// Tag bits for the `Class` type.
-const CLASS_TAG: u64 = 0b101 | CELL_BASE_TAG;
+pub(crate) const CLASS_TAG: u64 = 0b101 | CELL_BASE_TAG;
 /// Tag bits for the `Instance` type.
-const INSTANCE_TAG: u64 = 0b110 | CELL_BASE_TAG;
+pub(crate) const INSTANCE_TAG: u64 = 0b110 | CELL_BASE_TAG;
 /// Tag bits for the `Invokable` type.
-const INVOKABLE_TAG: u64 = 0b111 | CELL_BASE_TAG;
+pub(crate) const INVOKABLE_TAG: u64 = 0b111 | CELL_BASE_TAG;
 
 impl Deref for Value {
     type Target = BaseValue;
@@ -70,83 +70,41 @@ impl Value {
         String(value: Gc<String>) -> Self,
     );
 
-    /// Returns a new array value.
     #[inline(always)]
-    pub fn new_array(value: Gc<VecValue>) -> Self {
-        BaseValue::new(ARRAY_TAG, u64::from(value)).into()
-    }
-    /// Returns a new block value.
-    #[inline(always)]
-    pub fn new_block(value: Gc<Block>) -> Self {
-        BaseValue::new(BLOCK_TAG, u64::from(value)).into()
-    }
-    /// Returns a new class value.
-    #[inline(always)]
-    pub fn new_class(value: Gc<Class>) -> Self {
-        BaseValue::new(CLASS_TAG, u64::from(value)).into()
-    }
-    /// Returns a new instance value.
-    #[inline(always)]
-    pub fn new_instance(value: Gc<Instance>) -> Self {
-        BaseValue::new(INSTANCE_TAG, u64::from(value)).into()
-    }
-    /// Returns a new invokable value.
-    #[inline(always)]
-    pub fn new_invokable(value: Gc<Method>) -> Self {
-        BaseValue::new(INVOKABLE_TAG, u64::from(value)).into()
+    pub fn is_value_ptr<T: HasPointerTag>(&self) -> bool {
+        self.0.is_ptr::<T, Gc<T>>()
     }
 
-    /// Returns whether this value is an array.
     #[inline(always)]
-    pub fn is_array(self) -> bool {
-        self.tag() == ARRAY_TAG
-    }
-    /// Returns whether this value is a block.
-    #[inline(always)]
-    pub fn is_block(self) -> bool {
-        self.tag() == BLOCK_TAG
-    }
-    /// Returns whether this value is a class.
-    #[inline(always)]
-    pub fn is_class(self) -> bool {
-        self.tag() == CLASS_TAG
-    }
-    /// Returns whether this value is an instance.
-    #[inline(always)]
-    pub fn is_instance(self) -> bool {
-        self.tag() == INSTANCE_TAG
-    }
-    /// Returns whether this value is an invokable.
-    #[inline(always)]
-    pub fn is_invokable(self) -> bool {
-        self.tag() == INVOKABLE_TAG
+    pub fn as_value_ptr<T: HasPointerTag>(&self) -> Option<Gc<T>> {
+        self.0.as_ptr::<T, Gc<T>>()
     }
 
     /// Returns this value as an array, if such is its type.
     #[inline(always)]
     pub fn as_array(self) -> Option<Gc<VecValue>> {
-        self.is_array().then(|| self.extract_gc_cell())
+        self.as_value_ptr::<VecValue>()
     }
     /// Returns this value as a block, if such is its type.
     #[inline(always)]
     pub fn as_block(self) -> Option<Gc<Block>> {
-        self.is_block().then(|| self.extract_gc_cell())
+        self.as_value_ptr::<Block>()
     }
 
     /// Returns this value as a class, if such is its type.
     #[inline(always)]
     pub fn as_class(self) -> Option<Gc<Class>> {
-        self.is_class().then(|| self.extract_gc_cell())
+        self.as_value_ptr::<Class>()
     }
     /// Returns this value as an instance, if such is its type.
     #[inline(always)]
     pub fn as_instance(self) -> Option<Gc<Instance>> {
-        self.is_instance().then(|| self.extract_gc_cell())
+        self.as_value_ptr::<Instance>()
     }
     /// Returns this value as an invokable, if such is its type.
     #[inline(always)]
     pub fn as_invokable(self) -> Option<Gc<Method>> {
-        self.is_invokable().then(|| self.extract_gc_cell())
+        self.as_value_ptr::<Method>()
     }
 
     /// Get the class of the current value.
@@ -233,27 +191,27 @@ impl Value {
 impl Value {
     #[inline(always)]
     pub fn Array(value: Gc<VecValue>) -> Self {
-        Value::new_array(value)
+        ValuePtr::new(value).into()
     }
 
     #[inline(always)]
     pub fn Block(value: Gc<Block>) -> Self {
-        Value::new_block(value)
+        ValuePtr::new(value).into()
     }
 
     #[inline(always)]
     pub fn Class(value: Gc<Class>) -> Self {
-        Value::new_class(value)
+        ValuePtr::new(value).into()
     }
 
     #[inline(always)]
     pub fn Instance(value: Gc<Instance>) -> Self {
-        Value::new_instance(value)
+        ValuePtr::new(value).into()
     }
 
     #[inline(always)]
     pub fn Invokable(value: Gc<Method>) -> Self {
-        Value::new_invokable(value)
+        ValuePtr::new(value).into()
     }
 }
 

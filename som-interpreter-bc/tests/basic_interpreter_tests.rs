@@ -4,6 +4,7 @@ use som_interpreter_bc::interpreter::Interpreter;
 use som_interpreter_bc::universe::Universe;
 use som_interpreter_bc::value::Value;
 use som_interpreter_bc::vm_objects::frame::Frame;
+use som_interpreter_bc::vm_objects::instance::Instance;
 use som_interpreter_bc::{INTERPRETER_RAW_PTR_CONST, UNIVERSE_RAW_PTR_CONST};
 use som_lexer::{Lexer, Token};
 use som_parser::lang;
@@ -195,6 +196,6 @@ fn basic_benchmark_runner(universe: &mut Universe, #[case] benchmark_name: &str)
     assert!(universe.has_global(intern_id.unwrap()));
     let benchmark_harness_class = universe.lookup_global(intern_id.unwrap()).unwrap().as_class().unwrap();
 
-    assert!(output.unwrap().is_instance());
+    assert!(output.unwrap().is_value_ptr::<Instance>());
     assert_eq!(output.unwrap().as_instance().unwrap().class, benchmark_harness_class)
 }
