@@ -4,12 +4,12 @@ use crate::invokable::{Invoke, Return};
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
 use crate::value::convert::Primitive;
+use crate::value::value_ptr::HeapValPtr;
 use crate::value::Value;
 use crate::vm_objects::class::Class;
 use anyhow::{bail, Error};
 use once_cell::sync::Lazy;
 use som_core::interner::Interned;
-use som_gc::gcref::Gc;
 use std::collections::hash_map::DefaultHasher;
 use std::convert::TryFrom;
 use std::hash::{Hash, Hasher};
@@ -84,7 +84,7 @@ fn perform(universe: &mut Universe, object: Value, sym: Interned) -> Result<Retu
     }
 }
 
-fn perform_with_arguments(universe: &mut Universe, object: Value, sym: Interned, arr: Gc<VecValue>) -> Result<Return, Error> {
+fn perform_with_arguments(universe: &mut Universe, object: Value, sym: Interned, arr: HeapValPtr<VecValue>) -> Result<Return, Error> {
     const SIGNATURE: &str = "Object>>#perform:withArguments:";
 
     let method = object.lookup_method(universe, sym);
@@ -95,16 +95,16 @@ fn perform_with_arguments(universe: &mut Universe, object: Value, sym: Interned,
             //     .chain(arr.replace(Vec::default()))
             //     .collect();
             universe.stack_args.push(object);
-            for val in arr.0.iter() {
+            for val in arr.deref().0.iter() {
                 universe.stack_args.push(*val)
             }
-            Ok(invokable.invoke(universe, arr.0.len() + 1))
+            Ok(invokable.invoke(universe, arr.deref().0.len() + 1))
         }
         None => {
             // let args = std::iter::once(object.clone())
             //     .chain(arr.replace(Vec::default()))
             //     .collect();
-            let args = std::iter::once(object).chain((*arr).clone()).collect();
+            let args = std::iter::once(object).chain((*arr.deref()).clone()).collect();
 
             Ok(universe.does_not_understand(object, sym, args).unwrap_or_else(|| {
                 panic!(
@@ -119,10 +119,10 @@ fn perform_with_arguments(universe: &mut Universe, object: Value, sym: Interned,
     }
 }
 
-fn perform_in_super_class(universe: &mut Universe, object: Value, sym: Interned, class: Gc<Class>) -> Result<Return, Error> {
+fn perform_in_super_class(universe: &mut Universe, object: Value, sym: Interned, class: HeapValPtr<Class>) -> Result<Return, Error> {
     const SIGNATURE: &str = "Object>>#perform:inSuperclass:";
 
-    let method = class.lookup_method(sym);
+    let method = class.deref().lookup_method(sym);
 
     match method {
         Some(mut invokable) => {
@@ -131,7 +131,7 @@ fn perform_in_super_class(universe: &mut Universe, object: Value, sym: Interned,
         }
         None => {
             let args = vec![object];
-            Ok(universe.does_not_understand(Value::Class(class), sym, args).unwrap_or_else(|| {
+            Ok(universe.does_not_understand(Value::Class(class.deref()), sym, args).unwrap_or_else(|| {
                 panic!(
                     "'{}': method '{}' not found for '{}'",
                     SIGNATURE,
@@ -148,12 +148,12 @@ fn perform_with_arguments_in_super_class(
     universe: &mut Universe,
     object: Value,
     sym: Interned,
-    arr: Gc<VecValue>,
-    class: Gc<Class>,
+    arr: HeapValPtr<VecValue>,
+    class: HeapValPtr<Class>,
 ) -> Result<Return, Error> {
     const SIGNATURE: &str = "Object>>#perform:withArguments:inSuperclass:";
 
-    let method = class.lookup_method(sym);
+    let method = class.deref().lookup_method(sym);
 
     match method {
         // Some(mut invokable) => {
@@ -170,9 +170,9 @@ fn perform_with_arguments_in_super_class(
             // let args = std::iter::once(object.clone())
             //     .chain(arr.replace(Vec::default()))
             //     .collect();
-            let args = std::iter::once(object).chain((*arr).clone()).collect();
+            let args = std::iter::once(object).chain((*arr.deref()).clone()).collect();
 
-            Ok(universe.does_not_understand(Value::Class(class), sym, args).unwrap_or_else(|| {
+            Ok(universe.does_not_understand(Value::Class(class.deref()), sym, args).unwrap_or_else(|| {
                 panic!(
                     "'{}': method '{}' not found for '{}'",
                     SIGNATURE,

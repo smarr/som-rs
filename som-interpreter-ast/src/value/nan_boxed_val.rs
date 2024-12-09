@@ -90,27 +90,27 @@ impl Value {
 
     #[allow(non_snake_case)]
     pub fn Array(value: Gc<VecValue>) -> Self {
-        ValuePtr::new(value).into()
+        TypedPtrValue::new(value).into()
     }
     #[allow(non_snake_case)]
     #[inline(always)]
     pub fn Block(value: Gc<Block>) -> Self {
-        ValuePtr::new(value).into()
+        TypedPtrValue::new(value).into()
     }
 
     #[allow(non_snake_case)]
     pub fn Class(value: Gc<Class>) -> Self {
-        ValuePtr::new(value).into()
+        TypedPtrValue::new(value).into()
     }
 
     #[allow(non_snake_case)]
     pub fn Instance(value: Gc<Instance>) -> Self {
-        ValuePtr::new(value).into()
+        TypedPtrValue::new(value).into()
     }
 
     #[allow(non_snake_case)]
     pub fn Invokable(value: Gc<Method>) -> Self {
-        ValuePtr::new(value).into()
+        TypedPtrValue::new(value).into()
     }
 }
 
@@ -266,10 +266,10 @@ impl From<ValueEnum> for Value {
             ValueEnum::String(value) => Self::new_string(value),
             // ValueEnum::Array(value) => Self::new_array(value),
             ValueEnum::Array(_value) => unimplemented!("no impl for arr, same as BC"),
-            ValueEnum::Block(value) => ValuePtr::new(value).into(),
-            ValueEnum::Instance(value) => ValuePtr::new(value).into(),
-            ValueEnum::Class(value) => ValuePtr::new(value).into(),
-            ValueEnum::Invokable(value) => ValuePtr::new(value).into(),
+            ValueEnum::Block(value) => TypedPtrValue::new(value).into(),
+            ValueEnum::Instance(value) => TypedPtrValue::new(value).into(),
+            ValueEnum::Class(value) => TypedPtrValue::new(value).into(),
+            ValueEnum::Invokable(value) => TypedPtrValue::new(value).into(),
         }
     }
 }

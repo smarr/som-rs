@@ -347,7 +347,7 @@ impl BaseValue {
         T: HasPointerTag,
         PTR: Deref<Target = T> + From<u64> + Into<u64>,
     {
-        let value_ptr: ValuePtr<T, PTR> = (*self).into();
+        let value_ptr: TypedPtrValue<T, PTR> = (*self).into();
         value_ptr.is_valid()
     }
 
@@ -356,7 +356,7 @@ impl BaseValue {
     where
         PTR: Deref<Target = T> + From<u64> + Into<u64>,
     {
-        let value_ptr: ValuePtr<T, PTR> = (*self).into();
+        let value_ptr: TypedPtrValue<T, PTR> = (*self).into();
         value_ptr.get()
     }
 
@@ -443,8 +443,9 @@ macro_rules! delegate_to_base_value {
     };
 }
 
+/// Bundles a value to a pointer with the type to its pointer.
 #[repr(transparent)]
-pub struct ValuePtr<T, PTR> {
+pub struct TypedPtrValue<T, PTR> {
     value: BaseValue,
     _phantom: PhantomData<T>,
     _phantom2: PhantomData<PTR>,
@@ -454,7 +455,7 @@ pub trait HasPointerTag {
     fn get_tag() -> u64;
 }
 
-impl<T, PTR> ValuePtr<T, PTR>
+impl<T, PTR> TypedPtrValue<T, PTR>
 where
     T: HasPointerTag,
     PTR: Deref<Target = T> + Into<u64> + From<u64>,
@@ -488,7 +489,7 @@ where
     }
 }
 
-impl<T, PTR> From<BaseValue> for ValuePtr<T, PTR> {
+impl<T, PTR> From<BaseValue> for TypedPtrValue<T, PTR> {
     fn from(value: BaseValue) -> Self {
         Self {
             value,
@@ -498,8 +499,8 @@ impl<T, PTR> From<BaseValue> for ValuePtr<T, PTR> {
     }
 }
 
-impl<T, PTR> From<ValuePtr<T, PTR>> for BaseValue {
-    fn from(val: ValuePtr<T, PTR>) -> Self {
+impl<T, PTR> From<TypedPtrValue<T, PTR>> for BaseValue {
+    fn from(val: TypedPtrValue<T, PTR>) -> Self {
         val.value
     }
 }

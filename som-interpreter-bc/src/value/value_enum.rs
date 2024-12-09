@@ -6,7 +6,7 @@ use crate::vm_objects::instance::Instance;
 use crate::vm_objects::method::Method;
 use num_bigint::BigInt;
 use som_core::interner::Interned;
-use som_core::value::ValuePtr;
+use som_core::value::TypedPtrValue;
 use som_gc::gcref::Gc;
 use std::fmt;
 
@@ -91,10 +91,10 @@ impl From<ValueEnum> for Value {
             ValueEnum::Array(_value) => unimplemented!(
                 "no impl for arr. would need mutator to be passed as an argument to create a new Gc. not hard, but we'd ditch the From trait"
             ),
-            ValueEnum::Block(value) => ValuePtr::new(value).into(),
-            ValueEnum::Instance(value) => ValuePtr::new(value).into(),
-            ValueEnum::Class(value) => ValuePtr::new(value).into(),
-            ValueEnum::Invokable(value) => ValuePtr::new(value).into(),
+            ValueEnum::Block(value) => TypedPtrValue::new(value).into(),
+            ValueEnum::Instance(value) => TypedPtrValue::new(value).into(),
+            ValueEnum::Class(value) => TypedPtrValue::new(value).into(),
+            ValueEnum::Invokable(value) => TypedPtrValue::new(value).into(),
         }
     }
 }

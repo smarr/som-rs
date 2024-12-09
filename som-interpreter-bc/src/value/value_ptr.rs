@@ -5,17 +5,17 @@ use crate::vm_objects::block::Block;
 use crate::vm_objects::class::Class;
 use crate::vm_objects::instance::Instance;
 use crate::vm_objects::method::Method;
-use som_core::value::{HasPointerTag, ValuePtr};
+use som_core::value::{HasPointerTag, TypedPtrValue};
 use som_gc::gcref::Gc;
 
-impl<T> From<Value> for ValuePtr<T, Gc<T>> {
+impl<T> From<Value> for TypedPtrValue<T, Gc<T>> {
     fn from(value: Value) -> Self {
         value.0.into()
     }
 }
 
-impl<T> From<ValuePtr<T, Gc<T>>> for Value {
-    fn from(val: ValuePtr<T, Gc<T>>) -> Self {
+impl<T> From<TypedPtrValue<T, Gc<T>>> for Value {
+    fn from(val: TypedPtrValue<T, Gc<T>>) -> Self {
         Value(val.into())
     }
 }

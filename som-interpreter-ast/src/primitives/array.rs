@@ -3,10 +3,10 @@ use crate::gc::VecValue;
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
 use crate::value::convert::Primitive;
+use crate::value::value_ptr::HeapValPtr;
 use crate::value::Value;
 use anyhow::{bail, Error};
 use once_cell::sync::Lazy;
-use som_gc::gcref::Gc;
 use std::convert::TryFrom;
 
 pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
@@ -19,35 +19,35 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
 
 pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([("new:", self::new.into_func(), true)]));
 
-fn at(_: &mut Universe, values: Gc<VecValue>, index: i32) -> Result<Value, Error> {
+fn at(_: &mut Universe, values: HeapValPtr<VecValue>, index: i32) -> Result<Value, Error> {
     const SIGNATURE: &str = "Array>>#at:";
 
     let index = match usize::try_from(index - 1) {
         Ok(index) => index,
         Err(err) => bail!(format!("'{}': {}", SIGNATURE, err)),
     };
-    let value = values.get(index).cloned().unwrap_or(Value::NIL);
+    let value = values.deref().get(index).cloned().unwrap_or(Value::NIL);
 
     Ok(value)
 }
 
-fn at_put(_: &mut Universe, mut values: Gc<VecValue>, index: i32, value: Value) -> Result<Value, Error> {
+fn at_put(_: &mut Universe, values: HeapValPtr<VecValue>, index: i32, value: Value) -> Result<Value, Error> {
     const SIGNATURE: &str = "Array>>#at:put:";
 
     let index = match usize::try_from(index - 1) {
         Ok(index) => index,
         Err(err) => bail!(format!("'{}': {}", SIGNATURE, err)),
     };
-    if let Some(location) = values.0.get_mut(index) {
+    if let Some(location) = values.deref().0.get_mut(index) {
         *location = value;
     }
-    Ok(Value::Array(values))
+    Ok(Value::Array(values.deref()))
 }
 
-fn length(_: &mut Universe, values: Gc<VecValue>) -> Result<Value, Error> {
+fn length(_: &mut Universe, values: HeapValPtr<VecValue>) -> Result<Value, Error> {
     const SIGNATURE: &str = "Array>>#length";
 
-    let length = values.len();
+    let length = values.deref().len();
     match i32::try_from(length) {
         Ok(length) => Ok(Value::Integer(length)),
         Err(err) => bail!(format!("'{}': {}", SIGNATURE, err)),

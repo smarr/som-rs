@@ -8,9 +8,9 @@ use once_cell::sync::Lazy;
 pub mod block1 {
     use super::*;
     use crate::value::convert::Primitive;
+    use crate::value::value_ptr::HeapValPtr;
     use crate::vm_objects::block::Block;
     use anyhow::Error;
-    use som_gc::gcref::Gc;
 
     pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> =
         Lazy::new(|| Box::new([("value", self::value.into_func(), true), ("restart", self::restart.into_func(), false)]));
@@ -21,7 +21,7 @@ pub mod block1 {
         Ok(universe.eval_block_with_frame(nbr_locals, 1))
     }
 
-    fn restart(_: &mut Universe, _: Gc<Block>) -> Result<Return, Error> {
+    fn restart(_: &mut Universe, _: HeapValPtr<Block>) -> Result<Return, Error> {
         #[cfg(feature = "inlining-disabled")]
         return Ok(Return::Restart);
         #[cfg(not(feature = "inlining-disabled"))]

@@ -10,6 +10,7 @@ use crate::gc::VecValue;
 use crate::invokable::Return;
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
+use crate::value::value_ptr::HeapValPtr;
 use crate::value::Value;
 use crate::vm_objects::block::Block;
 use crate::vm_objects::class::Class;
@@ -17,6 +18,7 @@ use crate::vm_objects::instance::Instance;
 use crate::vm_objects::method::Method;
 use num_bigint::BigInt;
 use som_core::interner::Interned;
+use som_core::value::HasPointerTag;
 use som_gc::gc_interface::GCInterface;
 use som_gc::gcref::Gc;
 
@@ -40,9 +42,9 @@ impl TryFrom<Value> for Nil {
     }
 }
 
-impl FromArgs for Nil {
-    fn from_args(arg: Value, _: &mut Universe) -> Result<Self, Error> {
-        Self::try_from(arg)
+impl FromArgs<'_> for Nil {
+    fn from_args(arg: &Value, _: &mut Universe) -> Result<Self, Error> {
+        Self::try_from(*arg)
     }
 }
 
@@ -61,9 +63,9 @@ impl TryFrom<Value> for System {
     }
 }
 
-impl FromArgs for System {
-    fn from_args(arg: Value, _: &mut Universe) -> Result<Self, Error> {
-        Self::try_from(arg)
+impl FromArgs<'_> for System {
+    fn from_args(arg: &Value, _: &mut Universe) -> Result<Self, Error> {
+        Self::try_from(*arg)
     }
 }
 
@@ -85,9 +87,9 @@ impl TryFrom<Value> for StringLike {
     }
 }
 
-impl FromArgs for StringLike {
-    fn from_args(arg: Value, _: &mut Universe) -> Result<Self, Error> {
-        Self::try_from(arg)
+impl FromArgs<'_> for StringLike {
+    fn from_args(arg: &Value, _: &mut Universe) -> Result<Self, Error> {
+        Self::try_from(*arg)
     }
 }
 
@@ -111,9 +113,9 @@ impl TryFrom<Value> for DoubleLike {
     }
 }
 
-impl FromArgs for DoubleLike {
-    fn from_args(arg: Value, _: &mut Universe) -> Result<Self, Error> {
-        Self::try_from(arg)
+impl FromArgs<'_> for DoubleLike {
+    fn from_args(arg: &Value, _: &mut Universe) -> Result<Self, Error> {
+        Self::try_from(*arg)
     }
 }
 
@@ -135,85 +137,64 @@ impl TryFrom<Value> for IntegerLike {
     }
 }
 
-impl FromArgs for IntegerLike {
-    fn from_args(arg: Value, _: &mut Universe) -> Result<Self, Error> {
-        Self::try_from(arg)
+impl FromArgs<'_> for IntegerLike {
+    fn from_args(arg: &Value, _: &mut Universe) -> Result<Self, Error> {
+        Self::try_from(*arg)
     }
 }
 
-pub trait FromArgs: Sized {
-    fn from_args(arg: Value, universe: &mut Universe) -> Result<Self, Error>;
+pub trait FromArgs<'a>: Sized {
+    fn from_args(arg: &'a Value, universe: &mut Universe) -> Result<Self, Error>;
 }
 
-impl FromArgs for Value {
-    fn from_args(arg: Value, _: &mut Universe) -> Result<Self, Error> {
-        Ok(arg)
+impl FromArgs<'_> for Value {
+    fn from_args(arg: &Value, _: &mut Universe) -> Result<Self, Error> {
+        Ok(*arg)
     }
 }
 
-impl FromArgs for bool {
-    fn from_args(arg: Value, _: &mut Universe) -> Result<Self, Error> {
+impl FromArgs<'_> for bool {
+    fn from_args(arg: &Value, _: &mut Universe) -> Result<Self, Error> {
         arg.as_boolean().context("could not resolve `Value` as `Boolean`")
     }
 }
 
-impl FromArgs for i32 {
-    fn from_args(arg: Value, _: &mut Universe) -> Result<Self, Error> {
+impl FromArgs<'_> for i32 {
+    fn from_args(arg: &Value, _: &mut Universe) -> Result<Self, Error> {
         arg.as_integer().context("could not resolve `Value` as `Integer`")
     }
 }
 
-impl FromArgs for f64 {
-    fn from_args(arg: Value, _: &mut Universe) -> Result<Self, Error> {
+impl FromArgs<'_> for f64 {
+    fn from_args(arg: &Value, _: &mut Universe) -> Result<Self, Error> {
         arg.as_double().context("could not resolve `Value` as `Double`")
     }
 }
 
-impl FromArgs for Interned {
-    fn from_args(arg: Value, _: &mut Universe) -> Result<Self, Error> {
+impl FromArgs<'_> for Interned {
+    fn from_args(arg: &Value, _: &mut Universe) -> Result<Self, Error> {
         arg.as_symbol().context("could not resolve `Value` as `Symbol`")
     }
 }
 
-impl FromArgs for Gc<String> {
-    fn from_args(arg: Value, _: &mut Universe) -> Result<Self, Error> {
+impl FromArgs<'_> for Gc<String> {
+    fn from_args(arg: &Value, _: &mut Universe) -> Result<Self, Error> {
         arg.as_string().context("could not resolve `Value` as `String`")
     }
 }
 
-impl FromArgs for Gc<VecValue> {
-    fn from_args(arg: Value, _: &mut Universe) -> Result<Self, Error> {
-        arg.as_array().context("could not resolve `Value` as `Array`")
+impl<T> FromArgs<'_> for HeapValPtr<T>
+where
+    T: HasPointerTag,
+{
+    fn from_args(arg: &Value, _: &mut Universe) -> Result<Self, Error> {
+        unsafe { Ok(HeapValPtr::new_static(arg)) }
     }
 }
 
-impl FromArgs for Gc<Class> {
-    fn from_args(arg: Value, _: &mut Universe) -> Result<Self, Error> {
-        arg.as_class().context("could not resolve `Value` as `Class`")
-    }
-}
-
-impl FromArgs for Gc<Instance> {
-    fn from_args(arg: Value, _: &mut Universe) -> Result<Self, Error> {
-        arg.as_instance().context("could not resolve `Value` as `Instance`")
-    }
-}
-
-impl FromArgs for Gc<Block> {
-    fn from_args(arg: Value, _: &mut Universe) -> Result<Self, Error> {
-        arg.as_block().context("could not resolve `Value` as `Block`")
-    }
-}
-
-impl FromArgs for Gc<Method> {
-    fn from_args(arg: Value, _: &mut Universe) -> Result<Self, Error> {
-        arg.as_value_gc_ptr::<Method>().context("could not resolve `Value` as `Method`")
-    }
-}
-
-impl FromArgs for Return {
-    fn from_args(val: Value, _: &mut Universe) -> Result<Self, Error> {
-        Ok(Return::Local(val))
+impl FromArgs<'_> for Return {
+    fn from_args(arg: &Value, _: &mut Universe) -> Result<Self, Error> {
+        Ok(Return::Local(*arg))
     }
 }
 
@@ -292,29 +273,6 @@ pub trait Primitive<T>: Sized + Send + Sync + 'static {
     }
 }
 
-macro_rules! derive_stuff {
-    ($($ty:ident),* $(,)?) => {
-        impl <F, R, $($ty),*> $crate::value::convert::Primitive<($($ty),*,)> for F
-        where
-            F: Fn(&mut $crate::universe::Universe, $($ty),*) -> Result<R, Error> + Send + Sync + 'static,
-            R: $crate::value::convert::IntoReturn,
-            $($ty: $crate::value::convert::FromArgs),*,
-        {
-            fn invoke(&self, universe: &mut $crate::universe::Universe, nbr_args: usize) -> Return {
-                let args = universe.stack_n_last_elems(nbr_args);
-                let mut args_iter = args.iter();
-                $(
-                    #[allow(non_snake_case)]
-                    let $ty = $ty::from_args(*args_iter.next().unwrap(), universe).unwrap();
-                )*
-
-                let result = (self)(universe, $($ty),*,).unwrap();
-                result.into_return(&mut universe.gc_interface)
-            }
-        }
-    };
-}
-
 pub trait IntoReturn {
     fn into_return(self, heap: &mut GCInterface) -> Return;
 }
@@ -383,17 +341,36 @@ impl IntoValue for DoubleLike {
     }
 }
 
-// impl<F> Primitive<()> for F
-// where
-//     F: Fn(&mut Universe, Vec<Value>) -> Return
-//     + Send
-//     + Sync
-//     + 'static,
-// {
-//     fn invoke(&self, universe: &mut Universe, args: Vec<Value>) -> Return {
-//         self(universe, args)
-//     }
-// }
+macro_rules! derive_stuff {
+    ($($ty:ident),* $(,)?) => {
+        impl <F, R, $($ty),*> $crate::value::convert::Primitive<($($ty),*,)> for F
+        where
+            F: Fn(&mut $crate::universe::Universe, $($ty),*) -> Result<R, Error> + Send + Sync + 'static,
+            R: $crate::value::convert::IntoReturn,
+            $(for<'a> $ty: $crate::value::convert::FromArgs<'a>),*,
+        {
+            fn invoke(&self, universe: &mut $crate::universe::Universe, nbr_args: usize) -> Return {
+                // let args = universe.stack_n_last_elems(nbr_args);
+
+                // We need to keep the elements on the stack to have them be reachable still when GC happens.
+                // But borrowing them means borrowing the universe immutably, so we duplicate the reference.
+                // # Safety
+                // AFAIK this is safe since the stack isn't going to move in the meantime.
+                // HOWEVER, if it gets resized/reallocated by Rust... Maybe? I'm not sure...
+                let args: &[Value] = unsafe { &* (universe.stack_borrow_n_last_elems(nbr_args) as *const _) };
+                let mut args_iter = args.iter();
+                $(
+                    #[allow(non_snake_case)]
+                    let $ty = $ty::from_args(args_iter.next().unwrap(), universe).unwrap();
+                )*
+
+                let result = (self)(universe, $($ty),*,).unwrap();
+                universe.stack_pop_n(nbr_args);
+                result.into_return(&mut universe.gc_interface)
+            }
+        }
+    };
+}
 
 derive_stuff!(_A);
 derive_stuff!(_A, _B);

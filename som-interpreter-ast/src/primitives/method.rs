@@ -4,11 +4,11 @@ use crate::invokable::Return;
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
 use crate::value::convert::Primitive;
+use crate::value::value_ptr::HeapValPtr;
 use crate::value::Value;
 use crate::vm_objects::method::Method;
 use anyhow::Error;
 use once_cell::sync::Lazy;
-use som_gc::gcref::Gc;
 
 pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
     Box::new([
@@ -19,8 +19,9 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
 });
 pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([]));
 
-fn holder(_: &mut Universe, invokable: Gc<Method>) -> Result<Value, Error> {
-    let holder = invokable.holder();
+fn holder(_: &mut Universe, invokable: HeapValPtr<Method>) -> Result<Value, Error> {
+    let method = invokable.deref();
+    let holder = method.holder();
     Ok(Value::Class(*holder))
 
     // match maybe_holder {
@@ -32,13 +33,18 @@ fn holder(_: &mut Universe, invokable: Gc<Method>) -> Result<Value, Error> {
     // }
 }
 
-fn signature(universe: &mut Universe, invokable: Gc<Method>) -> Result<Value, Error> {
-    let sym = universe.intern_symbol(invokable.signature());
+fn signature(universe: &mut Universe, invokable: HeapValPtr<Method>) -> Result<Value, Error> {
+    let sym = universe.intern_symbol(invokable.deref().signature());
     Ok(Value::Symbol(sym))
 }
 
 #[allow(unused)]
-fn invoke_on_with(universe: &mut Universe, mut invokable: Gc<Method>, receiver: Value, arguments: Gc<VecValue>) -> Result<Return, Error> {
+fn invoke_on_with(
+    universe: &mut Universe,
+    mut invokable: HeapValPtr<Method>,
+    receiver: Value,
+    arguments: HeapValPtr<VecValue>,
+) -> Result<Return, Error> {
     todo!()
     // let args = std::iter::once(receiver).chain(arguments.iter().cloned()).collect();
 

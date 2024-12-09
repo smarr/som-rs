@@ -191,27 +191,27 @@ impl Value {
 impl Value {
     #[inline(always)]
     pub fn Array(value: Gc<VecValue>) -> Self {
-        ValuePtr::new(value).into()
+        TypedPtrValue::new(value).into()
     }
 
     #[inline(always)]
     pub fn Block(value: Gc<Block>) -> Self {
-        ValuePtr::new(value).into()
+        TypedPtrValue::new(value).into()
     }
 
     #[inline(always)]
     pub fn Class(value: Gc<Class>) -> Self {
-        ValuePtr::new(value).into()
+        TypedPtrValue::new(value).into()
     }
 
     #[inline(always)]
     pub fn Instance(value: Gc<Instance>) -> Self {
-        ValuePtr::new(value).into()
+        TypedPtrValue::new(value).into()
     }
 
     #[inline(always)]
     pub fn Invokable(value: Gc<Method>) -> Self {
-        ValuePtr::new(value).into()
+        TypedPtrValue::new(value).into()
     }
 }
 
