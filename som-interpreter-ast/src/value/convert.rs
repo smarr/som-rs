@@ -294,11 +294,11 @@ pub trait Primitive<T>: Sized + Send + Sync + 'static {
 
 macro_rules! derive_stuff {
     ($($ty:ident),* $(,)?) => {
-        impl <F, R, $($ty),*> $crate::convert::Primitive<($($ty),*,)> for F
+        impl <F, R, $($ty),*> $crate::value::convert::Primitive<($($ty),*,)> for F
         where
             F: Fn(&mut $crate::universe::Universe, $($ty),*) -> Result<R, Error> + Send + Sync + 'static,
-            R: $crate::convert::IntoReturn,
-            $($ty: $crate::convert::FromArgs),*,
+            R: $crate::value::convert::IntoReturn,
+            $($ty: $crate::value::convert::FromArgs),*,
         {
             fn invoke(&self, universe: &mut $crate::universe::Universe, nbr_args: usize) -> Return {
                 let args = universe.stack_n_last_elems(nbr_args);

@@ -1,7 +1,7 @@
 use super::PrimInfo;
-use crate::convert::{DoubleLike, Primitive, StringLike};
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
+use crate::value::convert::{DoubleLike, Primitive, StringLike};
 use crate::value::Value;
 use anyhow::{bail, Error};
 use num_traits::ToPrimitive;

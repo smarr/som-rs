@@ -7,7 +7,7 @@ use once_cell::sync::Lazy;
 /// Primitives for the **Block** and **Block1** class.
 pub mod block1 {
     use super::*;
-    use crate::convert::Primitive;
+    use crate::value::convert::Primitive;
     use crate::vm_objects::block::Block;
     use anyhow::Error;
     use som_gc::gcref::Gc;
@@ -42,7 +42,7 @@ pub mod block1 {
 /// Primitives for the **Block2** class.
 pub mod block2 {
     use super::*;
-    use crate::convert::Primitive;
+    use crate::value::convert::Primitive;
     use anyhow::Error;
 
     pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([("value:", self::value.into_func(), true)]));
@@ -67,7 +67,7 @@ pub mod block2 {
 /// Primitives for the **Block3** class.
 pub mod block3 {
     use super::*;
-    use crate::convert::Primitive;
+    use crate::value::convert::Primitive;
     use anyhow::Error;
 
     pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([("value:with:", self::value_with.into_func(), true)]));

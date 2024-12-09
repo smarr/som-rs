@@ -1,7 +1,7 @@
-use crate::convert::{Primitive, StringLike};
 use crate::gc::VecValue;
 use crate::primitives::{PrimInfo, PrimitiveFn};
 use crate::universe::Universe;
+use crate::value::convert::{Primitive, StringLike};
 use crate::value::Value;
 use crate::vm_objects::class::Class;
 use anyhow::{bail, Context, Error};

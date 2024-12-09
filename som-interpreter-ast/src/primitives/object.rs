@@ -1,9 +1,9 @@
 use super::PrimInfo;
-use crate::convert::Primitive;
 use crate::gc::VecValue;
 use crate::invokable::{Invoke, Return};
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
+use crate::value::convert::Primitive;
 use crate::value::Value;
 use crate::vm_objects::class::Class;
 use anyhow::{bail, Error};

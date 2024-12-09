@@ -1,7 +1,7 @@
 use super::PrimInfo;
-use crate::convert::{Primitive, StringLike};
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
+use crate::value::convert::{Primitive, StringLike};
 use crate::value::Value;
 use anyhow::{bail, Error};
 use once_cell::sync::Lazy;

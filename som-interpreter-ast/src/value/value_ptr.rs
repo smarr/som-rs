@@ -1,28 +1,20 @@
-use std::marker::PhantomData;
-
 use som_core::value::BaseValue;
 use som_gc::gcref::Gc;
+use std::marker::PhantomData;
 
+use super::nan_boxed_val::{ARRAY_TAG, BLOCK_TAG, CLASS_TAG, INSTANCE_TAG, INVOKABLE_TAG};
+use super::Value;
 use crate::gc::VecValue;
-use crate::value::{ARRAY_TAG, BLOCK_TAG, CLASS_TAG, INSTANCE_TAG, INVOKABLE_TAG};
 use crate::vm_objects::block::Block;
 use crate::vm_objects::class::Class;
 use crate::vm_objects::instance::Instance;
-use crate::{value::Value, vm_objects::method::Method};
+use crate::vm_objects::method::Method;
 
 #[repr(transparent)]
 pub struct ValuePtr<T> {
     value: BaseValue,
     _phantom: PhantomData<T>,
 }
-
-// impl<T> Deref for ValuePtr<T> {
-//     type Target = BaseValue;
-//
-//     fn deref(&self) -> &Self::Target {
-//         &self.value
-//     }
-// }
 
 pub trait HasPointerTag {
     fn get_tag() -> u64;
@@ -50,7 +42,7 @@ where
     }
 
     #[inline(always)]
-    pub fn _as_ptr_unchecked(&self) -> Gc<T> {
+    pub fn as_ptr_unchecked(&self) -> Gc<T> {
         self.value.extract_gc_cell()
     }
 }

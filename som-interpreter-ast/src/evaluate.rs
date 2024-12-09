@@ -5,9 +5,9 @@ use crate::ast::{
 use crate::gc::VecValue;
 use crate::invokable::{Invoke, Return};
 use crate::universe::Universe;
+use crate::value::Value;
 use crate::vm_objects::block::Block;
 use crate::vm_objects::frame::{Frame, FrameAccess};
-use crate::Value;
 use som_gc::debug_assert_valid_semispace_ptr;
 use som_gc::gcref::Gc;
 

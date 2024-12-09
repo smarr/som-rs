@@ -3,7 +3,6 @@
 //!
 
 use crate::universe::Universe;
-use crate::value::Value;
 use std::sync::atomic::AtomicPtr;
 
 macro_rules! propagate {
@@ -33,15 +32,12 @@ pub mod universe;
 /// VM-specific objects.
 pub mod vm_objects;
 
-mod convert;
 /// To interact with the GC.
 pub mod gc;
 /// Specialized AST nodes
 pub mod specialized;
 /// Facilities for manipulating values.
 pub mod value;
-/// For values that are to pointer types.
-pub mod value_ptr;
 
 /// Raw pointer needed to trace GC roots. Meant to be accessed only non-mutably, hence the "CONST" in the name.
 /// TODO: actually enforce that non-mutable access.

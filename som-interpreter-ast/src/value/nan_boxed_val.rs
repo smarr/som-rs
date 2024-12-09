@@ -1,6 +1,7 @@
+use super::value_ptr::{HasPointerTag, ValuePtr};
 use crate::gc::VecValue;
 use crate::universe::Universe;
-use crate::value_ptr::{HasPointerTag, ValuePtr};
+use crate::value::Value;
 use crate::vm_objects::block::Block;
 use crate::vm_objects::class::Class;
 use crate::vm_objects::instance::Instance;
@@ -24,9 +25,6 @@ pub(crate) const CLASS_TAG: u64 = 0b101 | CELL_BASE_TAG;
 pub(crate) const INSTANCE_TAG: u64 = 0b110 | CELL_BASE_TAG;
 /// Tag bits for the `Invokable` type.
 pub(crate) const INVOKABLE_TAG: u64 = 0b111 | CELL_BASE_TAG;
-
-#[derive(Clone, Copy)]
-pub struct Value(pub(crate) BaseValue);
 
 impl Deref for Value {
     type Target = BaseValue;
