@@ -8,7 +8,7 @@ use crate::primitives::PrimInfo;
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
 use crate::value::convert::Primitive;
-use crate::value::Value;
+use crate::value::{HeapValPtr, Value};
 use crate::vm_objects::class::Class;
 use crate::vm_objects::instance::Instance;
 use crate::vm_objects::method::Invoke;
@@ -71,6 +71,13 @@ fn perform(interpreter: &mut Interpreter, universe: &mut Universe, receiver: Val
             .with_context(|| format!("`{SIGNATURE}`: method `{signature_str}` not found for `{}`", receiver.to_string(universe),));
     };
 
+    // if let Method::Primitive(..) = &*invokable {
+    //     let mut frame = interpreter.current_frame;
+    //     let ret = frame.stack_pop();
+    //     frame.remove_n_last_elements(2);
+    //     frame.stack_push(ret);
+    // }
+
     invokable.invoke(interpreter, universe, receiver, vec![]);
     Ok(())
 }
@@ -80,19 +87,19 @@ fn perform_with_arguments(
     universe: &mut Universe,
     receiver: Value,
     signature: Interned,
-    arguments: Gc<VecValue>,
+    arguments: HeapValPtr<VecValue>,
 ) -> Result<(), Error> {
     const SIGNATURE: &str = "Object>>#perform:withArguments:";
 
     let Some(invokable) = receiver.lookup_method(universe, signature) else {
         let signature_str = universe.lookup_symbol(signature).to_owned();
-        let args = std::iter::once(receiver).chain(arguments.0.clone()).collect(); // lame clone
+        let args = std::iter::once(receiver).chain(arguments.deref().0.clone()).collect(); // lame clone
         return universe
             .does_not_understand(interpreter, receiver, signature, args)
             .with_context(|| format!("`{SIGNATURE}`: method `{signature_str}` not found for `{}`", receiver.to_string(universe)));
     };
 
-    invokable.invoke(interpreter, universe, receiver, arguments.0.clone());
+    invokable.invoke(interpreter, universe, receiver, arguments.deref().0.clone());
     Ok(())
 }
 
@@ -101,15 +108,15 @@ fn perform_in_super_class(
     universe: &mut Universe,
     receiver: Value,
     signature: Interned,
-    class: Gc<Class>,
+    class: HeapValPtr<Class>,
 ) -> Result<(), Error> {
     const SIGNATURE: &str = "Object>>#perform:inSuperclass:";
 
-    let Some(invokable) = class.lookup_method(signature) else {
+    let Some(invokable) = class.deref().lookup_method(signature) else {
         let signature_str = universe.lookup_symbol(signature).to_owned();
         let args = vec![receiver];
         return universe
-            .does_not_understand(interpreter, Value::Class(class), signature, args)
+            .does_not_understand(interpreter, Value::Class(class.deref()), signature, args)
             .with_context(|| format!("`{SIGNATURE}`: method `{signature_str}` not found for `{}`", receiver.to_string(universe)));
     };
 
@@ -122,22 +129,22 @@ fn perform_with_arguments_in_super_class(
     universe: &mut Universe,
     receiver: Value,
     signature: Interned,
-    arguments: Gc<VecValue>,
-    class: Gc<Class>,
+    arguments: HeapValPtr<VecValue>,
+    class: HeapValPtr<Class>,
 ) -> Result<(), Error> {
     const SIGNATURE: &str = "Object>>#perform:withArguments:inSuperclass:";
 
-    let method = class.lookup_method(signature);
+    let method = class.deref().lookup_method(signature);
 
     let Some(invokable) = method else {
         let signature_str = universe.lookup_symbol(signature).to_owned();
-        let args = std::iter::once(receiver).chain(arguments.0.clone()).collect(); // lame to clone args, right?
+        let args = std::iter::once(receiver).chain(arguments.deref().0.clone()).collect(); // lame to clone args, right?
         return universe
-            .does_not_understand(interpreter, Value::Class(class), signature, args)
+            .does_not_understand(interpreter, Value::Class(class.deref()), signature, args)
             .with_context(|| format!("`{SIGNATURE}`: method `{signature_str}` not found for `{}`", receiver.to_string(universe)));
     };
 
-    invokable.invoke(interpreter, universe, receiver, arguments.0.clone());
+    invokable.invoke(interpreter, universe, receiver, arguments.deref().0.clone());
     Ok(())
 }
 

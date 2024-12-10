@@ -11,7 +11,7 @@ use crate::gc::VecValue;
 use crate::interpreter::Interpreter;
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
-use crate::value::Value;
+use crate::value::{HeapValPtr, Value};
 use crate::vm_objects::block::Block;
 use crate::vm_objects::class::Class;
 use crate::vm_objects::instance::Instance;
@@ -175,9 +175,15 @@ impl FromArgs for Interned {
     }
 }
 
-impl<T: HasPointerTag> FromArgs for Gc<T> {
+// impl<T: HasPointerTag> FromArgs for Gc<T> {
+//     fn from_args(arg: &Value) -> Result<Self, Error> {
+//         arg.as_ptr().context("could not resolve `Value` as correct pointer")
+//     }
+// }
+
+impl<T: HasPointerTag> FromArgs for HeapValPtr<T> {
     fn from_args(arg: &Value) -> Result<Self, Error> {
-        arg.as_ptr().context("could not resolve `Value` as correct pointer")
+        unsafe { Ok(HeapValPtr::new_static(arg)) }
     }
 }
 

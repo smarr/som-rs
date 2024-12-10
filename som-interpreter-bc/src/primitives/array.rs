@@ -6,7 +6,7 @@ use crate::interpreter::Interpreter;
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
 use crate::value::convert::Primitive;
-use crate::value::Value;
+use crate::value::{HeapValPtr, Value};
 use anyhow::{Context, Error};
 use once_cell::sync::Lazy;
 use som_gc::gcref::Gc;
@@ -21,30 +21,30 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
 
 pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([("new:", self::new.into_func(), true)]));
 
-fn at(_: &mut Interpreter, _: &mut Universe, receiver: Gc<VecValue>, index: i32) -> Result<Value, Error> {
+fn at(_: &mut Interpreter, _: &mut Universe, receiver: HeapValPtr<VecValue>, index: i32) -> Result<Value, Error> {
     const _: &str = "Array>>#at:";
 
     let index = usize::try_from(index - 1)?;
 
-    receiver.0.get(index).cloned().context("index out of bounds")
+    receiver.deref().0.get(index).cloned().context("index out of bounds")
 }
 
-fn at_put(_: &mut Interpreter, _: &mut Universe, mut receiver: Gc<VecValue>, index: i32, value: Value) -> Result<Gc<VecValue>, Error> {
+fn at_put(_: &mut Interpreter, _: &mut Universe, receiver: HeapValPtr<VecValue>, index: i32, value: Value) -> Result<Gc<VecValue>, Error> {
     const _: &str = "Array>>#at:put:";
 
     let index = usize::try_from(index - 1)?;
 
-    if let Some(location) = receiver.0.get_mut(index) {
+    if let Some(location) = receiver.deref().0.get_mut(index) {
         *location = value;
     }
 
-    Ok(receiver)
+    Ok(receiver.deref())
 }
 
-fn length(_: &mut Interpreter, _: &mut Universe, receiver: Gc<VecValue>) -> Result<i32, Error> {
+fn length(_: &mut Interpreter, _: &mut Universe, receiver: HeapValPtr<VecValue>) -> Result<i32, Error> {
     const _: &str = "Array>>#length";
 
-    receiver.0.len().try_into().context("could not convert `usize` to `i32`")
+    receiver.deref().0.len().try_into().context("could not convert `usize` to `i32`")
 }
 
 fn new(_: &mut Interpreter, universe: &mut Universe, _: Value, count: i32) -> Result<Gc<VecValue>, Error> {

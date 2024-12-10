@@ -4,7 +4,7 @@ use crate::primitives::PrimInfo;
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
 use crate::value::convert::Primitive;
-use crate::value::Value;
+use crate::value::{HeapValPtr, Value};
 use crate::vm_objects::class::Class;
 use crate::vm_objects::method::{Invoke, Method};
 use anyhow::Error;
@@ -21,32 +21,30 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
 });
 pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([]));
 
-fn holder(_: &mut Interpreter, _: &mut Universe, invokable: Gc<Method>) -> Result<Gc<Class>, Error> {
+fn holder(_: &mut Interpreter, _: &mut Universe, invokable: HeapValPtr<Method>) -> Result<Gc<Class>, Error> {
     const _: &str = "Method>>#holder";
 
-    Ok(*invokable.holder())
+    Ok(*invokable.deref().holder())
 }
 
-fn signature(_: &mut Interpreter, universe: &mut Universe, invokable: Gc<Method>) -> Result<Interned, Error> {
-    const _: &str = "Method>>#signature";
-
-    Ok(universe.intern_symbol(invokable.signature()))
+fn signature(_: &mut Interpreter, universe: &mut Universe, invokable: HeapValPtr<Method>) -> Result<Interned, Error> {
+    Ok(universe.intern_symbol(invokable.deref().signature()))
 }
 
 fn invoke_on_with(
     interpreter: &mut Interpreter,
     universe: &mut Universe,
-    invokable: Gc<Method>,
+    invokable: HeapValPtr<Method>,
     receiver: Value,
-    arguments: Gc<VecValue>,
+    arguments: HeapValPtr<VecValue>,
 ) -> Result<(), Error> {
     const _: &str = "Method>>#invokeOn:with:";
 
-    invokable.invoke(
+    invokable.deref().invoke(
         interpreter,
         universe,
         receiver,
-        arguments.0.clone(), // todo lame to clone tbh
+        arguments.deref().0.clone(), // todo lame to clone tbh
     );
     Ok(())
 }

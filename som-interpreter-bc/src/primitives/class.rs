@@ -4,7 +4,7 @@ use crate::primitives::PrimInfo;
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
 use crate::value::convert::Primitive;
-use crate::value::Value;
+use crate::value::{HeapValPtr, Value};
 use crate::vm_objects::class::Class;
 use crate::vm_objects::instance::Instance;
 use anyhow::Error;
@@ -25,42 +25,39 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
 });
 pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([]));
 
-fn superclass(_: &mut Interpreter, _: &mut Universe, receiver: Gc<Class>) -> Result<Value, Error> {
+fn superclass(_: &mut Interpreter, _: &mut Universe, receiver: HeapValPtr<Class>) -> Result<Value, Error> {
     const _: &str = "Class>>#superclass";
 
-    let super_class = receiver.super_class();
+    let super_class = receiver.deref().super_class();
     let super_class_val = super_class.map_or(Value::NIL, Value::Class);
     // interpreter.current_frame.stack_push(super_class);
 
     Ok(super_class_val)
 }
 
-fn new(_: &mut Interpreter, universe: &mut Universe, receiver: Gc<Class>) -> Result<Gc<Instance>, Error> {
-    const _: &str = "Class>>#new";
-
-    let instance = Instance::from_class(receiver, universe.gc_interface);
-
+fn new(_: &mut Interpreter, universe: &mut Universe, receiver: HeapValPtr<Class>) -> Result<Gc<Instance>, Error> {
+    let instance = Instance::from_class(receiver.deref(), universe.gc_interface);
     Ok(instance)
 }
 
-fn name(_: &mut Interpreter, universe: &mut Universe, receiver: Gc<Class>) -> Result<Interned, Error> {
+fn name(_: &mut Interpreter, universe: &mut Universe, receiver: HeapValPtr<Class>) -> Result<Interned, Error> {
     const _: &str = "Class>>#name";
 
-    Ok(universe.intern_symbol(receiver.name()))
+    Ok(universe.intern_symbol(receiver.deref().name()))
 }
 
-fn methods(_: &mut Interpreter, universe: &mut Universe, receiver: Gc<Class>) -> Result<Gc<VecValue>, Error> {
+fn methods(_: &mut Interpreter, universe: &mut Universe, receiver: HeapValPtr<Class>) -> Result<Gc<VecValue>, Error> {
     const _: &str = "Class>>#methods";
 
-    let methods = receiver.methods.values().copied().map(Value::Invokable).collect();
+    let methods = receiver.deref().methods.values().copied().map(Value::Invokable).collect();
 
     Ok(universe.gc_interface.alloc(VecValue(methods)))
 }
 
-fn fields(_: &mut Interpreter, universe: &mut Universe, receiver: Gc<Class>) -> Result<Gc<VecValue>, Error> {
+fn fields(_: &mut Interpreter, universe: &mut Universe, receiver: HeapValPtr<Class>) -> Result<Gc<VecValue>, Error> {
     const _: &str = "Class>>#fields";
 
-    let fields = receiver.field_names.iter().copied().map(Value::Symbol).collect();
+    let fields = receiver.deref().field_names.iter().copied().map(Value::Symbol).collect();
 
     Ok(universe.gc_interface.alloc(VecValue(fields)))
 }

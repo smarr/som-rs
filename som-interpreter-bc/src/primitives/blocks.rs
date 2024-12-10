@@ -12,7 +12,7 @@ use crate::primitives::PrimInfo;
 /// Primitives for the **Block** and **Block1** class.
 pub mod block1 {
     use super::*;
-    use som_gc::gcref::Gc;
+    use crate::value::HeapValPtr;
 
     pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> =
         Lazy::new(|| Box::new([("value", self::value.into_func(), true), ("restart", self::restart.into_func(), false)]));
@@ -23,7 +23,7 @@ pub mod block1 {
         Ok(())
     }
 
-    fn restart(interpreter: &mut Interpreter, _: &mut Universe, _: Gc<Block>) -> Result<(), Error> {
+    fn restart(interpreter: &mut Interpreter, _: &mut Universe, _: HeapValPtr<Block>) -> Result<(), Error> {
         // interpreter.current_frame.bytecode_idx = 0;
         interpreter.bytecode_idx = 0;
 
