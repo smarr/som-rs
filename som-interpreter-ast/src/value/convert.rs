@@ -1,7 +1,3 @@
-// This is all Nicolas Polomack (https://github.com/Hirevo)'s work, despite what the commit history says.
-// Nicolas is the original dev for som-rs, and had this code in an unmerged PR about Nan boxing.
-// I didn't merge with his commits directly because his version of som-rs and mine have diverged a lot. But the credit is his, my edits are minor so far
-
 use std::convert::TryFrom;
 
 use anyhow::{bail, Context, Error};
@@ -19,12 +15,11 @@ use crate::vm_objects::method::Method;
 use num_bigint::BigInt;
 use som_core::interner::Interned;
 use som_core::value::HasPointerTag;
-use som_gc::gc_interface::GCInterface;
 use som_gc::gcref::Gc;
 
 pub trait IntoValue {
     #[allow(clippy::wrong_self_convention)] // though i guess we could/should rename it
-    fn into_value(&self, gc_interface: &mut GCInterface) -> Value;
+    fn into_value(&self) -> Value;
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -43,7 +38,7 @@ impl TryFrom<Value> for Nil {
 }
 
 impl FromArgs<'_> for Nil {
-    fn from_args(arg: &Value, _: &mut Universe) -> Result<Self, Error> {
+    fn from_args(arg: &Value) -> Result<Self, Error> {
         Self::try_from(*arg)
     }
 }
@@ -64,7 +59,7 @@ impl TryFrom<Value> for System {
 }
 
 impl FromArgs<'_> for System {
-    fn from_args(arg: &Value, _: &mut Universe) -> Result<Self, Error> {
+    fn from_args(arg: &Value) -> Result<Self, Error> {
         Self::try_from(*arg)
     }
 }
@@ -88,7 +83,7 @@ impl TryFrom<Value> for StringLike {
 }
 
 impl FromArgs<'_> for StringLike {
-    fn from_args(arg: &Value, _: &mut Universe) -> Result<Self, Error> {
+    fn from_args(arg: &Value) -> Result<Self, Error> {
         Self::try_from(*arg)
     }
 }
@@ -114,7 +109,7 @@ impl TryFrom<Value> for DoubleLike {
 }
 
 impl FromArgs<'_> for DoubleLike {
-    fn from_args(arg: &Value, _: &mut Universe) -> Result<Self, Error> {
+    fn from_args(arg: &Value) -> Result<Self, Error> {
         Self::try_from(*arg)
     }
 }
@@ -138,41 +133,41 @@ impl TryFrom<Value> for IntegerLike {
 }
 
 impl FromArgs<'_> for IntegerLike {
-    fn from_args(arg: &Value, _: &mut Universe) -> Result<Self, Error> {
+    fn from_args(arg: &Value) -> Result<Self, Error> {
         Self::try_from(*arg)
     }
 }
 
 pub trait FromArgs<'a>: Sized {
-    fn from_args(arg: &'a Value, universe: &mut Universe) -> Result<Self, Error>;
+    fn from_args(arg: &'a Value) -> Result<Self, Error>;
 }
 
 impl FromArgs<'_> for Value {
-    fn from_args(arg: &Value, _: &mut Universe) -> Result<Self, Error> {
+    fn from_args(arg: &Value) -> Result<Self, Error> {
         Ok(*arg)
     }
 }
 
 impl FromArgs<'_> for bool {
-    fn from_args(arg: &Value, _: &mut Universe) -> Result<Self, Error> {
+    fn from_args(arg: &Value) -> Result<Self, Error> {
         arg.as_boolean().context("could not resolve `Value` as `Boolean`")
     }
 }
 
 impl FromArgs<'_> for i32 {
-    fn from_args(arg: &Value, _: &mut Universe) -> Result<Self, Error> {
+    fn from_args(arg: &Value) -> Result<Self, Error> {
         arg.as_integer().context("could not resolve `Value` as `Integer`")
     }
 }
 
 impl FromArgs<'_> for f64 {
-    fn from_args(arg: &Value, _: &mut Universe) -> Result<Self, Error> {
+    fn from_args(arg: &Value) -> Result<Self, Error> {
         arg.as_double().context("could not resolve `Value` as `Double`")
     }
 }
 
 impl FromArgs<'_> for Interned {
-    fn from_args(arg: &Value, _: &mut Universe) -> Result<Self, Error> {
+    fn from_args(arg: &Value) -> Result<Self, Error> {
         arg.as_symbol().context("could not resolve `Value` as `Symbol`")
     }
 }
@@ -181,79 +176,79 @@ impl<T> FromArgs<'_> for HeapValPtr<T>
 where
     T: HasPointerTag,
 {
-    fn from_args(arg: &Value, _: &mut Universe) -> Result<Self, Error> {
+    fn from_args(arg: &Value) -> Result<Self, Error> {
         unsafe { Ok(HeapValPtr::new_static(arg)) }
     }
 }
 
 impl FromArgs<'_> for Return {
-    fn from_args(arg: &Value, _: &mut Universe) -> Result<Self, Error> {
+    fn from_args(arg: &Value) -> Result<Self, Error> {
         Ok(Return::Local(*arg))
     }
 }
 
 impl IntoValue for bool {
-    fn into_value(&self, _: &mut GCInterface) -> Value {
+    fn into_value(&self) -> Value {
         Value::Boolean(*self)
     }
 }
 
 impl IntoValue for i32 {
-    fn into_value(&self, _: &mut GCInterface) -> Value {
+    fn into_value(&self) -> Value {
         Value::Integer(*self)
     }
 }
 
 impl IntoValue for f64 {
-    fn into_value(&self, _: &mut GCInterface) -> Value {
+    fn into_value(&self) -> Value {
         Value::Double(*self)
     }
 }
 
 impl IntoValue for Interned {
-    fn into_value(&self, _: &mut GCInterface) -> Value {
+    fn into_value(&self) -> Value {
         Value::Symbol(*self)
     }
 }
 
 impl IntoValue for Gc<String> {
-    fn into_value(&self, _: &mut GCInterface) -> Value {
+    fn into_value(&self) -> Value {
         Value::String(*self)
     }
 }
 
 impl IntoValue for Gc<BigInt> {
-    fn into_value(&self, _: &mut GCInterface) -> Value {
+    fn into_value(&self) -> Value {
         Value::BigInteger(*self)
     }
 }
 
 impl IntoValue for Gc<VecValue> {
-    fn into_value(&self, _: &mut GCInterface) -> Value {
+    fn into_value(&self) -> Value {
         Value::Array(*self)
     }
 }
 
 impl IntoValue for Gc<Class> {
-    fn into_value(&self, _: &mut GCInterface) -> Value {
+    fn into_value(&self) -> Value {
         Value::Class(*self)
     }
 }
 
 impl IntoValue for Gc<Instance> {
-    fn into_value(&self, _: &mut GCInterface) -> Value {
+    fn into_value(&self) -> Value {
         Value::Instance(*self)
     }
 }
 
 impl IntoValue for Gc<Block> {
-    fn into_value(&self, _: &mut GCInterface) -> Value {
+    fn into_value(&self) -> Value {
         Value::Block(*self)
     }
 }
 
 impl IntoValue for Gc<Method> {
-    fn into_value(&self, _: &mut GCInterface) -> Value {
+    fn into_value(&self) -> Value {
         Value::Invokable(*self)
     }
 }
@@ -268,69 +263,69 @@ pub trait Primitive<T>: Sized + Send + Sync + 'static {
 }
 
 pub trait IntoReturn {
-    fn into_return(self, heap: &mut GCInterface) -> Return;
+    fn into_return(self) -> Return;
 }
 
 impl<T: IntoValue> IntoReturn for T {
-    fn into_return(self, heap: &mut GCInterface) -> Return {
-        Return::Local(self.into_value(heap))
+    fn into_return(self) -> Return {
+        Return::Local(self.into_value())
     }
 }
 
 impl IntoReturn for Return {
-    fn into_return(self, _: &mut GCInterface) -> Return {
+    fn into_return(self) -> Return {
         self
     }
 }
 
 impl IntoValue for Value {
-    fn into_value(&self, _: &mut GCInterface) -> Value {
+    fn into_value(&self) -> Value {
         *self
     }
 }
 
 impl IntoValue for Nil {
-    fn into_value(&self, _: &mut GCInterface) -> Value {
+    fn into_value(&self) -> Value {
         Value::NIL
     }
 }
 
 impl IntoValue for System {
-    fn into_value(&self, _: &mut GCInterface) -> Value {
+    fn into_value(&self) -> Value {
         Value::SYSTEM
     }
 }
 
 impl<T: IntoValue> IntoValue for Option<T> {
-    fn into_value(&self, heap: &mut GCInterface) -> Value {
-        self.as_ref().map_or(Value::NIL, |it| it.into_value(heap))
+    fn into_value(&self) -> Value {
+        self.as_ref().map_or(Value::NIL, |it| it.into_value())
     }
 }
 
 impl IntoValue for StringLike {
-    fn into_value(&self, heap: &mut GCInterface) -> Value {
+    fn into_value(&self) -> Value {
         match self {
-            StringLike::String(value) => value.into_value(heap),
-            StringLike::Symbol(value) => value.into_value(heap),
+            StringLike::String(value) => value.into_value(),
+            StringLike::Symbol(value) => value.into_value(),
         }
     }
 }
 
 impl IntoValue for IntegerLike {
-    fn into_value(&self, heap: &mut GCInterface) -> Value {
+    fn into_value(&self) -> Value {
         match self {
-            IntegerLike::Integer(value) => value.into_value(heap),
-            IntegerLike::BigInteger(value) => value.into_value(heap),
+            IntegerLike::Integer(value) => value.into_value(),
+            IntegerLike::BigInteger(value) => value.into_value(),
         }
     }
 }
 
 impl IntoValue for DoubleLike {
-    fn into_value(&self, heap: &mut GCInterface) -> Value {
+    fn into_value(&self) -> Value {
         match self {
-            DoubleLike::Double(value) => value.into_value(heap),
-            DoubleLike::Integer(value) => value.into_value(heap),
-            DoubleLike::BigInteger(value) => value.into_value(heap),
+            DoubleLike::Double(value) => value.into_value(),
+            DoubleLike::Integer(value) => value.into_value(),
+            DoubleLike::BigInteger(value) => value.into_value(),
         }
     }
 }
@@ -355,12 +350,12 @@ macro_rules! derive_stuff {
                 let mut args_iter = args.iter();
                 $(
                     #[allow(non_snake_case)]
-                    let $ty = $ty::from_args(args_iter.next().unwrap(), universe).unwrap();
+                    let $ty = $ty::from_args(args_iter.next().unwrap()).unwrap();
                 )*
 
                 let result = (self)(universe, $($ty),*,).unwrap();
                 universe.stack_pop_n(nbr_args);
-                result.into_return(&mut universe.gc_interface)
+                result.into_return()
             }
         }
     };
@@ -381,6 +376,6 @@ where
 {
     fn invoke(&self, universe: &mut Universe, _nbr_args: usize) -> Return {
         let result = self(universe).unwrap();
-        result.into_return(universe.gc_interface)
+        result.into_return()
     }
 }
