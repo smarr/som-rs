@@ -1,4 +1,5 @@
 use som_core::value::BaseValue;
+use som_gc::gcref::Gc;
 
 /// Value type(s!), and value-related code.
 /// Used to convert types, used by primitives.
@@ -17,3 +18,5 @@ mod value_ptr;
 pub struct Value(BaseValue);
 
 // TODO: we should be able to switch between Value (nanboxed) and ValueEnum at will. That used to be the case, but I broke those changes. TODO restore
+
+pub type HeapValPtr<T> = som_core::value_ptr::ValStaticPtr<T, Gc<T>>;

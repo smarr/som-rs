@@ -273,7 +273,7 @@ impl Frame {
 
     /// Search for a local binding.
     #[inline(always)]
-    pub fn lookup_local(&self, idx: usize) -> &Value {
+    pub fn lookup_local(&self, idx: usize) -> &'static Value {
         unsafe { &*self.locals_ptr.add(idx) }
     }
 
@@ -284,7 +284,7 @@ impl Frame {
     }
 
     #[inline(always)]
-    pub fn lookup_argument(&self, idx: usize) -> &Value {
+    pub fn lookup_argument(&self, idx: usize) -> &'static Value {
         unsafe { &*self.args_ptr.add(idx) }
     }
 
@@ -339,7 +339,7 @@ impl Frame {
     /// # Safety
     /// The caller needs to ensure this is a valid stack value. That means not outside the stack's maximum size, and not pointing to an uninitialized value.
     #[inline(always)]
-    pub unsafe fn nth_stack(&self, n: u8) -> &Value {
+    pub unsafe fn nth_stack(&self, n: u8) -> &'static Value {
         let stack_ptr = self as *const Self as usize + OFFSET_TO_STACK;
         let val_ptr = stack_ptr + (n as usize * size_of::<Value>());
         &*(val_ptr as *const Value)
@@ -349,7 +349,7 @@ impl Frame {
     /// # Safety
     /// The caller needs to ensure this is a valid stack value. That means not outside the stack's maximum size, and not pointing to an uninitialized value.
     #[inline(always)]
-    pub unsafe fn nth_stack_mut(&mut self, n: u8) -> &mut Value {
+    pub unsafe fn nth_stack_mut(&mut self, n: u8) -> &'static mut Value {
         let stack_ptr = self as *mut Self as usize + OFFSET_TO_STACK;
         let val_ptr = stack_ptr + (n as usize * size_of::<Value>());
         &mut *(val_ptr as *mut Value)
@@ -374,19 +374,19 @@ impl Frame {
     }
 
     #[inline(always)]
-    pub fn stack_last(&self) -> &Value {
+    pub fn stack_last(&self) -> &'static Value {
         debug_assert!(self.stack_ptr > 0);
         unsafe { self.nth_stack(self.stack_ptr - 1) }
     }
 
     #[inline(always)]
-    pub fn stack_last_mut(&mut self) -> &mut Value {
+    pub fn stack_last_mut(&mut self) -> &'static mut Value {
         debug_assert!(self.stack_ptr > 0);
         unsafe { self.nth_stack_mut(self.stack_ptr - 1) }
     }
 
     #[inline(always)]
-    pub fn stack_nth_back(&self, n: usize) -> &Value {
+    pub fn stack_nth_back(&self, n: usize) -> &'static Value {
         debug_assert!(self.stack_ptr >= (n + 1) as u8);
         unsafe { self.nth_stack(self.stack_ptr - (n as u8 + 1)) }
     }
@@ -401,6 +401,7 @@ impl Frame {
 
     #[inline(always)]
     pub fn remove_n_last_elements(&mut self, n: usize) {
+        debug_assert!(self.stack_ptr + 1 > n as u8);
         self.stack_ptr -= n as u8
     }
 
@@ -410,6 +411,8 @@ impl Frame {
     }
 }
 
+/// Iterate over the stack for a given frame.
+/// It iterates like a stack in "reverse order", returning the last-added element to the stack first.
 pub struct FrameStackIter<'a> {
     frame: &'a Frame,
     stack_idx: u8,
@@ -417,20 +420,23 @@ pub struct FrameStackIter<'a> {
 
 impl<'a> From<&'a Frame> for FrameStackIter<'a> {
     fn from(frame: &'a Frame) -> Self {
-        Self { frame, stack_idx: 0 }
+        Self {
+            frame,
+            stack_idx: frame.stack_ptr,
+        }
     }
 }
 
-impl<'a> Iterator for FrameStackIter<'a> {
-    type Item = &'a Value;
+impl Iterator for FrameStackIter<'_> {
+    type Item = &'static Value;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.stack_idx >= self.frame.stack_ptr {
+        if self.stack_idx == 0 {
             return None;
         }
 
+        self.stack_idx -= 1;
         let val = unsafe { self.frame.nth_stack(self.stack_idx) };
-        self.stack_idx += 1;
         Some(val)
     }
 }

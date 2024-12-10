@@ -1,7 +1,7 @@
 use crate::compiler::compile::compile_class;
 use crate::universe::Universe;
 use crate::value::Value;
-use crate::vm_objects::frame::Frame;
+use crate::vm_objects::frame::{Frame, FrameStackIter};
 use crate::vm_objects::method::Method;
 use crate::UNIVERSE_RAW_PTR_CONST;
 use rstest::{fixture, rstest};
@@ -174,4 +174,23 @@ fn frame_stack_split_off(universe: &mut Universe) {
 
     assert_eq!(frame.stack_len(), 3);
     assert_eq!(frame.stack_last(), &Value::NIL);
+}
+
+#[rstest]
+fn frame_stack_iter(universe: &mut Universe) {
+    let method_ref = get_method("foo: a and: b = ( | a b c | ^ false )", "foo:and:", universe);
+
+    let mut frame_ptr = Frame::alloc_initial_method(method_ref, &[Value::Double(1000.0), Value::SYSTEM], universe.gc_interface);
+    frame_ptr.stack_push(Value::Boolean(true));
+    frame_ptr.stack_push(Value::Boolean(false));
+    frame_ptr.stack_push(Value::Integer(10000));
+
+    assert_eq!(frame_ptr.stack_len(), 3);
+
+    let mut stack_iter = FrameStackIter::from(&*frame_ptr);
+
+    assert_eq!(stack_iter.next(), Some(&Value::Integer(10000)));
+    assert_eq!(stack_iter.next(), Some(&Value::Boolean(false)));
+    assert_eq!(stack_iter.next(), Some(&Value::Boolean(true)));
+    assert_eq!(stack_iter.next(), None);
 }

@@ -11,16 +11,12 @@ build-and-test-interpreters:
   stage: build-test
   tags: [yuria2]
   script:
-    # Setup
-
     - cargo clean
     - cargo build --release --features=som-gc/semispace
     - cargo clippy
 
-    # also AST doesn't have semispace support yet
-#    - RUST_TEST_THREADS=1 cargo test --no-default-features --features som-gc/marksweep -p som-interpreter-ast
-#    - RUST_TEST_THREADS=1 cargo test --no-default-features --features som-gc/semispace -p som-interpreter-bc
-    - RUST_TEST_THREADS=1 cargo test --features som-gc/semispace
+#    - RUST_TEST_THREADS=1 cargo test --features som-gc/semispace
+    - RUST_TEST_THREADS=1 cargo test --features som-gc/semispace -p som-interpreter-ast
 
     # Package and Upload
     - lz4 ./target/release/som-interpreter-ast som-interpreter-ast.lz4

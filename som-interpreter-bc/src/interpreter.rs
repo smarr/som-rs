@@ -481,9 +481,9 @@ impl Interpreter {
                     // eprintln!("Invoking {:?} (in {:?})", &method.signature, &name);
                     interpreter.push_method_frame(method, nb_params + 1, universe.gc_interface);
                 }
-                Method::Primitive(func, ..) => {
-                    // eprintln!("Invoking prim {:?} (in {:?})", &method.signature, &method.holder.name);
-                    func(interpreter, universe)
+                Method::Primitive(func, _sig, _cls) => {
+                    // eprintln!("Invoking prim {:?} (in {:?})", &_sig, &_cls.name);
+                    func(interpreter, universe, nb_params + 1)
                         .with_context(|| anyhow::anyhow!("error calling primitive `{}`", universe.lookup_symbol(symbol)))
                         .unwrap();
                 }

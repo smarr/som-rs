@@ -25,14 +25,14 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
 });
 pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([]));
 
-fn superclass(interpreter: &mut Interpreter, _: &mut Universe, receiver: Gc<Class>) -> Result<(), Error> {
+fn superclass(_: &mut Interpreter, _: &mut Universe, receiver: Gc<Class>) -> Result<Value, Error> {
     const _: &str = "Class>>#superclass";
 
     let super_class = receiver.super_class();
-    let super_class = super_class.map_or(Value::NIL, Value::Class);
-    interpreter.current_frame.stack_push(super_class);
+    let super_class_val = super_class.map_or(Value::NIL, Value::Class);
+    // interpreter.current_frame.stack_push(super_class);
 
-    Ok(())
+    Ok(super_class_val)
 }
 
 fn new(_: &mut Interpreter, universe: &mut Universe, receiver: Gc<Class>) -> Result<Gc<Instance>, Error> {
