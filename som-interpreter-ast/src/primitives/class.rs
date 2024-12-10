@@ -3,7 +3,7 @@ use crate::gc::VecValue;
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
 use crate::value::convert::Primitive;
-use crate::value::value_ptr::HeapValPtr;
+use crate::value::HeapValPtr;
 use crate::value::Value;
 use crate::vm_objects::class::Class;
 use crate::vm_objects::instance::Instance;

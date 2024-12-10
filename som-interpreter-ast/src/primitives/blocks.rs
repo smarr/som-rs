@@ -8,7 +8,7 @@ use once_cell::sync::Lazy;
 pub mod block1 {
     use super::*;
     use crate::value::convert::Primitive;
-    use crate::value::value_ptr::HeapValPtr;
+    use crate::value::HeapValPtr;
     use crate::vm_objects::block::Block;
     use anyhow::Error;
 

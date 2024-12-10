@@ -1,12 +1,12 @@
 use std::convert::TryFrom;
 
 use anyhow::{bail, Context, Error};
+use som_core::value_ptr::HasPointerTag;
 
 use crate::gc::VecValue;
 use crate::invokable::Return;
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
-use crate::value::value_ptr::HeapValPtr;
 use crate::value::Value;
 use crate::vm_objects::block::Block;
 use crate::vm_objects::class::Class;
@@ -14,8 +14,9 @@ use crate::vm_objects::instance::Instance;
 use crate::vm_objects::method::Method;
 use num_bigint::BigInt;
 use som_core::interner::Interned;
-use som_core::value::HasPointerTag;
 use som_gc::gcref::Gc;
+
+use super::HeapValPtr;
 
 pub trait IntoValue {
     #[allow(clippy::wrong_self_convention)] // though i guess we could/should rename it

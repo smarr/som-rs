@@ -5,7 +5,7 @@ use crate::vm_objects::block::Block;
 use crate::vm_objects::class::Class;
 use crate::vm_objects::instance::Instance;
 use crate::vm_objects::method::Method;
-use som_core::value::{HasPointerTag, TypedPtrValue};
+use som_core::value_ptr::{HasPointerTag, TypedPtrValue};
 use som_gc::gcref::Gc;
 
 impl<T> From<Value> for TypedPtrValue<T, Gc<T>> {

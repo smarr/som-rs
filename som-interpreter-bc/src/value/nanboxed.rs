@@ -10,6 +10,7 @@ use num_bigint::BigInt;
 use som_core::delegate_to_base_value;
 use som_core::interner::Interned;
 use som_core::value::*;
+use som_core::value_ptr::{HasPointerTag, TypedPtrValue};
 use som_gc::gcref::Gc;
 use std::fmt;
 use std::fmt::{Debug, Formatter};
