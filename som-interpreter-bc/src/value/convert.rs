@@ -17,12 +17,11 @@ use crate::vm_objects::instance::Instance;
 use crate::vm_objects::method::Method;
 use num_bigint::BigInt;
 use som_core::interner::Interned;
-use som_gc::gc_interface::GCInterface;
 use som_gc::gcref::Gc;
 
 pub trait IntoValue {
     #[allow(clippy::wrong_self_convention)] // though i guess we could/should rename it
-    fn into_value(&self, gc_interface: &mut GCInterface) -> Value;
+    fn into_value(&self) -> Value;
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -233,67 +232,67 @@ impl FromArgs for Gc<Method> {
 }
 
 impl IntoValue for bool {
-    fn into_value(&self, _: &mut GCInterface) -> Value {
+    fn into_value(&self) -> Value {
         Value::Boolean(*self)
     }
 }
 
 impl IntoValue for i32 {
-    fn into_value(&self, _: &mut GCInterface) -> Value {
+    fn into_value(&self) -> Value {
         Value::Integer(*self)
     }
 }
 
 impl IntoValue for f64 {
-    fn into_value(&self, _: &mut GCInterface) -> Value {
+    fn into_value(&self) -> Value {
         Value::Double(*self)
     }
 }
 
 impl IntoValue for Interned {
-    fn into_value(&self, _: &mut GCInterface) -> Value {
+    fn into_value(&self) -> Value {
         Value::Symbol(*self)
     }
 }
 
 impl IntoValue for Gc<String> {
-    fn into_value(&self, _: &mut GCInterface) -> Value {
+    fn into_value(&self) -> Value {
         Value::String(*self)
     }
 }
 
 impl IntoValue for Gc<BigInt> {
-    fn into_value(&self, _: &mut GCInterface) -> Value {
+    fn into_value(&self) -> Value {
         Value::BigInteger(*self)
     }
 }
 
 impl IntoValue for Gc<VecValue> {
-    fn into_value(&self, _: &mut GCInterface) -> Value {
+    fn into_value(&self) -> Value {
         Value::Array(*self)
     }
 }
 
 impl IntoValue for Gc<Class> {
-    fn into_value(&self, _: &mut GCInterface) -> Value {
+    fn into_value(&self) -> Value {
         Value::Class(*self)
     }
 }
 
 impl IntoValue for Gc<Instance> {
-    fn into_value(&self, _: &mut GCInterface) -> Value {
+    fn into_value(&self) -> Value {
         Value::Instance(*self)
     }
 }
 
 impl IntoValue for Gc<Block> {
-    fn into_value(&self, _: &mut GCInterface) -> Value {
+    fn into_value(&self) -> Value {
         Value::Block(*self)
     }
 }
 
 impl IntoValue for Gc<Method> {
-    fn into_value(&self, _: &mut GCInterface) -> Value {
+    fn into_value(&self) -> Value {
         Value::Invokable(*self)
     }
 }
@@ -308,70 +307,70 @@ pub trait Primitive<T>: Sized + Send + Sync + 'static {
 }
 
 pub trait IntoReturn {
-    fn into_return(self, interpreter: &mut Interpreter, heap: &mut GCInterface) -> Result<(), Error>;
+    fn into_return(self, interpreter: &mut Interpreter) -> Result<(), Error>;
 }
 
 impl<T: IntoValue> IntoReturn for T {
-    fn into_return(self, interpreter: &mut Interpreter, heap: &mut GCInterface) -> Result<(), Error> {
-        interpreter.current_frame.stack_push(self.into_value(heap));
+    fn into_return(self, interpreter: &mut Interpreter) -> Result<(), Error> {
+        interpreter.current_frame.stack_push(self.into_value());
         Ok(())
     }
 }
 
 impl IntoValue for Value {
-    fn into_value(&self, _: &mut GCInterface) -> Value {
+    fn into_value(&self) -> Value {
         *self
     }
 }
 
 impl IntoValue for Nil {
-    fn into_value(&self, _: &mut GCInterface) -> Value {
+    fn into_value(&self) -> Value {
         Value::NIL
     }
 }
 
 impl IntoValue for System {
-    fn into_value(&self, _: &mut GCInterface) -> Value {
+    fn into_value(&self) -> Value {
         Value::SYSTEM
     }
 }
 
 impl<T: IntoValue> IntoValue for Option<T> {
-    fn into_value(&self, heap: &mut GCInterface) -> Value {
-        self.as_ref().map_or(Value::NIL, |it| it.into_value(heap))
+    fn into_value(&self) -> Value {
+        self.as_ref().map_or(Value::NIL, |it| it.into_value())
     }
 }
 
 impl IntoReturn for () {
-    fn into_return(self, _: &mut Interpreter, _: &mut GCInterface) -> Result<(), Error> {
+    fn into_return(self, _: &mut Interpreter) -> Result<(), Error> {
         Ok(())
     }
 }
 
 impl IntoValue for StringLike {
-    fn into_value(&self, heap: &mut GCInterface) -> Value {
+    fn into_value(&self) -> Value {
         match self {
-            StringLike::String(value) => value.into_value(heap),
-            StringLike::Symbol(value) => value.into_value(heap),
+            StringLike::String(value) => value.into_value(),
+            StringLike::Symbol(value) => value.into_value(),
         }
     }
 }
 
 impl IntoValue for IntegerLike {
-    fn into_value(&self, heap: &mut GCInterface) -> Value {
+    fn into_value(&self) -> Value {
         match self {
-            IntegerLike::Integer(value) => value.into_value(heap),
-            IntegerLike::BigInteger(value) => value.into_value(heap),
+            IntegerLike::Integer(value) => value.into_value(),
+            IntegerLike::BigInteger(value) => value.into_value(),
         }
     }
 }
 
 impl IntoValue for DoubleLike {
-    fn into_value(&self, heap: &mut GCInterface) -> Value {
+    fn into_value(&self) -> Value {
         match self {
-            DoubleLike::Double(value) => value.into_value(heap),
-            DoubleLike::Integer(value) => value.into_value(heap),
-            DoubleLike::BigInteger(value) => value.into_value(heap),
+            DoubleLike::Double(value) => value.into_value(),
+            DoubleLike::Integer(value) => value.into_value(),
+            DoubleLike::BigInteger(value) => value.into_value(),
         }
     }
 }
@@ -393,19 +392,6 @@ macro_rules! reverse {
 
 macro_rules! derive_stuff {
     ($($ty:ident),* $(,)?) => {
-        impl <$($ty: $crate::value::convert::IntoValue),*> $crate::value::convert::IntoValue for ($($ty),*,) {
-            fn into_value(&self, gc_interface: &mut GCInterface) -> $crate::value::Value {
-                #[allow(non_snake_case)]
-                let ($($ty),*,) = self;
-                let values = vec![
-                $(
-                    $crate::value::convert::IntoValue::into_value($ty, gc_interface),
-                )*];
-                let allocated = gc_interface.alloc(VecValue(values));
-                $crate::value::Value::Array(allocated)
-            }
-        }
-
         impl <$($ty: $crate::value::convert::FromArgs),*> $crate::value::convert::FromArgs for ($($ty),*,) {
             fn from_args(interpreter: &mut $crate::interpreter::Interpreter, universe: &mut $crate::universe::Universe) -> Result<Self, Error> {
                 $(
@@ -425,7 +411,7 @@ macro_rules! derive_stuff {
             fn invoke(&self, interpreter: &mut $crate::interpreter::Interpreter, universe: &mut $crate::universe::Universe) -> Result<(), Error> {
                 reverse!(interpreter, universe, [$($ty),*], []);
                 let result = (self)(interpreter, universe, $($ty),*,)?;
-                result.into_return(interpreter, &mut universe.gc_interface)
+                result.into_return(interpreter)
             }
         }
     };
@@ -446,6 +432,6 @@ where
 {
     fn invoke(&self, interpreter: &mut crate::interpreter::Interpreter, universe: &mut crate::universe::Universe) -> Result<(), Error> {
         let result = (self)(interpreter, universe)?;
-        result.into_return(interpreter, universe.gc_interface)
+        result.into_return(interpreter)
     }
 }
