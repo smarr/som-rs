@@ -38,9 +38,15 @@ impl TryFrom<Value> for Nil {
     }
 }
 
+pub trait FromArgs<'a>: Sized {
+    fn from_args(arg: &'a Value) -> Self;
+}
+
 impl FromArgs<'_> for Nil {
-    fn from_args(arg: &Value) -> Result<Self, Error> {
-        Self::try_from(*arg)
+    fn from_args(_arg: &Value) -> Self {
+        debug_assert!(*_arg == Value::NIL);
+        Nil
+        //Self::try_from(*arg)
     }
 }
 
@@ -60,8 +66,10 @@ impl TryFrom<Value> for System {
 }
 
 impl FromArgs<'_> for System {
-    fn from_args(arg: &Value) -> Result<Self, Error> {
-        Self::try_from(*arg)
+    fn from_args(_arg: &Value) -> Self {
+        //Self::try_from(*arg)
+        debug_assert!(*_arg == Value::SYSTEM);
+        Self
     }
 }
 
@@ -84,8 +92,8 @@ impl TryFrom<Value> for StringLike {
 }
 
 impl FromArgs<'_> for StringLike {
-    fn from_args(arg: &Value) -> Result<Self, Error> {
-        Self::try_from(*arg)
+    fn from_args(arg: &Value) -> Self {
+        unsafe { Self::try_from(*arg).unwrap_unchecked() }
     }
 }
 
@@ -110,8 +118,8 @@ impl TryFrom<Value> for DoubleLike {
 }
 
 impl FromArgs<'_> for DoubleLike {
-    fn from_args(arg: &Value) -> Result<Self, Error> {
-        Self::try_from(*arg)
+    fn from_args(arg: &Value) -> Self {
+        unsafe { Self::try_from(*arg).unwrap_unchecked() }
     }
 }
 
@@ -134,42 +142,38 @@ impl TryFrom<Value> for IntegerLike {
 }
 
 impl FromArgs<'_> for IntegerLike {
-    fn from_args(arg: &Value) -> Result<Self, Error> {
-        Self::try_from(*arg)
+    fn from_args(arg: &Value) -> Self {
+        unsafe { Self::try_from(*arg).unwrap_unchecked() }
     }
 }
 
-pub trait FromArgs<'a>: Sized {
-    fn from_args(arg: &'a Value) -> Result<Self, Error>;
-}
-
 impl FromArgs<'_> for Value {
-    fn from_args(arg: &Value) -> Result<Self, Error> {
-        Ok(*arg)
+    fn from_args(arg: &Value) -> Self {
+        *arg
     }
 }
 
 impl FromArgs<'_> for bool {
-    fn from_args(arg: &Value) -> Result<Self, Error> {
-        arg.as_boolean().context("could not resolve `Value` as `Boolean`")
+    fn from_args(arg: &Value) -> Self {
+        arg.as_boolean_unchecked()
     }
 }
 
 impl FromArgs<'_> for i32 {
-    fn from_args(arg: &Value) -> Result<Self, Error> {
-        arg.as_integer().context("could not resolve `Value` as `Integer`")
+    fn from_args(arg: &Value) -> Self {
+        arg.as_integer_unchecked()
     }
 }
 
 impl FromArgs<'_> for f64 {
-    fn from_args(arg: &Value) -> Result<Self, Error> {
-        arg.as_double().context("could not resolve `Value` as `Double`")
+    fn from_args(arg: &Value) -> Self {
+        arg.as_double_unchecked()
     }
 }
 
 impl FromArgs<'_> for Interned {
-    fn from_args(arg: &Value) -> Result<Self, Error> {
-        arg.as_symbol().context("could not resolve `Value` as `Symbol`")
+    fn from_args(arg: &Value) -> Self {
+        arg.as_symbol_unchecked()
     }
 }
 
@@ -177,14 +181,14 @@ impl<T> FromArgs<'_> for HeapValPtr<T>
 where
     T: HasPointerTag,
 {
-    fn from_args(arg: &Value) -> Result<Self, Error> {
-        unsafe { Ok(HeapValPtr::new_static(arg)) }
+    fn from_args(arg: &Value) -> Self {
+        unsafe { HeapValPtr::new_static(arg) }
     }
 }
 
 impl FromArgs<'_> for Return {
-    fn from_args(arg: &Value) -> Result<Self, Error> {
-        Ok(Return::Local(*arg))
+    fn from_args(arg: &Value) -> Self {
+        Return::Local(*arg)
     }
 }
 
@@ -351,7 +355,7 @@ macro_rules! derive_stuff {
                 let mut args_iter = args.iter();
                 $(
                     #[allow(non_snake_case)]
-                    let $ty = $ty::from_args(args_iter.next().unwrap()).unwrap();
+                    let $ty = $ty::from_args(args_iter.next().unwrap());
                 )*
 
                 let result = (self)(universe, $($ty),*,).unwrap();

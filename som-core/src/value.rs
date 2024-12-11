@@ -317,10 +317,22 @@ impl BaseValue {
         self.is_integer().then_some((self.encoded & 0xFFFFFFFF) as i32)
     }
 
+    /// Returns this value as an integer, if such is its type.
+    #[inline(always)]
+    pub fn as_integer_unchecked(self) -> i32 {
+        (self.encoded & 0xFFFFFFFF) as i32
+    }
+
     /// Returns this value as a double, if such is its type.
     #[inline(always)]
     pub fn as_double(self) -> Option<f64> {
         self.is_double().then(|| f64::from_bits(self.encoded))
+    }
+
+    /// Returns this value as a double, if such is its type.
+    #[inline(always)]
+    pub fn as_double_unchecked(self) -> f64 {
+        f64::from_bits(self.encoded)
     }
 
     /// Returns this value as a boolean, if such is its type.
@@ -339,6 +351,12 @@ impl BaseValue {
     #[inline(always)]
     pub fn as_symbol(self) -> Option<Interned> {
         self.is_symbol().then_some(Interned((self.encoded & 0xFFFFFFFF) as u32))
+    }
+
+    /// Returns this value as a symbol, if such is its type.
+    #[inline(always)]
+    pub fn as_symbol_unchecked(self) -> Interned {
+        Interned((self.encoded & 0xFFFFFFFF) as u32)
     }
 
     #[inline(always)]
