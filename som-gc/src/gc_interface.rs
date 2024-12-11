@@ -18,7 +18,7 @@ use mmtk::util::{Address, ObjectReference, OpaquePointer, VMMutatorThread, VMThr
 use mmtk::vm::SlotVisitor;
 use mmtk::{memory_manager, AllocationSemantics, MMTKBuilder, Mutator};
 use num_bigint::BigInt;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Condvar, LazyLock, Mutex};
 use std::time::{Duration, Instant};
 
 #[cfg(not(any(feature = "marksweep", feature = "semispace")))]
@@ -27,7 +27,7 @@ compile_error!("Either marksweep or semispace must be enabled for this crate.");
 #[cfg(all(feature = "semispace", feature = "marksweep"))]
 compile_error!("Several GC strategies enabled: only one is allowed at a time.");
 
-pub static IS_WORLD_STOPPED: AtomicBool = AtomicBool::new(false);
+pub static WORLD_LOCK: LazyLock<(Mutex<bool>, Condvar)> = LazyLock::new(|| (Mutex::new(false), Condvar::new()));
 
 static GC_OFFSET: usize = 0;
 static GC_ALIGN: usize = 8;
@@ -273,9 +273,20 @@ impl GCInterface {
     pub(crate) fn block_for_gc(&mut self, _tls: VMMutatorThread) {
         debug!("block_for_gc: stopping the world!");
         self.is_collecting = true;
-        AtomicBool::store(&IS_WORLD_STOPPED, true, Ordering::SeqCst);
+
+        let (is_world_stopped, cvar) = &*WORLD_LOCK;
+        {
+            let mut lock = is_world_stopped.lock().unwrap();
+            *lock = true;
+        }
+
         let time_pre_gc = Instant::now();
-        while AtomicBool::load(&IS_WORLD_STOPPED, Ordering::SeqCst) {}
+
+        let result = cvar.wait_timeout_while(is_world_stopped.lock().unwrap(), Duration::from_secs(15), |pending| *pending).unwrap();
+        if result.1.timed_out() {
+            panic!("GC timed out: highly likely to be a crash in a GC thread.")
+        }
+
         debug!("block_for_gc: world no longer stopped.");
         self.is_collecting = false;
         self.total_gc_time += Instant::now() - time_pre_gc;
@@ -287,9 +298,9 @@ impl GCInterface {
     {
         debug!("stop_all_mutators called");
 
-        while !AtomicBool::load(&IS_WORLD_STOPPED, Ordering::SeqCst) {
-            // wait for world to be properly stopped (might not be needed)
-        }
+        //while !AtomicBool::load(&IS_WORLD_STOPPED, Ordering::SeqCst) {
+        //    // wait for world to be properly stopped (might not be needed)
+        //}
 
         mutator_visitor(self.mutator.as_mut())
     }
@@ -297,7 +308,11 @@ impl GCInterface {
     pub(crate) fn resume_mutators(&mut self) {
         debug!("resuming mutators.");
         self.start_the_world_count += 1;
-        AtomicBool::store(&IS_WORLD_STOPPED, false, Ordering::SeqCst);
+
+        let (is_world_stopped, cvar) = &*WORLD_LOCK;
+        let mut pending = is_world_stopped.lock().unwrap();
+        *pending = false;
+        cvar.notify_one();
     }
 
     pub(crate) fn get_mutator(&mut self, _tls: VMMutatorThread) -> &mut Mutator<SOMVM> {
