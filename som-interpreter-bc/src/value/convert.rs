@@ -85,7 +85,7 @@ impl FromArgs for IntegerLike {
 }
 
 pub trait FromArgs: Sized {
-    fn from_args(arg: &Value) -> Result<Self, Error>;
+    fn from_args(arg: &'static Value) -> Result<Self, Error>;
 }
 
 impl FromArgs for Value {
@@ -125,8 +125,8 @@ impl FromArgs for Interned {
 // }
 
 impl<T: HasPointerTag> FromArgs for HeapValPtr<T> {
-    fn from_args(arg: &Value) -> Result<Self, Error> {
-        unsafe { Ok(HeapValPtr::new_static(arg)) }
+    fn from_args(arg: &'static Value) -> Result<Self, Error> {
+        Ok(HeapValPtr::new_static(arg))
     }
 }
 

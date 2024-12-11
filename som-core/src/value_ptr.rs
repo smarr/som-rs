@@ -94,12 +94,11 @@ pub type ValStaticPtr<T, PTR> = ValuePtrRef<'static, T, PTR>;
 
 impl<T: HasPointerTag, PTR> ValStaticPtr<T, PTR> {
     /// Creates a new static reference from the provided `Value` reference.
-    /// # Safety
     /// `value_ref` must NOT be a temporary reference, and MUST point to the GC heap. Otherwise, all hell breaks loose.
-    pub unsafe fn new_static(value_ref: &BaseValue) -> ValStaticPtr<T, PTR> {
+    pub fn new_static(value_ref: &'static BaseValue) -> ValStaticPtr<T, PTR> {
         debug_assert!(value_ref.is_ptr_type() && value_ref.tag() == T::get_tag());
         Self {
-            value_ref: std::mem::transmute::<&BaseValue, &'static BaseValue>(value_ref),
+            value_ref,
             _phantom: PhantomData,
             _phantom2: PhantomData,
         }

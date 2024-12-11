@@ -42,7 +42,7 @@ impl TryFrom<Value> for Nil {
     }
 }
 
-impl FromArgs<'_> for Nil {
+impl FromArgs for Nil {
     fn from_args(arg: &Value) -> Result<Self, Error> {
         Self::try_from(*arg)
     }
@@ -63,74 +63,74 @@ impl TryFrom<Value> for System {
     }
 }
 
-impl FromArgs<'_> for System {
+impl FromArgs for System {
     fn from_args(arg: &Value) -> Result<Self, Error> {
         Self::try_from(*arg)
     }
 }
 
-impl FromArgs<'_> for StringLike {
+impl FromArgs for StringLike {
     fn from_args(arg: &Value) -> Result<Self, Error> {
         Self::try_from(arg.0)
     }
 }
 
-impl FromArgs<'_> for DoubleLike {
+impl FromArgs for DoubleLike {
     fn from_args(arg: &Value) -> Result<Self, Error> {
         Self::try_from(arg.0)
     }
 }
 
-impl FromArgs<'_> for IntegerLike {
+impl FromArgs for IntegerLike {
     fn from_args(arg: &Value) -> Result<Self, Error> {
         Self::try_from(arg.0)
     }
 }
 
-pub trait FromArgs<'a>: Sized {
-    fn from_args(arg: &'a Value) -> Result<Self, Error>;
+pub trait FromArgs: Sized {
+    fn from_args(arg: &'static Value) -> Result<Self, Error>;
 }
 
-impl FromArgs<'_> for Value {
+impl FromArgs for Value {
     fn from_args(arg: &Value) -> Result<Self, Error> {
         Ok(*arg)
     }
 }
 
-impl FromArgs<'_> for bool {
+impl FromArgs for bool {
     fn from_args(arg: &Value) -> Result<Self, Error> {
         arg.as_boolean().context("could not resolve `Value` as `Boolean`")
     }
 }
 
-impl FromArgs<'_> for i32 {
+impl FromArgs for i32 {
     fn from_args(arg: &Value) -> Result<Self, Error> {
-        arg.as_integer().context("could not resolve `Value` as `Integer`")
+        i32::try_from(arg.0)
     }
 }
 
-impl FromArgs<'_> for f64 {
+impl FromArgs for f64 {
     fn from_args(arg: &Value) -> Result<Self, Error> {
-        arg.as_double().context("could not resolve `Value` as `Double`")
+        f64::try_from(arg.0)
     }
 }
 
-impl FromArgs<'_> for Interned {
+impl FromArgs for Interned {
     fn from_args(arg: &Value) -> Result<Self, Error> {
         arg.as_symbol().context("could not resolve `Value` as `Symbol`")
     }
 }
 
-impl<T> FromArgs<'_> for HeapValPtr<T>
+impl<T> FromArgs for HeapValPtr<T>
 where
     T: HasPointerTag,
 {
-    fn from_args(arg: &Value) -> Result<Self, Error> {
-        unsafe { Ok(HeapValPtr::new_static(arg)) }
+    fn from_args(arg: &'static Value) -> Result<Self, Error> {
+        Ok(HeapValPtr::new_static(arg))
     }
 }
 
-impl FromArgs<'_> for Return {
+impl FromArgs for Return {
     fn from_args(arg: &Value) -> Result<Self, Error> {
         Ok(Return::Local(*arg))
     }
@@ -285,7 +285,7 @@ macro_rules! derive_stuff {
         where
             F: Fn(&mut $crate::universe::Universe, $($ty),*) -> Result<R, Error> + Send + Sync + 'static,
             R: $crate::value::convert::IntoReturn,
-            $(for<'a> $ty: $crate::value::convert::FromArgs<'a>),*,
+            $(for<'a> $ty: $crate::value::convert::FromArgs),*,
         {
             fn invoke(&self, universe: &mut $crate::universe::Universe, nbr_args: usize) -> Return {
                 // let args = universe.stack_n_last_elems(nbr_args);

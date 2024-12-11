@@ -5,11 +5,21 @@ use num_bigint::BigInt;
 
 use crate::{interner::Interned, value::BaseValue};
 
+// Unfinished: using TryFrom to replace the convert.rs types FromArgs
+
 impl TryFrom<BaseValue> for i32 {
     type Error = anyhow::Error;
 
     fn try_from(value: BaseValue) -> Result<Self, Self::Error> {
         value.as_integer().context("value was not an integer type")
+    }
+}
+
+impl TryFrom<BaseValue> for f64 {
+    type Error = anyhow::Error;
+
+    fn try_from(value: BaseValue) -> Result<Self, Self::Error> {
+        value.as_double().context("value was not a double type")
     }
 }
 
