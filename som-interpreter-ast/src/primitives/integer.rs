@@ -337,11 +337,11 @@ fn eq(_: &mut Universe, a: Value, b: Value) -> Result<bool, Error> {
     //     _ => Return::Local(Value::Boolean(false)),
     // }
 
-    let Ok(a) = DoubleLike::try_from(a) else {
+    let Ok(a) = DoubleLike::try_from(a.0) else {
         return Ok(false);
     };
 
-    let Ok(b) = DoubleLike::try_from(b) else {
+    let Ok(b) = DoubleLike::try_from(b.0) else {
         return Ok(false);
     };
 

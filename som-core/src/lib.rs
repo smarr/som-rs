@@ -6,6 +6,8 @@
 pub mod ast;
 /// The SOM bytecode definitions. Used only by the bytecode interpreter, so should maybe be moved.
 pub mod bytecode;
+/// To convert values to types, and vice versa.
+pub mod convert;
 /// The SOM core classes.
 pub mod core_classes;
 /// Facilities for string interning.

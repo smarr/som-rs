@@ -119,11 +119,11 @@ fn char_at(universe: &mut Universe, receiver: StringLike, idx: i32) -> Result<Va
 }
 
 fn eq(universe: &mut Universe, a: Value, b: Value) -> Result<bool, Error> {
-    let Ok(a) = StringLike::try_from(a) else {
+    let Ok(a) = StringLike::try_from(a.0) else {
         return Ok(false);
     };
 
-    let Ok(b) = StringLike::try_from(b) else {
+    let Ok(b) = StringLike::try_from(b.0) else {
         return Ok(false);
     };
 

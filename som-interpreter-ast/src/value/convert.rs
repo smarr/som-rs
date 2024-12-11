@@ -18,6 +18,10 @@ use som_gc::gcref::Gc;
 
 use super::HeapValPtr;
 
+pub type DoubleLike = som_core::convert::DoubleLike<Gc<BigInt>>;
+pub type IntegerLike = som_core::convert::IntegerLike<Gc<BigInt>>;
+pub type StringLike = som_core::convert::StringLike<Gc<String>>;
+
 pub trait IntoValue {
     #[allow(clippy::wrong_self_convention)] // though i guess we could/should rename it
     fn into_value(&self) -> Value;
@@ -65,77 +69,21 @@ impl FromArgs<'_> for System {
     }
 }
 
-#[derive(Debug, Clone)]
-pub enum StringLike {
-    String(Gc<String>),
-    Symbol(Interned),
-}
-
-impl TryFrom<Value> for StringLike {
-    type Error = Error;
-
-    fn try_from(value: Value) -> Result<Self, Self::Error> {
-        value
-            .as_string()
-            .map(Self::String)
-            .or_else(|| value.as_symbol().map(Self::Symbol))
-            .context("could not resolve `Value` as `String`, or `Symbol`")
-    }
-}
-
 impl FromArgs<'_> for StringLike {
     fn from_args(arg: &Value) -> Result<Self, Error> {
-        Self::try_from(*arg)
-    }
-}
-
-#[derive(Debug, Clone)]
-pub enum DoubleLike {
-    Double(f64),
-    Integer(i32),
-    BigInteger(Gc<BigInt>),
-}
-
-impl TryFrom<Value> for DoubleLike {
-    type Error = Error;
-
-    fn try_from(value: Value) -> Result<Self, Self::Error> {
-        value
-            .as_double()
-            .map(Self::Double)
-            .or_else(|| value.as_integer().map(Self::Integer))
-            .or_else(|| value.as_big_integer().map(Self::BigInteger))
-            .context("could not resolve `Value` as `Double`, `Integer`, or `BigInteger`")
+        Self::try_from(arg.0)
     }
 }
 
 impl FromArgs<'_> for DoubleLike {
     fn from_args(arg: &Value) -> Result<Self, Error> {
-        Self::try_from(*arg)
-    }
-}
-
-#[derive(Debug, Clone)]
-pub enum IntegerLike {
-    Integer(i32),
-    BigInteger(Gc<BigInt>),
-}
-
-impl TryFrom<Value> for IntegerLike {
-    type Error = Error;
-
-    fn try_from(value: Value) -> Result<Self, Self::Error> {
-        value
-            .as_integer()
-            .map(Self::Integer)
-            .or_else(|| value.as_big_integer().map(Self::BigInteger))
-            .context("could not resolve `Value` as `Integer`, or `BigInteger`")
+        Self::try_from(arg.0)
     }
 }
 
 impl FromArgs<'_> for IntegerLike {
     fn from_args(arg: &Value) -> Result<Self, Error> {
-        Self::try_from(*arg)
+        Self::try_from(arg.0)
     }
 }
 

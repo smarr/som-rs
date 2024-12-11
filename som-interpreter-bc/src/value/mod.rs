@@ -15,7 +15,7 @@ mod value_ptr;
 /// Represents an SOM value.
 #[derive(Clone, Copy)]
 #[repr(transparent)]
-pub struct Value(BaseValue);
+pub struct Value(pub BaseValue);
 
 // TODO: we should be able to switch between Value (nanboxed) and ValueEnum at will. That used to be the case, but I broke those changes. TODO restore
 

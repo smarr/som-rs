@@ -1,7 +1,3 @@
-// This is all Nicolas Polomack (https://github.com/Hirevo)'s work, despite what the commit history says.
-// Nicolas is the original dev for som-rs, and had this code in an unmerged PR about Nan boxing.
-// I didn't merge with his commits directly because his version of som-rs and mine have diverged a lot. But the credit is his, my edits are minor so far
-
 use std::convert::TryFrom;
 
 use anyhow::{bail, Context, Error};
@@ -19,6 +15,10 @@ use crate::vm_objects::method::Method;
 use num_bigint::BigInt;
 use som_core::interner::Interned;
 use som_gc::gcref::Gc;
+
+pub type DoubleLike = som_core::convert::DoubleLike<Gc<BigInt>>;
+pub type IntegerLike = som_core::convert::IntegerLike<Gc<BigInt>>;
+pub type StringLike = som_core::convert::StringLike<Gc<String>>;
 
 pub trait IntoValue {
     #[allow(clippy::wrong_self_convention)] // though i guess we could/should rename it
@@ -67,77 +67,20 @@ impl FromArgs for System {
     }
 }
 
-#[derive(Debug, Clone)]
-pub enum StringLike {
-    String(Gc<String>),
-    Symbol(Interned),
-}
-
-impl TryFrom<Value> for StringLike {
-    type Error = Error;
-
-    fn try_from(value: Value) -> Result<Self, Self::Error> {
-        value
-            .as_string()
-            .map(Self::String)
-            .or_else(|| value.as_symbol().map(Self::Symbol))
-            .context("could not resolve `Value` as `String`, or `Symbol`")
-    }
-}
-
 impl FromArgs for StringLike {
     fn from_args(arg: &Value) -> Result<Self, Error> {
-        Self::try_from(*arg)
-    }
-}
-
-#[derive(Debug, Clone)]
-pub enum DoubleLike {
-    Double(f64),
-    Integer(i32),
-    BigInteger(Gc<BigInt>),
-}
-
-impl TryFrom<Value> for DoubleLike {
-    type Error = Error;
-
-    fn try_from(value: Value) -> Result<Self, Self::Error> {
-        value
-            .as_double()
-            .map(Self::Double)
-            .or_else(|| value.as_integer().map(Self::Integer))
-            .or_else(|| value.as_big_integer().map(Self::BigInteger))
-            .context("could not resolve `Value` as `Double`, `Integer`, or `BigInteger`")
+        Self::try_from(arg.0)
     }
 }
 
 impl FromArgs for DoubleLike {
     fn from_args(arg: &Value) -> Result<Self, Error> {
-        Self::try_from(*arg)
+        Self::try_from(arg.0)
     }
 }
-
-#[derive(Debug, Clone)]
-pub enum IntegerLike {
-    Integer(i32),
-    BigInteger(Gc<BigInt>),
-}
-
-impl TryFrom<Value> for IntegerLike {
-    type Error = Error;
-
-    fn try_from(value: Value) -> Result<Self, Self::Error> {
-        value
-            .as_integer()
-            .map(Self::Integer)
-            .or_else(|| value.as_big_integer().map(Self::BigInteger))
-            .context("could not resolve `Value` as `Integer`, or `BigInteger`")
-    }
-}
-
 impl FromArgs for IntegerLike {
     fn from_args(arg: &Value) -> Result<Self, Error> {
-        Self::try_from(*arg)
+        Self::try_from(arg.0)
     }
 }
 

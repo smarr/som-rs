@@ -125,11 +125,11 @@ fn as_symbol(_: &mut Interpreter, universe: &mut Universe, receiver: StringLike)
 fn eq(_: &mut Interpreter, universe: &mut Universe, a: Value, b: Value) -> Result<bool, Error> {
     const _: &str = "String>>#=";
 
-    let Ok(a) = StringLike::try_from(a) else {
+    let Ok(a) = StringLike::try_from(a.0) else {
         return Ok(false);
     };
 
-    let Ok(b) = StringLike::try_from(b) else {
+    let Ok(b) = StringLike::try_from(b.0) else {
         return Ok(false);
     };
 
