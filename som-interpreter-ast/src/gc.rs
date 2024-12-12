@@ -11,7 +11,7 @@ use mmtk::util::ObjectReference;
 use mmtk::vm::{ObjectModel, SlotVisitor};
 use mmtk::Mutator;
 use num_bigint::BigInt;
-use som_gc::gc_interface::{HasTypeInfoForGC, MMTKtoVMCallbacks, BIGINT_MAGIC_ID, STRING_MAGIC_ID, VECU8_MAGIC_ID};
+use som_gc::gc_interface::{HasTypeInfoForGC, MMTKtoVMCallbacks, BIGINT_MAGIC_ID, STRING_MAGIC_ID};
 use som_gc::gcref::Gc;
 use som_gc::object_model::VMObjectModel;
 use som_gc::slot::SOMSlot;
@@ -23,7 +23,6 @@ use std::ops::Deref;
 pub enum AstObjMagicId {
     String = STRING_MAGIC_ID as isize,
     BigInt = BIGINT_MAGIC_ID as isize,
-    ArrayU8 = VECU8_MAGIC_ID as isize,
     Frame = 100,
     AstBlock = 101,
     ArrayVal = 102,
@@ -231,7 +230,7 @@ pub fn scan_object<'a>(object: ObjectReference, slot_visitor: &'a mut (dyn SlotV
                     visit_value(val, slot_visitor)
                 }
             }
-            AstObjMagicId::String | AstObjMagicId::BigInt | AstObjMagicId::ArrayU8 => {} // leaf nodes
+            AstObjMagicId::String | AstObjMagicId::BigInt => {} // leaf nodes
         }
     }
 }
@@ -363,7 +362,6 @@ fn get_object_size(object: ObjectReference) -> usize {
         AstObjMagicId::Instance => size_of::<Instance>(),
         AstObjMagicId::String => size_of::<String>(),
         AstObjMagicId::BigInt => size_of::<BigInt>(),
-        AstObjMagicId::ArrayU8 => size_of::<Vec<u8>>(),
         AstObjMagicId::AstBlock => size_of::<AstBlock>(),
         AstObjMagicId::VecAstLiteral => size_of::<VecAstLiteral>(),
         AstObjMagicId::ArrayVal => size_of::<Vec<Value>>(),

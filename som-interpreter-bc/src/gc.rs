@@ -12,7 +12,7 @@ use mmtk::util::ObjectReference;
 use mmtk::vm::{ObjectModel, SlotVisitor};
 use mmtk::Mutator;
 use num_bigint::BigInt;
-use som_gc::gc_interface::{HasTypeInfoForGC, MMTKtoVMCallbacks, BIGINT_MAGIC_ID, STRING_MAGIC_ID, VECU8_MAGIC_ID};
+use som_gc::gc_interface::{HasTypeInfoForGC, MMTKtoVMCallbacks, BIGINT_MAGIC_ID, GCSLICE_U8_MAGIC_ID, STRING_MAGIC_ID};
 use som_gc::gcref::Gc;
 use som_gc::object_model::VMObjectModel;
 use som_gc::slot::SOMSlot;
@@ -23,7 +23,7 @@ use som_gc::SOMVM;
 pub enum BCObjMagicId {
     String = STRING_MAGIC_ID as isize,
     BigInt = BIGINT_MAGIC_ID as isize,
-    ArrayU8 = VECU8_MAGIC_ID as isize,
+    ArrayU8 = GCSLICE_U8_MAGIC_ID as isize,
     Frame = 100,
     Block = 102,
     Class = 103,

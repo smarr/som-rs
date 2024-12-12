@@ -2,7 +2,7 @@ use crate::api::{
     mmtk_bind_mutator, mmtk_destroy_mutator, mmtk_handle_user_collection_request, mmtk_initialize_collection, mmtk_set_fixed_heap_size,
     mmtk_used_bytes,
 };
-use crate::gcref::Gc;
+use crate::gcref::{Gc, GcSlice};
 use crate::object_model::OBJECT_REF_OFFSET;
 use crate::slot::SOMSlot;
 use crate::{MMTK_SINGLETON, MMTK_TO_VM_INTERFACE, MUTATOR_WRAPPER, SOMVM};
@@ -192,6 +192,27 @@ impl GCInterface {
         Gc::from(obj_addr.to_raw_address())
     }
 
+    // Allocates a type on the heap and returns a pointer to it.
+    pub fn alloc_slice<T: SupportedSliceType + std::fmt::Debug>(&mut self, obj: &[T]) -> GcSlice<T> {
+        let len = obj.len();
+        let size = {
+            match std::mem::size_of_val(obj) {
+                v if v < MIN_OBJECT_SIZE => MIN_OBJECT_SIZE,
+                v => v,
+            }
+        };
+
+        let header_addr: Address = self.request_bytes(size + OBJECT_REF_OFFSET);
+        let obj_addr = SOMVM::object_start_to_ref(header_addr);
+
+        unsafe {
+            *header_addr.as_mut_ref() = T::get_magic_gc_slice_id();
+            std::ptr::copy_nonoverlapping(obj.as_ptr(), obj_addr.to_raw_address().as_mut_ref(), obj.len());
+        }
+
+        GcSlice::new(obj_addr.to_raw_address(), len)
+    }
+
     #[cfg(feature = "marksweep")]
     /// Request `size` bytes from MMTk.
     /// Importantly, this MAY TRIGGER A COLLECTION. Which means any function that relies on it must be mindful of this,
@@ -335,7 +356,7 @@ pub trait HasTypeInfoForGC {
 
 pub const STRING_MAGIC_ID: u8 = 10;
 pub const BIGINT_MAGIC_ID: u8 = 11;
-pub const VECU8_MAGIC_ID: u8 = 12;
+pub const GCSLICE_U8_MAGIC_ID: u8 = 12;
 
 impl HasTypeInfoForGC for String {
     fn get_magic_gc_id() -> u8 {
@@ -348,8 +369,24 @@ impl HasTypeInfoForGC for BigInt {
     }
 }
 
-impl HasTypeInfoForGC for Vec<u8> {
+//impl<T> HasTypeInfoForGC for GCSlice<T> {
+//    fn get_magic_gc_id() -> u8 {
+//        GCSLICE_MAGIC_ID
+//    }
+//}
+
+pub trait SupportedSliceType {
+    fn get_magic_gc_slice_id() -> u8;
+}
+
+impl SupportedSliceType for u8 {
+    fn get_magic_gc_slice_id() -> u8 {
+        GCSLICE_U8_MAGIC_ID
+    }
+}
+
+impl<T: SupportedSliceType> HasTypeInfoForGC for GcSlice<T> {
     fn get_magic_gc_id() -> u8 {
-        VECU8_MAGIC_ID
+        T::get_magic_gc_slice_id()
     }
 }

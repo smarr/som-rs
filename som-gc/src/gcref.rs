@@ -161,3 +161,87 @@ impl<T> Gc<T> {
         }
     }
 }
+
+// --------------------------------
+
+/// Special GC ref that stores a list.
+/// TODO: use it for value arrays.
+#[derive(Debug, Clone, Copy)]
+// #[repr(transparent)]
+pub struct GcSlice<T: Sized> {
+    pub ptr: Address,
+    pub len: usize,
+    _phantom: PhantomData<T>,
+}
+
+impl<T: Debug> GcSlice<T> {
+    pub fn new(ptr: Address, len: usize) -> GcSlice<T> {
+        debug_assert!(!ptr.is_zero());
+        GcSlice {
+            ptr,
+            len,
+            _phantom: PhantomData,
+        }
+    }
+
+    pub fn iter(&self) -> GCSliceIter<T> {
+        GCSliceIter {
+            gc_slice: self.as_slice(),
+            len: self.len,
+            cur_idx: 0,
+        }
+    }
+
+    pub fn as_slice(&self) -> &[T] {
+        let ret = unsafe { std::slice::from_raw_parts(self.ptr.as_ref(), self.len) };
+        ret
+    }
+
+    pub fn get(&self, idx: usize) -> &T {
+        unsafe {
+            let slice: &[T] = std::slice::from_raw_parts(self.ptr.as_ref(), self.len);
+            &slice[idx]
+        }
+    }
+
+    pub fn set(&self, idx: usize, val: T) {
+        debug_assert!(!self.ptr.is_zero());
+        unsafe {
+            let slice: &mut [T] = std::slice::from_raw_parts_mut(self.ptr.as_mut_ref(), self.len);
+            slice[idx] = val
+        }
+    }
+}
+
+impl<T> PartialEq for GcSlice<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.ptr == other.ptr // not correct, should compare each element individually instead.
+    }
+}
+
+impl<T> From<&GcSlice<T>> for Address {
+    fn from(ptr: &GcSlice<T>) -> Self {
+        Address::from_ref(ptr)
+    }
+}
+
+pub struct GCSliceIter<'a, T> {
+    gc_slice: &'a [T],
+    len: usize,
+    cur_idx: usize,
+}
+
+impl<'a, T: Debug> Iterator for GCSliceIter<'a, T> {
+    type Item = &'a T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.cur_idx >= self.len {
+            return None;
+        }
+
+        //dbg!(&self.gc_slice);
+        let item = &self.gc_slice[self.cur_idx];
+        self.cur_idx += 1;
+        Some(item)
+    }
+}

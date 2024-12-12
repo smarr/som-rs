@@ -474,14 +474,14 @@ impl MethodCodegen for ast::Expression {
                             }
                         }
                         ast::Literal::Array(val) => {
-                            let literals = val
+                            let literals: Vec<u8> = val
                                 .iter()
                                 .map(|val| {
                                     let literal = convert_literal(ctxt, val, gc_interface);
                                     ctxt.push_literal(literal) as u8
                                 })
                                 .collect();
-                            let literal_ptr = gc_interface.alloc(literals);
+                            let literal_ptr = gc_interface.alloc_slice(&literals);
                             Literal::Array(literal_ptr)
                         }
                     }

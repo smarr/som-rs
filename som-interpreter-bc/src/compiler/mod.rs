@@ -5,7 +5,7 @@
 use crate::vm_objects::block::Block;
 use num_bigint::BigInt;
 use som_core::interner::Interned;
-use som_gc::gcref::Gc;
+use som_gc::gcref::{Gc, GcSlice};
 use std::hash::{Hash, Hasher};
 
 /// Facilities to compile code.
@@ -21,7 +21,7 @@ pub enum Literal {
     Double(f64),
     Integer(i32),
     BigInteger(Gc<BigInt>),
-    Array(Gc<Vec<u8>>),
+    Array(GcSlice<u8>),
     Block(Gc<Block>),
 }
 
@@ -67,7 +67,9 @@ impl Hash for Literal {
             }
             Literal::Array(val) => {
                 state.write(b"array#");
-                val.hash(state);
+                for elem in val.iter() {
+                    elem.hash(state)
+                }
             }
             Literal::Block(val) => {
                 state.write(b"blk");
