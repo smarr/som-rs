@@ -87,7 +87,7 @@ pub fn visit_literal<'a>(lit: &Literal, slot_visitor: &'a mut (dyn SlotVisitor<S
         Literal::Block(blk) => slot_visitor.visit_slot(SOMSlot::from(blk)),
         Literal::String(str) => slot_visitor.visit_slot(SOMSlot::from(str)),
         Literal::BigInteger(bigint) => slot_visitor.visit_slot(SOMSlot::from(bigint)),
-        Literal::Array(arr) => slot_visitor.visit_slot(SOMSlot::from(arr)),
+        Literal::Array(arr) => slot_visitor.visit_slot(SOMSlot::from(arr.as_ref())),
         _ => {}
     }
 }

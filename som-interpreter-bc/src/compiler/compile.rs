@@ -482,7 +482,7 @@ impl MethodCodegen for ast::Expression {
                                 })
                                 .collect();
                             let literal_ptr = gc_interface.alloc_slice(&literals);
-                            Literal::Array(literal_ptr)
+                            Literal::Array(Box::new(literal_ptr))
                         }
                     }
                 }

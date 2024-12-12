@@ -21,7 +21,7 @@ pub enum Literal {
     Double(f64),
     Integer(i32),
     BigInteger(Gc<BigInt>),
-    Array(GcSlice<u8>),
+    Array(Box<GcSlice<u8>>), // boxed to be pointer sized, so to not make the max literal size too large
     Block(Gc<Block>),
 }
 

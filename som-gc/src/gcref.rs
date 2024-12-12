@@ -185,30 +185,24 @@ impl<T: Debug> GcSlice<T> {
     }
 
     pub fn iter(&self) -> GCSliceIter<T> {
-        GCSliceIter {
-            gc_slice: self.as_slice(),
-            len: self.len,
-            cur_idx: 0,
-        }
+        GCSliceIter { gc_slice: self, cur_idx: 0 }
     }
 
     pub fn as_slice(&self) -> &[T] {
-        let ret = unsafe { std::slice::from_raw_parts(self.ptr.as_ref(), self.len) };
-        ret
+        unsafe { std::slice::from_raw_parts(self.ptr.as_ref(), self.len) }
     }
 
+    #[inline(always)]
     pub fn get(&self, idx: usize) -> &T {
-        unsafe {
-            let slice: &[T] = std::slice::from_raw_parts(self.ptr.as_ref(), self.len);
-            &slice[idx]
-        }
+        debug_assert!(idx < self.len);
+        unsafe { self.ptr.add(idx * std::mem::size_of::<T>()).as_ref() }
     }
 
     pub fn set(&self, idx: usize, val: T) {
-        debug_assert!(!self.ptr.is_zero());
+        debug_assert!(idx < self.len);
         unsafe {
-            let slice: &mut [T] = std::slice::from_raw_parts_mut(self.ptr.as_mut_ref(), self.len);
-            slice[idx] = val
+            let val_ptr = self.ptr.add(idx * std::mem::size_of::<T>()).as_mut_ref();
+            *val_ptr = val
         }
     }
 }
@@ -226,8 +220,7 @@ impl<T> From<&GcSlice<T>> for Address {
 }
 
 pub struct GCSliceIter<'a, T> {
-    gc_slice: &'a [T],
-    len: usize,
+    gc_slice: &'a GcSlice<T>,
     cur_idx: usize,
 }
 
@@ -235,12 +228,13 @@ impl<'a, T: Debug> Iterator for GCSliceIter<'a, T> {
     type Item = &'a T;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.cur_idx >= self.len {
+        if self.cur_idx >= self.gc_slice.len {
             return None;
         }
 
-        //dbg!(&self.gc_slice);
-        let item = &self.gc_slice[self.cur_idx];
+        //dbg!(&self.gc_slice.as_slice());
+
+        let item = &self.gc_slice.get(self.cur_idx);
         self.cur_idx += 1;
         Some(item)
     }
