@@ -174,7 +174,7 @@ impl AstDispatchNode {
 
         let invokable = match &self.inline_cache {
             Some((cached_rcvr_ptr, mut method)) => {
-                // debug_assert_valid_semispace_ptr!(method);
+                debug_assert_valid_semispace_ptr!(method);
 
                 if *cached_rcvr_ptr == receiver.class(universe) {
                     // dbg!("cache hit");
@@ -190,17 +190,12 @@ impl AstDispatchNode {
 
         match invokable {
             Some(mut invokable) => {
-                // TODO reactivate asserts: known bug here
-                // debug_assert_valid_semispace_ptr_value!(receiver);
+                debug_assert_valid_semispace_ptr_value!(receiver);
                 let receiver_class_ref = receiver.class(universe);
-                // debug_assert_valid_semispace_ptr!(receiver_class_ref);
-
-                let invoke_ret = invokable.invoke(universe, value_stack, nbr_args);
-
-                // debug_assert_valid_semispace_ptr!(receiver_class_ref);
-                // debug_assert_valid_semispace_ptr!(invokable);
+                debug_assert_valid_semispace_ptr!(receiver_class_ref);
                 self.inline_cache = Some((receiver_class_ref, invokable));
-                invoke_ret
+
+                invokable.invoke(universe, value_stack, nbr_args)
             }
             None => {
                 let mut args = value_stack.stack_n_last_elems(nbr_args);

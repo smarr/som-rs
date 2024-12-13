@@ -3,6 +3,7 @@ use std::fs;
 use std::io;
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
+use std::slice::Iter;
 use std::time::Instant;
 
 use crate::evaluate::Evaluate;
@@ -259,6 +260,7 @@ impl Universe {
 }
 
 #[repr(transparent)] // probably not needed but might as well make it explicit to the compiler
+#[derive(Debug)]
 pub struct GlobalValueStack(Vec<Value>);
 
 impl From<Vec<Value>> for GlobalValueStack {
@@ -289,19 +291,23 @@ impl GlobalValueStack {
     /// Remove N elements off the argument stack and return them as their own vector.
     /// The default way of getting elements off of the stack.
     pub fn stack_n_last_elems(&mut self, n: usize) -> Vec<Value> {
-        let idx_split_off = self.len() - n;
-        self.split_off(idx_split_off)
+        let idx_split_off = self.0.len() - n;
+        self.0.split_off(idx_split_off)
     }
 
     pub fn stack_borrow_n_last_elems(&self, n: usize) -> &[Value] {
-        let idx_split_off = self.len() - n;
-        &self.as_slice()[idx_split_off..]
+        let idx_split_off = self.0.len() - n;
+        &self.0.as_slice()[idx_split_off..]
     }
 
     /// Pop the last n elements of the stack.
     pub fn stack_pop_n(&mut self, n: usize) {
-        let new_len = self.len() - n;
-        self.truncate(new_len)
+        let new_len = self.0.len() - n;
+        self.0.truncate(new_len)
+    }
+
+    pub fn iter(&self) -> Iter<'_, Value> {
+        self.0.iter()
     }
 }
 

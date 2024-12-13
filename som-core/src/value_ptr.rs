@@ -96,7 +96,7 @@ impl<T: HasPointerTag, PTR> ValStaticPtr<T, PTR> {
     /// Creates a new static reference from the provided `Value` reference.
     /// `value_ref` must NOT be a temporary reference, and MUST point to the GC heap. Otherwise, all hell breaks loose.
     pub fn new_static(value_ref: &'static BaseValue) -> ValStaticPtr<T, PTR> {
-        debug_assert!(value_ref.is_ptr_type() && value_ref.tag() == T::get_tag());
+        debug_assert!(value_ref.is_ptr_type() && value_ref.tag() == T::get_tag(), "Value not a pointer type.");
         Self {
             value_ref,
             _phantom: PhantomData,
