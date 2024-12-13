@@ -297,7 +297,7 @@ macro_rules! derive_stuff {
                 // # Safety
                 // AFAIK this is safe since the stack isn't going to move in the meantime.
                 // HOWEVER, if it gets resized/reallocated by Rust... Maybe? I'm not sure...
-                let args: &[Value] = unsafe { &* (value_stack.stack_borrow_n_last_elems(nbr_args) as *const _) };
+                let args: &[Value] = unsafe { &* (value_stack.borrow_n_last(nbr_args) as *const _) };
                 let mut args_iter = args.iter();
                 $(
                     #[allow(non_snake_case)]
@@ -305,7 +305,7 @@ macro_rules! derive_stuff {
                 )*
 
                 let result = (self)(universe, value_stack, $($ty),*,).unwrap();
-                value_stack.stack_pop_n(nbr_args);
+                value_stack.remove_n_last(nbr_args);
                 result.into_return()
             }
         }

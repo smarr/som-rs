@@ -290,18 +290,17 @@ impl GlobalValueStack {
     }
     /// Remove N elements off the argument stack and return them as their own vector.
     /// The default way of getting elements off of the stack.
-    pub fn stack_n_last_elems(&mut self, n: usize) -> Vec<Value> {
+    pub fn pop_n_last(&mut self, n: usize) -> Vec<Value> {
         let idx_split_off = self.0.len() - n;
         self.0.split_off(idx_split_off)
     }
 
-    pub fn stack_borrow_n_last_elems(&self, n: usize) -> &[Value] {
+    pub fn borrow_n_last(&self, n: usize) -> &[Value] {
         let idx_split_off = self.0.len() - n;
         &self.0.as_slice()[idx_split_off..]
     }
 
-    /// Pop the last n elements of the stack.
-    pub fn stack_pop_n(&mut self, n: usize) {
+    pub fn remove_n_last(&mut self, n: usize) {
         let new_len = self.0.len() - n;
         self.0.truncate(new_len)
     }

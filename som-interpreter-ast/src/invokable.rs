@@ -49,11 +49,11 @@ impl Invoke for Gc<Method> {
             }
             // since those two trivial methods don't need args, i guess it could be faster to handle them before args are even instantiated...
             MethodKind::TrivialLiteral(trivial_literal) => {
-                let _ = value_stack.stack_n_last_elems(nbr_args);
+                let _ = value_stack.pop_n_last(nbr_args);
                 trivial_literal.literal.evaluate(universe, value_stack)
             }
             MethodKind::TrivialGlobal(trivial_global) => {
-                let _ = value_stack.stack_n_last_elems(nbr_args);
+                let _ = value_stack.pop_n_last(nbr_args);
                 trivial_global.evaluate(universe, value_stack)
             }
             MethodKind::TrivialGetter(trivial_getter) => trivial_getter.invoke(universe, value_stack, nbr_args),

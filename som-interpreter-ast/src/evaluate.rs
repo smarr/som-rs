@@ -198,7 +198,7 @@ impl AstDispatchNode {
                 invokable.invoke(universe, value_stack, nbr_args)
             }
             None => {
-                let mut args = value_stack.stack_n_last_elems(nbr_args);
+                let mut args = value_stack.pop_n_last(nbr_args);
                 let receiver = args.remove(0);
                 universe.does_not_understand(value_stack, receiver, self.signature, args).unwrap_or_else(|| {
                     panic!(
@@ -282,7 +282,7 @@ impl Evaluate for AstSuperMessage {
         match invokable {
             Some(mut invokable) => invokable.invoke(universe, value_stack, self.values.len() + 1),
             None => {
-                let mut args = value_stack.stack_n_last_elems(self.values.len() + 1);
+                let mut args = value_stack.pop_n_last(self.values.len() + 1);
                 let receiver = args.remove(0);
                 universe.does_not_understand(value_stack, receiver, self.signature, args).unwrap_or_else(|| {
                     panic!(
