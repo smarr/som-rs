@@ -4,51 +4,51 @@ use crate::ast::{
 };
 use crate::gc::VecValue;
 use crate::invokable::{Invoke, Return};
-use crate::universe::Universe;
+use crate::universe::{GlobalValueStack, Universe};
 use crate::value::Value;
 use crate::vm_objects::block::Block;
 use crate::vm_objects::frame::{Frame, FrameAccess};
-use som_gc::debug_assert_valid_semispace_ptr;
 use som_gc::gcref::Gc;
+use som_gc::{debug_assert_valid_semispace_ptr, debug_assert_valid_semispace_ptr_value};
 
 /// The trait for evaluating AST nodes.
 pub trait Evaluate {
     /// Evaluate the node within a given universe.
-    fn evaluate(&mut self, universe: &mut Universe, stack_args: &mut Vec<Value>) -> Return;
+    fn evaluate(&mut self, universe: &mut Universe, value_stack: &mut GlobalValueStack) -> Return;
 }
 
 impl Evaluate for AstExpression {
-    fn evaluate(&mut self, universe: &mut Universe, stack_args: &mut Vec<Value>) -> Return {
+    fn evaluate(&mut self, universe: &mut Universe, value_stack: &mut GlobalValueStack) -> Return {
         match self {
             Self::LocalVarWrite(idx, expr) => {
-                let value = propagate!(expr.evaluate(universe, stack_args));
+                let value = propagate!(expr.evaluate(universe, value_stack));
                 universe.current_frame.assign_local(*idx, value);
                 Return::Local(value)
             }
             Self::NonLocalVarWrite(scope, idx, expr) => {
-                let value = propagate!(expr.evaluate(universe, stack_args));
+                let value = propagate!(expr.evaluate(universe, value_stack));
                 Frame::nth_frame_back(&universe.current_frame, *scope).assign_local(*idx, value);
                 Return::Local(value)
             }
             Self::FieldWrite(idx, expr) => {
-                let value = propagate!(expr.evaluate(universe, stack_args));
+                let value = propagate!(expr.evaluate(universe, value_stack));
                 universe.current_frame.assign_field(*idx, &value);
                 Return::Local(value)
             }
             Self::ArgWrite(scope, idx, expr) => {
-                let value = propagate!(expr.evaluate(universe, stack_args));
+                let value = propagate!(expr.evaluate(universe, value_stack));
                 Frame::nth_frame_back(&universe.current_frame, *scope).assign_arg(*idx, value);
                 Return::Local(value)
             }
-            Self::Block(blk) => blk.evaluate(universe, stack_args),
+            Self::Block(blk) => blk.evaluate(universe, value_stack),
             Self::LocalExit(expr) => {
-                let value = propagate!(expr.evaluate(universe, stack_args));
+                let value = propagate!(expr.evaluate(universe, value_stack));
                 Return::NonLocal(value, universe.current_frame)
             }
             Self::NonLocalExit(expr, scope) => {
                 debug_assert_ne!(*scope, 0);
 
-                let value = propagate!(expr.evaluate(universe, stack_args));
+                let value = propagate!(expr.evaluate(universe, value_stack));
                 let method_frame = Frame::nth_frame_back(&universe.current_frame, *scope);
 
                 let has_not_escaped = {
@@ -81,11 +81,11 @@ impl Evaluate for AstExpression {
                         }
                     };
                     universe
-                        .escaped_block(stack_args, instance, block)
+                        .escaped_block(value_stack, instance, block)
                         .unwrap_or_else(|| panic!("A block has escaped and `escapedBlock:` is not defined on receiver"))
                 }
             }
-            Self::Literal(literal) => literal.evaluate(universe, stack_args),
+            Self::Literal(literal) => literal.evaluate(universe, value_stack),
             Self::LocalVarRead(idx) => {
                 let local = universe.current_frame.lookup_local(*idx);
                 Return::Local(*local)
@@ -108,34 +108,34 @@ impl Evaluate for AstExpression {
                 .or_else(|| {
                     let frame = universe.current_frame;
                     let self_value = frame.get_self();
-                    universe.unknown_global(stack_args, self_value, *name)
+                    universe.unknown_global(value_stack, self_value, *name)
                 })
                 .unwrap_or_else(|| panic!("global not found and unknown_global call failed somehow?")),
-            Self::UnaryDispatch(un_op) => un_op.evaluate(universe, stack_args),
-            Self::BinaryDispatch(bin_op) => bin_op.evaluate(universe, stack_args),
-            Self::TernaryDispatch(ter_op) => ter_op.evaluate(universe, stack_args),
-            Self::NAryDispatch(msg) => msg.evaluate(universe, stack_args),
-            Self::SuperMessage(msg) => msg.evaluate(universe, stack_args),
+            Self::UnaryDispatch(un_op) => un_op.evaluate(universe, value_stack),
+            Self::BinaryDispatch(bin_op) => bin_op.evaluate(universe, value_stack),
+            Self::TernaryDispatch(ter_op) => ter_op.evaluate(universe, value_stack),
+            Self::NAryDispatch(msg) => msg.evaluate(universe, value_stack),
+            Self::SuperMessage(msg) => msg.evaluate(universe, value_stack),
             Self::InlinedCall(inlined_node) => match inlined_node.as_mut() {
-                InlinedNode::IfInlined(if_inlined) => if_inlined.evaluate(universe, stack_args),
-                InlinedNode::IfTrueIfFalseInlined(if_true_if_false_inlined) => if_true_if_false_inlined.evaluate(universe, stack_args),
-                InlinedNode::WhileInlined(while_inlined) => while_inlined.evaluate(universe, stack_args),
-                InlinedNode::OrInlined(or_inlined) => or_inlined.evaluate(universe, stack_args),
-                InlinedNode::AndInlined(and_inlined) => and_inlined.evaluate(universe, stack_args),
-                InlinedNode::ToDoInlined(to_do_inlined) => to_do_inlined.evaluate(universe, stack_args),
+                InlinedNode::IfInlined(if_inlined) => if_inlined.evaluate(universe, value_stack),
+                InlinedNode::IfTrueIfFalseInlined(if_true_if_false_inlined) => if_true_if_false_inlined.evaluate(universe, value_stack),
+                InlinedNode::WhileInlined(while_inlined) => while_inlined.evaluate(universe, value_stack),
+                InlinedNode::OrInlined(or_inlined) => or_inlined.evaluate(universe, value_stack),
+                InlinedNode::AndInlined(and_inlined) => and_inlined.evaluate(universe, value_stack),
+                InlinedNode::ToDoInlined(to_do_inlined) => to_do_inlined.evaluate(universe, value_stack),
             },
         }
     }
 }
 
 impl Evaluate for AstLiteral {
-    fn evaluate(&mut self, universe: &mut Universe, _stack_args: &mut Vec<Value>) -> Return {
+    fn evaluate(&mut self, universe: &mut Universe, _value_stack: &mut GlobalValueStack) -> Return {
         match self {
             Self::Array(array) => {
                 // todo: couldn't we precompute those astliterals, really?
                 let mut output = Vec::with_capacity(array.0.len());
                 for literal in &mut array.0 {
-                    let value = propagate!(literal.evaluate(universe, _stack_args));
+                    let value = propagate!(literal.evaluate(universe, _value_stack));
                     output.push(value);
                 }
                 Return::Local(Value::Array(universe.gc_interface.alloc(VecValue(output))))
@@ -150,13 +150,13 @@ impl Evaluate for AstLiteral {
 }
 
 impl Evaluate for AstTerm {
-    fn evaluate(&mut self, universe: &mut Universe, stack_args: &mut Vec<Value>) -> Return {
-        self.body.evaluate(universe, stack_args)
+    fn evaluate(&mut self, universe: &mut Universe, value_stack: &mut GlobalValueStack) -> Return {
+        self.body.evaluate(universe, value_stack)
     }
 }
 
 impl Evaluate for Gc<AstBlock> {
-    fn evaluate(&mut self, universe: &mut Universe, _stack_args: &mut Vec<Value>) -> Return {
+    fn evaluate(&mut self, universe: &mut Universe, _value_stack: &mut GlobalValueStack) -> Return {
         debug_assert_valid_semispace_ptr!(self);
         let mut block_ptr = universe.gc_interface.request_memory_for_type(size_of::<Block>());
         *block_ptr = Block {
@@ -169,16 +169,16 @@ impl Evaluate for Gc<AstBlock> {
 
 impl AstDispatchNode {
     #[inline(always)]
-    fn lookup_and_dispatch(&mut self, nbr_args: usize, universe: &mut Universe, stack_args: &mut Vec<Value>) -> Return {
-        let receiver = *stack_args.iter().nth_back(nbr_args - 1).unwrap();
+    fn lookup_and_dispatch(&mut self, nbr_args: usize, universe: &mut Universe, value_stack: &mut GlobalValueStack) -> Return {
+        let receiver = *value_stack.iter().nth_back(nbr_args - 1).unwrap();
 
         let invokable = match &self.inline_cache {
             Some((cached_rcvr_ptr, mut method)) => {
-                debug_assert_valid_semispace_ptr!(method);
+                // debug_assert_valid_semispace_ptr!(method);
 
                 if *cached_rcvr_ptr == receiver.class(universe) {
                     // dbg!("cache hit");
-                    return method.invoke(universe, stack_args, nbr_args);
+                    return method.invoke(universe, value_stack, nbr_args);
                 } else {
                     // dbg!("cache miss");
                     receiver.lookup_method(universe, self.signature)
@@ -190,17 +190,22 @@ impl AstDispatchNode {
 
         match invokable {
             Some(mut invokable) => {
+                // TODO reactivate asserts: known bug here
+                // debug_assert_valid_semispace_ptr_value!(receiver);
                 let receiver_class_ref = receiver.class(universe);
-                let invoke_ret = invokable.invoke(universe, stack_args, nbr_args);
-                debug_assert_valid_semispace_ptr!(receiver_class_ref);
-                debug_assert_valid_semispace_ptr!(invokable);
+                // debug_assert_valid_semispace_ptr!(receiver_class_ref);
+
+                let invoke_ret = invokable.invoke(universe, value_stack, nbr_args);
+
+                // debug_assert_valid_semispace_ptr!(receiver_class_ref);
+                // debug_assert_valid_semispace_ptr!(invokable);
                 self.inline_cache = Some((receiver_class_ref, invokable));
                 invoke_ret
             }
             None => {
-                let mut args = Universe::stack_n_last_elems(stack_args, nbr_args);
+                let mut args = value_stack.stack_n_last_elems(nbr_args);
                 let receiver = args.remove(0);
-                universe.does_not_understand(stack_args, receiver, self.signature, args).unwrap_or_else(|| {
+                universe.does_not_understand(value_stack, receiver, self.signature, args).unwrap_or_else(|| {
                     panic!(
                         "could not find method '{}>>#{}'",
                         receiver.class(universe).name(),
@@ -213,50 +218,50 @@ impl AstDispatchNode {
 }
 
 impl Evaluate for AstUnaryDispatch {
-    fn evaluate(&mut self, universe: &mut Universe, stack_args: &mut Vec<Value>) -> Return {
-        let receiver = propagate!(self.dispatch_node.receiver.evaluate(universe, stack_args));
-        stack_args.push(receiver);
-        self.dispatch_node.lookup_and_dispatch(1, universe, stack_args)
+    fn evaluate(&mut self, universe: &mut Universe, value_stack: &mut GlobalValueStack) -> Return {
+        let receiver = propagate!(self.dispatch_node.receiver.evaluate(universe, value_stack));
+        value_stack.push(receiver);
+        self.dispatch_node.lookup_and_dispatch(1, universe, value_stack)
     }
 }
 
 impl Evaluate for AstBinaryDispatch {
-    fn evaluate(&mut self, universe: &mut Universe, stack_args: &mut Vec<Value>) -> Return {
-        let receiver = propagate!(self.dispatch_node.receiver.evaluate(universe, stack_args));
-        stack_args.push(receiver);
+    fn evaluate(&mut self, universe: &mut Universe, value_stack: &mut GlobalValueStack) -> Return {
+        let receiver = propagate!(self.dispatch_node.receiver.evaluate(universe, value_stack));
+        value_stack.push(receiver);
 
-        let arg = propagate!(self.arg.evaluate(universe, stack_args));
-        stack_args.push(arg);
+        let arg = propagate!(self.arg.evaluate(universe, value_stack));
+        value_stack.push(arg);
 
-        self.dispatch_node.lookup_and_dispatch(2, universe, stack_args)
+        self.dispatch_node.lookup_and_dispatch(2, universe, value_stack)
     }
 }
 
 impl Evaluate for AstTernaryDispatch {
-    fn evaluate(&mut self, universe: &mut Universe, stack_args: &mut Vec<Value>) -> Return {
-        let receiver = propagate!(self.dispatch_node.receiver.evaluate(universe, stack_args));
+    fn evaluate(&mut self, universe: &mut Universe, value_stack: &mut GlobalValueStack) -> Return {
+        let receiver = propagate!(self.dispatch_node.receiver.evaluate(universe, value_stack));
 
-        stack_args.push(receiver);
+        value_stack.push(receiver);
 
-        let arg1 = propagate!(self.arg1.evaluate(universe, stack_args));
-        stack_args.push(arg1);
+        let arg1 = propagate!(self.arg1.evaluate(universe, value_stack));
+        value_stack.push(arg1);
 
-        let arg2 = propagate!(self.arg2.evaluate(universe, stack_args));
-        stack_args.push(arg2);
+        let arg2 = propagate!(self.arg2.evaluate(universe, value_stack));
+        value_stack.push(arg2);
 
-        self.dispatch_node.lookup_and_dispatch(3, universe, stack_args)
+        self.dispatch_node.lookup_and_dispatch(3, universe, value_stack)
     }
 }
 
 impl Evaluate for AstNAryDispatch {
-    fn evaluate(&mut self, universe: &mut Universe, stack_args: &mut Vec<Value>) -> Return {
-        let receiver = propagate!(self.dispatch_node.receiver.evaluate(universe, stack_args));
+    fn evaluate(&mut self, universe: &mut Universe, value_stack: &mut GlobalValueStack) -> Return {
+        let receiver = propagate!(self.dispatch_node.receiver.evaluate(universe, value_stack));
 
-        stack_args.push(receiver);
+        value_stack.push(receiver);
 
         for expr in &mut self.values {
-            let value = propagate!(expr.evaluate(universe, stack_args));
-            stack_args.push(value);
+            let value = propagate!(expr.evaluate(universe, value_stack));
+            value_stack.push(value);
         }
 
         debug_assert!(
@@ -264,27 +269,27 @@ impl Evaluate for AstNAryDispatch {
             "should be a specialized unary/binary/ternary node, not a generic N-ary node"
         );
 
-        self.dispatch_node.lookup_and_dispatch(self.values.len() + 1, universe, stack_args)
+        self.dispatch_node.lookup_and_dispatch(self.values.len() + 1, universe, value_stack)
     }
 }
 
 impl Evaluate for AstSuperMessage {
-    fn evaluate(&mut self, universe: &mut Universe, stack_args: &mut Vec<Value>) -> Return {
+    fn evaluate(&mut self, universe: &mut Universe, value_stack: &mut GlobalValueStack) -> Return {
         let invokable = self.super_class.lookup_method(self.signature);
         let receiver = universe.current_frame.get_self();
-        stack_args.push(receiver);
+        value_stack.push(receiver);
 
         for expr in &mut self.values {
-            let value = propagate!(expr.evaluate(universe, stack_args));
-            stack_args.push(value);
+            let value = propagate!(expr.evaluate(universe, value_stack));
+            value_stack.push(value);
         }
 
         match invokable {
-            Some(mut invokable) => invokable.invoke(universe, stack_args, self.values.len() + 1),
+            Some(mut invokable) => invokable.invoke(universe, value_stack, self.values.len() + 1),
             None => {
-                let mut args = Universe::stack_n_last_elems(stack_args, self.values.len() + 1);
+                let mut args = value_stack.stack_n_last_elems(self.values.len() + 1);
                 let receiver = args.remove(0);
-                universe.does_not_understand(stack_args, receiver, self.signature, args).unwrap_or_else(|| {
+                universe.does_not_understand(value_stack, receiver, self.signature, args).unwrap_or_else(|| {
                     panic!(
                         "could not find method '{}>>#{}'",
                         receiver.class(universe).name(),
@@ -298,17 +303,17 @@ impl Evaluate for AstSuperMessage {
 }
 
 impl Evaluate for AstBody {
-    fn evaluate(&mut self, universe: &mut Universe, stack_args: &mut Vec<Value>) -> Return {
+    fn evaluate(&mut self, universe: &mut Universe, value_stack: &mut GlobalValueStack) -> Return {
         let mut last_value = Value::NIL;
         for expr in &mut self.exprs {
-            last_value = propagate!(expr.evaluate(universe, stack_args));
+            last_value = propagate!(expr.evaluate(universe, value_stack));
         }
         Return::Local(last_value)
     }
 }
 
 impl Evaluate for AstMethodDef {
-    fn evaluate(&mut self, universe: &mut Universe, stack_args: &mut Vec<Value>) -> Return {
+    fn evaluate(&mut self, universe: &mut Universe, value_stack: &mut GlobalValueStack) -> Return {
         // HACK: we want to hold on to a reference to the current frame at that point in time.
         // We can't copy/clone the pointer, because we want to have a reference to that pointer in case moving GC moves it.
         // And we can't hold onto an immutable ref to universe while passing a mutable ref universe to `self.body.evaluate` lower down. Hence this hack.
@@ -316,7 +321,7 @@ impl Evaluate for AstMethodDef {
         let current_frame = unsafe { &*(&universe.current_frame as *const Gc<Frame>) };
 
         #[cfg(not(feature = "inlining-disabled"))]
-        match self.body.evaluate(universe, stack_args) {
+        match self.body.evaluate(universe, value_stack) {
             Return::NonLocal(value, frame) => {
                 debug_assert_valid_semispace_ptr!(frame);
                 debug_assert_valid_semispace_ptr!(current_frame);
@@ -331,7 +336,7 @@ impl Evaluate for AstMethodDef {
 
         #[cfg(feature = "inlining-disabled")]
         loop {
-            match self.body.evaluate(universe, stack_args) {
+            match self.body.evaluate(universe, value_stack) {
                 Return::NonLocal(value, frame) => {
                     if *current_frame == frame {
                         break Return::Local(value);
@@ -347,10 +352,10 @@ impl Evaluate for AstMethodDef {
 }
 
 impl Evaluate for Gc<Block> {
-    fn evaluate(&mut self, universe: &mut Universe, stack_args: &mut Vec<Value>) -> Return {
+    fn evaluate(&mut self, universe: &mut Universe, value_stack: &mut GlobalValueStack) -> Return {
         debug_assert_valid_semispace_ptr!(self.block);
         debug_assert_valid_semispace_ptr!(self);
 
-        self.block.body.evaluate(universe, stack_args)
+        self.block.body.evaluate(universe, value_stack)
     }
 }

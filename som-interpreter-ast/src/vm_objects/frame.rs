@@ -1,4 +1,4 @@
-use crate::universe::Universe;
+use crate::universe::{GlobalValueStack, Universe};
 use crate::value::Value;
 use core::mem::size_of;
 use som_gc::debug_assert_valid_semispace_ptr;
@@ -34,7 +34,7 @@ pub struct Frame {
 }
 
 impl Frame {
-    pub fn alloc_new_frame(nbr_locals: u8, nbr_args: usize, universe: &mut Universe, stack_args: &mut Vec<Value>) -> Gc<Self> {
+    pub fn alloc_new_frame(nbr_locals: u8, nbr_args: usize, universe: &mut Universe, value_stack: &mut GlobalValueStack) -> Gc<Self> {
         let frame = Self {
             prev_frame: Gc::default(),
             nbr_locals,
@@ -53,7 +53,7 @@ impl Frame {
                 locals_addr = locals_addr.wrapping_add(1);
             }
 
-            let args = Universe::stack_n_last_elems(stack_args, nbr_args);
+            let args = value_stack.stack_n_last_elems(nbr_args);
             std::slice::from_raw_parts_mut(frame_args_ptr!(frame_ptr), nbr_args).copy_from_slice(args.as_slice());
 
             frame_ptr.prev_frame = universe.current_frame;
@@ -111,14 +111,14 @@ impl FrameAccess for Gc<Frame> {
         for i in 0..self.nbr_args {
             let arg = self.lookup_argument(i);
             if arg.is_ptr_type() {
-                debug_assert_valid_semispace_ptr!(arg.as_something::<()>())
+                debug_assert_valid_semispace_ptr!(unsafe { arg.as_something::<()>() }.unwrap())
             }
         }
 
         for i in 0..self.nbr_locals {
             let local = self.lookup_local(i);
             if local.is_ptr_type() {
-                debug_assert_valid_semispace_ptr!(local.as_something::<()>())
+                debug_assert_valid_semispace_ptr!(unsafe { local.as_something::<()>() }.unwrap())
             }
         }
     }

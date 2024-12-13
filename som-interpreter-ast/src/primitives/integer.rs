@@ -1,6 +1,6 @@
 use super::PrimInfo;
 use crate::primitives::PrimitiveFn;
-use crate::universe::Universe;
+use crate::universe::{GlobalValueStack, Universe};
 use crate::value::convert::{DoubleLike, IntegerLike, Primitive, StringLike};
 use crate::value::Value;
 use anyhow::{bail, Error};
@@ -46,7 +46,7 @@ macro_rules! demote {
     }};
 }
 
-fn from_string(universe: &mut Universe, _stack_args: &mut Vec<Value>, _: Value, string: StringLike) -> Result<Value, Error> {
+fn from_string(universe: &mut Universe, _value_stack: &mut GlobalValueStack, _: Value, string: StringLike) -> Result<Value, Error> {
     let value = match string {
         StringLike::String(ref value) => value.as_str(),
         StringLike::Symbol(sym) => universe.lookup_symbol(sym),
@@ -61,7 +61,7 @@ fn from_string(universe: &mut Universe, _stack_args: &mut Vec<Value>, _: Value, 
     }
 }
 
-fn as_string(universe: &mut Universe, _stack_args: &mut Vec<Value>, receiver: IntegerLike) -> Result<Value, Error> {
+fn as_string(universe: &mut Universe, _value_stack: &mut GlobalValueStack, receiver: IntegerLike) -> Result<Value, Error> {
     let value = match receiver {
         IntegerLike::Integer(value) => value.to_string(),
         IntegerLike::BigInteger(value) => value.to_string(),
@@ -70,7 +70,7 @@ fn as_string(universe: &mut Universe, _stack_args: &mut Vec<Value>, receiver: In
     Ok(Value::String(universe.gc_interface.alloc(value)))
 }
 
-fn as_double(_: &mut Universe, _stack_args: &mut Vec<Value>, receiver: IntegerLike) -> Result<Value, Error> {
+fn as_double(_: &mut Universe, _value_stack: &mut GlobalValueStack, receiver: IntegerLike) -> Result<Value, Error> {
     const SIGNATURE: &str = "Integer>>#asDouble";
 
     match receiver {
@@ -82,7 +82,7 @@ fn as_double(_: &mut Universe, _stack_args: &mut Vec<Value>, receiver: IntegerLi
     }
 }
 
-fn at_random(_: &mut Universe, _stack_args: &mut Vec<Value>, receiver: IntegerLike) -> Result<Value, Error> {
+fn at_random(_: &mut Universe, _value_stack: &mut GlobalValueStack, receiver: IntegerLike) -> Result<Value, Error> {
     const SIGNATURE: &str = "Integer>>#atRandom";
 
     let chosen = match receiver {
@@ -99,7 +99,7 @@ fn at_random(_: &mut Universe, _stack_args: &mut Vec<Value>, receiver: IntegerLi
     Ok(Value::Integer(chosen))
 }
 
-fn as_32bit_signed_value(_: &mut Universe, _stack_args: &mut Vec<Value>, receiver: IntegerLike) -> Result<Value, Error> {
+fn as_32bit_signed_value(_: &mut Universe, _value_stack: &mut GlobalValueStack, receiver: IntegerLike) -> Result<Value, Error> {
     let value = match receiver {
         IntegerLike::Integer(value) => value,
         IntegerLike::BigInteger(value) => match value.to_u32_digits() {
@@ -111,7 +111,7 @@ fn as_32bit_signed_value(_: &mut Universe, _stack_args: &mut Vec<Value>, receive
     Ok(Value::Integer(value))
 }
 
-fn as_32bit_unsigned_value(universe: &mut Universe, _stack_args: &mut Vec<Value>, receiver: IntegerLike) -> Result<IntegerLike, Error> {
+fn as_32bit_unsigned_value(universe: &mut Universe, _value_stack: &mut GlobalValueStack, receiver: IntegerLike) -> Result<IntegerLike, Error> {
     let value = match receiver {
         IntegerLike::Integer(value) => value as u32,
         IntegerLike::BigInteger(value) => {
@@ -130,7 +130,7 @@ fn as_32bit_unsigned_value(universe: &mut Universe, _stack_args: &mut Vec<Value>
     Ok(value)
 }
 
-fn plus(universe: &mut Universe, _stack_args: &mut Vec<Value>, a: DoubleLike, b: DoubleLike) -> Result<Value, Error> {
+fn plus(universe: &mut Universe, _value_stack: &mut GlobalValueStack, a: DoubleLike, b: DoubleLike) -> Result<Value, Error> {
     const SIGNATURE: &str = "Integer>>#+";
 
     let heap = &mut universe.gc_interface;
@@ -154,7 +154,7 @@ fn plus(universe: &mut Universe, _stack_args: &mut Vec<Value>, a: DoubleLike, b:
     }
 }
 
-fn minus(universe: &mut Universe, _stack_args: &mut Vec<Value>, a: DoubleLike, b: DoubleLike) -> Result<Value, Error> {
+fn minus(universe: &mut Universe, _value_stack: &mut GlobalValueStack, a: DoubleLike, b: DoubleLike) -> Result<Value, Error> {
     const SIGNATURE: &str = "Integer>>#-";
 
     let heap = &mut universe.gc_interface;
@@ -182,7 +182,7 @@ fn minus(universe: &mut Universe, _stack_args: &mut Vec<Value>, a: DoubleLike, b
     }
 }
 
-fn times(universe: &mut Universe, _stack_args: &mut Vec<Value>, a: DoubleLike, b: DoubleLike) -> Result<Value, Error> {
+fn times(universe: &mut Universe, _value_stack: &mut GlobalValueStack, a: DoubleLike, b: DoubleLike) -> Result<Value, Error> {
     const SIGNATURE: &str = "Integer>>#*";
 
     let heap = &mut universe.gc_interface;
@@ -204,7 +204,7 @@ fn times(universe: &mut Universe, _stack_args: &mut Vec<Value>, a: DoubleLike, b
     }
 }
 
-fn divide(universe: &mut Universe, _stack_args: &mut Vec<Value>, a: DoubleLike, b: DoubleLike) -> Result<Value, Error> {
+fn divide(universe: &mut Universe, _value_stack: &mut GlobalValueStack, a: DoubleLike, b: DoubleLike) -> Result<Value, Error> {
     const SIGNATURE: &str = "Integer>>#/";
 
     let heap = &mut universe.gc_interface;
@@ -226,7 +226,7 @@ fn divide(universe: &mut Universe, _stack_args: &mut Vec<Value>, a: DoubleLike, 
     }
 }
 
-fn divide_float(_: &mut Universe, _stack_args: &mut Vec<Value>, a: DoubleLike, b: DoubleLike) -> Result<Value, Error> {
+fn divide_float(_: &mut Universe, _value_stack: &mut GlobalValueStack, a: DoubleLike, b: DoubleLike) -> Result<Value, Error> {
     const SIGNATURE: &str = "Integer>>#//";
 
     match (a, b) {
@@ -237,7 +237,7 @@ fn divide_float(_: &mut Universe, _stack_args: &mut Vec<Value>, a: DoubleLike, b
     }
 }
 
-fn modulo(universe: &mut Universe, _stack_args: &mut Vec<Value>, a: IntegerLike, b: i32) -> Result<Value, Error> {
+fn modulo(universe: &mut Universe, _value_stack: &mut GlobalValueStack, a: IntegerLike, b: i32) -> Result<Value, Error> {
     match a {
         IntegerLike::Integer(a) => {
             let result = a % b;
@@ -258,7 +258,7 @@ fn modulo(universe: &mut Universe, _stack_args: &mut Vec<Value>, a: IntegerLike,
     }
 }
 
-fn remainder(_: &mut Universe, _stack_args: &mut Vec<Value>, a: i32, b: i32) -> Result<Value, Error> {
+fn remainder(_: &mut Universe, _value_stack: &mut GlobalValueStack, a: i32, b: i32) -> Result<Value, Error> {
     let result = a % b;
     if result.signum() != a.signum() {
         Ok(Value::Integer((result + a) % a))
@@ -267,7 +267,7 @@ fn remainder(_: &mut Universe, _stack_args: &mut Vec<Value>, a: i32, b: i32) -> 
     }
 }
 
-fn sqrt(universe: &mut Universe, _stack_args: &mut Vec<Value>, a: DoubleLike) -> Result<Value, Error> {
+fn sqrt(universe: &mut Universe, _value_stack: &mut GlobalValueStack, a: DoubleLike) -> Result<Value, Error> {
     match a {
         DoubleLike::Integer(a) => {
             let sqrt = (a as f64).sqrt();
@@ -283,7 +283,7 @@ fn sqrt(universe: &mut Universe, _stack_args: &mut Vec<Value>, a: DoubleLike) ->
     }
 }
 
-fn bitand(universe: &mut Universe, _stack_args: &mut Vec<Value>, a: IntegerLike, b: IntegerLike) -> Result<Value, Error> {
+fn bitand(universe: &mut Universe, _value_stack: &mut GlobalValueStack, a: IntegerLike, b: IntegerLike) -> Result<Value, Error> {
     let heap = &mut universe.gc_interface;
     match (a, b) {
         (IntegerLike::Integer(a), IntegerLike::Integer(b)) => Ok(Value::Integer(a & b)),
@@ -296,7 +296,7 @@ fn bitand(universe: &mut Universe, _stack_args: &mut Vec<Value>, a: IntegerLike,
     }
 }
 
-fn bitxor(universe: &mut Universe, _stack_args: &mut Vec<Value>, a: IntegerLike, b: IntegerLike) -> Result<Value, Error> {
+fn bitxor(universe: &mut Universe, _value_stack: &mut GlobalValueStack, a: IntegerLike, b: IntegerLike) -> Result<Value, Error> {
     let heap = &mut universe.gc_interface;
     match (a, b) {
         (IntegerLike::Integer(a), IntegerLike::Integer(b)) => Ok(Value::Integer(a ^ b)),
@@ -309,7 +309,7 @@ fn bitxor(universe: &mut Universe, _stack_args: &mut Vec<Value>, a: IntegerLike,
     }
 }
 
-fn lt(_: &mut Universe, _stack_args: &mut Vec<Value>, a: DoubleLike, b: DoubleLike) -> Result<bool, Error> {
+fn lt(_: &mut Universe, _value_stack: &mut GlobalValueStack, a: DoubleLike, b: DoubleLike) -> Result<bool, Error> {
     const SIGNATURE: &str = "Integer>>#<";
 
     match (a, b) {
@@ -323,7 +323,7 @@ fn lt(_: &mut Universe, _stack_args: &mut Vec<Value>, a: DoubleLike, b: DoubleLi
     }
 }
 
-fn eq(_: &mut Universe, _stack_args: &mut Vec<Value>, a: Value, b: Value) -> Result<bool, Error> {
+fn eq(_: &mut Universe, _value_stack: &mut GlobalValueStack, a: Value, b: Value) -> Result<bool, Error> {
     // match (a, b) {
     //     (Value::Integer(a), Value::Integer(b)) => Return::Local(Value::Boolean(a == b)),
     //     (Value::BigInteger(a), Value::BigInteger(b)) => Return::Local(Value::Boolean(&*a == &*b)),
@@ -357,7 +357,7 @@ fn eq(_: &mut Universe, _stack_args: &mut Vec<Value>, a: Value, b: Value) -> Res
     Ok(value)
 }
 
-fn shift_left(universe: &mut Universe, _stack_args: &mut Vec<Value>, a: IntegerLike, b: i32) -> Result<Value, Error> {
+fn shift_left(universe: &mut Universe, _value_stack: &mut GlobalValueStack, a: IntegerLike, b: i32) -> Result<Value, Error> {
     // old code pre integers being i32 because of nan boxing:
 
     // match a {
@@ -383,7 +383,7 @@ fn shift_left(universe: &mut Universe, _stack_args: &mut Vec<Value>, a: IntegerL
     }
 }
 
-fn shift_right(universe: &mut Universe, _stack_args: &mut Vec<Value>, a: IntegerLike, b: i32) -> Result<Value, Error> {
+fn shift_right(universe: &mut Universe, _value_stack: &mut GlobalValueStack, a: IntegerLike, b: i32) -> Result<Value, Error> {
     // match a {
     //     Value::Integer(a) => match a.checked_shr(b as u32) {
     //         Some(value) => Return::Local(Value::Integer(value)),

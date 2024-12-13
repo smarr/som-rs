@@ -15,7 +15,7 @@ mod shell;
 #[cfg(feature = "inlining-disabled")]
 use som_interpreter_ast::invokable::Return;
 
-use som_interpreter_ast::universe::Universe;
+use som_interpreter_ast::universe::{GlobalValueStack, Universe};
 use som_interpreter_ast::value::Value;
 use som_interpreter_ast::{STACK_ARGS_RAW_PTR_CONST, UNIVERSE_RAW_PTR_CONST};
 
@@ -70,24 +70,17 @@ fn main() -> anyhow::Result<()> {
                 }
             };
 
-            let mut stack_args = Vec::with_capacity(1000);
+            let mut value_stack = GlobalValueStack::from(Vec::with_capacity(1000));
 
             UNIVERSE_RAW_PTR_CONST.store(&mut universe, Ordering::SeqCst);
-            STACK_ARGS_RAW_PTR_CONST.store(&mut stack_args, Ordering::SeqCst);
+            STACK_ARGS_RAW_PTR_CONST.store(&mut value_stack, Ordering::SeqCst);
 
             let args = std::iter::once(String::from(file_stem))
                 .chain(opts.args.iter().cloned())
                 .map(|str| Value::String(universe.gc_interface.alloc(str)))
                 .collect();
 
-            let output = universe.initialize(args, &mut stack_args).unwrap_or_else(|| panic!("could not find 'System>>#initialize:'"));
-
-            // let class = universe.load_class_from_path(file)?;
-            // let instance = Instance::from_class(class);
-            // let instance = Value::Instance(Rc::new(RefCell::new(instance)));
-
-            // let invokable = instance.lookup_method(&universe, "run").unwrap();
-            // let output = invokable.invoke(&mut universe, vec![instance]);
+            let output = universe.initialize(args, &mut value_stack).unwrap_or_else(|| panic!("could not find 'System>>#initialize:'"));
 
             match output {
                 #[cfg(feature = "inlining-disabled")]

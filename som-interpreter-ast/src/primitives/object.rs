@@ -2,7 +2,7 @@ use super::PrimInfo;
 use crate::gc::VecValue;
 use crate::invokable::{Invoke, Return};
 use crate::primitives::PrimitiveFn;
-use crate::universe::Universe;
+use crate::universe::{GlobalValueStack, Universe};
 use crate::value::convert::Primitive;
 use crate::value::HeapValPtr;
 use crate::value::Value;
@@ -35,20 +35,20 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
 });
 pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([]));
 
-fn halt(_: &mut Universe, _stack_args: &mut Vec<Value>, _: Value) -> Result<Value, Error> {
+fn halt(_: &mut Universe, _value_stack: &mut GlobalValueStack, _: Value) -> Result<Value, Error> {
     println!("HALT"); // so a breakpoint can be put
     Ok(Value::NIL)
 }
 
-fn class(universe: &mut Universe, _stack_args: &mut Vec<Value>, object: Value) -> Result<Value, Error> {
+fn class(universe: &mut Universe, _value_stack: &mut GlobalValueStack, object: Value) -> Result<Value, Error> {
     Ok(Value::Class(object.class(universe)))
 }
 
-fn object_size(_: &mut Universe, _stack_args: &mut Vec<Value>, _: Value) -> Result<Value, Error> {
+fn object_size(_: &mut Universe, _value_stack: &mut GlobalValueStack, _: Value) -> Result<Value, Error> {
     Ok(Value::Integer(core::mem::size_of::<Value>() as i32))
 }
 
-fn hashcode(_: &mut Universe, _stack_args: &mut Vec<Value>, receiver: Value) -> Result<Value, Error> {
+fn hashcode(_: &mut Universe, _value_stack: &mut GlobalValueStack, receiver: Value) -> Result<Value, Error> {
     let mut hasher = DefaultHasher::new();
     receiver.hash(&mut hasher);
     let hash = (hasher.finish() as i32).abs();
@@ -56,22 +56,22 @@ fn hashcode(_: &mut Universe, _stack_args: &mut Vec<Value>, receiver: Value) -> 
     Ok(Value::Integer(hash))
 }
 
-fn eq(_: &mut Universe, _stack_args: &mut Vec<Value>, receiver: Value, other: Value) -> Result<Value, Error> {
+fn eq(_: &mut Universe, _value_stack: &mut GlobalValueStack, receiver: Value, other: Value) -> Result<Value, Error> {
     Ok(Value::Boolean(receiver == other))
 }
 
-fn perform(universe: &mut Universe, stack_args: &mut Vec<Value>, object: Value, sym: Interned) -> Result<Return, Error> {
+fn perform(universe: &mut Universe, value_stack: &mut GlobalValueStack, object: Value, sym: Interned) -> Result<Return, Error> {
     const SIGNATURE: &str = "Object>>#perform:";
 
     let method = object.lookup_method(universe, sym);
 
     match method {
         Some(mut invokable) => {
-            stack_args.push(object);
-            Ok(invokable.invoke(universe, stack_args, 1))
+            value_stack.push(object);
+            Ok(invokable.invoke(universe, value_stack, 1))
         }
         None => {
-            Ok(universe.does_not_understand(stack_args, object, sym, vec![object]).unwrap_or_else(|| {
+            Ok(universe.does_not_understand(value_stack, object, sym, vec![object]).unwrap_or_else(|| {
                 panic!(
                     "'{}': method '{}' not found for '{}'",
                     SIGNATURE,
@@ -86,7 +86,7 @@ fn perform(universe: &mut Universe, stack_args: &mut Vec<Value>, object: Value, 
 
 fn perform_with_arguments(
     universe: &mut Universe,
-    stack_args: &mut Vec<Value>,
+    value_stack: &mut GlobalValueStack,
     object: Value,
     sym: Interned,
     arr: HeapValPtr<VecValue>,
@@ -100,11 +100,11 @@ fn perform_with_arguments(
             // let args = std::iter::once(object)
             //     .chain(arr.replace(Vec::default()))
             //     .collect();
-            stack_args.push(object);
+            value_stack.push(object);
             for val in arr.deref().0.iter() {
-                stack_args.push(*val)
+                value_stack.push(*val)
             }
-            Ok(invokable.invoke(universe, stack_args, arr.deref().0.len() + 1))
+            Ok(invokable.invoke(universe, value_stack, arr.deref().0.len() + 1))
         }
         None => {
             // let args = std::iter::once(object.clone())
@@ -112,7 +112,7 @@ fn perform_with_arguments(
             //     .collect();
             let args = std::iter::once(object).chain((*arr.deref()).clone()).collect();
 
-            Ok(universe.does_not_understand(stack_args, object, sym, args).unwrap_or_else(|| {
+            Ok(universe.does_not_understand(value_stack, object, sym, args).unwrap_or_else(|| {
                 panic!(
                     "'{}': method '{}' not found for '{}'",
                     SIGNATURE,
@@ -127,7 +127,7 @@ fn perform_with_arguments(
 
 fn perform_in_super_class(
     universe: &mut Universe,
-    stack_args: &mut Vec<Value>,
+    value_stack: &mut GlobalValueStack,
     object: Value,
     sym: Interned,
     class: HeapValPtr<Class>,
@@ -138,13 +138,13 @@ fn perform_in_super_class(
 
     match method {
         Some(mut invokable) => {
-            stack_args.push(object);
-            Ok(invokable.invoke(universe, stack_args, 1))
+            value_stack.push(object);
+            Ok(invokable.invoke(universe, value_stack, 1))
         }
         None => {
             let args = vec![object];
             Ok(
-                universe.does_not_understand(stack_args, Value::Class(class.deref()), sym, args).unwrap_or_else(|| {
+                universe.does_not_understand(value_stack, Value::Class(class.deref()), sym, args).unwrap_or_else(|| {
                     panic!(
                         "'{}': method '{}' not found for '{}'",
                         SIGNATURE,
@@ -160,7 +160,7 @@ fn perform_in_super_class(
 
 fn perform_with_arguments_in_super_class(
     universe: &mut Universe,
-    stack_args: &mut Vec<Value>,
+    value_stack: &mut GlobalValueStack,
     object: Value,
     sym: Interned,
     arr: HeapValPtr<VecValue>,
@@ -188,7 +188,7 @@ fn perform_with_arguments_in_super_class(
             let args = std::iter::once(object).chain((*arr.deref()).clone()).collect();
 
             Ok(
-                universe.does_not_understand(stack_args, Value::Class(class.deref()), sym, args).unwrap_or_else(|| {
+                universe.does_not_understand(value_stack, Value::Class(class.deref()), sym, args).unwrap_or_else(|| {
                     panic!(
                         "'{}': method '{}' not found for '{}'",
                         SIGNATURE,
@@ -202,7 +202,7 @@ fn perform_with_arguments_in_super_class(
     }
 }
 
-fn inst_var_at(_: &mut Universe, _stack_args: &mut Vec<Value>, object: Value, index: i32) -> Result<Value, Error> {
+fn inst_var_at(_: &mut Universe, _value_stack: &mut GlobalValueStack, object: Value, index: i32) -> Result<Value, Error> {
     const SIGNATURE: &str = "Object>>#instVarAt:";
 
     let index = match usize::try_from(index - 1) {
@@ -223,7 +223,7 @@ fn inst_var_at(_: &mut Universe, _stack_args: &mut Vec<Value>, object: Value, in
     Ok(local)
 }
 
-fn inst_var_at_put(_: &mut Universe, _stack_args: &mut Vec<Value>, object: Value, index: i32, value: Value) -> Result<Value, Error> {
+fn inst_var_at_put(_: &mut Universe, _value_stack: &mut GlobalValueStack, object: Value, index: i32, value: Value) -> Result<Value, Error> {
     const SIGNATURE: &str = "Object>>#instVarAt:put:";
 
     let index = match u8::try_from(index - 1) {

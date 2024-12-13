@@ -103,19 +103,6 @@ fn run() -> anyhow::Result<()> {
 
     interpreter.run(&mut universe);
 
-    // let class = universe.load_class_from_path(file)?;
-    // let instance = som_interpreter::instance::Instance::from_class(class);
-    // let instance = Value::Instance(Rc::new(std::cell::RefCell::new(instance)));
-
-    // let invokable = instance.lookup_method(&universe, "run").unwrap();
-    // let output = som_interpreter::invokable::Invoke::invoke(invokable.as_ref(), &mut universe, vec![instance]);
-
-    // match output {
-    //     Return::Exception(message) => println!("ERROR: {}", message),
-    //     Return::Restart => println!("ERROR: asked for a restart to the top-level"),
-    //     _ => {}
-    // }
-
     Ok(())
 }
 

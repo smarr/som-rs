@@ -2,7 +2,7 @@ use rstest::{fixture, rstest};
 use som_gc::gcref::Gc;
 use som_interpreter_ast::compiler::compile::AstMethodCompilerCtxt;
 use som_interpreter_ast::invokable::Return;
-use som_interpreter_ast::universe::Universe;
+use som_interpreter_ast::universe::{GlobalValueStack, Universe};
 use som_interpreter_ast::value::Value;
 use som_interpreter_ast::vm_objects::instance::Instance;
 use som_interpreter_ast::{STACK_ARGS_RAW_PTR_CONST, UNIVERSE_RAW_PTR_CONST};
@@ -13,7 +13,7 @@ use std::path::PathBuf;
 use std::sync::atomic::Ordering;
 
 static mut UNIVERSE_CELL: OnceCell<Universe> = OnceCell::new();
-static mut STACK_CELL: OnceCell<Vec<Value>> = OnceCell::new();
+static mut STACK_CELL: OnceCell<GlobalValueStack> = OnceCell::new();
 
 #[fixture]
 pub fn universe<'a>() -> &'a mut Universe {
@@ -41,10 +41,10 @@ pub fn universe<'a>() -> &'a mut Universe {
 }
 
 #[fixture]
-pub fn stack<'a>() -> &'a mut Vec<Value> {
+pub fn stack<'a>() -> &'a mut GlobalValueStack {
     #[allow(static_mut_refs)]
     unsafe {
-        STACK_CELL.get_or_init(Vec::new);
+        STACK_CELL.get_or_init(|| GlobalValueStack::from(vec![]));
 
         let mut_stack_ref = STACK_CELL.get_mut().unwrap();
         STACK_ARGS_RAW_PTR_CONST.store(mut_stack_ref, Ordering::SeqCst);
@@ -53,7 +53,7 @@ pub fn stack<'a>() -> &'a mut Vec<Value> {
 }
 
 #[rstest]
-fn basic_interpreter_tests(universe: &mut Universe) {
+fn basic_interpreter_tests(universe: &mut Universe, stack: &mut GlobalValueStack) {
     let return_class = Value::Class(universe.load_class("Return").unwrap());
     let compiler_simplification_class = Value::Class(universe.load_class("CompilerSimplification").unwrap());
 
@@ -139,10 +139,8 @@ fn basic_interpreter_tests(universe: &mut Universe) {
         let mut compiler = AstMethodCompilerCtxt::new(universe.gc_interface, &mut universe.interner);
         let mut ast = compiler.parse_expression(&ast_parser);
 
-        let mut stack_args = vec![];
-
-        stack_args.push(Value::SYSTEM);
-        let output = universe.eval_with_frame(&mut stack_args, 0, 1, &mut ast);
+        stack.push(Value::SYSTEM);
+        let output = universe.eval_with_frame(stack, 0, 1, &mut ast);
 
         match &output {
             Return::Local(output) => assert_eq!(output, expected, "unexpected test output value"),
@@ -153,7 +151,7 @@ fn basic_interpreter_tests(universe: &mut Universe) {
 
 /// Runs the TestHarness, which handles many basic tests written in SOM
 #[rstest]
-fn test_harness(universe: &mut Universe, stack: &mut Vec<Value>) {
+fn test_harness(universe: &mut Universe, stack: &mut GlobalValueStack) {
     let args = ["TestHarness"].iter().map(|str| Value::String(universe.gc_interface.alloc(String::from(*str)))).collect();
 
     let output = universe.initialize(args, stack).unwrap();
@@ -178,7 +176,7 @@ fn test_harness(universe: &mut Universe, stack: &mut Vec<Value>) {
 #[case::deltablue("DeltaBlue")]
 // #[case::richards("Richards")]
 #[case::towers("Towers")]
-fn basic_benchmark_runner(universe: &mut Universe, stack: &mut Vec<Value>, #[case] benchmark_name: &str) {
+fn basic_benchmark_runner(universe: &mut Universe, stack: &mut GlobalValueStack, #[case] benchmark_name: &str) {
     let args = ["BenchmarkHarness", benchmark_name, "1", "1"]
         .iter()
         .map(|str| Value::String(universe.gc_interface.alloc(String::from(*str))))

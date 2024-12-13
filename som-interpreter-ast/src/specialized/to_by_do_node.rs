@@ -1,13 +1,13 @@
 use crate::invokable::{Invoke, Return};
-use crate::universe::Universe;
+use crate::universe::{GlobalValueStack, Universe};
 use crate::value::Value;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ToByDoNode {}
 
 impl Invoke for ToByDoNode {
-    fn invoke(&mut self, universe: &mut Universe, stack_args: &mut Vec<Value>, nbr_args: usize) -> Return {
-        let args = Universe::stack_n_last_elems(stack_args, nbr_args);
+    fn invoke(&mut self, universe: &mut Universe, value_stack: &mut GlobalValueStack, nbr_args: usize) -> Return {
+        let args = value_stack.stack_n_last_elems(nbr_args);
 
         let start_int_val = args.first().unwrap();
         let step_int_val = args.get(1).unwrap();
@@ -31,9 +31,9 @@ impl Invoke for ToByDoNode {
 
         let nbr_locals = body_block.block.nbr_locals;
         while i <= end_int {
-            stack_args.push(Value::Block(body_block));
-            stack_args.push(Value::Integer(i));
-            propagate!(universe.eval_block_with_frame(stack_args, nbr_locals, 2));
+            value_stack.push(Value::Block(body_block));
+            value_stack.push(Value::Integer(i));
+            propagate!(universe.eval_block_with_frame(value_stack, nbr_locals, 2));
             i += step_int;
         }
 

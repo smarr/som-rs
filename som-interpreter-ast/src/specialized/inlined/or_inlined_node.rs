@@ -1,8 +1,7 @@
 use crate::ast::{AstBody, AstExpression};
 use crate::evaluate::Evaluate;
 use crate::invokable::Return;
-use crate::universe::Universe;
-use crate::value::Value;
+use crate::universe::{GlobalValueStack, Universe};
 use indenter::indented;
 use std::fmt::Write;
 use std::fmt::{Display, Formatter};
@@ -24,13 +23,13 @@ impl Display for OrInlinedNode {
 }
 
 impl Evaluate for OrInlinedNode {
-    fn evaluate(&mut self, universe: &mut Universe, stack_args: &mut Vec<Value>) -> Return {
-        let first_result = propagate!(self.first.evaluate(universe, stack_args));
+    fn evaluate(&mut self, universe: &mut Universe, value_stack: &mut GlobalValueStack) -> Return {
+        let first_result = propagate!(self.first.evaluate(universe, value_stack));
         debug_assert!(first_result.is_boolean());
         if first_result.is_boolean_true() {
             Return::Local(first_result)
         } else {
-            self.second.evaluate(universe, stack_args)
+            self.second.evaluate(universe, value_stack)
         }
     }
 }

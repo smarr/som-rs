@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::fs;
 use std::io;
+use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
@@ -14,9 +15,9 @@ use crate::vm_objects::frame::{Frame, FrameAccess};
 use anyhow::{anyhow, Error};
 use som_core::core_classes::CoreClasses;
 use som_core::interner::{Interned, Interner};
-use som_gc::debug_assert_valid_semispace_ptr;
 use som_gc::gc_interface::GCInterface;
 use som_gc::gcref::Gc;
+use som_gc::{debug_assert_valid_semispace_ptr, debug_assert_valid_semispace_ptr_value};
 
 /// GC default heap size
 pub const DEFAULT_HEAP_SIZE: usize = 1024 * 1024 * 256;
@@ -209,24 +210,24 @@ impl Universe {
 impl Universe {
     /// Evaluates a method or other after pushing a new frame onto the stack.
     /// The frame assumes the arguments it needs are on the global argument stack.
-    pub fn eval_with_frame<T: Evaluate>(&mut self, stack_args: &mut Vec<Value>, nbr_locals: u8, nbr_args: usize, invokable: &mut T) -> Return {
-        let frame = Frame::alloc_new_frame(nbr_locals, nbr_args, self, stack_args);
+    pub fn eval_with_frame<T: Evaluate>(&mut self, value_stack: &mut GlobalValueStack, nbr_locals: u8, nbr_args: usize, invokable: &mut T) -> Return {
+        let frame = Frame::alloc_new_frame(nbr_locals, nbr_args, self, value_stack);
         frame.debug_check_frame_addresses();
         self.current_frame = frame;
-        let ret = invokable.evaluate(self, stack_args);
+        let ret = invokable.evaluate(self, value_stack);
         self.current_frame = self.current_frame.prev_frame;
         ret
     }
 
     /// Evaluates a block after pushing a new block frame.
-    pub fn eval_block_with_frame(&mut self, stack_args: &mut Vec<Value>, nbr_locals: u8, nbr_args: usize) -> Return {
-        let frame = Frame::alloc_new_frame(nbr_locals, nbr_args, self, stack_args);
+    pub fn eval_block_with_frame(&mut self, value_stack: &mut GlobalValueStack, nbr_locals: u8, nbr_args: usize) -> Return {
+        let frame = Frame::alloc_new_frame(nbr_locals, nbr_args, self, value_stack);
         self.current_frame = frame;
         debug_assert_valid_semispace_ptr!(self.current_frame);
         let mut invokable = frame.lookup_argument(0).as_block().unwrap();
         debug_assert_valid_semispace_ptr!(invokable);
         debug_assert_valid_semispace_ptr!(invokable.block);
-        let ret = invokable.evaluate(self, stack_args);
+        let ret = invokable.evaluate(self, value_stack);
         self.current_frame = self.current_frame.prev_frame;
         ret
     }
@@ -257,41 +258,67 @@ impl Universe {
     }
 }
 
-// --- Stack operations. They should be in another class than Universe anyway, to prevent some unsafe bits
-impl Universe {
+#[repr(transparent)] // probably not needed but might as well make it explicit to the compiler
+pub struct GlobalValueStack(Vec<Value>);
+
+impl From<Vec<Value>> for GlobalValueStack {
+    fn from(value: Vec<Value>) -> Self {
+        Self(value)
+    }
+}
+
+impl Deref for GlobalValueStack {
+    type Target = Vec<Value>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for GlobalValueStack {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl GlobalValueStack {
+    pub fn push(&mut self, value: Value) {
+        debug_assert_valid_semispace_ptr_value!(value);
+        self.0.push(value);
+    }
     /// Remove N elements off the argument stack and return them as their own vector.
     /// The default way of getting elements off of the stack.
-    pub fn stack_n_last_elems(stack_args: &mut Vec<Value>, n: usize) -> Vec<Value> {
-        let idx_split_off = stack_args.len() - n;
-        stack_args.split_off(idx_split_off)
+    pub fn stack_n_last_elems(&mut self, n: usize) -> Vec<Value> {
+        let idx_split_off = self.len() - n;
+        self.split_off(idx_split_off)
     }
 
-    pub fn stack_borrow_n_last_elems(stack_args: &mut Vec<Value>, n: usize) -> &[Value] {
-        let idx_split_off = stack_args.len() - n;
-        &stack_args.as_slice()[idx_split_off..]
+    pub fn stack_borrow_n_last_elems(&self, n: usize) -> &[Value] {
+        let idx_split_off = self.len() - n;
+        &self.as_slice()[idx_split_off..]
     }
 
     /// Pop the last n elements of the stack.
-    pub fn stack_pop_n(stack_args: &mut Vec<Value>, n: usize) {
-        let new_len = stack_args.len() - n;
-        stack_args.truncate(new_len)
+    pub fn stack_pop_n(&mut self, n: usize) {
+        let new_len = self.len() - n;
+        self.truncate(new_len)
     }
 }
 
 impl Universe {
     /// Call `escapedBlock:` on the given value, if it is defined.
-    pub fn escaped_block(&mut self, stack_args: &mut Vec<Value>, value: Value, block: Gc<Block>) -> Option<Return> {
+    pub fn escaped_block(&mut self, value_stack: &mut GlobalValueStack, value: Value, block: Gc<Block>) -> Option<Return> {
         let method_name = self.intern_symbol("escapedBlock:");
         let mut initialize = value.lookup_method(self, method_name)?;
 
-        stack_args.push(value);
-        stack_args.push(Value::Block(block));
-        let escaped_block_result = initialize.invoke(self, stack_args, 2);
+        value_stack.push(value);
+        value_stack.push(Value::Block(block));
+        let escaped_block_result = initialize.invoke(self, value_stack, 2);
         Some(escaped_block_result)
     }
 
     /// Call `doesNotUnderstand:` on the given value, if it is defined.
-    pub fn does_not_understand(&mut self, stack_args: &mut Vec<Value>, value: Value, sym: Interned, args: Vec<Value>) -> Option<Return> {
+    pub fn does_not_understand(&mut self, value_stack: &mut GlobalValueStack, value: Value, sym: Interned, args: Vec<Value>) -> Option<Return> {
         let method_name = self.intern_symbol("doesNotUnderstand:arguments:");
         let mut initialize = value.lookup_method(self, method_name)?;
         let sym = Value::Symbol(sym);
@@ -299,23 +326,23 @@ impl Universe {
 
         // eprintln!("Couldn't invoke {}; exiting.", symbol.as_ref()); std::process::exit(1);
 
-        stack_args.push(value);
-        stack_args.push(sym);
-        stack_args.push(args);
+        value_stack.push(value);
+        value_stack.push(sym);
+        value_stack.push(args);
 
-        let dnu_result = initialize.invoke(self, stack_args, 3);
+        let dnu_result = initialize.invoke(self, value_stack, 3);
         Some(dnu_result)
     }
 
     /// Call `unknownGlobal:` on the given value, if it is defined.
-    pub fn unknown_global(&mut self, stack_args: &mut Vec<Value>, value: Value, sym: Interned) -> Option<Return> {
+    pub fn unknown_global(&mut self, value_stack: &mut GlobalValueStack, value: Value, sym: Interned) -> Option<Return> {
         let method_name = self.intern_symbol("unknownGlobal:");
         let mut method = value.lookup_method(self, method_name)?;
 
-        stack_args.push(value);
-        stack_args.push(Value::Symbol(sym));
+        value_stack.push(value);
+        value_stack.push(Value::Symbol(sym));
 
-        let unknown_global_result = method.invoke(self, stack_args, 2);
+        let unknown_global_result = method.invoke(self, value_stack, 2);
         match unknown_global_result {
             Return::Local(value) | Return::NonLocal(value, _) => Some(Return::Local(value)),
             #[cfg(feature = "inlining-disabled")]
@@ -324,13 +351,13 @@ impl Universe {
     }
 
     /// Call `System>>#initialize:` with the given name, if it is defined.
-    pub fn initialize(&mut self, args: Vec<Value>, stack_args: &mut Vec<Value>) -> Option<Return> {
+    pub fn initialize(&mut self, args: Vec<Value>, value_stack: &mut GlobalValueStack) -> Option<Return> {
         let method_name = self.interner.intern("initialize:");
         let mut initialize = Value::SYSTEM.lookup_method(self, method_name)?;
         let args = Value::Array(self.gc_interface.alloc(VecValue(args)));
-        stack_args.push(Value::SYSTEM);
-        stack_args.push(args);
-        let program_result = initialize.invoke(self, stack_args, 2);
+        value_stack.push(Value::SYSTEM);
+        value_stack.push(args);
+        let program_result = initialize.invoke(self, value_stack, 2);
         Some(program_result)
     }
 }

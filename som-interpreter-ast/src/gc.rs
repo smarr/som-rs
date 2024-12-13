@@ -126,7 +126,7 @@ fn get_roots_in_mutator_thread(_mutator: &mut Mutator<SOMVM>) -> Vec<SOMSlot> {
         }
 
         debug!("scanning roots: global argument stack");
-        for stored_arg in &(**STACK_ARGS_RAW_PTR_CONST.as_ptr()) {
+        for stored_arg in &(***STACK_ARGS_RAW_PTR_CONST.as_ptr()) {
             if stored_arg.is_ptr_type() {
                 to_process.push(SOMSlot::from(stored_arg.as_mut_ptr()))
             }

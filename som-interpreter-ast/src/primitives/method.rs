@@ -2,7 +2,7 @@ use super::PrimInfo;
 use crate::gc::VecValue;
 use crate::invokable::Return;
 use crate::primitives::PrimitiveFn;
-use crate::universe::Universe;
+use crate::universe::{GlobalValueStack, Universe};
 use crate::value::convert::Primitive;
 use crate::value::HeapValPtr;
 use crate::value::Value;
@@ -19,7 +19,7 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
 });
 pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([]));
 
-fn holder(_: &mut Universe, _stack_args: &mut Vec<Value>, invokable: HeapValPtr<Method>) -> Result<Value, Error> {
+fn holder(_: &mut Universe, _value_stack: &mut GlobalValueStack, invokable: HeapValPtr<Method>) -> Result<Value, Error> {
     let method = invokable.deref();
     let holder = method.holder();
     Ok(Value::Class(*holder))
@@ -33,7 +33,7 @@ fn holder(_: &mut Universe, _stack_args: &mut Vec<Value>, invokable: HeapValPtr<
     // }
 }
 
-fn signature(universe: &mut Universe, _stack_args: &mut Vec<Value>, invokable: HeapValPtr<Method>) -> Result<Value, Error> {
+fn signature(universe: &mut Universe, _value_stack: &mut GlobalValueStack, invokable: HeapValPtr<Method>) -> Result<Value, Error> {
     let sym = universe.intern_symbol(invokable.deref().signature());
     Ok(Value::Symbol(sym))
 }
@@ -41,7 +41,7 @@ fn signature(universe: &mut Universe, _stack_args: &mut Vec<Value>, invokable: H
 #[allow(unused)]
 fn invoke_on_with(
     universe: &mut Universe,
-    stack_args: &mut Vec<Value>,
+    value_stack: &mut GlobalValueStack,
     mut invokable: HeapValPtr<Method>,
     receiver: Value,
     arguments: HeapValPtr<VecValue>,

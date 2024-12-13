@@ -1,5 +1,5 @@
 use crate::evaluate::Evaluate;
-use crate::universe::Universe;
+use crate::universe::{GlobalValueStack, Universe};
 use crate::value::Value;
 use crate::vm_objects::frame::Frame;
 use crate::vm_objects::method::{Method, MethodKind, MethodKindSpecialized};
@@ -22,11 +22,11 @@ pub enum Return {
 /// The trait for invoking methods and primitives.
 pub trait Invoke {
     /// Invoke within the given universe and with the given arguments.
-    fn invoke(&mut self, universe: &mut Universe, stack_args: &mut Vec<Value>, nbr_args: usize) -> Return;
+    fn invoke(&mut self, universe: &mut Universe, value_stack: &mut GlobalValueStack, nbr_args: usize) -> Return;
 }
 
 impl Invoke for Gc<Method> {
-    fn invoke(&mut self, universe: &mut Universe, stack_args: &mut Vec<Value>, nbr_args: usize) -> Return {
+    fn invoke(&mut self, universe: &mut Universe, value_stack: &mut GlobalValueStack, nbr_args: usize) -> Return {
         // println!("--- ...with args: {:?}", &args);
 
         debug_assert_valid_semispace_ptr!(self);
@@ -34,30 +34,30 @@ impl Invoke for Gc<Method> {
         match &mut self.kind {
             MethodKind::Defined(method) => {
                 // println!("--- Invoking \"{:1}\" ({:2})", &self.signature, &self.holder.class().name);
-                universe.eval_with_frame(stack_args, method.locals_nbr, nbr_args, method)
+                universe.eval_with_frame(value_stack, method.locals_nbr, nbr_args, method)
             }
             MethodKind::Primitive(func) => {
                 // println!("--- Invoking prim \"{:1}\" ({:2})", &self.signature, &self.holder.class().name);
-                func(universe, stack_args, nbr_args)
+                func(universe, value_stack, nbr_args)
             }
             MethodKind::Specialized(specialized_kind) => {
                 // println!("--- Invoking specialized method \"{:1}\" ({:2})", &self.signature, &self.holder.class().name);
                 match specialized_kind {
-                    MethodKindSpecialized::ToByDo(to_by_do_node) => to_by_do_node.invoke(universe, stack_args, nbr_args),
-                    MethodKindSpecialized::DownToDo(down_to_do_node) => down_to_do_node.invoke(universe, stack_args, nbr_args),
+                    MethodKindSpecialized::ToByDo(to_by_do_node) => to_by_do_node.invoke(universe, value_stack, nbr_args),
+                    MethodKindSpecialized::DownToDo(down_to_do_node) => down_to_do_node.invoke(universe, value_stack, nbr_args),
                 }
             }
             // since those two trivial methods don't need args, i guess it could be faster to handle them before args are even instantiated...
             MethodKind::TrivialLiteral(trivial_literal) => {
-                let _ = Universe::stack_n_last_elems(stack_args, nbr_args);
-                trivial_literal.literal.evaluate(universe, stack_args)
+                let _ = value_stack.stack_n_last_elems(nbr_args);
+                trivial_literal.literal.evaluate(universe, value_stack)
             }
             MethodKind::TrivialGlobal(trivial_global) => {
-                let _ = Universe::stack_n_last_elems(stack_args, nbr_args);
-                trivial_global.evaluate(universe, stack_args)
+                let _ = value_stack.stack_n_last_elems(nbr_args);
+                trivial_global.evaluate(universe, value_stack)
             }
-            MethodKind::TrivialGetter(trivial_getter) => trivial_getter.invoke(universe, stack_args, nbr_args),
-            MethodKind::TrivialSetter(trivial_setter) => trivial_setter.invoke(universe, stack_args, nbr_args),
+            MethodKind::TrivialGetter(trivial_getter) => trivial_getter.invoke(universe, value_stack, nbr_args),
+            MethodKind::TrivialSetter(trivial_setter) => trivial_setter.invoke(universe, value_stack, nbr_args),
         }
     }
 }

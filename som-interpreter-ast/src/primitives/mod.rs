@@ -1,6 +1,6 @@
 // Kinda bad. Primitives take in a &mut Vec<Value>, which the vast majority does not need.
 // So clippy rightfully says they should take a mutable slice. But that conflicts with our definition of a primitive function that takes in a mutable vector ref.
-// TODO: This problem can be solved, either with automatic type conversion or by allowing primitive functions to often not take stack_args at all.
+// TODO: This problem can be solved, either with automatic type conversion or by allowing primitive functions to often not take value_stack at all.
 #![allow(clippy::ptr_arg)]
 
 mod blocks;
@@ -27,16 +27,15 @@ pub mod system;
 pub use self::blocks::{block1, block2, block3};
 use crate::invokable::Return;
 use crate::value::convert::Primitive;
-use crate::value::Value;
 use anyhow::Error;
 use once_cell::sync::Lazy;
 
-use crate::universe::Universe;
+use crate::universe::{GlobalValueStack, Universe};
 
 /// A interpreter primitive (just a bare function pointer).
 // pub type PrimitiveFn = fn(universe: &mut UniverseAST, args: Vec<Value>)-> Result<Value, Error>;
 // pub type PrimitiveFn = dyn Fn(&mut UniverseAST, Vec<Value>) -> Result<Return, Error>
-pub type PrimitiveFn = dyn Fn(&mut Universe, &mut Vec<Value>, usize) -> Return + Send + Sync + 'static;
+pub type PrimitiveFn = dyn Fn(&mut Universe, &mut GlobalValueStack, usize) -> Return + Send + Sync + 'static;
 
 pub type PrimInfo = (&'static str, &'static PrimitiveFn, bool);
 
@@ -79,7 +78,7 @@ pub fn get_instance_primitives(class_name: &str) -> Option<&'static [PrimInfo]> 
 }
 
 /// Function called for an unimplemented primitive.
-fn unimplem_prim_fn(_: &mut Universe, _stack_args: &mut Vec<Value>, _: i32) -> Result<i32, Error> {
+fn unimplem_prim_fn(_: &mut Universe, _value_stack: &mut GlobalValueStack, _: i32) -> Result<i32, Error> {
     panic!("called an unimplemented primitive")
 }
 

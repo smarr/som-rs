@@ -1,7 +1,7 @@
 use crate::ast::AstLiteral;
 use crate::evaluate::Evaluate;
 use crate::invokable::{Invoke, Return};
-use crate::universe::Universe;
+use crate::universe::{GlobalValueStack, Universe};
 use crate::value::Value;
 use crate::vm_objects::frame::FrameAccess;
 use som_core::interner::Interned;
@@ -16,7 +16,7 @@ pub struct TrivialGlobalMethod {
 }
 
 impl Evaluate for TrivialGlobalMethod {
-    fn evaluate(&mut self, universe: &mut Universe, stack_args: &mut Vec<Value>) -> Return {
+    fn evaluate(&mut self, universe: &mut Universe, value_stack: &mut GlobalValueStack) -> Return {
         // TODO: logic duplicated with globalread - need to avoid that somehow
         universe
             .lookup_global(self.global_name)
@@ -24,7 +24,7 @@ impl Evaluate for TrivialGlobalMethod {
             .or_else(|| {
                 let frame = universe.current_frame;
                 let self_value = frame.get_self();
-                universe.unknown_global(stack_args, self_value, self.global_name)
+                universe.unknown_global(value_stack, self_value, self.global_name)
             })
             .unwrap_or_else(|| panic!("global not found and unknown_global call failed somehow?"))
     }
@@ -36,8 +36,8 @@ pub struct TrivialGetterMethod {
 }
 
 impl Invoke for TrivialGetterMethod {
-    fn invoke(&mut self, _universe: &mut Universe, stack_args: &mut Vec<Value>, nbr_args: usize) -> Return {
-        let args = Universe::stack_n_last_elems(stack_args, nbr_args);
+    fn invoke(&mut self, _universe: &mut Universe, value_stack: &mut GlobalValueStack, nbr_args: usize) -> Return {
+        let args = value_stack.stack_n_last_elems(nbr_args);
 
         let arg = args.first().unwrap();
 
@@ -57,8 +57,8 @@ pub struct TrivialSetterMethod {
 }
 
 impl Invoke for TrivialSetterMethod {
-    fn invoke(&mut self, _universe: &mut Universe, stack_args: &mut Vec<Value>, nbr_args: usize) -> Return {
-        let args = Universe::stack_n_last_elems(stack_args, nbr_args);
+    fn invoke(&mut self, _universe: &mut Universe, value_stack: &mut GlobalValueStack, nbr_args: usize) -> Return {
+        let args = value_stack.stack_n_last_elems(nbr_args);
 
         let val = args.get(1).unwrap();
         let rcvr = args.first().unwrap();

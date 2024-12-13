@@ -7,8 +7,21 @@ use std::ops::{Deref, DerefMut};
 #[macro_export]
 macro_rules! debug_assert_valid_semispace_ptr {
     ($self:expr) => {
-        #[cfg(all(feature = "semispace", debug_assertions))]
+        // #[cfg(all(feature = "semispace", debug_assertions))]
+        #[cfg(debug_assertions)]
         assert!($self.is_pointer_to_valid_space(), "Pointer to invalid space.");
+    };
+}
+
+#[macro_export]
+macro_rules! debug_assert_valid_semispace_ptr_value {
+    ($value:expr) => {
+        #[cfg(debug_assertions)]
+        unsafe {
+            if let Some(ptr) = $value.as_something::<()>() {
+                assert!(ptr.is_pointer_to_valid_space(), "Pointer to invalid space.");
+            }
+        }
     };
 }
 
