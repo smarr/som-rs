@@ -26,14 +26,14 @@ impl Display for WhileInlinedNode {
 }
 
 impl Evaluate for WhileInlinedNode {
-    fn evaluate(&mut self, universe: &mut Universe) -> Return {
+    fn evaluate(&mut self, universe: &mut Universe, stack_args: &mut Vec<Value>) -> Return {
         loop {
-            let cond_result = propagate!(self.cond_instrs.evaluate(universe));
+            let cond_result = propagate!(self.cond_instrs.evaluate(universe, stack_args));
             debug_assert!(cond_result.is_boolean()); // and since it's not a pointer, we don't need to push it to the stack to keep it reachable for GC
             if cond_result.as_boolean_unchecked() != self.expected_bool {
                 break;
             } else {
-                propagate!(self.body_instrs.evaluate(universe));
+                propagate!(self.body_instrs.evaluate(universe, stack_args));
             }
         }
         Return::Local(Value::NIL)

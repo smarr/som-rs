@@ -17,7 +17,7 @@ use som_interpreter_ast::invokable::Return;
 
 use som_interpreter_ast::universe::Universe;
 use som_interpreter_ast::value::Value;
-use som_interpreter_ast::UNIVERSE_RAW_PTR_CONST;
+use som_interpreter_ast::{STACK_ARGS_RAW_PTR_CONST, UNIVERSE_RAW_PTR_CONST};
 
 #[cfg(feature = "jemalloc")]
 #[global_allocator]
@@ -70,14 +70,17 @@ fn main() -> anyhow::Result<()> {
                 }
             };
 
+            let mut stack_args = Vec::with_capacity(1000);
+
             UNIVERSE_RAW_PTR_CONST.store(&mut universe, Ordering::SeqCst);
+            STACK_ARGS_RAW_PTR_CONST.store(&mut stack_args, Ordering::SeqCst);
 
             let args = std::iter::once(String::from(file_stem))
                 .chain(opts.args.iter().cloned())
                 .map(|str| Value::String(universe.gc_interface.alloc(str)))
                 .collect();
 
-            let output = universe.initialize(args).unwrap_or_else(|| panic!("could not find 'System>>#initialize:'"));
+            let output = universe.initialize(args, &mut stack_args).unwrap_or_else(|| panic!("could not find 'System>>#initialize:'"));
 
             // let class = universe.load_class_from_path(file)?;
             // let instance = Instance::from_class(class);

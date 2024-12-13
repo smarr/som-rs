@@ -19,7 +19,7 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
 
 pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([("new:", self::new.into_func(), true)]));
 
-fn at(_: &mut Universe, values: HeapValPtr<VecValue>, index: i32) -> Result<Value, Error> {
+fn at(_: &mut Universe, _stack_args: &mut Vec<Value>, values: HeapValPtr<VecValue>, index: i32) -> Result<Value, Error> {
     const SIGNATURE: &str = "Array>>#at:";
 
     let index = match usize::try_from(index - 1) {
@@ -31,7 +31,7 @@ fn at(_: &mut Universe, values: HeapValPtr<VecValue>, index: i32) -> Result<Valu
     Ok(value)
 }
 
-fn at_put(_: &mut Universe, values: HeapValPtr<VecValue>, index: i32, value: Value) -> Result<Value, Error> {
+fn at_put(_: &mut Universe, _stack_args: &mut Vec<Value>, values: HeapValPtr<VecValue>, index: i32, value: Value) -> Result<Value, Error> {
     const SIGNATURE: &str = "Array>>#at:put:";
 
     let index = match usize::try_from(index - 1) {
@@ -44,7 +44,7 @@ fn at_put(_: &mut Universe, values: HeapValPtr<VecValue>, index: i32, value: Val
     Ok(Value::Array(values.deref()))
 }
 
-fn length(_: &mut Universe, values: HeapValPtr<VecValue>) -> Result<Value, Error> {
+fn length(_: &mut Universe, _stack_args: &mut Vec<Value>, values: HeapValPtr<VecValue>) -> Result<Value, Error> {
     const SIGNATURE: &str = "Array>>#length";
 
     let length = values.deref().len();
@@ -54,7 +54,7 @@ fn length(_: &mut Universe, values: HeapValPtr<VecValue>) -> Result<Value, Error
     }
 }
 
-fn new(universe: &mut Universe, _: Value, count: i32) -> Result<Value, Error> {
+fn new(universe: &mut Universe, _stack_args: &mut Vec<Value>, _: Value, count: i32) -> Result<Value, Error> {
     const SIGNATURE: &str = "Array>>#new:";
 
     match usize::try_from(count) {

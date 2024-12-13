@@ -11,7 +11,7 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([(
 
 pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([]));
 
-fn as_string(universe: &mut Universe, sym: Interned) -> Result<Value, Error> {
+fn as_string(universe: &mut Universe, _stack_args: &mut Vec<Value>, sym: Interned) -> Result<Value, Error> {
     Ok(Value::String(universe.gc_interface.alloc(universe.lookup_symbol(sym).to_string())))
 }
 

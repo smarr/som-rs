@@ -203,10 +203,11 @@ impl IntoValue for Gc<Method> {
 }
 
 pub trait Primitive<T>: Sized + Send + Sync + 'static {
-    fn invoke(&self, universe: &mut Universe, nbr_args: usize) -> Return;
+    fn invoke(&self, universe: &mut Universe, stack_args: &mut Vec<Value>, nbr_args: usize) -> Return;
 
     fn into_func(self) -> &'static PrimitiveFn {
-        let boxed = Box::new(move |universe: &mut Universe, nbr_args: usize| self.invoke(universe, nbr_args));
+        let boxed =
+            Box::new(move |universe: &mut Universe, stack_args: &mut Vec<Value>, nbr_args: usize| self.invoke(universe, stack_args, nbr_args));
         Box::leak(boxed)
     }
 }
@@ -283,27 +284,27 @@ macro_rules! derive_stuff {
     ($($ty:ident),* $(,)?) => {
         impl <F, R, $($ty),*> $crate::value::convert::Primitive<($($ty),*,)> for F
         where
-            F: Fn(&mut $crate::universe::Universe, $($ty),*) -> Result<R, Error> + Send + Sync + 'static,
+            F: Fn(&mut $crate::universe::Universe, &mut Vec<Value>, $($ty),*) -> Result<R, Error> + Send + Sync + 'static,
             R: $crate::value::convert::IntoReturn,
             $(for<'a> $ty: $crate::value::convert::FromArgs),*,
         {
-            fn invoke(&self, universe: &mut $crate::universe::Universe, nbr_args: usize) -> Return {
-                // let args = universe.stack_n_last_elems(nbr_args);
+            fn invoke(&self, universe: &mut $crate::universe::Universe, stack_args: &mut Vec<Value>, nbr_args: usize) -> Return {
+                // let args = Universe::stack_n_last_elems(stack_args, nbr_args);
 
                 // We need to keep the elements on the stack to have them be reachable still when GC happens.
                 // But borrowing them means borrowing the universe immutably, so we duplicate the reference.
                 // # Safety
                 // AFAIK this is safe since the stack isn't going to move in the meantime.
                 // HOWEVER, if it gets resized/reallocated by Rust... Maybe? I'm not sure...
-                let args: &[Value] = unsafe { &* (universe.stack_borrow_n_last_elems(nbr_args) as *const _) };
+                let args: &[Value] = unsafe { &* (Universe::stack_borrow_n_last_elems(stack_args, nbr_args) as *const _) };
                 let mut args_iter = args.iter();
                 $(
                     #[allow(non_snake_case)]
                     let $ty = $ty::from_args(args_iter.next().unwrap()).unwrap();
                 )*
 
-                let result = (self)(universe, $($ty),*,).unwrap();
-                universe.stack_pop_n(nbr_args);
+                let result = (self)(universe, stack_args, $($ty),*,).unwrap();
+                Universe::stack_pop_n(stack_args, nbr_args);
                 result.into_return()
             }
         }
@@ -320,11 +321,11 @@ derive_stuff!(_A, _B, _C, _D, _E, _F);
 // for blocks. TODO: from a macro instead.
 impl<F, R> Primitive<()> for F
 where
-    F: Fn(&mut Universe) -> Result<R, Error> + Send + Sync + 'static,
+    F: Fn(&mut Universe, &mut Vec<Value>) -> Result<R, Error> + Send + Sync + 'static,
     R: IntoReturn,
 {
-    fn invoke(&self, universe: &mut Universe, _nbr_args: usize) -> Return {
-        let result = self(universe).unwrap();
+    fn invoke(&self, universe: &mut Universe, stack_args: &mut Vec<Value>, _nbr_args: usize) -> Return {
+        let result = self(universe, stack_args).unwrap();
         result.into_return()
     }
 }

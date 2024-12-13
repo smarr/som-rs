@@ -33,7 +33,7 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
 });
 pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([]));
 
-fn load_file(universe: &mut Universe, _: Value, path: StringLike) -> Result<Value, Error> {
+fn load_file(universe: &mut Universe, _stack_args: &mut Vec<Value>, _: Value, path: StringLike) -> Result<Value, Error> {
     let path = match path {
         StringLike::String(ref string) => string,
         StringLike::Symbol(sym) => universe.lookup_symbol(sym),
@@ -45,7 +45,7 @@ fn load_file(universe: &mut Universe, _: Value, path: StringLike) -> Result<Valu
     }
 }
 
-fn print_string(universe: &mut Universe, _: Value, string: StringLike) -> Result<Value, Error> {
+fn print_string(universe: &mut Universe, _stack_args: &mut Vec<Value>, _: Value, string: StringLike) -> Result<Value, Error> {
     let string = match string {
         StringLike::String(ref string) => string,
         StringLike::Symbol(sym) => universe.lookup_symbol(sym),
@@ -55,12 +55,12 @@ fn print_string(universe: &mut Universe, _: Value, string: StringLike) -> Result
     Ok(Value::SYSTEM)
 }
 
-fn print_newline(_: &mut Universe, _: Value) -> Result<Value, Error> {
+fn print_newline(_: &mut Universe, _stack_args: &mut Vec<Value>, _: Value) -> Result<Value, Error> {
     println!();
     Ok(Value::NIL)
 }
 
-fn error_print(universe: &mut Universe, _: Value, string: StringLike) -> Result<Value, Error> {
+fn error_print(universe: &mut Universe, _stack_args: &mut Vec<Value>, _: Value, string: StringLike) -> Result<Value, Error> {
     let string = match string {
         StringLike::String(ref string) => string,
         StringLike::Symbol(sym) => universe.lookup_symbol(sym),
@@ -70,7 +70,7 @@ fn error_print(universe: &mut Universe, _: Value, string: StringLike) -> Result<
     Ok(Value::SYSTEM)
 }
 
-fn error_println(universe: &mut Universe, _: Value, string: StringLike) -> Result<Value, Error> {
+fn error_println(universe: &mut Universe, _stack_args: &mut Vec<Value>, _: Value, string: StringLike) -> Result<Value, Error> {
     const _: &str = "System>>#errorPrintln:";
 
     let string = match string {
@@ -82,7 +82,7 @@ fn error_println(universe: &mut Universe, _: Value, string: StringLike) -> Resul
     Ok(Value::SYSTEM)
 }
 
-fn load(universe: &mut Universe, _: Value, class_name: Interned) -> Result<Value, Error> {
+fn load(universe: &mut Universe, _stack_args: &mut Vec<Value>, _: Value, class_name: Interned) -> Result<Value, Error> {
     const SIGNATURE: &str = "System>>#load:";
 
     if let Some(cached_class) = universe.lookup_global(class_name) {
@@ -98,25 +98,25 @@ fn load(universe: &mut Universe, _: Value, class_name: Interned) -> Result<Value
     }
 }
 
-fn has_global(universe: &mut Universe, _: Value, name: Interned) -> Result<Value, Error> {
+fn has_global(universe: &mut Universe, _stack_args: &mut Vec<Value>, _: Value, name: Interned) -> Result<Value, Error> {
     Ok(Value::Boolean(universe.has_global(name)))
 }
 
-fn global(universe: &mut Universe, _: Value, sym: Interned) -> Result<Value, Error> {
+fn global(universe: &mut Universe, _stack_args: &mut Vec<Value>, _: Value, sym: Interned) -> Result<Value, Error> {
     Ok(universe.lookup_global(sym).unwrap_or(Value::NIL))
 }
 
-fn global_put(universe: &mut Universe, _: Value, name: Interned, value: Value) -> Result<Value, Error> {
+fn global_put(universe: &mut Universe, _stack_args: &mut Vec<Value>, _: Value, name: Interned, value: Value) -> Result<Value, Error> {
     universe.assign_global(name, &value);
     Ok(value)
 }
 
-fn exit(_: &mut Universe, status: i32) -> Result<Value, Error> {
+fn exit(_: &mut Universe, _stack_args: &mut Vec<Value>, status: i32) -> Result<Value, Error> {
     const _: &str = "System>>#exit:";
     std::process::exit(status)
 }
 
-fn ticks(universe: &mut Universe, _: Value) -> Result<Value, Error> {
+fn ticks(universe: &mut Universe, _stack_args: &mut Vec<Value>, _: Value) -> Result<Value, Error> {
     const SIGNATURE: &str = "System>>#ticks";
 
     let x = universe
@@ -130,7 +130,7 @@ fn ticks(universe: &mut Universe, _: Value) -> Result<Value, Error> {
     Ok(Value::Integer(x))
 }
 
-fn time(universe: &mut Universe, _: Value) -> Result<Value, Error> {
+fn time(universe: &mut Universe, _stack_args: &mut Vec<Value>, _: Value) -> Result<Value, Error> {
     const SIGNATURE: &str = "System>>#time";
 
     match i32::try_from(universe.start_time.elapsed().as_millis()) {
@@ -140,7 +140,7 @@ fn time(universe: &mut Universe, _: Value) -> Result<Value, Error> {
 }
 
 // this function is unusable after my recent changes to the frame. needs to be fixed when a compilation flag for frame debug info is enabled
-fn print_stack_trace(_: &mut Universe, _: Value) -> Result<bool, Error> {
+fn print_stack_trace(_: &mut Universe, _stack_args: &mut Vec<Value>, _: Value) -> Result<bool, Error> {
     // const SIGNATURE: &str = "System>>#printStackTrace";
 
     dbg!("printStackTrace is broken (on purpose). It can be fixed and reenabled with a debug flag, though.");
@@ -161,11 +161,11 @@ fn print_stack_trace(_: &mut Universe, _: Value) -> Result<bool, Error> {
     Ok(true)
 }
 
-fn full_gc(universe: &mut Universe, _: Value) -> Result<Value, Error> {
+fn full_gc(universe: &mut Universe, _stack_args: &mut Vec<Value>, _: Value) -> Result<Value, Error> {
     Ok(Value::Boolean(universe.gc_interface.full_gc_request()))
 }
 
-fn gc_stats(universe: &mut Universe, _: Value) -> Result<Gc<VecValue>, Error> {
+fn gc_stats(universe: &mut Universe, _stack_args: &mut Vec<Value>, _: Value) -> Result<Gc<VecValue>, Error> {
     let gc_interface = &mut universe.gc_interface;
 
     let total_gc = gc_interface.get_nbr_collections();

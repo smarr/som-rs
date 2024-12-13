@@ -115,7 +115,7 @@ pub fn interactive(
         //         .bindings
         //         .insert("it".into(), last_value.clone());
 
-        //     expr.evaluate(universe)
+        //     expr.evaluate(universe, stack_args)
         // });
         let elapsed = start.elapsed();
         if verbose {

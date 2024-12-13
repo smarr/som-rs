@@ -34,7 +34,7 @@ pub struct Frame {
 }
 
 impl Frame {
-    pub fn alloc_new_frame(nbr_locals: u8, nbr_args: usize, universe: &mut Universe) -> Gc<Self> {
+    pub fn alloc_new_frame(nbr_locals: u8, nbr_args: usize, universe: &mut Universe, stack_args: &mut Vec<Value>) -> Gc<Self> {
         let frame = Self {
             prev_frame: Gc::default(),
             nbr_locals,
@@ -53,7 +53,7 @@ impl Frame {
                 locals_addr = locals_addr.wrapping_add(1);
             }
 
-            let args = universe.stack_n_last_elems(nbr_args);
+            let args = Universe::stack_n_last_elems(stack_args, nbr_args);
             std::slice::from_raw_parts_mut(frame_args_ptr!(frame_ptr), nbr_args).copy_from_slice(args.as_slice());
 
             frame_ptr.prev_frame = universe.current_frame;

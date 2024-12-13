@@ -25,11 +25,11 @@ impl Display for IfInlinedNode {
 }
 
 impl Evaluate for IfInlinedNode {
-    fn evaluate(&mut self, universe: &mut Universe) -> Return {
-        let cond_result = propagate!(self.cond_expr.evaluate(universe));
+    fn evaluate(&mut self, universe: &mut Universe, stack_args: &mut Vec<Value>) -> Return {
+        let cond_result = propagate!(self.cond_expr.evaluate(universe, stack_args));
         debug_assert!(cond_result.is_boolean());
         if cond_result.as_boolean_unchecked() == self.expected_bool {
-            self.body_instrs.evaluate(universe)
+            self.body_instrs.evaluate(universe, stack_args)
         } else {
             Return::Local(Value::NIL)
         }

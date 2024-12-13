@@ -5,7 +5,7 @@ use som_interpreter_ast::invokable::Return;
 use som_interpreter_ast::universe::Universe;
 use som_interpreter_ast::value::Value;
 use som_interpreter_ast::vm_objects::instance::Instance;
-use som_interpreter_ast::UNIVERSE_RAW_PTR_CONST;
+use som_interpreter_ast::{STACK_ARGS_RAW_PTR_CONST, UNIVERSE_RAW_PTR_CONST};
 use som_lexer::{Lexer, Token};
 use som_parser::lang;
 use std::cell::OnceCell;
@@ -13,6 +13,7 @@ use std::path::PathBuf;
 use std::sync::atomic::Ordering;
 
 static mut UNIVERSE_CELL: OnceCell<Universe> = OnceCell::new();
+static mut STACK_CELL: OnceCell<Vec<Value>> = OnceCell::new();
 
 #[fixture]
 pub fn universe<'a>() -> &'a mut Universe {
@@ -34,7 +35,20 @@ pub fn universe<'a>() -> &'a mut Universe {
 
         let mut_universe_ref = UNIVERSE_CELL.get_mut().unwrap();
         UNIVERSE_RAW_PTR_CONST.store(mut_universe_ref, Ordering::SeqCst);
+
         mut_universe_ref
+    }
+}
+
+#[fixture]
+pub fn stack<'a>() -> &'a mut Vec<Value> {
+    #[allow(static_mut_refs)]
+    unsafe {
+        STACK_CELL.get_or_init(Vec::new);
+
+        let mut_stack_ref = STACK_CELL.get_mut().unwrap();
+        STACK_ARGS_RAW_PTR_CONST.store(mut_stack_ref, Ordering::SeqCst);
+        mut_stack_ref
     }
 }
 
@@ -125,8 +139,10 @@ fn basic_interpreter_tests(universe: &mut Universe) {
         let mut compiler = AstMethodCompilerCtxt::new(universe.gc_interface, &mut universe.interner);
         let mut ast = compiler.parse_expression(&ast_parser);
 
-        universe.stack_args.push(Value::SYSTEM);
-        let output = universe.eval_with_frame(0, 1, &mut ast);
+        let mut stack_args = vec![];
+
+        stack_args.push(Value::SYSTEM);
+        let output = universe.eval_with_frame(&mut stack_args, 0, 1, &mut ast);
 
         match &output {
             Return::Local(output) => assert_eq!(output, expected, "unexpected test output value"),
@@ -137,10 +153,10 @@ fn basic_interpreter_tests(universe: &mut Universe) {
 
 /// Runs the TestHarness, which handles many basic tests written in SOM
 #[rstest]
-fn test_harness(universe: &mut Universe) {
+fn test_harness(universe: &mut Universe, stack: &mut Vec<Value>) {
     let args = ["TestHarness"].iter().map(|str| Value::String(universe.gc_interface.alloc(String::from(*str)))).collect();
 
-    let output = universe.initialize(args).unwrap();
+    let output = universe.initialize(args, stack).unwrap();
 
     match output {
         Return::Local(val) => assert_eq!(val, Value::INTEGER_ZERO),
@@ -162,13 +178,13 @@ fn test_harness(universe: &mut Universe) {
 #[case::deltablue("DeltaBlue")]
 // #[case::richards("Richards")]
 #[case::towers("Towers")]
-fn basic_benchmark_runner(universe: &mut Universe, #[case] benchmark_name: &str) {
+fn basic_benchmark_runner(universe: &mut Universe, stack: &mut Vec<Value>, #[case] benchmark_name: &str) {
     let args = ["BenchmarkHarness", benchmark_name, "1", "1"]
         .iter()
         .map(|str| Value::String(universe.gc_interface.alloc(String::from(*str))))
         .collect();
 
-    let output = universe.initialize(args).unwrap();
+    let output = universe.initialize(args, stack).unwrap();
     let benchmark_harness_str = universe.intern_symbol("BenchmarkHarness");
     let benchmark_harness_class = universe.lookup_global(benchmark_harness_str).unwrap().as_class().unwrap();
 

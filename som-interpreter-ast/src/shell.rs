@@ -90,7 +90,7 @@ pub fn interactive(_universe: &mut Universe, _verbose: bool) -> Result<(), Error
             //     .borrow_mut()
             //     .bindings
             //     .insert("it".into(), last_value.clone());
-            // expr.evaluate(universe)
+            // expr.evaluate(universe, stack_args)
             Value::Nil
         });
         let elapsed = start.elapsed();

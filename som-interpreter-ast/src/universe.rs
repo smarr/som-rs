@@ -14,6 +14,7 @@ use crate::vm_objects::frame::{Frame, FrameAccess};
 use anyhow::{anyhow, Error};
 use som_core::core_classes::CoreClasses;
 use som_core::interner::{Interned, Interner};
+use som_gc::debug_assert_valid_semispace_ptr;
 use som_gc::gc_interface::GCInterface;
 use som_gc::gcref::Gc;
 
@@ -39,9 +40,6 @@ pub struct Universe {
     pub start_time: Instant,
     /// GC interface
     pub gc_interface: &'static mut GCInterface,
-
-    // we could pass arguments using the Rust stack, and we used to: but with moving GC, that makes them often unreachable, so we need to manage our own stack
-    pub stack_args: Vec<Value>,
 }
 
 impl Drop for Universe {
@@ -119,7 +117,6 @@ impl Universe {
             start_time: Instant::now(),
             core,
             gc_interface,
-            stack_args: vec![],
         })
     }
 
@@ -212,22 +209,24 @@ impl Universe {
 impl Universe {
     /// Evaluates a method or other after pushing a new frame onto the stack.
     /// The frame assumes the arguments it needs are on the global argument stack.
-    pub fn eval_with_frame<T: Evaluate>(&mut self, nbr_locals: u8, nbr_args: usize, invokable: &mut T) -> Return {
-        let frame = Frame::alloc_new_frame(nbr_locals, nbr_args, self);
+    pub fn eval_with_frame<T: Evaluate>(&mut self, stack_args: &mut Vec<Value>, nbr_locals: u8, nbr_args: usize, invokable: &mut T) -> Return {
+        let frame = Frame::alloc_new_frame(nbr_locals, nbr_args, self, stack_args);
         frame.debug_check_frame_addresses();
         self.current_frame = frame;
-        let ret = invokable.evaluate(self);
+        let ret = invokable.evaluate(self, stack_args);
         self.current_frame = self.current_frame.prev_frame;
         ret
     }
 
     /// Evaluates a block after pushing a new block frame.
-    pub fn eval_block_with_frame(&mut self, nbr_locals: u8, nbr_args: usize) -> Return {
-        let frame = Frame::alloc_new_frame(nbr_locals, nbr_args, self);
-        frame.debug_check_frame_addresses();
+    pub fn eval_block_with_frame(&mut self, stack_args: &mut Vec<Value>, nbr_locals: u8, nbr_args: usize) -> Return {
+        let frame = Frame::alloc_new_frame(nbr_locals, nbr_args, self, stack_args);
         self.current_frame = frame;
+        debug_assert_valid_semispace_ptr!(self.current_frame);
         let mut invokable = frame.lookup_argument(0).as_block().unwrap();
-        let ret = invokable.evaluate(self);
+        debug_assert_valid_semispace_ptr!(invokable);
+        debug_assert_valid_semispace_ptr!(invokable.block);
+        let ret = invokable.evaluate(self, stack_args);
         self.current_frame = self.current_frame.prev_frame;
         ret
     }
@@ -262,37 +261,37 @@ impl Universe {
 impl Universe {
     /// Remove N elements off the argument stack and return them as their own vector.
     /// The default way of getting elements off of the stack.
-    pub fn stack_n_last_elems(&mut self, n: usize) -> Vec<Value> {
-        let idx_split_off = self.stack_args.len() - n;
-        self.stack_args.split_off(idx_split_off)
+    pub fn stack_n_last_elems(stack_args: &mut Vec<Value>, n: usize) -> Vec<Value> {
+        let idx_split_off = stack_args.len() - n;
+        stack_args.split_off(idx_split_off)
     }
 
-    pub fn stack_borrow_n_last_elems(&self, n: usize) -> &[Value] {
-        let idx_split_off = self.stack_args.len() - n;
-        &self.stack_args.as_slice()[idx_split_off..]
+    pub fn stack_borrow_n_last_elems(stack_args: &mut Vec<Value>, n: usize) -> &[Value] {
+        let idx_split_off = stack_args.len() - n;
+        &stack_args.as_slice()[idx_split_off..]
     }
 
     /// Pop the last n elements of the stack.
-    pub fn stack_pop_n(&mut self, n: usize) {
-        let new_len = self.stack_args.len() - n;
-        self.stack_args.truncate(new_len)
+    pub fn stack_pop_n(stack_args: &mut Vec<Value>, n: usize) {
+        let new_len = stack_args.len() - n;
+        stack_args.truncate(new_len)
     }
 }
 
 impl Universe {
     /// Call `escapedBlock:` on the given value, if it is defined.
-    pub fn escaped_block(&mut self, value: Value, block: Gc<Block>) -> Option<Return> {
+    pub fn escaped_block(&mut self, stack_args: &mut Vec<Value>, value: Value, block: Gc<Block>) -> Option<Return> {
         let method_name = self.intern_symbol("escapedBlock:");
         let mut initialize = value.lookup_method(self, method_name)?;
 
-        self.stack_args.push(value);
-        self.stack_args.push(Value::Block(block));
-        let escaped_block_result = initialize.invoke(self, 2);
+        stack_args.push(value);
+        stack_args.push(Value::Block(block));
+        let escaped_block_result = initialize.invoke(self, stack_args, 2);
         Some(escaped_block_result)
     }
 
     /// Call `doesNotUnderstand:` on the given value, if it is defined.
-    pub fn does_not_understand(&mut self, value: Value, sym: Interned, args: Vec<Value>) -> Option<Return> {
+    pub fn does_not_understand(&mut self, stack_args: &mut Vec<Value>, value: Value, sym: Interned, args: Vec<Value>) -> Option<Return> {
         let method_name = self.intern_symbol("doesNotUnderstand:arguments:");
         let mut initialize = value.lookup_method(self, method_name)?;
         let sym = Value::Symbol(sym);
@@ -300,23 +299,23 @@ impl Universe {
 
         // eprintln!("Couldn't invoke {}; exiting.", symbol.as_ref()); std::process::exit(1);
 
-        self.stack_args.push(value);
-        self.stack_args.push(sym);
-        self.stack_args.push(args);
+        stack_args.push(value);
+        stack_args.push(sym);
+        stack_args.push(args);
 
-        let dnu_result = initialize.invoke(self, 3);
+        let dnu_result = initialize.invoke(self, stack_args, 3);
         Some(dnu_result)
     }
 
     /// Call `unknownGlobal:` on the given value, if it is defined.
-    pub fn unknown_global(&mut self, value: Value, sym: Interned) -> Option<Return> {
+    pub fn unknown_global(&mut self, stack_args: &mut Vec<Value>, value: Value, sym: Interned) -> Option<Return> {
         let method_name = self.intern_symbol("unknownGlobal:");
         let mut method = value.lookup_method(self, method_name)?;
 
-        self.stack_args.push(value);
-        self.stack_args.push(Value::Symbol(sym));
+        stack_args.push(value);
+        stack_args.push(Value::Symbol(sym));
 
-        let unknown_global_result = method.invoke(self, 2);
+        let unknown_global_result = method.invoke(self, stack_args, 2);
         match unknown_global_result {
             Return::Local(value) | Return::NonLocal(value, _) => Some(Return::Local(value)),
             #[cfg(feature = "inlining-disabled")]
@@ -325,13 +324,13 @@ impl Universe {
     }
 
     /// Call `System>>#initialize:` with the given name, if it is defined.
-    pub fn initialize(&mut self, args: Vec<Value>) -> Option<Return> {
+    pub fn initialize(&mut self, args: Vec<Value>, stack_args: &mut Vec<Value>) -> Option<Return> {
         let method_name = self.interner.intern("initialize:");
         let mut initialize = Value::SYSTEM.lookup_method(self, method_name)?;
         let args = Value::Array(self.gc_interface.alloc(VecValue(args)));
-        self.stack_args.push(Value::SYSTEM);
-        self.stack_args.push(args);
-        let program_result = initialize.invoke(self, 2);
+        stack_args.push(Value::SYSTEM);
+        stack_args.push(args);
+        let program_result = initialize.invoke(self, stack_args, 2);
         Some(program_result)
     }
 }

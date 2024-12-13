@@ -8,7 +8,7 @@ use once_cell::sync::Lazy;
 pub mod block1 {
     use super::*;
     use crate::value::convert::Primitive;
-    use crate::value::HeapValPtr;
+    use crate::value::{HeapValPtr, Value};
     use crate::vm_objects::block::Block;
     use anyhow::Error;
 
@@ -16,12 +16,12 @@ pub mod block1 {
         Lazy::new(|| Box::new([("value", self::value.into_func(), true), ("restart", self::restart.into_func(), false)]));
     pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([]));
 
-    fn value(universe: &mut Universe) -> Result<Return, Error> {
-        let nbr_locals = universe.stack_args.last().unwrap().as_block().unwrap().block.nbr_locals;
-        Ok(universe.eval_block_with_frame(nbr_locals, 1))
+    fn value(universe: &mut Universe, stack_args: &mut Vec<Value>) -> Result<Return, Error> {
+        let nbr_locals = stack_args.last().unwrap().as_block().unwrap().block.nbr_locals;
+        Ok(universe.eval_block_with_frame(stack_args, nbr_locals, 1))
     }
 
-    fn restart(_: &mut Universe, _: HeapValPtr<Block>) -> Result<Return, Error> {
+    fn restart(_: &mut Universe, _stack_args: &mut Vec<Value>, _: HeapValPtr<Block>) -> Result<Return, Error> {
         #[cfg(feature = "inlining-disabled")]
         return Ok(Return::Restart);
         #[cfg(not(feature = "inlining-disabled"))]
@@ -42,15 +42,15 @@ pub mod block1 {
 /// Primitives for the **Block2** class.
 pub mod block2 {
     use super::*;
-    use crate::value::convert::Primitive;
+    use crate::value::{convert::Primitive, Value};
     use anyhow::Error;
 
     pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([("value:", self::value.into_func(), true)]));
     pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([]));
 
-    fn value(universe: &mut Universe) -> Result<Return, Error> {
-        let nbr_locals = universe.stack_args.iter().nth_back(1).unwrap().as_block().unwrap().block.nbr_locals;
-        Ok(universe.eval_block_with_frame(nbr_locals, 2))
+    fn value(universe: &mut Universe, stack_args: &mut Vec<Value>) -> Result<Return, Error> {
+        let nbr_locals = stack_args.iter().nth_back(1).unwrap().as_block().unwrap().block.nbr_locals;
+        Ok(universe.eval_block_with_frame(stack_args, nbr_locals, 2))
     }
 
     /// Search for an instance primitive matching the given signature.
@@ -67,15 +67,15 @@ pub mod block2 {
 /// Primitives for the **Block3** class.
 pub mod block3 {
     use super::*;
-    use crate::value::convert::Primitive;
+    use crate::value::{convert::Primitive, Value};
     use anyhow::Error;
 
     pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([("value:with:", self::value_with.into_func(), true)]));
     pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([]));
 
-    fn value_with(universe: &mut Universe) -> Result<Return, Error> {
-        let nbr_locals = universe.stack_args.iter().nth_back(2).unwrap().as_block().unwrap().block.nbr_locals;
-        Ok(universe.eval_block_with_frame(nbr_locals, 3))
+    fn value_with(universe: &mut Universe, stack_args: &mut Vec<Value>) -> Result<Return, Error> {
+        let nbr_locals = stack_args.iter().nth_back(2).unwrap().as_block().unwrap().block.nbr_locals;
+        Ok(universe.eval_block_with_frame(stack_args, nbr_locals, 3))
     }
 
     /// Search for an instance primitive matching the given signature.
