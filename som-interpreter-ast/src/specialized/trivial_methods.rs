@@ -37,9 +37,8 @@ pub struct TrivialGetterMethod {
 
 impl Invoke for TrivialGetterMethod {
     fn invoke(&mut self, _universe: &mut Universe, value_stack: &mut GlobalValueStack, nbr_args: usize) -> Return {
-        let args = value_stack.pop_n_last(nbr_args);
-
-        let arg = args.first().unwrap();
+        debug_assert_eq!(nbr_args, 1);
+        let arg = value_stack.pop().unwrap();
 
         if let Some(cls) = arg.as_class() {
             Return::Local(cls.class().lookup_field(self.field_idx))
@@ -58,16 +57,15 @@ pub struct TrivialSetterMethod {
 
 impl Invoke for TrivialSetterMethod {
     fn invoke(&mut self, _universe: &mut Universe, value_stack: &mut GlobalValueStack, nbr_args: usize) -> Return {
-        let args = value_stack.pop_n_last(nbr_args);
-
-        let val = args.get(1).unwrap();
-        let rcvr = args.first().unwrap();
+        debug_assert_eq!(nbr_args, 2);
+        let val = value_stack.pop().unwrap();
+        let rcvr = value_stack.pop().unwrap();
 
         if let Some(cls) = rcvr.as_class() {
-            cls.class().assign_field(self.field_idx, *val);
+            cls.class().assign_field(self.field_idx, val);
             Return::Local(Value::Class(cls))
         } else if let Some(mut instance) = rcvr.as_instance() {
-            instance.assign_field(self.field_idx, *val);
+            instance.assign_field(self.field_idx, val);
             Return::Local(Value::Instance(instance))
         } else {
             panic!("trivial getter not called on a class/instance?")
