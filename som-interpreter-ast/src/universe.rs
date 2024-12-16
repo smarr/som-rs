@@ -233,6 +233,21 @@ impl Universe {
         ret
     }
 
+    /// Evaluates a block after pushing a new block frame, and the new frame doesn't get created by popping arguments - just copying them.
+    /// Implemented to help avoid an odd GC bug in the `to:by:do` node where a ref to a pointer, kept as a variable, ended up dangling after GC for some reason.
+    /// This variable was popped off the stack and pushed back. Thanks to this function, it's just copied from the previous one to the new one. Which may also be a speedup
+    pub fn eval_block_with_frame_no_pop(&mut self, value_stack: &mut GlobalValueStack, nbr_locals: u8, nbr_args: usize) -> Return {
+        let frame = Frame::alloc_new_frame_no_pop(nbr_locals, nbr_args, self, value_stack);
+        self.current_frame = frame;
+        debug_assert_valid_semispace_ptr!(self.current_frame);
+        let mut invokable = frame.lookup_argument(0).as_block().unwrap();
+        debug_assert_valid_semispace_ptr!(invokable);
+        debug_assert_valid_semispace_ptr!(invokable.block);
+        let ret = invokable.evaluate(self, value_stack);
+        self.current_frame = self.current_frame.prev_frame;
+        ret
+    }
+
     /// Intern a symbol.
     pub fn intern_symbol(&mut self, symbol: &str) -> Interned {
         self.interner.intern(symbol)

@@ -82,6 +82,8 @@ fn main() -> anyhow::Result<()> {
 
             let output = universe.initialize(args, &mut value_stack).unwrap_or_else(|| panic!("could not find 'System>>#initialize:'"));
 
+            debug_assert!(value_stack.is_empty());
+
             match output {
                 #[cfg(feature = "inlining-disabled")]
                 Return::Restart => println!("ERROR: asked for a restart to the top-level"),

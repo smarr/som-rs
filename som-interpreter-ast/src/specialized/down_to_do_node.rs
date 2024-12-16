@@ -2,7 +2,6 @@ use crate::invokable::{Invoke, Return};
 use crate::universe::{GlobalValueStack, Universe};
 use crate::value::Value;
 use crate::vm_objects::block::Block;
-use som_gc::debug_assert_valid_semispace_ptr_value;
 use som_gc::gcref::Gc;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -47,10 +46,15 @@ impl DownToDoNode {
         let nbr_locals = body_block_val.as_block().unwrap().block.nbr_locals;
         let mut i = start_int;
         while i >= end_int {
-            debug_assert_valid_semispace_ptr_value!(body_block_val);
-            value_stack.push(*body_block_val);
             value_stack.push(Value::Integer(i));
-            propagate!(universe.eval_block_with_frame(value_stack, nbr_locals, 2));
+            match universe.eval_block_with_frame_no_pop(value_stack, nbr_locals, 2) {
+                Return::Local(..) => {}
+                ret => {
+                    value_stack.pop();
+                    return ret;
+                }
+            };
+            value_stack.pop();
             i -= 1;
         }
         Return::Local(Value::Integer(start_int))
@@ -66,10 +70,15 @@ impl DownToDoNode {
         let nbr_locals = body_block_val.as_block().unwrap().block.nbr_locals;
         let mut i = start_double;
         while i >= end_double {
-            debug_assert_valid_semispace_ptr_value!(body_block_val);
-            value_stack.push(*body_block_val);
             value_stack.push(Value::Double(i));
-            propagate!(universe.eval_block_with_frame(value_stack, nbr_locals, 2));
+            match universe.eval_block_with_frame_no_pop(value_stack, nbr_locals, 2) {
+                Return::Local(..) => {}
+                ret => {
+                    value_stack.pop();
+                    return ret;
+                }
+            };
+            value_stack.pop();
             i -= 1.0;
         }
         Return::Local(Value::Double(start_double))

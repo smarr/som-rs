@@ -64,6 +64,37 @@ impl Frame {
         frame_ptr
     }
 
+    /// TODO: doc, and unify with other function.
+    pub fn alloc_new_frame_no_pop(nbr_locals: u8, nbr_args: usize, universe: &mut Universe, value_stack: &mut GlobalValueStack) -> Gc<Self> {
+        let frame = Self {
+            prev_frame: Gc::default(),
+            nbr_locals,
+            nbr_args: nbr_args as u8,
+            params_marker: PhantomData,
+            locals_marker: PhantomData,
+        };
+
+        let size = size_of::<Frame>() + ((frame.nbr_args + frame.nbr_locals) as usize * size_of::<Value>());
+        let mut frame_ptr = universe.gc_interface.alloc_with_size(frame, size);
+
+        unsafe {
+            let mut locals_addr = (frame_ptr.ptr + size_of::<Frame>() + (nbr_args * size_of::<Value>())) as *mut Value;
+            for _ in 0..nbr_locals {
+                *locals_addr = Value::NIL;
+                locals_addr = locals_addr.wrapping_add(1);
+            }
+
+            let args = value_stack.borrow_n_last(nbr_args);
+            std::slice::from_raw_parts_mut(frame_args_ptr!(frame_ptr), nbr_args).copy_from_slice(args);
+
+            frame_ptr.prev_frame = universe.current_frame;
+        };
+
+        frame_ptr.debug_check_frame_addresses();
+
+        frame_ptr
+    }
+
     pub fn nth_frame_back(current_frame: &Gc<Frame>, n: u8) -> Gc<Frame> {
         if n == 0 {
             return *current_frame;

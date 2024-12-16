@@ -19,7 +19,7 @@ panic = 'abort'
 [profile.release]
 panic = 'abort'
 
-# for debugging MMTk
+# for debugging
 #debug-assertions = true
 
 # Enable link-time optimization, eliminates more code and inlines across crate boundaries.
