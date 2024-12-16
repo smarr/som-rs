@@ -35,7 +35,7 @@ impl Invoke for ToByDoNode {
             match universe.eval_block_with_frame_no_pop(value_stack, nbr_locals, 2) {
                 Return::Local(..) => {}
                 ret => {
-                    value_stack.pop_n_last(nbr_args + 1); // all the arguments, and also including the integer index
+                    value_stack.remove_n_last(nbr_args + 1); // all the arguments, and also including the integer index
                     return ret;
                 }
             };
@@ -44,7 +44,7 @@ impl Invoke for ToByDoNode {
             i += step_int;
         }
 
-        value_stack.pop_n_last(nbr_args);
+        value_stack.remove_n_last(nbr_args);
         Return::Local(Value::Integer(start_int))
     }
 }

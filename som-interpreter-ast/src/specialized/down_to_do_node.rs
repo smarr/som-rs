@@ -25,7 +25,7 @@ impl Invoke for DownToDoNode {
             }
         };
 
-        value_stack.pop_n_last(nbr_args);
+        value_stack.remove_n_last(nbr_args);
 
         ret
     }
