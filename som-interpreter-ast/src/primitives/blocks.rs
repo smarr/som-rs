@@ -18,7 +18,7 @@ pub mod block1 {
     pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([]));
 
     fn value(universe: &mut Universe, value_stack: &mut GlobalValueStack) -> Result<Return, Error> {
-        let nbr_locals = value_stack.last().unwrap().as_block().unwrap().block.nbr_locals;
+        let nbr_locals = value_stack.last().as_block().unwrap().block.nbr_locals;
         Ok(universe.eval_block_with_frame(value_stack, nbr_locals, 1))
     }
 

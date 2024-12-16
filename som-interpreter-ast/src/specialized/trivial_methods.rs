@@ -38,7 +38,7 @@ pub struct TrivialGetterMethod {
 impl Invoke for TrivialGetterMethod {
     fn invoke(&mut self, _universe: &mut Universe, value_stack: &mut GlobalValueStack, nbr_args: usize) -> Return {
         debug_assert_eq!(nbr_args, 1);
-        let arg = value_stack.pop().unwrap();
+        let arg = value_stack.pop();
 
         if let Some(cls) = arg.as_class() {
             Return::Local(cls.class().lookup_field(self.field_idx))
@@ -58,8 +58,8 @@ pub struct TrivialSetterMethod {
 impl Invoke for TrivialSetterMethod {
     fn invoke(&mut self, _universe: &mut Universe, value_stack: &mut GlobalValueStack, nbr_args: usize) -> Return {
         debug_assert_eq!(nbr_args, 2);
-        let val = value_stack.pop().unwrap();
-        let rcvr = value_stack.pop().unwrap();
+        let val = value_stack.pop();
+        let rcvr = value_stack.pop();
 
         if let Some(cls) = rcvr.as_class() {
             cls.class().assign_field(self.field_idx, val);

@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 use std::fs;
 use std::io;
-use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
 use std::slice::Iter;
 use std::time::Instant;
@@ -283,25 +282,23 @@ impl From<Vec<Value>> for GlobalValueStack {
     }
 }
 
-impl Deref for GlobalValueStack {
-    type Target = Vec<Value>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl DerefMut for GlobalValueStack {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-
 impl GlobalValueStack {
     /// Standard push-to-stack operation. Exists so we can check pointers in debug mode, really
     pub fn push(&mut self, value: Value) {
         debug_assert_valid_semispace_ptr_value!(value);
         self.0.push(value);
+    }
+
+    pub fn pop(&mut self) -> Value {
+        self.0.pop().unwrap()
+    }
+
+    pub fn last(&mut self) -> &Value {
+        self.0.last().unwrap()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
     }
 
     /// Remove N elements off the argument stack and return them as their own vector.
