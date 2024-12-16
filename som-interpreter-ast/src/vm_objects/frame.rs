@@ -52,7 +52,7 @@ impl Frame {
                 locals_addr = locals_addr.wrapping_add(1);
             }
 
-            let args = value_stack.pop_n_last(nbr_args);
+            let args = value_stack.drain_n_last(nbr_args);
             std::slice::from_raw_parts_mut(frame_args_ptr!(frame_ptr), nbr_args).copy_from_slice(args.as_slice());
 
             frame_ptr.prev_frame = universe.current_frame;

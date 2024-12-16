@@ -1,10 +1,3 @@
-use std::collections::HashMap;
-use std::fs;
-use std::io;
-use std::path::{Path, PathBuf};
-use std::slice::Iter;
-use std::time::Instant;
-
 use crate::evaluate::Evaluate;
 use crate::gc::{get_callbacks_for_gc, VecValue};
 use crate::invokable::{Invoke, Return};
@@ -18,6 +11,13 @@ use som_core::interner::{Interned, Interner};
 use som_gc::gc_interface::GCInterface;
 use som_gc::gcref::Gc;
 use som_gc::{debug_assert_valid_semispace_ptr, debug_assert_valid_semispace_ptr_value};
+use std::collections::HashMap;
+use std::fs;
+use std::io;
+use std::path::{Path, PathBuf};
+use std::slice::Iter;
+use std::time::Instant;
+use std::vec::Drain;
 
 /// GC default heap size
 pub const DEFAULT_HEAP_SIZE: usize = 1024 * 1024 * 256;
@@ -289,8 +289,11 @@ impl GlobalValueStack {
         self.0.push(value);
     }
 
+    /// Standard pop. Relatively uncommon, `pop_n_last` works better for our purposes most of the time.
     pub fn pop(&mut self) -> Value {
-        self.0.pop().unwrap()
+        debug_assert!(!self.0.is_empty());
+        // unsafe in the holy name of performance (preach) (I hope this is an OK speedup)
+        unsafe { self.0.pop().unwrap_unchecked() }
     }
 
     pub fn last(&mut self) -> &Value {
@@ -306,6 +309,12 @@ impl GlobalValueStack {
     pub fn pop_n_last(&mut self, n: usize) -> Vec<Value> {
         let idx_split_off = self.0.len() - n;
         self.0.split_off(idx_split_off)
+    }
+
+    /// Might be faster than splitting off.
+    pub fn drain_n_last(&mut self, n: usize) -> Drain<'_, Value> {
+        let idx_split_off = self.0.len() - n;
+        self.0.drain(idx_split_off..)
     }
 
     pub fn borrow_n_last(&self, n: usize) -> &[Value] {
