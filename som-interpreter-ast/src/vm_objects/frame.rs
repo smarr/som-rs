@@ -1,7 +1,6 @@
 use crate::universe::{GlobalValueStack, Universe};
 use crate::value::Value;
 use core::mem::size_of;
-use som_gc::debug_assert_valid_semispace_ptr;
 use som_gc::gcref::Gc;
 use std::fmt::{Debug, Formatter};
 use std::marker::PhantomData;
@@ -59,12 +58,10 @@ impl Frame {
             frame_ptr.prev_frame = universe.current_frame;
         };
 
-        frame_ptr.debug_check_frame_addresses();
-
         frame_ptr
     }
 
-    /// TODO: doc, and unify with other function.
+    /// TODO: doc, and unify better with other function.
     pub fn alloc_new_frame_no_pop(nbr_locals: u8, nbr_args: usize, universe: &mut Universe, value_stack: &mut GlobalValueStack) -> Gc<Self> {
         let frame = Self {
             prev_frame: Gc::default(),
@@ -89,8 +86,6 @@ impl Frame {
 
             frame_ptr.prev_frame = universe.current_frame;
         };
-
-        frame_ptr.debug_check_frame_addresses();
 
         frame_ptr
     }
@@ -133,27 +128,9 @@ pub trait FrameAccess {
     fn assign_local(&mut self, idx: u8, value: Value);
     fn lookup_field(&self, idx: u8) -> Value;
     fn assign_field(&self, idx: u8, value: &Value);
-    fn debug_check_frame_addresses(&self);
 }
 
 impl FrameAccess for Gc<Frame> {
-    /// TODO: remove.
-    fn debug_check_frame_addresses(&self) {
-        for i in 0..self.nbr_args {
-            let arg = self.lookup_argument(i);
-            if arg.is_ptr_type() {
-                debug_assert_valid_semispace_ptr!(unsafe { arg.as_something::<()>() }.unwrap())
-            }
-        }
-
-        for i in 0..self.nbr_locals {
-            let local = self.lookup_local(i);
-            if local.is_ptr_type() {
-                debug_assert_valid_semispace_ptr!(unsafe { local.as_something::<()>() }.unwrap())
-            }
-        }
-    }
-
     /// Get the self value for this frame.
     fn get_self(&self) -> Value {
         let maybe_self_arg = *self.lookup_argument(0);

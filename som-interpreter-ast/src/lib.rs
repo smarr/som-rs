@@ -42,4 +42,5 @@ pub mod value;
 /// Raw pointer needed to trace GC roots. Meant to be accessed only non-mutably, hence the "CONST" in the name.
 /// TODO: actually enforce that non-mutable access.
 pub static UNIVERSE_RAW_PTR_CONST: AtomicPtr<Universe> = AtomicPtr::new(std::ptr::null_mut());
+/// Raw pointer to trace the global value stack as a root.
 pub static STACK_ARGS_RAW_PTR_CONST: AtomicPtr<GlobalValueStack> = AtomicPtr::new(std::ptr::null_mut());

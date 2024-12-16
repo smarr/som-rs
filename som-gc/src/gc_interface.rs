@@ -46,7 +46,7 @@ pub struct GCInterface {
     mutator_thread: VMMutatorThread,
     is_collecting: bool,
     start_the_world_count: usize,
-    total_gc_time: std::time::Duration,
+    total_gc_time: Duration,
 }
 
 impl Drop for GCInterface {
@@ -56,10 +56,15 @@ impl Drop for GCInterface {
     }
 }
 
+/// Callbacks used to provide MMTk->VM communication.
 pub struct MMTKtoVMCallbacks {
+    /// Scans an object. Needed for tracing.
     pub scan_object: fn(ObjectReference, &mut dyn SlotVisitor<SOMSlot>),
+    /// Get the VM roots.
     pub get_roots_in_mutator_thread: fn(&mut Mutator<SOMVM>) -> Vec<SOMSlot>,
+    /// Adapt an object after being copied elsewhere (not really at the moment needed except in one case)
     pub adapt_post_copy: fn(ObjectReference, ObjectReference),
+    /// Get the size of the object. Needed when copying it
     pub get_object_size: fn(ObjectReference) -> usize,
 }
 
@@ -154,9 +159,8 @@ impl GCInterface {
         let default_allocator: *mut T = {
             let mutator_addr = Address::from_ref(mutator);
             unsafe {
-                let ptr = mutator_addr + default_allocator_offset;
-                ptr.as_mut_ref()
-                // (mutator_addr + default_allocator_offset).as_mut_ref::<BumpAllocator<SOMVM>>()
+                let allocator_ptr = mutator_addr + default_allocator_offset;
+                allocator_ptr.as_mut_ref()
             }
         };
 
@@ -231,7 +235,7 @@ impl GCInterface {
         //unsafe { &mut (*self.default_allocator) }.alloc(size, GC_ALIGN, GC_OFFSET)
         unsafe { &mut (*self.default_allocator) }.alloc(size, GC_ALIGN, GC_OFFSET)
 
-        // TODO: this code should work, and -does-, but sometimes returns references to the old space - as far as i can tell.
+        // TODO: this code should work, and -does-, but sometimes returns references to the old space, as far as i can tell.
         // code taken from MMTk docs. https://docs.mmtk.io/portingguide/perf_tuning/alloc.html#option-3-embed-the-fast-path-struct
         // let new_cursor = self.alloc_bump_ptr.cursor + size;
         // if new_cursor < self.alloc_bump_ptr.limit {
@@ -260,6 +264,7 @@ impl GCInterface {
 
     /// Custom alloc function, for traits to be able to choose how to allocate their data.
     /// In practice, that's usually allowing for more memory than Rust might be able to infer from the struct size, and filling it with our own data.
+    /// TODO: Even more in practice, it's not used much anymore. The issue is that if the alloc triggers and we use moving GC, the closure can now be holding outdated pointers.
     pub fn alloc_with_post_init<T: HasTypeInfoForGC, F>(&mut self, obj: T, size: usize, mut post_alloc_init_closure: F) -> Gc<T>
     where
         F: FnMut(Gc<T>),
@@ -279,18 +284,23 @@ impl GCInterface {
         self.start_the_world_count
     }
 
+    /// Returns the number of used bytes
     pub fn get_used_bytes(&self) -> usize {
         mmtk_used_bytes()
     }
 
+    /// Returns the total time spent performing GC.
     pub fn get_total_gc_time(&self) -> usize {
         self.total_gc_time.as_micros() as usize
     }
 
+    /// Whether or not we're currently performing GC.
+    /// Might be redundant with `is_world_stopped`, to be honest.
     pub fn is_currently_collecting(&self) -> bool {
         self.is_collecting
     }
 
+    /// Block the main thread to perform GC.
     pub(crate) fn block_for_gc(&mut self, _tls: VMMutatorThread) {
         debug!("block_for_gc: stopping the world!");
         self.is_collecting = true;

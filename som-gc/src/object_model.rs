@@ -39,22 +39,17 @@ impl ObjectModel<SOMVM> for VMObjectModel {
     const OBJECT_REF_OFFSET_LOWER_BOUND: isize = OBJECT_REF_OFFSET as isize;
 
     fn copy(from: ObjectReference, semantics: CopySemantics, copy_context: &mut GCWorkerCopyContext<SOMVM>) -> ObjectReference {
-        // debug!("invoking copy");
-
         let align = 8;
         let offset = 0;
         let mut bytes = Self::get_current_size(from);
         bytes += OBJECT_REF_OFFSET; // for the header
 
-        let _og_ptr = unsafe { from.to_raw_address().as_ref::<usize>() }; // for debugging by looking at memory directly
+        // debug!("invoking copy");
 
         let from_header = unsafe { ObjectReference::from_raw_address_unchecked(Self::ref_to_object_start(from)) };
-        let _from_header_gc_id = unsafe { from_header.to_raw_address().as_ref::<u8>() };
 
         let header_dst = copy_context.alloc_copy(from_header, bytes, align, offset, semantics);
         debug_assert!(!header_dst.is_zero());
-
-        let _dest_ptr = unsafe { header_dst.as_ref::<usize>() }; // for debugging by looking at memory directly
 
         unsafe {
             std::ptr::copy_nonoverlapping::<u8>(from_header.to_raw_address().to_ptr(), header_dst.to_mut_ptr(), bytes);
@@ -65,8 +60,6 @@ impl ObjectModel<SOMVM> for VMObjectModel {
         copy_context.post_copy(header_dst_obj, bytes, semantics);
 
         (MMTK_TO_VM_INTERFACE.get().unwrap().adapt_post_copy)(header_dst_obj, from);
-
-        debug_assert_eq!(_from_header_gc_id, unsafe { header_dst.as_ref::<u8>() });
 
         debug!("Copied object {} into {}", from, header_dst_obj);
 

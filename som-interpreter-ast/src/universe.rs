@@ -213,7 +213,6 @@ impl Universe {
     /// The frame assumes the arguments it needs are on the global argument stack.
     pub fn eval_with_frame<T: Evaluate>(&mut self, value_stack: &mut GlobalValueStack, nbr_locals: u8, nbr_args: usize, invokable: &mut T) -> Return {
         let frame = Frame::alloc_new_frame(nbr_locals, nbr_args, self, value_stack);
-        frame.debug_check_frame_addresses();
         self.current_frame = frame;
         let ret = invokable.evaluate(self, value_stack);
         self.current_frame = self.current_frame.prev_frame;
@@ -299,10 +298,12 @@ impl DerefMut for GlobalValueStack {
 }
 
 impl GlobalValueStack {
+    /// Standard push-to-stack operation. Exists so we can check pointers in debug mode, really
     pub fn push(&mut self, value: Value) {
         debug_assert_valid_semispace_ptr_value!(value);
         self.0.push(value);
     }
+
     /// Remove N elements off the argument stack and return them as their own vector.
     /// The default way of getting elements off of the stack.
     pub fn pop_n_last(&mut self, n: usize) -> Vec<Value> {
