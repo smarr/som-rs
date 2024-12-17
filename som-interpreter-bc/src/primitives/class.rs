@@ -36,7 +36,7 @@ fn superclass(_: &mut Interpreter, _: &mut Universe, receiver: HeapValPtr<Class>
 }
 
 fn new(_: &mut Interpreter, universe: &mut Universe, receiver: HeapValPtr<Class>) -> Result<Gc<Instance>, Error> {
-    let instance = Instance::from_class(receiver.deref(), universe.gc_interface);
+    let instance = Instance::from_class(receiver, universe.gc_interface);
     Ok(instance)
 }
 

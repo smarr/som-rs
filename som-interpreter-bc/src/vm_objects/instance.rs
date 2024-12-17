@@ -1,6 +1,5 @@
-use crate::value::Value;
+use crate::value::{HeapValPtr, Value};
 use crate::vm_objects::class::Class;
-use crate::HACK_INSTANCE_CLASS_PTR;
 use core::mem::size_of;
 use som_gc::gc_interface::GCInterface;
 use som_gc::gcref::Gc;
@@ -18,24 +17,22 @@ pub struct Instance {
 
 impl Instance {
     /// Construct an instance for a given class.
-    pub fn from_class(class: Gc<Class>, gc_interface: &mut GCInterface) -> Gc<Instance> {
-        let nbr_fields = class.get_nbr_fields();
+    ///
+    /// We need to pass a value pointer to the class on the heap since if allocating the instance triggers garbage collection,
+    /// we still want to have a valid pointer to the class, which wouldn't happen if it was just a `Gc<Class>` stored on the Rust stack as a function argument.
+    pub fn from_class(class: HeapValPtr<Class>, gc_interface: &mut GCInterface) -> Gc<Instance> {
+        let nbr_fields = class.deref().get_nbr_fields();
 
         let instance = Self {
             class: Gc::default(),
             fields_marker: PhantomData,
         };
 
-        unsafe { HACK_INSTANCE_CLASS_PTR = Some(class) }
-
         let post_alloc_closure = |mut instance_ref: Gc<Instance>| {
-            unsafe {
-                for idx in 0..nbr_fields {
-                    Instance::assign_field(instance_ref, idx, Value::NIL)
-                }
-                instance_ref.class = HACK_INSTANCE_CLASS_PTR.unwrap();
-                HACK_INSTANCE_CLASS_PTR = None;
-            };
+            for idx in 0..nbr_fields {
+                Instance::assign_field(instance_ref, idx, Value::NIL)
+            }
+            instance_ref.class = class.deref();
         };
 
         let size = size_of::<Instance>() + (nbr_fields * size_of::<Value>());

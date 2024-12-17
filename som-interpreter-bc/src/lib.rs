@@ -2,16 +2,10 @@
 //! This is the interpreter for the Simple Object Machine.
 //!
 
-// TODO: remove we should NOT rely on static mutables.
-// I thought it was justified, and I've got a decent use case, but that doesn't mean we shouldn't use some Rust wrapper like OnceLock<T>
-#![allow(static_mut_refs)]
-
 use crate::interpreter::Interpreter;
 use crate::universe::Universe;
 use crate::value::Value;
-use som_gc::gcref::Gc;
 use std::sync::atomic::AtomicPtr;
-use vm_objects::class::Class;
 
 /// VM objects.
 pub mod vm_objects;
@@ -43,7 +37,5 @@ pub static INTERPRETER_RAW_PTR_CONST: AtomicPtr<Interpreter> = AtomicPtr::new(st
 
 /// Hack! at the moment, we pass a copied reference to a class' method when allocating a frame. When GC triggers from a frame allocation, that pointer isn't a root and doesn't get moved.
 /// that one's the ugliest of hacks and we can definitely remove it somehow..
+#[allow(static_mut_refs)]
 pub static mut HACK_FRAME_FRAME_ARGS_PTR: Option<Vec<Value>> = None;
-
-/// For instance initializations... we really need to pass pointers by references to primitives...
-pub static mut HACK_INSTANCE_CLASS_PTR: Option<Gc<Class>> = None;

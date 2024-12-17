@@ -120,6 +120,7 @@ impl Frame {
 
         let mut frame_ptr: Gc<Frame> = gc_interface.request_memory_for_type(size);
 
+        #[allow(static_mut_refs)]
         unsafe {
             let method = prev_frame.stack_pop().as_invokable().unwrap();
             *frame_ptr = Frame::from_method(method);
