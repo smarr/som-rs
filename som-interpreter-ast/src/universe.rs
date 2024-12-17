@@ -305,13 +305,13 @@ impl GlobalValueStack {
     }
 
     /// Remove N elements off the argument stack and return them as their own vector.
-    /// The default way of getting elements off of the stack.
-    pub fn pop_n_last(&mut self, n: usize) -> Vec<Value> {
+    pub fn split_off_n(&mut self, n: usize) -> Vec<Value> {
         let idx_split_off = self.0.len() - n;
         self.0.split_off(idx_split_off)
     }
 
-    /// Might be faster than splitting off.
+    /// Return the last `n` elements as a `Drain` iterator.
+    /// Faster than splitting off, at least for our code.
     pub fn drain_n_last(&mut self, n: usize) -> Drain<'_, Value> {
         let idx_split_off = self.0.len() - n;
         self.0.drain(idx_split_off..)

@@ -193,8 +193,7 @@ pub fn scan_object<'a>(object: ObjectReference, slot_visitor: &'a mut (dyn SlotV
                         }
                     }
                     MethodKind::TrivialLiteral(trivial_lit) => visit_literal(&trivial_lit.literal, slot_visitor),
-                    MethodKind::Primitive(_) | MethodKind::TrivialGlobal(_) | MethodKind::TrivialGetter(_) | MethodKind::TrivialSetter(_) => {}
-                    MethodKind::Specialized(_) => {} // for now, specialized methods don't contain data that needs to be traced.
+                    MethodKind::Primitive(_) | MethodKind::TrivialGlobal(_) | MethodKind::TrivialGetter(_) | MethodKind::TrivialSetter(_) => {} // MethodKind::Specialized(_) => {} // for now, specialized methods don't contain data that needs to be traced.
                 }
             }
             AstObjMagicId::Instance => {

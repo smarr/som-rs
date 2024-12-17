@@ -2,7 +2,7 @@ use crate::evaluate::Evaluate;
 use crate::universe::{GlobalValueStack, Universe};
 use crate::value::Value;
 use crate::vm_objects::frame::Frame;
-use crate::vm_objects::method::{Method, MethodKind, MethodKindSpecialized};
+use crate::vm_objects::method::{Method, MethodKind};
 use som_gc::debug_assert_valid_semispace_ptr;
 use som_gc::gcref::Gc;
 
@@ -40,13 +40,13 @@ impl Invoke for Gc<Method> {
                 // println!("--- Invoking prim \"{:1}\" ({:2})", &self.signature, &self.holder.class().name);
                 func(universe, value_stack, nbr_args)
             }
-            MethodKind::Specialized(specialized_kind) => {
-                // println!("--- Invoking specialized method \"{:1}\" ({:2})", &self.signature, &self.holder.class().name);
-                match specialized_kind {
-                    MethodKindSpecialized::ToByDo(to_by_do_node) => to_by_do_node.invoke(universe, value_stack, nbr_args),
-                    MethodKindSpecialized::DownToDo(down_to_do_node) => down_to_do_node.invoke(universe, value_stack, nbr_args),
-                }
-            }
+            // MethodKind::Specialized(specialized_kind) => {
+            //     // println!("--- Invoking specialized method \"{:1}\" ({:2})", &self.signature, &self.holder.class().name);
+            //     match specialized_kind {
+            //         MethodKindSpecialized::ToByDo(to_by_do_node) => to_by_do_node.invoke(universe, value_stack, nbr_args),
+            //         MethodKindSpecialized::DownToDo(down_to_do_node) => down_to_do_node.invoke(universe, value_stack, nbr_args),
+            //     }
+            // }
             // since those two trivial methods don't need args, i guess it could be faster to handle them before args are even instantiated...
             MethodKind::TrivialLiteral(trivial_literal) => {
                 value_stack.remove_n_last(nbr_args);

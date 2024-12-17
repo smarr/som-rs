@@ -5,11 +5,9 @@ use crate::ast::{
 };
 use crate::gc::VecAstLiteral;
 use crate::primitives::UNIMPLEM_PRIMITIVE;
-use crate::specialized::down_to_do_node::DownToDoNode;
-use crate::specialized::to_by_do_node::ToByDoNode;
 use crate::specialized::trivial_methods::{TrivialGetterMethod, TrivialGlobalMethod, TrivialLiteralMethod, TrivialSetterMethod};
 use crate::vm_objects::class::Class;
-use crate::vm_objects::method::{MethodKind, MethodKindSpecialized};
+use crate::vm_objects::method::MethodKind;
 use som_core::ast;
 use som_core::ast::{Expression, Literal, MethodBody};
 use som_core::interner::Interner;
@@ -67,22 +65,22 @@ impl<'a> AstMethodCompilerCtxt<'a> {
     }
 
     pub fn get_method_kind(method: &ast::MethodDef, class: Option<Gc<Class>>, gc_interface: &mut GCInterface, interner: &mut Interner) -> MethodKind {
-        match method.signature.as_str() {
-            "to:by:do:" => MethodKind::Specialized(MethodKindSpecialized::ToByDo(ToByDoNode {})),
-            "downTo:do:" => MethodKind::Specialized(MethodKindSpecialized::DownToDo(DownToDoNode {})),
-            _ => match method.body {
-                MethodBody::Primitive => MethodKind::Primitive(&*UNIMPLEM_PRIMITIVE),
-                MethodBody::Body { .. } => {
-                    let ast_method_def = AstMethodCompilerCtxt::parse_method_def(method, class, gc_interface, interner);
+        match method.body {
+            MethodBody::Primitive => MethodKind::Primitive(&*UNIMPLEM_PRIMITIVE),
+            MethodBody::Body { .. } => {
+                let ast_method_def = AstMethodCompilerCtxt::parse_method_def(method, class, gc_interface, interner);
 
-                    if let Some(trivial_method_kind) = AstMethodCompilerCtxt::make_trivial_method_if_possible(&ast_method_def, interner) {
-                        trivial_method_kind
-                    } else {
-                        MethodKind::Defined(ast_method_def)
-                    }
+                if let Some(trivial_method_kind) = AstMethodCompilerCtxt::make_trivial_method_if_possible(&ast_method_def, interner) {
+                    trivial_method_kind
+                } else {
+                    MethodKind::Defined(ast_method_def)
                 }
-            },
+            }
         }
+        // match method.signature.as_str() {
+        //     // "to:by:do:" => MethodKind::Specialized(MethodKindSpecialized::ToByDo(ToByDoNode {})),
+        //     // "downTo:do:" => MethodKind::Specialized(MethodKindSpecialized::DownToDo(DownToDoNode {})),
+        //     _ => match method.body {
     }
 
     pub(crate) fn make_trivial_method_if_possible(method_def: &AstMethodDef, _interner: &mut Interner) -> Option<MethodKind> {

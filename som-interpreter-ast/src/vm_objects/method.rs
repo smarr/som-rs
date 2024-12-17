@@ -1,7 +1,5 @@
 use crate::ast::AstMethodDef;
 use crate::primitives::PrimitiveFn;
-use crate::specialized::down_to_do_node::DownToDoNode;
-use crate::specialized::to_by_do_node::ToByDoNode;
 use crate::specialized::trivial_methods::{TrivialGetterMethod, TrivialGlobalMethod, TrivialLiteralMethod, TrivialSetterMethod};
 use crate::universe::Universe;
 use crate::vm_objects::class::Class;
@@ -24,8 +22,8 @@ pub enum MethodKind {
     TrivialGetter(TrivialGetterMethod),
     /// A trivial setter method
     TrivialSetter(TrivialSetterMethod),
-    /// A call to a specialized method. TODO: really, those should be inlined instead. Unless we add a lot more specialized nodes.
-    Specialized(MethodKindSpecialized),
+    // /// A call to a specialized method. TODO: really, those should be inlined instead. Unless we add a lot more specialized nodes.
+    // Specialized(MethodKindSpecialized),
 }
 
 impl Debug for MethodKind {
@@ -40,15 +38,15 @@ impl PartialEq for MethodKind {
     }
 }
 
-/// MethodKind for specialized methods, which are very common methods whose behaviour we know ahead of time (control flow, for the most part)
-/// Importantly, many of them go unused most of the time because we usually inline control flow nodes instead.
-#[derive(Debug, Clone, PartialEq)]
-pub enum MethodKindSpecialized {
-    /// Specialized: to:by:do:.
-    ToByDo(ToByDoNode),
-    /// Specialized: downTo:do:.
-    DownToDo(DownToDoNode),
-}
+// /// MethodKind for specialized methods, which are very common methods whose behaviour we know ahead of time (control flow, for the most part)
+// /// Importantly, many of them go unused most of the time because we usually inline control flow nodes instead.
+// #[derive(Debug, Clone, PartialEq)]
+// pub enum MethodKindSpecialized {
+//     /// Specialized: to:by:do:.
+//     ToByDo(ToByDoNode),
+//     /// Specialized: downTo:do:.
+//     DownToDo(DownToDoNode),
+// }
 
 impl MethodKind {
     /// Whether this invokable is a primitive.
