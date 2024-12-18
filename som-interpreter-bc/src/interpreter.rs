@@ -487,6 +487,7 @@ impl Interpreter {
                         .with_context(|| anyhow::anyhow!("error calling primitive `{}`", universe.lookup_symbol(symbol)))
                         .unwrap();
                 }
+                Method::TrivialGlobal(met, _) => met.evaluate(universe, interpreter),
             }
         }
 

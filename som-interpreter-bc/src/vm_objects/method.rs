@@ -14,6 +14,7 @@ use som_core::ast::BlockDebugInfo;
 use som_gc::gcref::Gc;
 
 use crate::vm_objects::block::BodyInlineCache;
+use crate::vm_objects::trivial_methods::TrivialGlobalMethod;
 
 /// Data for a method, or a block.
 #[derive(Clone)]
@@ -37,6 +38,14 @@ pub enum Method {
     Defined(MethodInfo),
     /// An interpreter primitive.
     Primitive(&'static PrimitiveFn, String, Gc<Class>),
+    // /// A trivial literal read
+    // TrivialLiteral(TrivialLiteralMethod),
+    /// A trivial global read
+    TrivialGlobal(TrivialGlobalMethod, String),
+    // /// A trivial getter method
+    // TrivialGetter(TrivialGetterMethod),
+    // /// A trivial setter method
+    // TrivialSetter(TrivialSetterMethod),
 }
 
 impl Method {
@@ -49,6 +58,7 @@ impl Method {
         match &self {
             Method::Defined(env) => &env.holder,
             Method::Primitive(_, _, holder) => holder,
+            Method::TrivialGlobal(..) => todo!(),
         }
     }
 
@@ -64,6 +74,7 @@ impl Method {
                 }
             }
             Method::Primitive(_, _, c) => *c = holder_ptr,
+            Method::TrivialGlobal(..) => {} //todo!(),
         }
     }
 
@@ -71,6 +82,7 @@ impl Method {
         match self {
             Method::Defined(env) => env,
             Method::Primitive(_, _, _) => panic!("requesting method metadata from primitive"),
+            Method::TrivialGlobal(..) => todo!(),
         }
     }
 }
@@ -88,6 +100,7 @@ impl Method {
         match &self {
             Method::Defined(gc) => &gc.signature,
             Method::Primitive(_, name, _) => name.as_str(),
+            Method::TrivialGlobal(_, name) => name.as_str(),
         }
     }
 }
@@ -123,6 +136,7 @@ impl Invoke for Gc<Method> {
                 // dbg!(&interpreter.current_frame.stack_nth_back(2));
                 // dbg!(&interpreter.current_frame.stack_nth_back(3));
             }
+            Method::TrivialGlobal(met, _) => met.evaluate(universe, interpreter),
         }
     }
 }
@@ -212,6 +226,7 @@ impl fmt::Display for Method {
                 Ok(())
             }
             Method::Primitive(..) => write!(f, "<primitive>"),
+            Method::TrivialGlobal(..) => write!(f, "TrivialGlobal"),
         }
     }
 }

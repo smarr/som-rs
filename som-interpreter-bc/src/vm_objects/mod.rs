@@ -8,6 +8,8 @@ pub mod frame;
 pub mod instance;
 /// Facilities for manipulating class methods.
 pub mod method;
+/// For trivial methods, optimized recurrent small methods.
+pub mod trivial_methods;
 
 #[cfg(test)]
 mod tests {

@@ -234,7 +234,8 @@ impl Frame {
     pub fn get_inline_cache(&mut self) -> &mut BodyInlineCache {
         match self.current_context.deref_mut() {
             Method::Defined(env) => &mut env.inline_cache,
-            Method::Primitive(_, _, _) => unreachable!(),
+            Method::Primitive(..) => unreachable!(),
+            Method::TrivialGlobal(..) => unreachable!(),
         }
     }
 

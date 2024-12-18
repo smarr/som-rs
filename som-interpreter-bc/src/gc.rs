@@ -144,6 +144,7 @@ pub fn scan_object<'a>(object: ObjectReference, slot_visitor: &'a mut (dyn SlotV
                     Method::Primitive(_, _, c) => {
                         slot_visitor.visit_slot(SOMSlot::from(&*c));
                     }
+                    Method::TrivialGlobal(..) => {}
                 }
             }
             BCObjMagicId::Class => {

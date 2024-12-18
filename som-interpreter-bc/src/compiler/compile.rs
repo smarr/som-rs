@@ -14,6 +14,7 @@ use crate::value::Value;
 use crate::vm_objects::block::Block;
 use crate::vm_objects::class::Class;
 use crate::vm_objects::method::{Method, MethodInfo};
+use crate::vm_objects::trivial_methods::TrivialGlobalMethod;
 use som_core::ast;
 #[cfg(feature = "frame-debug-info")]
 use som_core::ast::BlockDebugInfo;
@@ -564,6 +565,27 @@ fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::MethodDef, gc_interface: 
         }
     }
 
+    fn make_trivial_if_possible(body: &Vec<Bytecode>, literals: &[Literal], signature: &str, nbr_params: usize) -> Option<Method> {
+        // if body.len() == 2 {
+        //     dbg!(body);
+        // }
+        match body.as_slice() {
+            [Bytecode::PushGlobal(x), Bytecode::ReturnLocal] => {
+                if nbr_params != 0 {
+                    return None;
+                }
+                if let Literal::Symbol(interned) = literals.get(*x as usize)? {
+                    return Some(Method::TrivialGlobal(
+                        TrivialGlobalMethod { global_name: *interned },
+                        String::from(signature),
+                    ));
+                }
+            }
+            _ => {}
+        }
+        None
+    }
+
     let mut ctxt = MethodGenCtxt {
         signature: defn.signature.clone(),
         inner: BlockGenCtxt {
@@ -641,14 +663,8 @@ fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::MethodDef, gc_interface: 
                 // let locals = std::mem::take(&mut ctxt.inner.locals);
                 let nbr_locals = ctxt.inner.locals_nbr;
                 let body = ctxt.inner.body.unwrap_or_default();
-                let literals = ctxt.inner.literals.into_iter().collect();
-                let inline_cache = vec![None; body.len()];
-                #[cfg(feature = "frame-debug-info")]
-                let dbg_info = ctxt.inner.debug_info;
+                let literals: Vec<Literal> = ctxt.inner.literals.into_iter().collect();
                 let signature = ctxt.signature.clone();
-
-                let max_stack_size = get_max_stack_size(&body);
-
                 let nbr_params = {
                     match ctxt.signature.chars().next() {
                         Some(ch) if !ch.is_alphabetic() => 1,
@@ -656,18 +672,28 @@ fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::MethodDef, gc_interface: 
                     }
                 };
 
-                Method::Defined(MethodInfo {
-                    body,
-                    holder: Gc::default(),
-                    signature,
-                    nbr_locals,
-                    nbr_params,
-                    literals,
-                    inline_cache,
-                    max_stack_size,
+                if let Some(trivial_method) = make_trivial_if_possible(&body, &literals, &signature, nbr_params) {
+                    trivial_method
+                } else {
+                    let inline_cache = vec![None; body.len()];
                     #[cfg(feature = "frame-debug-info")]
-                    block_debug_info: dbg_info,
-                })
+                    let dbg_info = ctxt.inner.debug_info;
+
+                    let max_stack_size = get_max_stack_size(&body);
+
+                    Method::Defined(MethodInfo {
+                        body,
+                        holder: Gc::default(),
+                        signature,
+                        nbr_locals,
+                        nbr_params,
+                        literals,
+                        inline_cache,
+                        max_stack_size,
+                        #[cfg(feature = "frame-debug-info")]
+                        block_debug_info: dbg_info,
+                    })
+                }
             }
         }
     };

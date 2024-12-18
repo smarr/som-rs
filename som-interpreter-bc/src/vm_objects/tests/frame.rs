@@ -59,7 +59,7 @@ fn get_method(method_txt: &str, method_name: &str, universe: &mut Universe) -> G
 
 #[rstest]
 fn frame_basic_local_access(universe: &mut Universe) {
-    let method_ref = get_method("foo = ( | a b c | ^ false )", "foo", universe);
+    let method_ref = get_method("foo = ( | a b c | ^ 1 + 1 )", "foo", universe);
 
     let mut frame = Frame::alloc_initial_method(method_ref, &[], universe.gc_interface);
 

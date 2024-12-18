@@ -173,6 +173,7 @@ fn dump_class_methods(class: Gc<Class>, opts: &Options, file_stem: &str, univers
             Method::Primitive(..) => {
                 println!("{class}>>#{signature} (primitive)", class = file_stem, signature = method.signature(),);
             }
+            Method::TrivialGlobal(_, sig) => println!("{class}>>#{signature} (trivial global)", class = file_stem, signature = sig),
         }
     }
 }
