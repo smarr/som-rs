@@ -566,40 +566,40 @@ fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::MethodDef, gc_interface: 
     }
 
     fn make_trivial_method_if_possible(body: &Vec<Bytecode>, literals: &[Literal], signature: &str, nbr_params: usize) -> Option<Method> {
-        // if body.len() == 3 {
-        //     dbg!(body);
-        // }
-        match body.as_slice() {
-            [Bytecode::PushGlobal(x), Bytecode::ReturnLocal] => {
-                if nbr_params != 0 {
-                    return None;
-                }
-                if let Literal::Symbol(interned) = literals.get(*x as usize)? {
-                    return Some(Method::TrivialGlobal(
-                        TrivialGlobalMethod { global_name: *interned },
+        match (body.as_slice(), nbr_params) {
+            ([Bytecode::PushGlobal(x), Bytecode::ReturnLocal], 0) => match literals.get(*x as usize)? {
+                Literal::Symbol(interned) => Some(Method::TrivialGlobal(
+                    TrivialGlobalMethod { global_name: *interned },
+                    BasicMethodInfo::new(String::from(signature), Gc::default()),
+                )),
+                _ => None,
+            },
+            ([Bytecode::PushField(x), Bytecode::ReturnLocal], 0) => Some(Method::TrivialGetter(
+                TrivialGetterMethod { field_idx: *x },
+                BasicMethodInfo::new(String::from(signature), Gc::default()),
+            )),
+            ([Bytecode::PushArg(1), Bytecode::PopField(x), Bytecode::ReturnSelf], 1) => Some(Method::TrivialSetter(
+                TrivialSetterMethod { field_idx: *x },
+                BasicMethodInfo::new(String::from(signature), Gc::default()),
+            )),
+            /*([literal_bc, Bytecode::ReturnLocal], 0) => {
+                let maybe_literal = match literal_bc {
+                    Bytecode::PushConstant(x) | Bytecode::PushBlock(x) => literals.get(*x as usize),
+                    Bytecode::PushConstant0 => literals.first(),
+                    Bytecode::PushConstant1 => literals.get(1),
+                    Bytecode::PushConstant2 => literals.get(2),
+                    Bytecode::Push0 => Some(&Literal::Integer(0)),
+                    Bytecode::Push1 => Some(&Literal::Integer(1)),
+                    _ => None,
+                };
+
+                maybe_literal.map(|lit| {
+                    Method::TrivialLiteral(
+                        TrivialLiteralMethod { literal: lit.clone() },
                         BasicMethodInfo::new(String::from(signature), Gc::default()),
-                    ));
-                }
-                None
-            }
-            [Bytecode::PushField(x), Bytecode::ReturnLocal] => {
-                if nbr_params != 0 {
-                    return None;
-                }
-                Some(Method::TrivialGetter(
-                    TrivialGetterMethod { field_idx: *x },
-                    BasicMethodInfo::new(String::from(signature), Gc::default()),
-                ))
-            }
-            [Bytecode::PushArg(1), Bytecode::PopField(x), Bytecode::ReturnSelf] => {
-                if nbr_params != 1 {
-                    return None;
-                }
-                Some(Method::TrivialSetter(
-                    TrivialSetterMethod { field_idx: *x },
-                    BasicMethodInfo::new(String::from(signature), Gc::default()),
-                ))
-            }
+                    )
+                })
+            }*/
             _ => None,
         }
     }

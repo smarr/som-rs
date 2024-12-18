@@ -150,6 +150,16 @@ impl BaseValue {
         (self.encoded & IS_PTR_PATTERN) == IS_PTR_PATTERN
     }
 
+    /// Returns it at an arbitrary pointer. Used for debugging.
+    /// # Safety
+    /// "Don't"
+    pub unsafe fn as_something<PTR>(self) -> Option<PTR>
+    where
+        PTR: From<u64>,
+    {
+        self.is_ptr_type().then(|| self.extract_gc_cell())
+    }
+
     /// Return the value as its internal representation: a u64 type.
     #[inline(always)]
     pub fn as_u64(self) -> u64 {

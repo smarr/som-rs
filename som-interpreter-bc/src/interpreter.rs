@@ -1,7 +1,7 @@
-use crate::compiler::Literal;
-use crate::gc::VecValue;
+use crate::compiler::{value_from_literal, Literal};
 use crate::universe::Universe;
 use crate::value::Value;
+use crate::vm_objects::block::Block;
 use crate::vm_objects::class::Class;
 use crate::vm_objects::frame::Frame;
 use crate::vm_objects::instance::Instance;
@@ -16,7 +16,7 @@ use std::time::Instant;
 
 macro_rules! send {
     ($interp:expr, $universe:expr, $frame:expr, $lit_idx:expr, $nb_params:expr) => {{
-        let Literal::Symbol(symbol) = $frame.lookup_constant($lit_idx as usize) else {
+        let Literal::Symbol(symbol) = $frame.lookup_constant($lit_idx as usize).clone() else {
             unreachable!()
         };
         let nb_params = match $nb_params {
@@ -38,7 +38,7 @@ macro_rules! send {
 
 macro_rules! super_send {
     ($interp:expr, $universe:expr, $frame:expr, $lit_idx:expr, $nb_params:expr) => {{
-        let Literal::Symbol(symbol) = $frame.lookup_constant($lit_idx as usize) else {
+        let Literal::Symbol(symbol) = $frame.lookup_constant($lit_idx as usize).clone() else {
             unreachable!()
         };
         let nb_params = match $nb_params {
@@ -242,7 +242,11 @@ impl Interpreter {
                 Bytecode::PushBlock(idx) => {
                     let literal = self.current_frame.lookup_constant(idx as usize);
                     let mut block = match literal {
-                        Literal::Block(blk) => universe.gc_interface.alloc((*blk).clone()),
+                        Literal::Block(blk) => {
+                            let mut new_blk = universe.gc_interface.request_memory_for_type::<Block>(std::mem::size_of::<Block>());
+                            *new_blk = (**blk).clone();
+                            new_blk
+                        }
                         _ => panic!("PushBlock expected a block, but got another invalid literal"),
                     };
                     block.frame.replace(self.current_frame);
@@ -250,22 +254,22 @@ impl Interpreter {
                 }
                 Bytecode::PushConstant(idx) => {
                     let literal = self.current_frame.lookup_constant(idx as usize);
-                    let value = convert_literal(&self.current_frame, literal, universe.gc_interface);
+                    let value = value_from_literal(&self.current_frame, literal, universe.gc_interface);
                     self.current_frame.stack_push(value);
                 }
                 Bytecode::PushConstant0 => {
                     let literal = self.current_frame.lookup_constant(0);
-                    let value = convert_literal(&self.current_frame, literal, universe.gc_interface);
+                    let value = value_from_literal(&self.current_frame, literal, universe.gc_interface);
                     self.current_frame.stack_push(value);
                 }
                 Bytecode::PushConstant1 => {
                     let literal = self.current_frame.lookup_constant(1);
-                    let value = convert_literal(&self.current_frame, literal, universe.gc_interface);
+                    let value = value_from_literal(&self.current_frame, literal, universe.gc_interface);
                     self.current_frame.stack_push(value);
                 }
                 Bytecode::PushConstant2 => {
                     let literal = self.current_frame.lookup_constant(2);
-                    let value = convert_literal(&self.current_frame, literal, universe.gc_interface);
+                    let value = value_from_literal(&self.current_frame, literal, universe.gc_interface);
                     self.current_frame.stack_push(value);
                 }
                 Bytecode::PushGlobal(idx) => {
@@ -274,11 +278,11 @@ impl Interpreter {
                         Literal::Symbol(sym) => sym,
                         _ => panic!("Global is not a symbol."),
                     };
-                    if let Some(value) = universe.lookup_global(symbol) {
+                    if let Some(value) = universe.lookup_global(*symbol) {
                         self.current_frame.stack_push(value);
                     } else {
                         let self_value = self.current_frame.get_self();
-                        universe.unknown_global(self, self_value, symbol)?;
+                        universe.unknown_global(self, self_value, *symbol)?;
                     }
                 }
                 Bytecode::Push0 => {
@@ -488,9 +492,9 @@ impl Interpreter {
                         .unwrap();
                 }
                 Method::TrivialGlobal(met, _) => met.evaluate(universe, interpreter),
+                Method::TrivialLiteral(met, _) => met.evaluate(universe, interpreter),
                 Method::TrivialGetter(met, _) => met.invoke(universe, interpreter),
                 Method::TrivialSetter(met, _) => met.invoke(universe, interpreter),
-                // Method::TrivialLiteral(_met, _) => todo!()
             }
         }
 
@@ -513,27 +517,6 @@ impl Interpreter {
                     }
                     _ => class.lookup_method_as_static_ref(signature),
                 }
-            }
-        }
-
-        fn convert_literal(frame: &Gc<Frame>, literal: Literal, gc_interface: &mut GCInterface) -> Value {
-            match literal {
-                Literal::Symbol(sym) => Value::Symbol(sym),
-                Literal::String(val) => Value::String(val),
-                Literal::Double(val) => Value::Double(val),
-                Literal::Integer(val) => Value::Integer(val),
-                Literal::BigInteger(val) => Value::BigInteger(val),
-                Literal::Array(val) => {
-                    let arr = &val
-                        .iter()
-                        .map(|idx| {
-                            let lit = frame.lookup_constant(*idx as usize);
-                            convert_literal(frame, lit, gc_interface)
-                        })
-                        .collect::<Vec<_>>();
-                    Value::Array(gc_interface.alloc(VecValue(arr.to_vec())))
-                }
-                Literal::Block(val) => Value::Block(val),
             }
         }
 

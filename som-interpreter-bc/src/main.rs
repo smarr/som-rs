@@ -188,11 +188,11 @@ fn dump_class_methods(class: Gc<Class>, opts: &Options, file_stem: &str, univers
                 class = file_stem,
                 signature = method.signature()
             ),
-            // Method::TrivialLiteral(..) => println!(
-            //     "{class}>>#{signature} (trivial literal)",
-            //     class = file_stem,
-            //     signature = method.signature()
-            // ),
+            Method::TrivialLiteral(..) => println!(
+                "{class}>>#{signature} (trivial literal)",
+                class = file_stem,
+                signature = method.signature()
+            ),
         }
     }
 }

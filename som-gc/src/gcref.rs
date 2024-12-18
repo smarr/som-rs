@@ -18,7 +18,7 @@ macro_rules! debug_assert_valid_semispace_ptr_value {
     ($value:expr) => {
         #[cfg(debug_assertions)]
         unsafe {
-            if let Some(ptr) = $value.as_something::<()>() {
+            if let Some(ptr) = $value.0.as_something::<Gc<()>>() {
                 assert!(ptr.is_pointer_to_valid_space(), "Pointer to invalid space.");
             }
         }

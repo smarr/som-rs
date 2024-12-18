@@ -2,6 +2,7 @@ use crate::universe::Universe;
 use crate::vm_objects::class::Class;
 use crate::vm_objects::frame::Frame;
 use crate::vm_objects::method::{Method, MethodInfo};
+use som_gc::debug_assert_valid_semispace_ptr;
 use som_gc::gcref::Gc;
 use std::fmt;
 
@@ -29,6 +30,7 @@ impl Block {
 
     /// Retrieve the number of parameters this block accepts.
     pub fn nb_parameters(&self) -> usize {
+        debug_assert_valid_semispace_ptr!(self.blk_info);
         self.blk_info.get_env().nbr_params
     }
 }

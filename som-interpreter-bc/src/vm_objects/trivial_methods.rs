@@ -1,4 +1,4 @@
-use crate::compiler::Literal;
+use crate::compiler::{value_from_literal, Literal};
 use crate::interpreter::Interpreter;
 use crate::universe::Universe;
 use crate::vm_objects::instance::Instance;
@@ -7,6 +7,15 @@ use som_core::interner::Interned;
 #[derive(Debug, Clone, PartialEq)]
 pub struct TrivialLiteralMethod {
     pub(crate) literal: Literal,
+}
+
+impl TrivialLiteralMethod {
+    pub fn evaluate(&self, universe: &mut Universe, interpreter: &mut Interpreter) {
+        interpreter.current_frame.stack_pop(); // receiver
+
+        let value_from_literal = value_from_literal(&interpreter.current_frame, &self.literal, universe.gc_interface);
+        interpreter.current_frame.stack_push(value_from_literal)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]

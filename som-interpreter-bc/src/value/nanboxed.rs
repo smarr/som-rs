@@ -11,6 +11,7 @@ use som_core::delegate_to_base_value;
 use som_core::interner::Interned;
 use som_core::value::*;
 use som_core::value_ptr::{HasPointerTag, TypedPtrValue};
+use som_gc::debug_assert_valid_semispace_ptr_value;
 use som_gc::gcref::Gc;
 use std::fmt;
 use std::fmt::{Debug, Formatter};
@@ -111,6 +112,7 @@ impl Value {
     /// Get the class of the current value.
     #[inline(always)]
     pub fn class(&self, universe: &Universe) -> Gc<Class> {
+        debug_assert_valid_semispace_ptr_value!(self);
         match self.tag() {
             NIL_TAG => universe.core.nil_class(),
             SYSTEM_TAG => universe.core.system_class(),

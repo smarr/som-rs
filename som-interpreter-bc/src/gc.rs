@@ -146,10 +146,11 @@ pub fn scan_object<'a>(object: ObjectReference, slot_visitor: &'a mut (dyn SlotV
                     | Method::TrivialGetter(_, met_info)
                     | Method::TrivialSetter(_, met_info) => {
                         slot_visitor.visit_slot(SOMSlot::from(&met_info.holder));
-                    } // Method::TrivialLiteral(trivial_lit, met_info) => {
-                      //     visit_literal(&trivial_lit.literal, slot_visitor);
-                      //     slot_visitor.visit_slot(SOMSlot::from(&met_info.holder));
-                      // }
+                    }
+                    Method::TrivialLiteral(trivial_lit, met_info) => {
+                        visit_literal(&trivial_lit.literal, slot_visitor);
+                        slot_visitor.visit_slot(SOMSlot::from(&met_info.holder));
+                    }
                 }
             }
             BCObjMagicId::Class => {

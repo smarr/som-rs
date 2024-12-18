@@ -296,8 +296,8 @@ impl Frame {
     }
 
     #[inline(always)]
-    pub fn lookup_constant(&self, idx: usize) -> Literal {
-        self.current_context.get_env().literals.get(idx).unwrap().clone()
+    pub fn lookup_constant(&self, idx: usize) -> &Literal {
+        self.current_context.get_env().literals.get(idx).unwrap()
     }
 
     pub fn nth_frame_back(current_frame: &Gc<Frame>, n: u8) -> Gc<Frame> {

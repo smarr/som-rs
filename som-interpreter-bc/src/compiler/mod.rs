@@ -2,9 +2,13 @@
 //! This module only needs to expose the compile_class() function: the rest of the VM should not
 //! need access to more than that, barring testing.
 
+use crate::gc::VecValue;
+use crate::value::Value;
 use crate::vm_objects::block::Block;
+use crate::vm_objects::frame::Frame;
 use num_bigint::BigInt;
 use som_core::interner::Interned;
+use som_gc::gc_interface::GCInterface;
 use som_gc::gcref::{Gc, GcSlice};
 use std::hash::{Hash, Hasher};
 
@@ -76,5 +80,26 @@ impl Hash for Literal {
                 val.hash(state);
             }
         }
+    }
+}
+
+pub fn value_from_literal(frame: &Gc<Frame>, literal: &Literal, gc_interface: &mut GCInterface) -> Value {
+    match literal {
+        Literal::Symbol(sym) => Value::Symbol(*sym),
+        Literal::String(val) => Value::String(*val),
+        Literal::Double(val) => Value::Double(*val),
+        Literal::Integer(val) => Value::Integer(*val),
+        Literal::BigInteger(val) => Value::BigInteger(*val),
+        Literal::Array(val) => {
+            let arr = &val
+                .iter()
+                .map(|idx| {
+                    let lit = frame.lookup_constant(*idx as usize);
+                    value_from_literal(frame, lit, gc_interface)
+                })
+                .collect::<Vec<_>>();
+            Value::Array(gc_interface.alloc(VecValue(arr.to_vec())))
+        }
+        Literal::Block(val) => Value::Block(*val),
     }
 }
