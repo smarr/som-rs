@@ -102,6 +102,14 @@ impl Method {
             _ => panic!("requesting method metadata from primitive/trivial method"),
         }
     }
+
+    #[cfg(feature = "frame-debug-info")]
+    pub fn get_block_debug_info(&self) -> &BlockDebugInfo {
+        match &self {
+            Method::Defined(env) => &env.block_debug_info,
+            _ => panic!("requesting debug block info from primitive/trivial method"),
+        }
+    }
 }
 
 impl Method {
@@ -156,8 +164,8 @@ impl Invoke for Gc<Method> {
                 // dbg!(&interpreter.current_frame.stack_nth_back(2));
                 // dbg!(&interpreter.current_frame.stack_nth_back(3));
             }
-            Method::TrivialGlobal(met, _) => met.evaluate(universe, interpreter),
-            Method::TrivialLiteral(met, _) => met.evaluate(universe, interpreter),
+            Method::TrivialGlobal(met, _) => met.invoke(universe, interpreter),
+            Method::TrivialLiteral(met, _) => met.invoke(universe, interpreter),
             Method::TrivialGetter(met, _) => met.invoke(universe, interpreter),
             Method::TrivialSetter(met, _) => met.invoke(universe, interpreter),
         }

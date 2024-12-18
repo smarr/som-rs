@@ -366,7 +366,6 @@ pub trait HasTypeInfoForGC {
 
 pub const STRING_MAGIC_ID: u8 = 10;
 pub const BIGINT_MAGIC_ID: u8 = 11;
-pub const GCSLICE_U8_MAGIC_ID: u8 = 12;
 
 impl HasTypeInfoForGC for String {
     fn get_magic_gc_id() -> u8 {
@@ -387,12 +386,6 @@ impl HasTypeInfoForGC for BigInt {
 
 pub trait SupportedSliceType {
     fn get_magic_gc_slice_id() -> u8;
-}
-
-impl SupportedSliceType for u8 {
-    fn get_magic_gc_slice_id() -> u8 {
-        GCSLICE_U8_MAGIC_ID
-    }
 }
 
 impl<T: SupportedSliceType> HasTypeInfoForGC for GcSlice<T> {

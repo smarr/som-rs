@@ -245,6 +245,10 @@ impl PartialEq for Value {
 
 impl Debug for Value {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        ValueEnum::from(*self).fmt(f)
+        if let Some(arr) = self.as_array() {
+            f.write_fmt(format_args!("VecValue({:?})", arr.0))
+        } else {
+            ValueEnum::from(*self).fmt(f)
+        }
     }
 }

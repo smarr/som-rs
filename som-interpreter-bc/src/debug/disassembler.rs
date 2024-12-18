@@ -207,7 +207,7 @@ impl FrameEnv for Block {
     }
     #[cfg(feature = "frame-debug-info")]
     fn resolve_local(&self, idx: u8) -> String {
-        match self.blk_info.block_debug_info.locals.get(usize::from(idx)) {
+        match self.blk_info.get_block_debug_info().locals.get(usize::from(idx)) {
             None => String::from("(local not found)"),
             Some(s) => s.clone(),
         }
@@ -224,7 +224,7 @@ impl FrameEnv for Block {
 
     #[cfg(feature = "frame-debug-info")]
     fn resolve_argument(&self, idx: u8) -> String {
-        match self.blk_info.block_debug_info.parameters.get(usize::from(idx)) {
+        match self.blk_info.get_block_debug_info().parameters.get(usize::from(idx)) {
             None => String::from("(argument not found)"),
             Some(s) => s.clone(),
         }

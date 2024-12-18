@@ -10,11 +10,11 @@ pub struct TrivialLiteralMethod {
 }
 
 impl TrivialLiteralMethod {
-    pub fn evaluate(&self, universe: &mut Universe, interpreter: &mut Interpreter) {
-        interpreter.current_frame.stack_pop(); // receiver
-
-        let value_from_literal = value_from_literal(&interpreter.current_frame, &self.literal, universe.gc_interface);
-        interpreter.current_frame.stack_push(value_from_literal)
+    pub fn invoke(&self, universe: &mut Universe, interpreter: &mut Interpreter) {
+        let value_from_literal = value_from_literal(&self.literal, universe.gc_interface);
+        // dbg!(&value_from_literal);
+        interpreter.current_frame.stack_push(value_from_literal);
+        // dbg!(interpreter.current_frame);
     }
 }
 
@@ -24,7 +24,7 @@ pub struct TrivialGlobalMethod {
 }
 
 impl TrivialGlobalMethod {
-    pub fn evaluate(&self, universe: &mut Universe, interpreter: &mut Interpreter) {
+    pub fn invoke(&self, universe: &mut Universe, interpreter: &mut Interpreter) {
         interpreter.current_frame.stack_pop(); // receiver off the stack.
         universe
             .lookup_global(self.global_name)

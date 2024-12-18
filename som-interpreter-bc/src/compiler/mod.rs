@@ -2,14 +2,13 @@
 //! This module only needs to expose the compile_class() function: the rest of the VM should not
 //! need access to more than that, barring testing.
 
-use crate::gc::VecValue;
+use crate::gc::{VecLiteral, VecValue};
 use crate::value::Value;
 use crate::vm_objects::block::Block;
-use crate::vm_objects::frame::Frame;
 use num_bigint::BigInt;
 use som_core::interner::Interned;
 use som_gc::gc_interface::GCInterface;
-use som_gc::gcref::{Gc, GcSlice};
+use som_gc::gcref::Gc;
 use std::hash::{Hash, Hasher};
 
 /// Facilities to compile code.
@@ -25,7 +24,7 @@ pub enum Literal {
     Double(f64),
     Integer(i32),
     BigInteger(Gc<BigInt>),
-    Array(Box<GcSlice<u8>>), // boxed to be pointer sized, so to not make the max literal size too large
+    Array(Gc<VecLiteral>), // TODO: make a GCSlice instead (maybe boxed to be pointer sized)
     Block(Gc<Block>),
 }
 
@@ -37,7 +36,7 @@ impl PartialEq for Literal {
             (Literal::Double(val1), Literal::Double(val2)) => val1.eq(val2),
             (Literal::Integer(val1), Literal::Integer(val2)) => val1.eq(val2),
             (Literal::BigInteger(val1), Literal::BigInteger(val2)) => val1.eq(val2),
-            (Literal::Array(val1), Literal::Array(val2)) => val1.eq(val2),
+            (Literal::Array(val1), Literal::Array(val2)) => val1.0.eq(&val2.0),
             (Literal::Block(val1), Literal::Block(val2)) => val1 == val2,
             _ => false,
         }
@@ -71,7 +70,7 @@ impl Hash for Literal {
             }
             Literal::Array(val) => {
                 state.write(b"array#");
-                for elem in val.iter() {
+                for elem in val.0.iter() {
                     elem.hash(state)
                 }
             }
@@ -83,7 +82,7 @@ impl Hash for Literal {
     }
 }
 
-pub fn value_from_literal(frame: &Gc<Frame>, literal: &Literal, gc_interface: &mut GCInterface) -> Value {
+pub fn value_from_literal(literal: &Literal, gc_interface: &mut GCInterface) -> Value {
     match literal {
         Literal::Symbol(sym) => Value::Symbol(*sym),
         Literal::String(val) => Value::String(*val),
@@ -91,13 +90,7 @@ pub fn value_from_literal(frame: &Gc<Frame>, literal: &Literal, gc_interface: &m
         Literal::Integer(val) => Value::Integer(*val),
         Literal::BigInteger(val) => Value::BigInteger(*val),
         Literal::Array(val) => {
-            let arr = &val
-                .iter()
-                .map(|idx| {
-                    let lit = frame.lookup_constant(*idx as usize);
-                    value_from_literal(frame, lit, gc_interface)
-                })
-                .collect::<Vec<_>>();
+            let arr = &val.0.iter().map(|lit| value_from_literal(lit, gc_interface)).collect::<Vec<_>>();
             Value::Array(gc_interface.alloc(VecValue(arr.to_vec())))
         }
         Literal::Block(val) => Value::Block(*val),

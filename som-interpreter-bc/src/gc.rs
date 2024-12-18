@@ -12,7 +12,7 @@ use mmtk::util::ObjectReference;
 use mmtk::vm::{ObjectModel, SlotVisitor};
 use mmtk::Mutator;
 use num_bigint::BigInt;
-use som_gc::gc_interface::{HasTypeInfoForGC, MMTKtoVMCallbacks, BIGINT_MAGIC_ID, GCSLICE_U8_MAGIC_ID, STRING_MAGIC_ID};
+use som_gc::gc_interface::{HasTypeInfoForGC, MMTKtoVMCallbacks, BIGINT_MAGIC_ID, STRING_MAGIC_ID};
 use som_gc::gcref::Gc;
 use som_gc::object_model::VMObjectModel;
 use som_gc::slot::SOMSlot;
@@ -23,8 +23,8 @@ use som_gc::SOMVM;
 pub enum BCObjMagicId {
     String = STRING_MAGIC_ID as isize,
     BigInt = BIGINT_MAGIC_ID as isize,
-    ArrayU8 = GCSLICE_U8_MAGIC_ID as isize,
     Frame = 100,
+    ArrayLiteral = 101,
     Block = 102,
     Class = 103,
     Instance = 104,
@@ -33,11 +33,29 @@ pub enum BCObjMagicId {
 }
 
 // TODO: HACK. this is to be able to define a magic id for it. what we REALLY need is a GCSlice<T> type.
+// TODO: which now exists - implement properly with vecvalue.
 pub struct VecValue(pub Vec<Value>);
+
+// HACK: ditto.
+#[derive(Debug, Clone)]
+pub struct VecLiteral(pub Vec<Literal>);
+
+// pub const GCSLICE_LITERAL_MAGIC_ID: u8 = 12;
+// impl SupportedSliceType for Literal {
+//     fn get_magic_gc_slice_id() -> u8 {
+//         GCSLICE_LITERAL_MAGIC_ID
+//     }
+// }
 
 impl HasTypeInfoForGC for VecValue {
     fn get_magic_gc_id() -> u8 {
         BCObjMagicId::ArrayVal as u8
+    }
+}
+
+impl HasTypeInfoForGC for VecLiteral {
+    fn get_magic_gc_id() -> u8 {
+        BCObjMagicId::ArrayLiteral as u8
     }
 }
 
@@ -87,7 +105,7 @@ pub fn visit_literal<'a>(lit: &Literal, slot_visitor: &'a mut (dyn SlotVisitor<S
         Literal::Block(blk) => slot_visitor.visit_slot(SOMSlot::from(blk)),
         Literal::String(str) => slot_visitor.visit_slot(SOMSlot::from(str)),
         Literal::BigInteger(bigint) => slot_visitor.visit_slot(SOMSlot::from(bigint)),
-        Literal::Array(arr) => slot_visitor.visit_slot(SOMSlot::from(arr.as_ref())),
+        Literal::Array(arr) => slot_visitor.visit_slot(SOMSlot::from(arr)),
         _ => {}
     }
 }
@@ -195,7 +213,13 @@ pub fn scan_object<'a>(object: ObjectReference, slot_visitor: &'a mut (dyn SlotV
                     visit_value(val, slot_visitor)
                 }
             }
-            BCObjMagicId::String | BCObjMagicId::ArrayU8 | BCObjMagicId::BigInt => {
+            BCObjMagicId::ArrayLiteral => {
+                let arr: &Vec<Literal> = object.to_raw_address().as_ref();
+                for lit in arr.iter() {
+                    visit_literal(lit, slot_visitor)
+                }
+            }
+            BCObjMagicId::String | BCObjMagicId::BigInt => {
                 // leaf nodes: no children.
             }
         }
@@ -252,7 +276,7 @@ fn get_object_size(object: ObjectReference) -> usize {
         match gc_id {
             BCObjMagicId::String => size_of::<String>(),
             BCObjMagicId::BigInt => size_of::<BigInt>(),
-            BCObjMagicId::ArrayU8 => size_of::<Vec<u8>>(),
+            BCObjMagicId::ArrayLiteral => size_of::<Vec<u8>>(),
             BCObjMagicId::Frame => unsafe {
                 let frame: &mut Frame = object.to_raw_address().as_mut_ref();
                 Frame::get_true_size(frame.get_max_stack_size(), frame.get_nbr_args(), frame.get_nbr_locals())

@@ -11,13 +11,12 @@ members = [
 ]
 resolver = "2"
 
-[profile.dev]
-# On panic, kill every thread. MMTk introduces new threads and if they crash because of us, the process could hang.
-# They shouldn't crash anymore, we're relatively stable, but I'm keeping this around for now. Ditto for the release build.
-panic = 'abort'
+### very minor speedup from this (which could even be noise..).
+#[build.release]
+#rustflags = ["-C", "target-cpu=native"]
 
 [profile.release]
-panic = 'abort'
+panic = 'abort' # supposedly a minor speedup from hanging on to less stack info that way
 
 # for debugging
 #debug-assertions = true

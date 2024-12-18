@@ -254,22 +254,22 @@ impl Interpreter {
                 }
                 Bytecode::PushConstant(idx) => {
                     let literal = self.current_frame.lookup_constant(idx as usize);
-                    let value = value_from_literal(&self.current_frame, literal, universe.gc_interface);
+                    let value = value_from_literal(literal, universe.gc_interface);
                     self.current_frame.stack_push(value);
                 }
                 Bytecode::PushConstant0 => {
                     let literal = self.current_frame.lookup_constant(0);
-                    let value = value_from_literal(&self.current_frame, literal, universe.gc_interface);
+                    let value = value_from_literal(literal, universe.gc_interface);
                     self.current_frame.stack_push(value);
                 }
                 Bytecode::PushConstant1 => {
                     let literal = self.current_frame.lookup_constant(1);
-                    let value = value_from_literal(&self.current_frame, literal, universe.gc_interface);
+                    let value = value_from_literal(literal, universe.gc_interface);
                     self.current_frame.stack_push(value);
                 }
                 Bytecode::PushConstant2 => {
                     let literal = self.current_frame.lookup_constant(2);
-                    let value = value_from_literal(&self.current_frame, literal, universe.gc_interface);
+                    let value = value_from_literal(literal, universe.gc_interface);
                     self.current_frame.stack_push(value);
                 }
                 Bytecode::PushGlobal(idx) => {
@@ -485,14 +485,18 @@ impl Interpreter {
                     // eprintln!("Invoking {:?} (in {:?})", &method.signature, &name);
                     interpreter.push_method_frame(method, nb_params + 1, universe.gc_interface);
                 }
-                Method::Primitive(func, ..) => {
-                    // eprintln!("Invoking prim {:?} (in {:?})", &_sig, &_cls.name);
+                Method::Primitive(func, _met_info) => {
+                    // eprintln!("Invoking prim {:?} (in {:?})", &_met_info.signature, &_met_info.holder.name);
+                    // dbg!(interpreter.current_frame);
                     func(interpreter, universe, nb_params + 1)
                         .with_context(|| anyhow::anyhow!("error calling primitive `{}`", universe.lookup_symbol(symbol)))
                         .unwrap();
                 }
-                Method::TrivialGlobal(met, _) => met.evaluate(universe, interpreter),
-                Method::TrivialLiteral(met, _) => met.evaluate(universe, interpreter),
+                Method::TrivialGlobal(met, _) => met.invoke(universe, interpreter),
+                Method::TrivialLiteral(met, _) => {
+                    interpreter.current_frame.stack_pop(); // remove the receiver
+                    met.invoke(universe, interpreter)
+                }
                 Method::TrivialGetter(met, _) => met.invoke(universe, interpreter),
                 Method::TrivialSetter(met, _) => met.invoke(universe, interpreter),
             }

@@ -8,13 +8,14 @@ use std::str::FromStr;
 #[cfg(not(feature = "inlining-disabled"))]
 use crate::compiler::inliner::PrimMessageInliner;
 use crate::compiler::Literal;
+use crate::gc::VecLiteral;
 use crate::primitives;
 use crate::primitives::UNIMPLEM_PRIMITIVE;
 use crate::value::Value;
 use crate::vm_objects::block::Block;
 use crate::vm_objects::class::Class;
 use crate::vm_objects::method::{BasicMethodInfo, Method, MethodInfo};
-use crate::vm_objects::trivial_methods::{TrivialGetterMethod, TrivialGlobalMethod, TrivialSetterMethod};
+use crate::vm_objects::trivial_methods::{TrivialGetterMethod, TrivialGlobalMethod, TrivialLiteralMethod, TrivialSetterMethod};
 use som_core::ast;
 #[cfg(feature = "frame-debug-info")]
 use som_core::ast::BlockDebugInfo;
@@ -475,15 +476,9 @@ impl MethodCodegen for ast::Expression {
                             }
                         }
                         ast::Literal::Array(val) => {
-                            let literals: Vec<u8> = val
-                                .iter()
-                                .map(|val| {
-                                    let literal = convert_literal(ctxt, val, gc_interface);
-                                    ctxt.push_literal(literal) as u8
-                                })
-                                .collect();
-                            let literal_ptr = gc_interface.alloc_slice(&literals);
-                            Literal::Array(Box::new(literal_ptr))
+                            let literals: Vec<Literal> = val.iter().map(|val| convert_literal(ctxt, val, gc_interface)).collect();
+                            let literal_ptr = gc_interface.alloc(VecLiteral(literals));
+                            Literal::Array(literal_ptr)
                         }
                     }
                 }
@@ -582,14 +577,16 @@ fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::MethodDef, gc_interface: 
                 TrivialSetterMethod { field_idx: *x },
                 BasicMethodInfo::new(String::from(signature), Gc::default()),
             )),
-            /*([literal_bc, Bytecode::ReturnLocal], 0) => {
+            ([literal_bc, Bytecode::ReturnLocal], 0) => {
                 let maybe_literal = match literal_bc {
-                    Bytecode::PushConstant(x) | Bytecode::PushBlock(x) => literals.get(*x as usize),
+                    Bytecode::PushConstant(x) => literals.get(*x as usize),
                     Bytecode::PushConstant0 => literals.first(),
                     Bytecode::PushConstant1 => literals.get(1),
                     Bytecode::PushConstant2 => literals.get(2),
                     Bytecode::Push0 => Some(&Literal::Integer(0)),
                     Bytecode::Push1 => Some(&Literal::Integer(1)),
+                    // this case breaks, which i'm not sure makes sense. it's pretty much unused in our benchmarks anyway + AST doesn't have an equivalent optim like that, so it's OK.
+                    // Bytecode::PushBlock(x) => literals.get(*x as usize),
                     _ => None,
                 };
 
@@ -599,7 +596,7 @@ fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::MethodDef, gc_interface: 
                         BasicMethodInfo::new(String::from(signature), Gc::default()),
                     )
                 })
-            }*/
+            }
             _ => None,
         }
     }
