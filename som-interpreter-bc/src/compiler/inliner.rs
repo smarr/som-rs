@@ -3,7 +3,7 @@ use crate::compiler::inliner::JumpType::{JumpOnFalse, JumpOnTrue};
 use crate::compiler::inliner::OrAndChoice::{And, Or};
 use crate::compiler::Literal;
 use crate::vm_objects::block::Block;
-use crate::vm_objects::method::{Method, MethodInfo};
+use crate::vm_objects::method::{BasicMethodInfo, Method, MethodInfo};
 use som_core::ast;
 use som_core::bytecode::Bytecode;
 use som_gc::gc_interface::GCInterface;
@@ -289,8 +289,7 @@ impl PrimMessageInliner for ast::Message {
         Block {
             frame: orig_block.frame,
             blk_info: gc_interface.alloc(Method::Defined(MethodInfo {
-                holder: orig_block.blk_info.get_env().holder,
-                signature: orig_block.blk_info.get_env().signature.clone(),
+                base_method_info: BasicMethodInfo::new(String::from(orig_block.blk_info.signature()), *orig_block.blk_info.holder()),
                 nbr_locals: orig_block.blk_info.get_env().nbr_locals,
                 literals: orig_block
                     .blk_info

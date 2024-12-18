@@ -129,7 +129,7 @@ pub fn scan_object<'a>(object: ObjectReference, slot_visitor: &'a mut (dyn SlotV
 
                 match method {
                     Method::Defined(method) => {
-                        slot_visitor.visit_slot(SOMSlot::from(&method.holder));
+                        slot_visitor.visit_slot(SOMSlot::from(&method.base_method_info.holder));
 
                         for (cls_ptr, _method_ptr) in method.inline_cache.iter().flatten() {
                             slot_visitor.visit_slot(SOMSlot::from(cls_ptr));
@@ -141,10 +141,9 @@ pub fn scan_object<'a>(object: ObjectReference, slot_visitor: &'a mut (dyn SlotV
                             visit_literal(lit, slot_visitor)
                         }
                     }
-                    Method::Primitive(_, _, c) => {
-                        slot_visitor.visit_slot(SOMSlot::from(&*c));
+                    Method::Primitive(_, met_info) | Method::TrivialGlobal(_, met_info) => {
+                        slot_visitor.visit_slot(SOMSlot::from(&met_info.holder));
                     }
-                    Method::TrivialGlobal(..) => {}
                 }
             }
             BCObjMagicId::Class => {
@@ -210,7 +209,7 @@ fn get_roots_in_mutator_thread(_mutator: &mut Mutator<SOMVM>) -> Vec<SOMSlot> {
         let current_frame_addr = &(**INTERPRETER_RAW_PTR_CONST.as_ptr()).current_frame;
         debug!(
             "scanning root: current_frame (method: {})",
-            current_frame_addr.current_context.get_env().signature
+            current_frame_addr.current_context.get_env().base_method_info.signature
         );
         to_process.push(SOMSlot::from(current_frame_addr));
 

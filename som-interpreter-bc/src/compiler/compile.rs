@@ -13,7 +13,7 @@ use crate::primitives::UNIMPLEM_PRIMITIVE;
 use crate::value::Value;
 use crate::vm_objects::block::Block;
 use crate::vm_objects::class::Class;
-use crate::vm_objects::method::{Method, MethodInfo};
+use crate::vm_objects::method::{BasicMethodInfo, Method, MethodInfo};
 use crate::vm_objects::trivial_methods::TrivialGlobalMethod;
 use som_core::ast;
 #[cfg(feature = "frame-debug-info")]
@@ -577,7 +577,7 @@ fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::MethodDef, gc_interface: 
                 if let Literal::Symbol(interned) = literals.get(*x as usize)? {
                     return Some(Method::TrivialGlobal(
                         TrivialGlobalMethod { global_name: *interned },
-                        String::from(signature),
+                        BasicMethodInfo::new(String::from(signature), Gc::default()),
                     ));
                 }
             }
@@ -658,7 +658,7 @@ fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::MethodDef, gc_interface: 
 
     let method = {
         match &defn.body {
-            ast::MethodBody::Primitive => Method::Primitive(&*UNIMPLEM_PRIMITIVE, String::from(""), Gc::default()),
+            ast::MethodBody::Primitive => Method::Primitive(&*UNIMPLEM_PRIMITIVE, BasicMethodInfo::new(String::from(""), Gc::default())),
             ast::MethodBody::Body { .. } => {
                 // let locals = std::mem::take(&mut ctxt.inner.locals);
                 let nbr_locals = ctxt.inner.locals_nbr;
@@ -682,9 +682,8 @@ fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::MethodDef, gc_interface: 
                     let max_stack_size = get_max_stack_size(&body);
 
                     Method::Defined(MethodInfo {
+                        base_method_info: BasicMethodInfo::new(signature, Gc::default()),
                         body,
-                        holder: Gc::default(),
-                        signature,
                         nbr_locals,
                         nbr_params,
                         literals,
@@ -752,9 +751,8 @@ fn compile_block(outer: &mut dyn GenCtxt, defn: &ast::Block, gc_interface: &mut 
     let block = Block {
         frame,
         blk_info: gc_interface.alloc(Method::Defined(MethodInfo {
+            base_method_info: BasicMethodInfo::new(signature, Gc::default()),
             nbr_locals,
-            signature,
-            holder: Gc::default(),
             literals,
             body,
             nbr_params,
@@ -882,7 +880,7 @@ pub fn compile_class(
                 eprintln!("Warning: Primitive '{}' is not in class definition for class '{}'", signature, defn.name);
             }
 
-            let method = Method::Primitive(primitive, String::from(signature), static_class_gc_ptr);
+            let method = Method::Primitive(primitive, BasicMethodInfo::new(String::from(signature), static_class_gc_ptr));
 
             let signature = static_class_ctxt.interner.intern(signature);
             static_class_ctxt.methods.insert(signature, gc_interface.alloc(method));
@@ -947,7 +945,7 @@ pub fn compile_class(
                 eprintln!("Warning: Primitive '{}' is not in class definition for class '{}'", signature, defn.name);
             }
 
-            let method = Method::Primitive(primitive, String::from(signature), instance_class_gc_ptr);
+            let method = Method::Primitive(primitive, BasicMethodInfo::new(String::from(signature), instance_class_gc_ptr));
             let signature = instance_class_ctxt.interner.intern(signature);
             instance_class_ctxt.methods.insert(signature, gc_interface.alloc(method));
         }

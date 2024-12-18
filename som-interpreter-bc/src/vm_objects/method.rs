@@ -16,11 +16,23 @@ use som_gc::gcref::Gc;
 use crate::vm_objects::block::BodyInlineCache;
 use crate::vm_objects::trivial_methods::TrivialGlobalMethod;
 
+/// The minimum for every kind of method: a signature and a holder.
+#[derive(Debug, Clone)]
+pub struct BasicMethodInfo {
+    pub signature: String,
+    pub holder: Gc<Class>,
+}
+
+impl BasicMethodInfo {
+    pub fn new(signature: String, holder: Gc<Class>) -> Self {
+        Self { signature, holder }
+    }
+}
+
 /// Data for a method, or a block.
 #[derive(Clone)]
 pub struct MethodInfo {
-    pub signature: String,
-    pub holder: Gc<Class>,
+    pub base_method_info: BasicMethodInfo,
     pub literals: Vec<Literal>,
     pub body: Vec<Bytecode>,
     pub inline_cache: BodyInlineCache,
@@ -37,11 +49,11 @@ pub enum Method {
     /// A user-defined method from the AST.
     Defined(MethodInfo),
     /// An interpreter primitive.
-    Primitive(&'static PrimitiveFn, String, Gc<Class>),
+    Primitive(&'static PrimitiveFn, BasicMethodInfo),
     // /// A trivial literal read
-    // TrivialLiteral(TrivialLiteralMethod),
+    // TrivialLiteral(TrivialLiteralMethod, String, Gc<Class>),
     /// A trivial global read
-    TrivialGlobal(TrivialGlobalMethod, String),
+    TrivialGlobal(TrivialGlobalMethod, BasicMethodInfo),
     // /// A trivial getter method
     // TrivialGetter(TrivialGetterMethod),
     // /// A trivial setter method
@@ -56,9 +68,9 @@ impl Method {
 
     pub fn holder(&self) -> &Gc<Class> {
         match &self {
-            Method::Defined(env) => &env.holder,
-            Method::Primitive(_, _, holder) => holder,
-            Method::TrivialGlobal(..) => todo!(),
+            Method::Defined(env) => &env.base_method_info.holder,
+            Method::Primitive(_, met_info) => &met_info.holder,
+            Method::TrivialGlobal(_, met_info) => &met_info.holder,
         }
     }
 
@@ -66,23 +78,22 @@ impl Method {
     pub fn set_holder(&mut self, holder_ptr: Gc<Class>) {
         match self {
             Method::Defined(env) => {
-                env.holder = holder_ptr;
+                env.base_method_info.holder = holder_ptr;
                 for lit in &mut env.literals {
                     if let Literal::Block(blk) = lit {
                         blk.blk_info.set_holder(holder_ptr);
                     }
                 }
             }
-            Method::Primitive(_, _, c) => *c = holder_ptr,
-            Method::TrivialGlobal(..) => {} //todo!(),
+            Method::Primitive(_, met_info) => met_info.holder = holder_ptr,
+            Method::TrivialGlobal(_, met_info) => met_info.holder = holder_ptr,
         }
     }
 
     pub fn get_env(&self) -> &MethodInfo {
         match self {
             Method::Defined(env) => env,
-            Method::Primitive(_, _, _) => panic!("requesting method metadata from primitive"),
-            Method::TrivialGlobal(..) => todo!(),
+            _ => panic!("requesting method metadata from primitive/trivial method"),
         }
     }
 }
@@ -98,9 +109,8 @@ impl Method {
 
     pub fn signature(&self) -> &str {
         match &self {
-            Method::Defined(gc) => &gc.signature,
-            Method::Primitive(_, name, _) => name.as_str(),
-            Method::TrivialGlobal(_, name) => name.as_str(),
+            Method::Defined(gc) => &gc.base_method_info.signature,
+            Method::Primitive(_, met_info) | Method::TrivialGlobal(_, met_info) => met_info.signature.as_str(),
         }
     }
 }
@@ -137,6 +147,7 @@ impl Invoke for Gc<Method> {
                 // dbg!(&interpreter.current_frame.stack_nth_back(3));
             }
             Method::TrivialGlobal(met, _) => met.evaluate(universe, interpreter),
+            // Method::TrivialLiteral(met, _) => met.evaluate(universe, interpreter),
         }
     }
 }

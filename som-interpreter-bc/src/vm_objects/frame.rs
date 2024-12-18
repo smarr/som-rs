@@ -269,7 +269,7 @@ impl Frame {
                 let block_frame = b.frame.as_ref().unwrap();
                 block_frame.get_method_holder()
             }
-            None => self.current_context.get_env().holder,
+            None => *self.current_context.holder(),
         }
     }
 
