@@ -488,6 +488,9 @@ impl Interpreter {
                         .unwrap();
                 }
                 Method::TrivialGlobal(met, _) => met.evaluate(universe, interpreter),
+                Method::TrivialGetter(met, _) => met.invoke(universe, interpreter),
+                Method::TrivialSetter(met, _) => met.invoke(universe, interpreter),
+                // Method::TrivialLiteral(_met, _) => todo!()
             }
         }
 

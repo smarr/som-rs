@@ -14,7 +14,7 @@ use crate::value::Value;
 use crate::vm_objects::block::Block;
 use crate::vm_objects::class::Class;
 use crate::vm_objects::method::{BasicMethodInfo, Method, MethodInfo};
-use crate::vm_objects::trivial_methods::TrivialGlobalMethod;
+use crate::vm_objects::trivial_methods::{TrivialGetterMethod, TrivialGlobalMethod, TrivialSetterMethod};
 use som_core::ast;
 #[cfg(feature = "frame-debug-info")]
 use som_core::ast::BlockDebugInfo;
@@ -565,8 +565,8 @@ fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::MethodDef, gc_interface: 
         }
     }
 
-    fn make_trivial_if_possible(body: &Vec<Bytecode>, literals: &[Literal], signature: &str, nbr_params: usize) -> Option<Method> {
-        // if body.len() == 2 {
+    fn make_trivial_method_if_possible(body: &Vec<Bytecode>, literals: &[Literal], signature: &str, nbr_params: usize) -> Option<Method> {
+        // if body.len() == 3 {
         //     dbg!(body);
         // }
         match body.as_slice() {
@@ -580,10 +580,28 @@ fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::MethodDef, gc_interface: 
                         BasicMethodInfo::new(String::from(signature), Gc::default()),
                     ));
                 }
+                None
             }
-            _ => {}
+            [Bytecode::PushField(x), Bytecode::ReturnLocal] => {
+                if nbr_params != 0 {
+                    return None;
+                }
+                Some(Method::TrivialGetter(
+                    TrivialGetterMethod { field_idx: *x },
+                    BasicMethodInfo::new(String::from(signature), Gc::default()),
+                ))
+            }
+            [Bytecode::PushArg(1), Bytecode::PopField(x), Bytecode::ReturnSelf] => {
+                if nbr_params != 1 {
+                    return None;
+                }
+                Some(Method::TrivialSetter(
+                    TrivialSetterMethod { field_idx: *x },
+                    BasicMethodInfo::new(String::from(signature), Gc::default()),
+                ))
+            }
+            _ => None,
         }
-        None
     }
 
     let mut ctxt = MethodGenCtxt {
@@ -672,7 +690,7 @@ fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::MethodDef, gc_interface: 
                     }
                 };
 
-                if let Some(trivial_method) = make_trivial_if_possible(&body, &literals, &signature, nbr_params) {
+                if let Some(trivial_method) = make_trivial_method_if_possible(&body, &literals, &signature, nbr_params) {
                     trivial_method
                 } else {
                     let inline_cache = vec![None; body.len()];

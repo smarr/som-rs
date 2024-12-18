@@ -14,7 +14,7 @@ use som_core::ast::BlockDebugInfo;
 use som_gc::gcref::Gc;
 
 use crate::vm_objects::block::BodyInlineCache;
-use crate::vm_objects::trivial_methods::TrivialGlobalMethod;
+use crate::vm_objects::trivial_methods::{TrivialGetterMethod, TrivialGlobalMethod, TrivialSetterMethod};
 
 /// The minimum for every kind of method: a signature and a holder.
 #[derive(Debug, Clone)]
@@ -51,13 +51,13 @@ pub enum Method {
     /// An interpreter primitive.
     Primitive(&'static PrimitiveFn, BasicMethodInfo),
     // /// A trivial literal read
-    // TrivialLiteral(TrivialLiteralMethod, String, Gc<Class>),
+    // TrivialLiteral(TrivialLiteralMethod, BasicMethodInfo),
     /// A trivial global read
     TrivialGlobal(TrivialGlobalMethod, BasicMethodInfo),
-    // /// A trivial getter method
-    // TrivialGetter(TrivialGetterMethod),
-    // /// A trivial setter method
-    // TrivialSetter(TrivialSetterMethod),
+    /// A trivial getter method
+    TrivialGetter(TrivialGetterMethod, BasicMethodInfo),
+    /// A trivial setter method
+    TrivialSetter(TrivialSetterMethod, BasicMethodInfo),
 }
 
 impl Method {
@@ -69,8 +69,12 @@ impl Method {
     pub fn holder(&self) -> &Gc<Class> {
         match &self {
             Method::Defined(env) => &env.base_method_info.holder,
-            Method::Primitive(_, met_info) => &met_info.holder,
-            Method::TrivialGlobal(_, met_info) => &met_info.holder,
+            Method::Primitive(_, met_info)
+            | Method::TrivialGlobal(_, met_info)
+            | Method::TrivialGetter(_, met_info)
+            | Method::TrivialSetter(_, met_info)
+            // | Method::TrivialLiteral(_, met_info) 
+            => &met_info.holder,
         }
     }
 
@@ -85,8 +89,10 @@ impl Method {
                     }
                 }
             }
-            Method::Primitive(_, met_info) => met_info.holder = holder_ptr,
-            Method::TrivialGlobal(_, met_info) => met_info.holder = holder_ptr,
+            Method::Primitive(_, met_info)
+            | Method::TrivialGlobal(_, met_info)
+            | Method::TrivialGetter(_, met_info)
+            | Method::TrivialSetter(_, met_info) => met_info.holder = holder_ptr,
         }
     }
 
@@ -110,7 +116,10 @@ impl Method {
     pub fn signature(&self) -> &str {
         match &self {
             Method::Defined(gc) => &gc.base_method_info.signature,
-            Method::Primitive(_, met_info) | Method::TrivialGlobal(_, met_info) => met_info.signature.as_str(),
+            Method::Primitive(_, met_info)
+            | Method::TrivialGlobal(_, met_info)
+            | Method::TrivialGetter(_, met_info)
+            | Method::TrivialSetter(_, met_info) => met_info.signature.as_str(),
         }
     }
 }
@@ -147,7 +156,8 @@ impl Invoke for Gc<Method> {
                 // dbg!(&interpreter.current_frame.stack_nth_back(3));
             }
             Method::TrivialGlobal(met, _) => met.evaluate(universe, interpreter),
-            // Method::TrivialLiteral(met, _) => met.evaluate(universe, interpreter),
+            Method::TrivialGetter(_met, _) => todo!(),
+            Method::TrivialSetter(_met, _) => todo!(),
         }
     }
 }
@@ -238,6 +248,9 @@ impl fmt::Display for Method {
             }
             Method::Primitive(..) => write!(f, "<primitive>"),
             Method::TrivialGlobal(..) => write!(f, "TrivialGlobal"),
+            // Method::TrivialLiteral(..) => write!(f, "TrivialLiteral"),
+            Method::TrivialGetter(..) => write!(f, "TrivialGetter"),
+            Method::TrivialSetter(..) => write!(f, "TrivialSetter"),
         }
     }
 }

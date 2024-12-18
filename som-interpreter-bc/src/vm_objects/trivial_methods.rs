@@ -1,6 +1,7 @@
 use crate::compiler::Literal;
 use crate::interpreter::Interpreter;
 use crate::universe::Universe;
+use crate::vm_objects::instance::Instance;
 use som_core::interner::Interned;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -28,45 +29,41 @@ impl TrivialGlobalMethod {
     }
 }
 
-// #[derive(Debug, Clone, PartialEq)]
-// pub struct TrivialGetterMethod {
-//     pub(crate) field_idx: u8,
-// }
-//
-// impl Invoke for TrivialGetterMethod {
-//     fn invoke(&mut self, _universe: &mut Universe, value_stack: &mut GlobalValueStack, nbr_args: usize) -> Return {
-//         debug_assert_eq!(nbr_args, 1);
-//         let arg = value_stack.pop();
-//
-//         if let Some(cls) = arg.as_class() {
-//             Return::Local(cls.class().lookup_field(self.field_idx))
-//         } else if let Some(instance) = arg.as_instance() {
-//             Return::Local(*instance.lookup_field(self.field_idx))
-//         } else {
-//             panic!("trivial getter not called on a class/instance?")
-//         }
-//     }
-// }
-//
-// #[derive(Debug, Clone, PartialEq)]
-// pub struct TrivialSetterMethod {
-//     pub(crate) field_idx: u8,
-// }
-//
-// impl Invoke for TrivialSetterMethod {
-//     fn invoke(&mut self, _universe: &mut Universe, value_stack: &mut GlobalValueStack, nbr_args: usize) -> Return {
-//         debug_assert_eq!(nbr_args, 2);
-//         let val = value_stack.pop();
-//         let rcvr = value_stack.pop();
-//
-//         if let Some(cls) = rcvr.as_class() {
-//             cls.class().assign_field(self.field_idx, val);
-//             Return::Local(Value::Class(cls))
-//         } else if let Some(mut instance) = rcvr.as_instance() {
-//             instance.assign_field(self.field_idx, val);
-//             Return::Local(Value::Instance(instance))
-//         } else {
-//             panic!("trivial getter not called on a class/instance?")
-//         }
-//     }
-// }
+#[derive(Debug, Clone, PartialEq)]
+pub struct TrivialGetterMethod {
+    pub(crate) field_idx: u8,
+}
+
+impl TrivialGetterMethod {
+    pub fn invoke(&self, _universe: &mut Universe, interpreter: &mut Interpreter) {
+        let arg = interpreter.current_frame.stack_pop();
+
+        if let Some(cls) = arg.as_class() {
+            interpreter.current_frame.stack_push(cls.class().lookup_field(self.field_idx as usize))
+        } else if let Some(instance) = arg.as_instance() {
+            interpreter.current_frame.stack_push(*Instance::lookup_field(instance, self.field_idx as usize))
+        } else {
+            panic!("trivial getter not called on a class/instance?")
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct TrivialSetterMethod {
+    pub(crate) field_idx: u8,
+}
+
+impl TrivialSetterMethod {
+    pub fn invoke(&self, _universe: &mut Universe, interpreter: &mut Interpreter) {
+        let val = interpreter.current_frame.stack_pop();
+        let rcvr = interpreter.current_frame.stack_last();
+
+        if let Some(cls) = rcvr.as_class() {
+            cls.class().assign_field(self.field_idx as usize, val);
+        } else if let Some(instance) = rcvr.as_instance() {
+            Instance::assign_field(instance, self.field_idx as usize, val)
+        } else {
+            panic!("trivial getter not called on a class/instance?")
+        }
+    }
+}
