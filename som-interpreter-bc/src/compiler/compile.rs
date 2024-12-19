@@ -254,9 +254,6 @@ impl InnerGenCtxt for BlockGenCtxt<'_> {
                 | Bytecode::PushField(..)
                 | Bytecode::PushBlock(..)
                 | Bytecode::PushConstant(..)
-                | Bytecode::PushConstant0
-                | Bytecode::PushConstant1
-                | Bytecode::PushConstant2
                 | Bytecode::PushGlobal(..)
                 | Bytecode::Push0
                 | Bytecode::Push1
@@ -579,12 +576,7 @@ impl MethodCodegen for ast::Expression {
                     Literal::Integer(1) => ctxt.push_instr(Bytecode::Push1),
                     _ => {
                         let idx = ctxt.push_literal(literal);
-                        match idx {
-                            0 => ctxt.push_instr(Bytecode::PushConstant0),
-                            1 => ctxt.push_instr(Bytecode::PushConstant1),
-                            2 => ctxt.push_instr(Bytecode::PushConstant2),
-                            _ => ctxt.push_instr(Bytecode::PushConstant(idx as u8)),
-                        }
+                        ctxt.push_instr(Bytecode::PushConstant(idx as u8))
                     }
                 }
 
@@ -673,9 +665,6 @@ fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::MethodDef, gc_interface: 
             ([literal_bc, Bytecode::ReturnLocal], 0) => {
                 let maybe_literal = match literal_bc {
                     Bytecode::PushConstant(x) => literals.get(*x as usize),
-                    Bytecode::PushConstant0 => literals.first(),
-                    Bytecode::PushConstant1 => literals.get(1),
-                    Bytecode::PushConstant2 => literals.get(2),
                     Bytecode::Push0 => Some(&Literal::Integer(0)),
                     Bytecode::Push1 => Some(&Literal::Integer(1)),
                     // this case breaks, which i'm not sure makes sense. it's pretty much unused in our benchmarks anyway + AST doesn't have an equivalent optim like that, so it's OK.

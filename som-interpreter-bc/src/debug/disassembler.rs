@@ -78,15 +78,7 @@ fn disassemble_body(universe: &Universe, class: &Class, level: usize, env: &mut 
                 disassemble_body(universe, class, level + 1, env);
                 env.pop();
             }
-            Bytecode::PushConstant(_) | Bytecode::PushConstant0 | Bytecode::PushConstant1 | Bytecode::PushConstant2 => {
-                let idx = match bytecode {
-                    Bytecode::PushConstant(c_idx) => c_idx,
-                    Bytecode::PushConstant0 => 0,
-                    Bytecode::PushConstant1 => 1,
-                    Bytecode::PushConstant2 => 2,
-                    _ => unreachable!(),
-                };
-
+            Bytecode::PushConstant(idx) => {
                 print!(" {idx}");
                 let Some(literal) = current.resolve_literal(idx) else {
                     println!(" (invalid constant)");

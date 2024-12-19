@@ -233,21 +233,6 @@ impl Interpreter {
                     let value = value_from_literal(literal, universe.gc_interface);
                     self.current_frame.stack_push(value);
                 }
-                Bytecode::PushConstant0 => {
-                    let literal = self.current_frame.lookup_constant(0);
-                    let value = value_from_literal(literal, universe.gc_interface);
-                    self.current_frame.stack_push(value);
-                }
-                Bytecode::PushConstant1 => {
-                    let literal = self.current_frame.lookup_constant(1);
-                    let value = value_from_literal(literal, universe.gc_interface);
-                    self.current_frame.stack_push(value);
-                }
-                Bytecode::PushConstant2 => {
-                    let literal = self.current_frame.lookup_constant(2);
-                    let value = value_from_literal(literal, universe.gc_interface);
-                    self.current_frame.stack_push(value);
-                }
                 Bytecode::PushGlobal(idx) => {
                     let literal = self.current_frame.lookup_constant(idx as usize);
                     let symbol = match literal {

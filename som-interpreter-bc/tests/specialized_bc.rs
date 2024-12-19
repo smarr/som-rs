@@ -74,17 +74,17 @@ fn push_constant_bytecodes() {
     expect_bytecode_sequence(
         &bytecodes,
         &[
-            PushConstant0,
+            PushConstant(0),
             PopLocal(0, 0),
-            PushConstant1,
+            PushConstant(1),
             PopLocal(0, 1),
-            PushConstant2,
+            PushConstant(2),
             PopLocal(0, 2),
-            PushConstant0,
+            PushConstant(0),
             PopLocal(0, 3),
-            PushConstant1,
+            PushConstant(1),
             PopLocal(0, 4),
-            PushConstant2,
+            PushConstant(2),
             PopLocal(0, 5),
         ],
     );
@@ -114,7 +114,7 @@ fn send_bytecodes() {
     expect_bytecode_sequence(&bytecodes, &[Push1, Send1(0)]);
 
     // we do a "+ 2" to not have the bytecode INC replace a Send2.
-    expect_bytecode_sequence(&bytecodes, &[Push1, PushConstant1, Send2(2)]);
+    expect_bytecode_sequence(&bytecodes, &[Push1, PushConstant(1), Send2(2)]);
 
     expect_bytecode_sequence(&bytecodes, &[PushSelf, Push1, Push1, Send3(3)]);
 
@@ -155,7 +155,7 @@ fn return_self_bytecode_implicit() {
 
     let bytecodes = get_bytecodes_from_method(class_txt_implicit_return, "run");
 
-    expect_bytecode_sequence(&bytecodes, &[PushConstant0, Pop, ReturnSelf]);
+    expect_bytecode_sequence(&bytecodes, &[PushConstant(0), Pop, ReturnSelf]);
 }
 
 #[test]

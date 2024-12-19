@@ -147,7 +147,7 @@ fn while_true_false_inlining_ok() {
         &bytecodes,
         &[
             PushLocal(0),
-            PushConstant1,
+            PushConstant(1),
             Send2(2),
             JumpOnFalsePop(5),
             PushLocal(0),

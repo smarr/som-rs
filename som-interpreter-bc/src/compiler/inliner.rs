@@ -166,24 +166,15 @@ impl PrimMessageInliner for ast::Message {
                         let lit_idx = ctxt.push_literal(lit.clone());
                         ctxt.push_instr(Bytecode::PushGlobal(lit_idx as u8));
                     }
-                    Bytecode::PushConstant(_) | Bytecode::PushConstant0 | Bytecode::PushConstant1 | Bytecode::PushConstant2 => {
+                    Bytecode::PushConstant(_) => {
                         let constant_idx = match block_bc {
                             Bytecode::PushConstant(idx) => *idx,
-                            Bytecode::PushConstant0 => 0,
-                            Bytecode::PushConstant1 => 1,
-                            Bytecode::PushConstant2 => 2,
                             _ => unreachable!(),
                         };
 
                         let lit = block.literals.get(constant_idx as usize)?;
                         let lit_idx = ctxt.push_literal(lit.clone());
-                        match lit_idx {
-                            // maybe create a function just for translating "constant_id (usize) <-> Bytecode" that to avoid duplication
-                            0 => ctxt.push_instr(Bytecode::PushConstant0),
-                            1 => ctxt.push_instr(Bytecode::PushConstant1),
-                            2 => ctxt.push_instr(Bytecode::PushConstant2),
-                            _ => ctxt.push_instr(Bytecode::PushConstant(lit_idx as u8)),
-                        }
+                        ctxt.push_instr(Bytecode::PushConstant(lit_idx as u8))
                     }
                     Bytecode::ReturnNonLocal(scope) => match scope - 1 {
                         0 => ctxt.push_instr(Bytecode::ReturnLocal),
