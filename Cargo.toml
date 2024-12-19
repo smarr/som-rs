@@ -18,9 +18,6 @@ resolver = "2"
 [profile.release]
 panic = 'abort' # supposedly a minor speedup from hanging on to less stack info that way
 
-# for debugging
-#debug-assertions = true
-
 # Enable link-time optimization, eliminates more code and inlines across crate boundaries.
 # Default: false
 lto = "fat"
@@ -37,3 +34,5 @@ opt-level = 3
 inherits = "release"
 # Includes debug information in release builds. Necessary for profiling.
 debug = true
+
+debug-assertions = true

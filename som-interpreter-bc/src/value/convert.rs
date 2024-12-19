@@ -276,23 +276,6 @@ impl IntoValue for DoubleLike {
     }
 }
 
-macro_rules! reverse {
-    ($universe:expr, $stack_iter:expr, [], [ $($ty:ident),* $(,)? ]) => {
-        $(
-            #[allow(non_snake_case)]
-            let val = $stack_iter.next().unwrap();
-            #[allow(non_snake_case)]
-            let $ty = $ty::from_args(val)?;
-        )*
-    };
-    ($universe:expr, $stack_iter:expr, [ $ty:ident $(,)? ], [ $($ty2:ident),* $(,)? ]) => {
-        reverse!($universe, $stack_iter, [], [ $ty , $($ty2),* ])
-    };
-    ($universe:expr, $stack_iter:expr, [ $ty:ident , $($ty1:ident),* $(,)? ], [ $($ty2:ident),* $(,)? ]) => {
-        reverse!($universe, $stack_iter, [ $($ty1),* ], [ $ty , $($ty2),* ])
-    };
-}
-
 macro_rules! derive_stuff {
     ($($ty:ident),* $(,)?) => {
 
@@ -303,8 +286,16 @@ macro_rules! derive_stuff {
             $($ty: $crate::value::convert::FromArgs),*,
         {
             fn invoke(&self, interpreter: &mut $crate::interpreter::Interpreter, universe: &mut $crate::universe::Universe, nbr_args: usize) -> Result<(), Error> {
-                let mut stack_iter = crate::vm_objects::frame::FrameStackIter::from(&*interpreter.current_frame);
-                reverse!(universe, stack_iter, [$($ty),*], []);
+                // To match the AST doing the same.
+                // # Safety
+                // Not -positive- this is safe with moving GC, actually. We want to pass moving-GC-proof refs to the values directly, does this really achieve that? TODO check.
+                let args: &[Value] = unsafe { &* (interpreter.current_frame.stack_n_last_elements(nbr_args) as *const _) };
+                let mut args_iter = args.iter();
+                $(
+                    #[allow(non_snake_case)]
+                    let $ty = $ty::from_args(args_iter.next().unwrap()).unwrap();
+                )*
+
                 let result = (self)(interpreter, universe, $($ty),*,)?;
                 result.into_return(interpreter, nbr_args)
             }
