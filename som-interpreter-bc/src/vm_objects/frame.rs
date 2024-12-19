@@ -358,7 +358,14 @@ impl Frame {
 
     #[inline(always)]
     pub fn stack_push(&mut self, value: Value) {
-        debug_assert!(self.stack_ptr < self.current_context.get_env().max_stack_size);
+        debug_assert!(
+            self.stack_ptr < self.current_context.get_env().max_stack_size,
+            "stack_push failed in {:?}::>{:?} (hit max stack size of {})",
+            self.current_context.holder().name,
+            self.current_context.signature(),
+            self.current_context.get_env().max_stack_size
+        );
+        // debug_assert!(self.stack_ptr < self.current_context.get_env().max_stack_size);
         unsafe {
             *self.nth_stack_mut(self.stack_ptr) = value;
             self.stack_ptr += 1;

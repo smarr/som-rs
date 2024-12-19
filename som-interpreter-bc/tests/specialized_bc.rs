@@ -135,13 +135,13 @@ fn super_send_bytecodes() {
 
     let bytecodes = get_bytecodes_from_method(class_txt, "run");
 
-    expect_bytecode_sequence(&bytecodes, &[PushSelf, SuperSend1(0)]);
+    expect_bytecode_sequence(&bytecodes, &[PushSelf, SuperSend(0)]);
 
-    expect_bytecode_sequence(&bytecodes, &[PushSelf, Push1, SuperSend2(1)]);
+    expect_bytecode_sequence(&bytecodes, &[PushSelf, Push1, SuperSend(1)]);
 
-    expect_bytecode_sequence(&bytecodes, &[PushSelf, Push1, Push1, SuperSend3(2)]);
+    expect_bytecode_sequence(&bytecodes, &[PushSelf, Push1, Push1, SuperSend(2)]);
 
-    expect_bytecode_sequence(&bytecodes, &[PushSelf, Push1, Push1, Push1, SuperSendN(3)]);
+    expect_bytecode_sequence(&bytecodes, &[PushSelf, Push1, Push1, Push1, SuperSend(3)]);
 }
 
 #[test]

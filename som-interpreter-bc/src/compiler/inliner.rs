@@ -1,3 +1,5 @@
+#![allow(unused)] // because inlining can be disabled
+
 use crate::compiler::compile::{InnerGenCtxt, MethodCodegen};
 use crate::compiler::inliner::JumpType::{JumpOnFalse, JumpOnTrue};
 use crate::compiler::inliner::OrAndChoice::{And, Or};
@@ -127,7 +129,11 @@ impl PrimMessageInliner for ast::Message {
                         _ => ctxt.push_instr(Bytecode::PushNonLocalArg(*up_idx - 1, *idx)),
                     },
                     Bytecode::PopArg(up_idx, idx) => ctxt.push_instr(Bytecode::PopArg(*up_idx - 1, *idx)),
-                    Bytecode::Send1(lit_idx) | Bytecode::Send2(lit_idx) | Bytecode::Send3(lit_idx) | Bytecode::SendN(lit_idx) => {
+                    Bytecode::Send1(lit_idx)
+                    | Bytecode::Send2(lit_idx)
+                    | Bytecode::Send3(lit_idx)
+                    | Bytecode::SendN(lit_idx)
+                    | Bytecode::SuperSend(lit_idx) => {
                         match block.literals.get(*lit_idx as usize)? {
                             Literal::Symbol(interned) => {
                                 // I'm 99% sure this doesn't push duplicate literals. But it miiiight?
@@ -138,6 +144,7 @@ impl PrimMessageInliner for ast::Message {
                                     Bytecode::Send2(_) => ctxt.push_instr(Bytecode::Send2(idx as u8)),
                                     Bytecode::Send3(_) => ctxt.push_instr(Bytecode::Send3(idx as u8)),
                                     Bytecode::SendN(_) => ctxt.push_instr(Bytecode::SendN(idx as u8)),
+                                    Bytecode::SuperSend(_) => ctxt.push_instr(Bytecode::SuperSend(idx as u8)),
                                     _ => unreachable!(),
                                 }
                             }
@@ -204,11 +211,7 @@ impl PrimMessageInliner for ast::Message {
                     | Bytecode::PushSelf
                     | Bytecode::Pop
                     | Bytecode::PushField(_)
-                    | Bytecode::PopField(_)
-                    | Bytecode::SuperSend1(_)
-                    | Bytecode::SuperSend2(_)
-                    | Bytecode::SuperSend3(_)
-                    | Bytecode::SuperSendN(_) => ctxt.push_instr(*block_bc),
+                    | Bytecode::PopField(_) => ctxt.push_instr(*block_bc),
                 }
             }
         }

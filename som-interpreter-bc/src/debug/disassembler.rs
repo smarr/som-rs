@@ -120,14 +120,7 @@ fn disassemble_body(universe: &Universe, class: &Class, level: usize, env: &mut 
                 let arg_str = (env.iter().rev().nth(usize::from(up_idx))).map(|env| env.resolve_argument(idx));
                 println!(" (`{0}`)", arg_str.unwrap());
             }
-            Bytecode::Send1(idx)
-            | Bytecode::Send2(idx)
-            | Bytecode::Send3(idx)
-            | Bytecode::SendN(idx)
-            | Bytecode::SuperSend1(idx)
-            | Bytecode::SuperSend2(idx)
-            | Bytecode::SuperSend3(idx)
-            | Bytecode::SuperSendN(idx) => {
+            Bytecode::Send1(idx) | Bytecode::Send2(idx) | Bytecode::Send3(idx) | Bytecode::SendN(idx) | Bytecode::SuperSend(idx) => {
                 print!(" {idx}");
                 let Some(Literal::Symbol(signature)) = current.resolve_literal(idx) else {
                     println!(" (invalid signature)");

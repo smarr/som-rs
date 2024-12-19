@@ -26,6 +26,7 @@ pub mod block1 {
     fn restart(interpreter: &mut Interpreter, _: &mut Universe, _: HeapValPtr<Block>) -> Result<(), Error> {
         // interpreter.current_frame.bytecode_idx = 0;
         interpreter.bytecode_idx = 0;
+        interpreter.current_frame.stack_ptr = 0; // not sure why that's necessary... I think there's some odd stack popping rules for primitives
 
         Ok(())
     }

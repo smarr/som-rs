@@ -36,30 +36,6 @@ macro_rules! send {
     }};
 }
 
-macro_rules! super_send {
-    ($interp:expr, $universe:expr, $frame:expr, $lit_idx:expr, $nb_params:expr) => {{
-        let Literal::Symbol(symbol) = $frame.lookup_constant($lit_idx as usize).clone() else {
-            unreachable!()
-        };
-        let nb_params = match $nb_params {
-            Some(v) => v,
-            None => {
-                let signature = $universe.lookup_symbol(symbol);
-                nb_params(signature)
-            }
-        };
-        let method = {
-            // let method_with_holder = $frame.borrow().get_holding_method();
-            let holder = $frame.get_method_holder();
-            // dbg!(&holder);
-            let super_class = holder.super_class().unwrap();
-            // dbg!(&super_class);
-            resolve_method($frame, &super_class, symbol, $interp.bytecode_idx)
-        };
-        do_send($interp, $universe, method, symbol, nb_params as usize);
-    }};
-}
-
 pub struct Interpreter {
     /// The time record of the interpreter's creation.
     pub start_time: Instant,
@@ -334,17 +310,24 @@ impl Interpreter {
                 Bytecode::SendN(idx) => {
                     send! {self, universe, &mut self.current_frame, idx, None}
                 }
-                Bytecode::SuperSend1(idx) => {
-                    super_send! {self, universe, &mut self.current_frame, idx, Some(0)}
-                }
-                Bytecode::SuperSend2(idx) => {
-                    super_send! {self, universe, &mut self.current_frame, idx, Some(1)}
-                }
-                Bytecode::SuperSend3(idx) => {
-                    super_send! {self, universe, &mut self.current_frame, idx, Some(2)}
-                }
-                Bytecode::SuperSendN(idx) => {
-                    super_send! {self, universe, &mut self.current_frame, idx, None}
+                Bytecode::SuperSend(lit_idx) => {
+                    let Literal::Symbol(symbol) = self.current_frame.lookup_constant(lit_idx as usize).clone() else {
+                        unreachable!()
+                    };
+                    let nb_params = {
+                        let signature = universe.lookup_symbol(symbol);
+                        nb_params(signature)
+                    };
+
+                    let method = {
+                        // let method_with_holder = $frame.borrow().get_holding_method();
+                        let holder = self.current_frame.get_method_holder();
+                        // dbg!(&holder);
+                        let super_class = holder.super_class().unwrap();
+                        // dbg!(&super_class);
+                        resolve_method(&mut self.current_frame, &super_class, symbol, self.bytecode_idx)
+                    };
+                    do_send(self, universe, method, symbol, nb_params);
                 }
                 Bytecode::ReturnSelf => {
                     let self_val = *self.current_frame.lookup_argument(0);
@@ -481,8 +464,8 @@ impl Interpreter {
 
             match &**method {
                 Method::Defined(_) => {
-                    // let name = &method.holder.name.clone();
-                    // eprintln!("Invoking {:?} (in {:?})", &method.signature, &name);
+                    // let name = &method.holder().name.clone();
+                    // eprintln!("Invoking {:?} (in {:?})", &method.signature(), &name);
                     interpreter.push_method_frame(method, nb_params + 1, universe.gc_interface);
                 }
                 Method::Primitive(func, _met_info) => {
