@@ -1,4 +1,3 @@
-use crate::gc::VecAstLiteral;
 use crate::specialized::inlined::and_inlined_node::AndInlinedNode;
 use crate::specialized::inlined::if_inlined_node::IfInlinedNode;
 use crate::specialized::inlined::if_true_if_false_inlined_node::IfTrueIfFalseInlinedNode;
@@ -11,6 +10,7 @@ use indenter::indented;
 use num_bigint::BigInt;
 use som_core::interner::Interned;
 use som_gc::gcref::Gc;
+use som_gc::gcslice::GcSlice;
 use std::fmt::Write;
 use std::fmt::{Debug, Display, Formatter};
 
@@ -67,7 +67,7 @@ pub enum AstLiteral {
     /// Represents a big integer (bigger than a 64-bit signed integer can represent).
     BigInteger(Gc<BigInt>),
     /// Represents an array literal (eg. `$(1 2 3)`)
-    Array(Gc<VecAstLiteral>),
+    Array(Gc<GcSlice<AstLiteral>>),
 }
 
 #[derive(Debug, Clone, PartialEq)]

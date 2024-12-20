@@ -3,7 +3,6 @@ use crate::ast::{
     AstBinaryDispatch, AstBlock, AstBody, AstDispatchNode, AstExpression, AstLiteral, AstMethodDef, AstNAryDispatch, AstSuperMessage,
     AstTernaryDispatch, AstUnaryDispatch,
 };
-use crate::gc::VecAstLiteral;
 use crate::primitives::UNIMPLEM_PRIMITIVE;
 use crate::specialized::trivial_methods::{TrivialGetterMethod, TrivialGlobalMethod, TrivialLiteralMethod, TrivialSetterMethod};
 use crate::vm_objects::class::Class;
@@ -314,8 +313,11 @@ impl<'a> AstMethodCompilerCtxt<'a> {
                 AstLiteral::BigInteger(bigint_ptr)
             }
             Literal::Array(arr) => {
-                let arr = arr.iter().map(|lit| self.parse_literal(lit)).collect();
-                let arr_ptr = self.gc_interface.alloc(VecAstLiteral(arr));
+                let literals = {
+                    let arr: Vec<AstLiteral> = arr.iter().map(|lit| self.parse_literal(lit)).collect();
+                    self.gc_interface.alloc_slice(arr.as_slice())
+                };
+                let arr_ptr = self.gc_interface.alloc(literals);
                 AstLiteral::Array(arr_ptr)
             }
         }

@@ -133,9 +133,9 @@ impl Evaluate for AstLiteral {
         match self {
             Self::Array(array) => {
                 // todo: couldn't we precompute those astliterals, really?
-                let mut output = Vec::with_capacity(array.0.len());
-                for literal in &mut array.0 {
-                    let value = propagate!(literal.evaluate(universe, _value_stack));
+                let mut output = Vec::with_capacity(array.len());
+                for literal in array.iter() {
+                    let value = propagate!(literal.clone().evaluate(universe, _value_stack));
                     output.push(value);
                 }
                 Return::Local(Value::Array(universe.gc_interface.alloc(VecValue(output))))

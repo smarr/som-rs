@@ -2,7 +2,8 @@ use crate::api::{
     mmtk_bind_mutator, mmtk_destroy_mutator, mmtk_handle_user_collection_request, mmtk_initialize_collection, mmtk_set_fixed_heap_size,
     mmtk_used_bytes,
 };
-use crate::gcref::{Gc, GcSlice};
+use crate::gcref::Gc;
+use crate::gcslice::GcSlice;
 use crate::object_model::OBJECT_REF_OFFSET;
 use crate::slot::SOMSlot;
 use crate::{MMTK_SINGLETON, MMTK_TO_VM_INTERFACE, MUTATOR_WRAPPER, SOMVM};

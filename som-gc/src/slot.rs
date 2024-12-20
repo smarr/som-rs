@@ -1,4 +1,5 @@
-use crate::gcref::{Gc, GcSlice};
+use crate::gcref::Gc;
+use crate::gcslice::GcSlice;
 use mmtk::util::{Address, ObjectReference};
 use mmtk::vm::slot::{SimpleSlot, Slot};
 use som_core::value::BaseValue;

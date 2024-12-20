@@ -16,6 +16,7 @@ pub mod scanning;
 
 pub mod gc_interface;
 pub mod gcref;
+pub mod gcslice;
 pub mod slot;
 
 #[derive(Default)]

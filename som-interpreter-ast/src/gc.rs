@@ -11,8 +11,9 @@ use mmtk::util::ObjectReference;
 use mmtk::vm::{ObjectModel, SlotVisitor};
 use mmtk::Mutator;
 use num_bigint::BigInt;
-use som_gc::gc_interface::{HasTypeInfoForGC, MMTKtoVMCallbacks, BIGINT_MAGIC_ID, STRING_MAGIC_ID};
+use som_gc::gc_interface::{HasTypeInfoForGC, MMTKtoVMCallbacks, SupportedSliceType, BIGINT_MAGIC_ID, STRING_MAGIC_ID};
 use som_gc::gcref::Gc;
+use som_gc::gcslice::GcSlice;
 use som_gc::object_model::VMObjectModel;
 use som_gc::slot::SOMSlot;
 use som_gc::SOMVM;
@@ -28,7 +29,7 @@ pub enum AstObjMagicId {
     ArrayVal = 102,
     Block = 103,
     Method = 104,
-    VecAstLiteral = 105,
+    VecAstLiteral = ASTLITERAL_SLICE_ID as isize,
     Class = 106,
     Instance = 107,
 }
@@ -43,9 +44,12 @@ impl Deref for VecValue {
     }
 }
 
-// HACK: ditto.
-#[derive(Debug)]
-pub struct VecAstLiteral(pub Vec<AstLiteral>);
+const ASTLITERAL_SLICE_ID: u8 = 105;
+impl SupportedSliceType for AstLiteral {
+    fn get_magic_gc_slice_id() -> u8 {
+        ASTLITERAL_SLICE_ID
+    }
+}
 
 impl HasTypeInfoForGC for VecValue {
     fn get_magic_gc_id() -> u8 {
@@ -62,12 +66,6 @@ impl HasTypeInfoForGC for AstBlock {
 impl HasTypeInfoForGC for Block {
     fn get_magic_gc_id() -> u8 {
         AstObjMagicId::Block as u8
-    }
-}
-
-impl HasTypeInfoForGC for VecAstLiteral {
-    fn get_magic_gc_id() -> u8 {
-        AstObjMagicId::VecAstLiteral as u8
     }
 }
 
@@ -218,8 +216,8 @@ pub fn scan_object<'a>(object: ObjectReference, slot_visitor: &'a mut (dyn SlotV
                 }
             }
             AstObjMagicId::VecAstLiteral => {
-                let literal_vec: &mut Vec<AstLiteral> = object.to_raw_address().as_mut_ref();
-                for lit in literal_vec {
+                let literal_vec: &GcSlice<AstLiteral> = object.to_raw_address().as_ref();
+                for lit in literal_vec.iter() {
                     visit_literal(lit, slot_visitor)
                 }
             }
@@ -362,7 +360,7 @@ fn get_object_size(object: ObjectReference) -> usize {
         AstObjMagicId::String => size_of::<String>(),
         AstObjMagicId::BigInt => size_of::<BigInt>(),
         AstObjMagicId::AstBlock => size_of::<AstBlock>(),
-        AstObjMagicId::VecAstLiteral => size_of::<VecAstLiteral>(),
+        AstObjMagicId::VecAstLiteral => size_of::<GcSlice<AstLiteral>>(),
         AstObjMagicId::ArrayVal => size_of::<Vec<Value>>(),
         AstObjMagicId::Method => size_of::<Method>(),
         AstObjMagicId::Block => size_of::<Block>(),

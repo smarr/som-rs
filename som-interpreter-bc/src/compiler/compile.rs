@@ -3,12 +3,13 @@
 //!
 use indexmap::{IndexMap, IndexSet};
 use num_bigint::BigInt;
+use som_gc::gcref::Gc;
+use som_gc::gcslice::GcSlice;
 use std::str::FromStr;
 
 #[cfg(not(feature = "inlining-disabled"))]
 use crate::compiler::inliner::PrimMessageInliner;
 use crate::compiler::Literal;
-use crate::gc::VecLiteral;
 use crate::primitives;
 use crate::primitives::UNIMPLEM_PRIMITIVE;
 use crate::value::Value;
@@ -23,7 +24,6 @@ use som_core::ast::{Expression, MethodBody};
 use som_core::bytecode::Bytecode;
 use som_core::interner::{Interned, Interner};
 use som_gc::gc_interface::GCInterface;
-use som_gc::gcref::Gc;
 
 pub(crate) trait GenCtxt {
     fn intern_symbol(&mut self, name: &str) -> Interned;
@@ -562,8 +562,11 @@ impl MethodCodegen for ast::Expression {
                             }
                         }
                         ast::Literal::Array(val) => {
-                            let literals: Vec<Literal> = val.iter().map(|val| convert_literal(ctxt, val, gc_interface)).collect();
-                            let literal_ptr = gc_interface.alloc(VecLiteral(literals));
+                            let literals: GcSlice<Literal> = {
+                                let literals_vec: Vec<Literal> = val.iter().map(|val| convert_literal(ctxt, val, gc_interface)).collect();
+                                gc_interface.alloc_slice(literals_vec.as_slice())
+                            };
+                            let literal_ptr = gc_interface.alloc(literals);
                             Literal::Array(literal_ptr)
                         }
                     }
