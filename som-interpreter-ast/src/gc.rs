@@ -216,10 +216,7 @@ pub fn scan_object<'a>(object: ObjectReference, slot_visitor: &'a mut (dyn SlotV
                 }
             }
             AstObjMagicId::VecAstLiteral => {
-                let _xd: *const usize = object.to_raw_address().as_ref();
-                // dbg!(xd as usize);
-                let literal_vec: &GcSlice<AstLiteral> = object.to_raw_address().as_ref();
-                // dbg!(literal_vec);
+                let literal_vec: GcSlice<AstLiteral> = GcSlice::from(object.to_raw_address());
                 for lit in literal_vec.iter() {
                     visit_literal(lit, slot_visitor)
                 }
@@ -241,20 +238,6 @@ pub fn scan_object<'a>(object: ObjectReference, slot_visitor: &'a mut (dyn SlotV
 unsafe fn visit_value<'a>(val: &Value, slot_visitor: &'a mut (dyn SlotVisitor<SOMSlot> + 'a)) {
     if val.is_ptr_type() {
         slot_visitor.visit_slot(SOMSlot::from(val.as_mut_ptr()))
-    }
-}
-
-/// Visits a value, via a specialized `SOMSlot` for value types.
-/// For safety, literals passed to this function MUST live on the GC heap, but that's always the case for literals (at the moment).
-fn visit_literal(literal: &AstLiteral, slot_visitor: &mut dyn SlotVisitor<SOMSlot>) {
-    match &literal {
-        AstLiteral::String(s) => slot_visitor.visit_slot(SOMSlot::from(s)),
-        AstLiteral::BigInteger(big_int) => slot_visitor.visit_slot(SOMSlot::from(big_int)),
-        AstLiteral::Array(arr) => {
-            // dbg!(arr.0.ptr);
-            slot_visitor.visit_slot(SOMSlot::from(arr))
-        }
-        AstLiteral::Symbol(_) | AstLiteral::Double(_) | AstLiteral::Integer(_) => {}
     }
 }
 
@@ -352,7 +335,30 @@ fn visit_expr(expr: &AstExpression, slot_visitor: &mut dyn SlotVisitor<SOMSlot>)
     }
 }
 
-fn adapt_post_copy(_object: ObjectReference, _original_obj: ObjectReference) {}
+/// Visits a value, via a specialized `SOMSlot` for value types.
+/// # Safety
+/// Literals passed to this function MUST live on the GC heap, but that's always the case for literals (at the moment).
+fn visit_literal(literal: &AstLiteral, slot_visitor: &mut dyn SlotVisitor<SOMSlot>) {
+    match &literal {
+        AstLiteral::String(s) => slot_visitor.visit_slot(SOMSlot::from(s)),
+        AstLiteral::BigInteger(big_int) => slot_visitor.visit_slot(SOMSlot::from(big_int)),
+        AstLiteral::Array(arr) => slot_visitor.visit_slot(SOMSlot::from(arr)),
+        AstLiteral::Symbol(_) | AstLiteral::Double(_) | AstLiteral::Integer(_) => {}
+    }
+}
+
+fn adapt_post_copy(object: ObjectReference, original_obj: ObjectReference) {
+    let gc_id: &AstObjMagicId = unsafe { object.to_raw_address().as_ref() };
+
+    if gc_id == &AstObjMagicId::VecAstLiteral {
+        let mut literals: GcSlice<AstLiteral> = GcSlice::from(object.to_raw_address().add(8));
+        let og_literals: GcSlice<AstLiteral> = GcSlice::from(original_obj.to_raw_address());
+
+        for (i, og_lit) in og_literals.iter().enumerate() {
+            literals.set(i, og_lit.clone());
+        }
+    }
+}
 
 fn get_object_size(object: ObjectReference) -> usize {
     let gc_id: &AstObjMagicId = unsafe { VMObjectModel::ref_to_header(object).as_ref() };
@@ -366,7 +372,10 @@ fn get_object_size(object: ObjectReference) -> usize {
         AstObjMagicId::String => size_of::<String>(),
         AstObjMagicId::BigInt => size_of::<BigInt>(),
         AstObjMagicId::AstBlock => size_of::<AstBlock>(),
-        AstObjMagicId::VecAstLiteral => size_of::<GcSlice<AstLiteral>>(),
+        AstObjMagicId::VecAstLiteral => {
+            let literals: GcSlice<AstLiteral> = GcSlice::from(object.to_raw_address());
+            literals.get_true_size()
+        }
         AstObjMagicId::ArrayVal => size_of::<Vec<Value>>(),
         AstObjMagicId::Method => size_of::<Method>(),
         AstObjMagicId::Block => size_of::<Block>(),

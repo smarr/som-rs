@@ -29,8 +29,9 @@ where
         self.len() == 0
     }
 
-    pub fn get_size(&self) -> usize {
-        size_of::<usize>() + (self.len() + 1) * size_of::<T>()
+    pub fn get_true_size(&self) -> usize {
+        // the usize for the length, and all the values.
+        size_of::<usize>() + self.len() * size_of::<T>()
     }
 
     /// Get the address of the Nth element.
