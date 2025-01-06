@@ -313,11 +313,10 @@ impl<'a> AstMethodCompilerCtxt<'a> {
                 AstLiteral::BigInteger(bigint_ptr)
             }
             Literal::Array(arr) => {
-                let literals = {
+                let arr_ptr = {
                     let arr: Vec<AstLiteral> = arr.iter().map(|lit| self.parse_literal(lit)).collect();
                     self.gc_interface.alloc_slice(arr.as_slice())
                 };
-                let arr_ptr = self.gc_interface.alloc(literals);
                 AstLiteral::Array(arr_ptr)
             }
         }

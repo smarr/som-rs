@@ -23,7 +23,7 @@ pub enum Literal {
     Double(f64),
     Integer(i32),
     BigInteger(Gc<BigInt>),
-    Array(Gc<GcSlice<Literal>>),
+    Array(GcSlice<Literal>),
     Block(Gc<Block>),
 }
 

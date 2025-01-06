@@ -67,7 +67,7 @@ pub enum AstLiteral {
     /// Represents a big integer (bigger than a 64-bit signed integer can represent).
     BigInteger(Gc<BigInt>),
     /// Represents an array literal (eg. `$(1 2 3)`)
-    Array(Gc<GcSlice<AstLiteral>>),
+    Array(GcSlice<AstLiteral>),
 }
 
 #[derive(Debug, Clone, PartialEq)]

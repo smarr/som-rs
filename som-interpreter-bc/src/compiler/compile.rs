@@ -566,8 +566,7 @@ impl MethodCodegen for ast::Expression {
                                 let literals_vec: Vec<Literal> = val.iter().map(|val| convert_literal(ctxt, val, gc_interface)).collect();
                                 gc_interface.alloc_slice(literals_vec.as_slice())
                             };
-                            let literal_ptr = gc_interface.alloc(literals);
-                            Literal::Array(literal_ptr)
+                            Literal::Array(literals)
                         }
                     }
                 }

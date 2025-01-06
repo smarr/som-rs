@@ -199,23 +199,26 @@ impl GCInterface {
 
     // Allocates a type on the heap and returns a pointer to it.
     pub fn alloc_slice<T: SupportedSliceType + std::fmt::Debug>(&mut self, obj: &[T]) -> GcSlice<T> {
-        let len = obj.len();
-        let size = {
+        let mut size = {
             match std::mem::size_of_val(obj) {
                 v if v < MIN_OBJECT_SIZE => MIN_OBJECT_SIZE,
                 v => v,
             }
         };
 
+        size += std::mem::size_of::<usize>(); // size stored at the start
+
         let header_addr: Address = self.request_bytes(size + OBJECT_REF_OFFSET);
-        let obj_addr = SOMVM::object_start_to_ref(header_addr);
+        let len_addr = SOMVM::object_start_to_ref(header_addr);
+        let obj_addr = len_addr.to_raw_address().add(size_of::<usize>());
 
         unsafe {
             *header_addr.as_mut_ref() = T::get_magic_gc_slice_id();
-            std::ptr::copy_nonoverlapping(obj.as_ptr(), obj_addr.to_raw_address().as_mut_ref(), obj.len());
+            *len_addr.to_raw_address().as_mut_ref() = obj.len();
+            std::ptr::copy_nonoverlapping(obj.as_ptr(), obj_addr.as_mut_ref(), obj.len());
         }
 
-        GcSlice::new(obj_addr.to_raw_address(), len)
+        GcSlice::new(len_addr.to_raw_address())
     }
 
     #[cfg(feature = "marksweep")]

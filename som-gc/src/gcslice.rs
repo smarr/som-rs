@@ -1,28 +1,19 @@
-use std::marker::PhantomData;
-
+use crate::gcref::Gc;
 use mmtk::util::Address;
 
 /// Special GC ref that stores a list.
-/// It's really just a `Vec<T>` replacement, where Rust manages none of the memory itself.
+/// It's really just a `Vec<T>` replacement (though immutable), where Rust manages none of the memory itself.
 /// Used because finalization might be a slowdown if we stored references to `Vec`s on the heap?
-#[derive(Debug, Clone, Copy)]
-pub struct GcSlice<T: Sized> {
-    pub ptr: Address, // this should be right after the GcSlice for cache reasons, I'd say
-    pub len: usize,
-    _phantom: PhantomData<T>,
-}
+#[derive(Clone, Copy)]
+pub struct GcSlice<T>(pub Gc<T>);
 
 impl<T> GcSlice<T>
 where
     T: std::fmt::Debug,
 {
-    pub fn new(ptr: Address, len: usize) -> GcSlice<T> {
+    pub fn new(ptr: Address) -> GcSlice<T> {
         debug_assert!(!ptr.is_zero());
-        GcSlice {
-            ptr,
-            len,
-            _phantom: PhantomData,
-        }
+        GcSlice(Gc::from(ptr))
     }
 
     pub fn iter(&self) -> GCSliceIter<T> {
@@ -30,47 +21,64 @@ where
     }
 
     pub fn len(&self) -> usize {
-        self.len
+        let len: &usize = unsafe { &*(self.0.ptr as *const usize) };
+        *len
     }
 
     pub fn is_empty(&self) -> bool {
-        self.len == 0
+        self.len() == 0
     }
 
-    pub fn as_slice(&self) -> &[T] {
-        unsafe { std::slice::from_raw_parts(self.ptr.as_ref(), self.len) }
+    pub fn get_size(&self) -> usize {
+        size_of::<usize>() + (self.len() + 1) * size_of::<T>()
+    }
+
+    /// Get the address of the Nth element.
+    /// # Safety
+    /// Check ahead of time that n is within the slice's bounds.
+    pub unsafe fn nth_addr(&self, n: usize) -> Address {
+        Address::from_usize(self.0.ptr + size_of::<usize>() + (n * std::mem::size_of::<T>()))
     }
 
     #[inline(always)]
     pub fn get(&self, idx: usize) -> &T {
-        debug_assert!(idx < self.len);
-        unsafe { self.ptr.add(idx * std::mem::size_of::<T>()).as_ref() }
+        unsafe { self.nth_addr(idx).as_ref() }
+    }
+
+    pub fn get_checked(&self, idx: usize) -> Option<&T> {
+        if idx >= self.len() {
+            return None;
+        }
+        Some(self.get(idx))
     }
 
     #[inline(always)]
     pub fn get_mut(&mut self, idx: usize) -> &mut T {
-        debug_assert!(idx < self.len);
-        unsafe { self.ptr.add(idx * std::mem::size_of::<T>()).as_mut_ref() }
+        debug_assert!(idx < self.len());
+        unsafe { self.nth_addr(idx).as_mut_ref() }
     }
 
-    pub fn set(&self, idx: usize, val: T) {
-        debug_assert!(idx < self.len);
-        unsafe {
-            let val_ptr = self.ptr.add(idx * std::mem::size_of::<T>()).as_mut_ref();
-            *val_ptr = val
-        }
+    pub fn set(&mut self, idx: usize, val: T) {
+        debug_assert!(idx < self.len());
+        *self.get_mut(idx) = val
     }
 }
 
 impl<T> PartialEq for GcSlice<T> {
     fn eq(&self, other: &Self) -> bool {
-        self.ptr == other.ptr // not correct, should compare each element individually instead.
+        self.0.ptr == other.0.ptr // not correct, should compare each element individually instead.
     }
 }
 
 impl<T> From<&GcSlice<T>> for Address {
     fn from(ptr: &GcSlice<T>) -> Self {
         Address::from_ref(ptr)
+    }
+}
+
+impl<T: std::fmt::Debug> From<Address> for GcSlice<T> {
+    fn from(value: Address) -> Self {
+        GcSlice::new(value)
     }
 }
 
@@ -83,14 +91,29 @@ impl<'a, T: std::fmt::Debug> Iterator for GCSliceIter<'a, T> {
     type Item = &'a T;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.cur_idx >= self.gc_slice.len {
-            return None;
-        }
-
-        //dbg!(&self.gc_slice.as_slice());
-
-        let item = self.gc_slice.get(self.cur_idx);
+        let item = self.gc_slice.get_checked(self.cur_idx);
         self.cur_idx += 1;
-        Some(item)
+        item
+    }
+}
+
+// impl<T: std::fmt::Debug> std::fmt::Debug for GcSlice<T> {
+//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+//         f.write_str("GcSlice [")?;
+//         for idx in 0..self.len() {
+//             f.write_str(&format!("{:?},\n", self.get(idx)))?;
+//         }
+//         f.write_str("]")
+//     }
+// }
+
+impl<T: std::fmt::Debug> std::fmt::Debug for GcSlice<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("GcSlice: ")?;
+        let mut debug_list = f.debug_list();
+        for idx in 0..self.len() {
+            debug_list.entry(self.get(idx));
+        }
+        debug_list.finish()
     }
 }

@@ -32,7 +32,7 @@ macro_rules! debug_assert_valid_semispace_ptr_value {
 #[repr(transparent)]
 pub struct Gc<T> {
     pub ptr: usize, // TODO: fine as is, but I'd rather not have the underlying pointer be public, and support arithmetic operations on Gc<T> directly.
-    pub _phantom: PhantomData<T>,
+    _phantom: PhantomData<T>,
 }
 
 impl<T> Clone for Gc<T> {
@@ -120,12 +120,6 @@ impl<T> From<Address> for Gc<T> {
     }
 }
 
-impl<T> From<&Gc<T>> for Address {
-    fn from(ptr: &Gc<T>) -> Self {
-        Address::from_ref(ptr)
-    }
-}
-
 impl<T> Gc<T> {
     /// Checks if a frame is "empty", i.e. contains the default value
     #[inline(always)]
@@ -172,5 +166,10 @@ impl<T> Gc<T> {
             true => leftmost_digit(self.ptr) == 2,
             false => leftmost_digit(self.ptr) == 4,
         }
+    }
+
+    #[cfg(feature = "marksweep")]
+    pub fn is_pointer_to_valid_space(&self) -> bool {
+        true
     }
 }

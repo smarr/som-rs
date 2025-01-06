@@ -16,13 +16,13 @@ pub enum SOMSlot {
 /// This pointer must be on the heap or in a static variable! Otherwise, it becomes invalid when Rust discards it.
 impl<T> From<&Gc<T>> for SOMSlot {
     fn from(value: &Gc<T>) -> Self {
-        SOMSlot::Simple(SimpleSlot::from_address(Address::from(value)))
+        SOMSlot::Simple(SimpleSlot::from_address(Address::from_ref(value)))
     }
 }
 
 impl<T> From<&GcSlice<T>> for SOMSlot {
     fn from(value: &GcSlice<T>) -> Self {
-        SOMSlot::Simple(SimpleSlot::from_address(Address::from(value)))
+        SOMSlot::Simple(SimpleSlot::from_address(Address::from_ref(value)))
     }
 }
 

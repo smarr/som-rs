@@ -216,7 +216,10 @@ pub fn scan_object<'a>(object: ObjectReference, slot_visitor: &'a mut (dyn SlotV
                 }
             }
             AstObjMagicId::VecAstLiteral => {
+                let _xd: *const usize = object.to_raw_address().as_ref();
+                // dbg!(xd as usize);
                 let literal_vec: &GcSlice<AstLiteral> = object.to_raw_address().as_ref();
+                // dbg!(literal_vec);
                 for lit in literal_vec.iter() {
                     visit_literal(lit, slot_visitor)
                 }
@@ -247,7 +250,10 @@ fn visit_literal(literal: &AstLiteral, slot_visitor: &mut dyn SlotVisitor<SOMSlo
     match &literal {
         AstLiteral::String(s) => slot_visitor.visit_slot(SOMSlot::from(s)),
         AstLiteral::BigInteger(big_int) => slot_visitor.visit_slot(SOMSlot::from(big_int)),
-        AstLiteral::Array(arr) => slot_visitor.visit_slot(SOMSlot::from(arr)),
+        AstLiteral::Array(arr) => {
+            // dbg!(arr.0.ptr);
+            slot_visitor.visit_slot(SOMSlot::from(arr))
+        }
         AstLiteral::Symbol(_) | AstLiteral::Double(_) | AstLiteral::Integer(_) => {}
     }
 }
