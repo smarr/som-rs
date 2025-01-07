@@ -347,18 +347,7 @@ fn visit_literal(literal: &AstLiteral, slot_visitor: &mut dyn SlotVisitor<SOMSlo
     }
 }
 
-fn adapt_post_copy(object: ObjectReference, original_obj: ObjectReference) {
-    let gc_id: &AstObjMagicId = unsafe { object.to_raw_address().as_ref() };
-
-    if gc_id == &AstObjMagicId::VecAstLiteral {
-        let mut literals: GcSlice<AstLiteral> = GcSlice::from(object.to_raw_address().add(8));
-        let og_literals: GcSlice<AstLiteral> = GcSlice::from(original_obj.to_raw_address());
-
-        for (i, og_lit) in og_literals.iter().enumerate() {
-            literals.set(i, og_lit.clone());
-        }
-    }
-}
+fn adapt_post_copy(_object: ObjectReference, _original_obj: ObjectReference) {}
 
 fn get_object_size(object: ObjectReference) -> usize {
     let gc_id: &AstObjMagicId = unsafe { VMObjectModel::ref_to_header(object).as_ref() };

@@ -267,15 +267,15 @@ fn get_object_size(object: ObjectReference) -> usize {
         match gc_id {
             BCObjMagicId::String => size_of::<String>(),
             BCObjMagicId::BigInt => size_of::<BigInt>(),
-            BCObjMagicId::ArrayLiteral => size_of::<GcSlice<Literal>>(),
+            BCObjMagicId::ArrayLiteral => {
+                let literals: GcSlice<Literal> = GcSlice::from(object.to_raw_address());
+                literals.get_true_size()
+            },
             BCObjMagicId::Frame => unsafe {
                 let frame: &mut Frame = object.to_raw_address().as_mut_ref();
                 Frame::get_true_size(frame.get_max_stack_size(), frame.get_nbr_args(), frame.get_nbr_locals())
             },
-            BCObjMagicId::ArrayVal => {
-                let literals: GcSlice<Literal> = GcSlice::from(object.to_raw_address());
-                literals.get_true_size()
-            }
+            BCObjMagicId::ArrayVal => size_of::<Vec<Value>>(),
             BCObjMagicId::Method => size_of::<Method>(),
             BCObjMagicId::Block => size_of::<Block>(),
             BCObjMagicId::Class => size_of::<Class>(),
@@ -311,14 +311,6 @@ fn adapt_post_copy(object: ObjectReference, original_obj: ObjectReference) {
             debug_assert_eq!((*og_frame_ptr).lookup_argument(0), frame.lookup_argument(0));
             if frame.get_nbr_locals() >= 1 {
                 debug_assert_eq!((*og_frame_ptr).lookup_local(0), frame.lookup_local(0));
-            }
-        } else if gc_id == &BCObjMagicId::ArrayLiteral {
-            let mut literals: GcSlice<Literal> = GcSlice::from(object.to_raw_address().add(8));
-            let og_literals: GcSlice<Literal> = GcSlice::from(original_obj.to_raw_address());
-
-            for (i, og_lit) in og_literals.iter().enumerate() {
-                dbg!(&og_lit);
-                literals.set(i, og_lit.clone());
             }
         }
     }
