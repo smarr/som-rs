@@ -270,7 +270,7 @@ fn get_object_size(object: ObjectReference) -> usize {
             BCObjMagicId::ArrayLiteral => {
                 let literals: GcSlice<Literal> = GcSlice::from(object.to_raw_address());
                 literals.get_true_size()
-            },
+            }
             BCObjMagicId::Frame => unsafe {
                 let frame: &mut Frame = object.to_raw_address().as_mut_ref();
                 Frame::get_true_size(frame.get_max_stack_size(), frame.get_nbr_args(), frame.get_nbr_locals())
