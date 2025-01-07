@@ -1,6 +1,7 @@
 use crate::universe::{GlobalValueStack, Universe};
 use crate::value::Value;
 use core::mem::size_of;
+use som_gc::debug_assert_valid_semispace_ptr;
 use som_gc::gcref::Gc;
 use std::fmt::{Debug, Formatter};
 use std::marker::PhantomData;
@@ -34,6 +35,9 @@ pub struct Frame {
 
 impl Frame {
     pub fn alloc_new_frame(nbr_locals: u8, nbr_args: usize, universe: &mut Universe, value_stack: &mut GlobalValueStack) -> Gc<Self> {
+        // same very odd bug as BC frame allocation... no idea what's going on still. a bug in MMTk, or more likely in Rust itself?
+        std::hint::black_box(&universe.current_frame);
+
         let frame = Self {
             prev_frame: Gc::default(),
             nbr_locals,
@@ -56,6 +60,11 @@ impl Frame {
             std::slice::from_raw_parts_mut(frame_args_ptr!(frame_ptr), nbr_args).copy_from_slice(args.as_slice());
 
             frame_ptr.prev_frame = universe.current_frame;
+
+            #[cfg(debug_assertions)]
+            if !frame_ptr.prev_frame.is_empty() {
+                debug_assert_valid_semispace_ptr!(frame_ptr.prev_frame);
+            }
         };
 
         frame_ptr
