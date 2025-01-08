@@ -8,6 +8,7 @@ use crate::universe::{GlobalValueStack, Universe};
 use crate::value::Value;
 use crate::vm_objects::block::Block;
 use crate::vm_objects::frame::{Frame, FrameAccess};
+use num_bigint::BigInt;
 use som_gc::gcref::Gc;
 use som_gc::{debug_assert_valid_semispace_ptr, debug_assert_valid_semispace_ptr_value};
 
@@ -39,6 +40,32 @@ impl Evaluate for AstExpression {
                 let value = propagate!(expr.evaluate(universe, value_stack));
                 Frame::nth_frame_back(&universe.current_frame, *scope).assign_arg(*idx, value);
                 Return::Local(value)
+            }
+            Self::IncLocal(idx) => {
+                let local_val = universe.current_frame.lookup_local_mut(*idx);
+                if let Some(int) = local_val.as_integer() {
+                    *local_val = Value::new_integer(int + 1);
+                } else if let Some(double) = local_val.as_double() {
+                    *local_val = Value::new_double(double + 1.0);
+                } else if let Some(mut big_int) = local_val.as_big_integer::<Gc<BigInt>>() {
+                    *big_int += 1;
+                } else {
+                    panic!("Invalid type in Inc")
+                }
+                Return::Local(*local_val)
+            }
+            Self::DecLocal(idx) => {
+                let local_val = universe.current_frame.lookup_local_mut(*idx);
+                if let Some(int) = local_val.as_integer() {
+                    *local_val = Value::new_integer(int - 1);
+                } else if let Some(double) = local_val.as_double() {
+                    *local_val = Value::new_double(double - 1.0);
+                } else if let Some(mut big_int) = local_val.as_big_integer::<Gc<BigInt>>() {
+                    *big_int -= 1;
+                } else {
+                    panic!("Invalid type in Dec")
+                }
+                Return::Local(*local_val)
             }
             Self::Block(blk) => blk.evaluate(universe, value_stack),
             Self::LocalExit(expr) => {

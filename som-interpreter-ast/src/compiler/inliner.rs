@@ -405,7 +405,13 @@ impl AstMethodCompilerCtxt<'_> {
     fn var_from_coords(&mut self, up_idx: u8, idx: u8, var_type: VarType) -> AstExpression {
         match (up_idx, var_type) {
             (0, VarType::Read) => AstExpression::LocalVarRead(idx),
-            (0, VarType::Write(expr)) => AstExpression::LocalVarWrite(idx, Box::new(self.parse_expression_with_inlining(expr))),
+            (0, VarType::Write(expr)) => {
+                let local_write_expr = AstExpression::LocalVarWrite(idx, Box::new(self.parse_expression_with_inlining(expr)));
+                match self.maybe_make_inc_or_dec(&local_write_expr) {
+                    Some(inc_or_dec) => inc_or_dec,
+                    None => local_write_expr,
+                }
+            }
             (_, VarType::Read) => AstExpression::NonLocalVarRead(up_idx, idx),
             (_, VarType::Write(expr)) => AstExpression::NonLocalVarWrite(up_idx, idx, Box::new(self.parse_expression_with_inlining(expr))),
         }

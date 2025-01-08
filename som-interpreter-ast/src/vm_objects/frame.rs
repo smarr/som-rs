@@ -134,6 +134,7 @@ pub trait FrameAccess {
     fn lookup_argument(&self, idx: u8) -> &Value;
     fn assign_arg(&mut self, idx: u8, value: Value);
     fn lookup_local(&self, idx: u8) -> &Value;
+    fn lookup_local_mut(&mut self, idx: u8) -> &mut Value;
     fn assign_local(&mut self, idx: u8, value: Value);
     fn lookup_field(&self, idx: u8) -> Value;
     fn assign_field(&self, idx: u8, value: &Value);
@@ -171,6 +172,15 @@ impl FrameAccess for Gc<Frame> {
         unsafe {
             let value_ptr = frame_locals_ptr!(self, self.nbr_args as usize).add(idx as usize);
             &*value_ptr
+        }
+    }
+
+    /// Used by `IncLocal` and `DecLocal`.
+    #[inline(always)]
+    fn lookup_local_mut(&mut self, idx: u8) -> &mut Value {
+        unsafe {
+            let value_ptr = frame_locals_ptr!(self, self.nbr_args as usize).add(idx as usize);
+            &mut *value_ptr
         }
     }
 

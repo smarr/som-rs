@@ -36,6 +36,8 @@ pub enum AstExpression {
     NonLocalVarRead(u8, u8),
     ArgRead(u8, u8),
     FieldRead(u8),
+    IncLocal(u8),
+    DecLocal(u8),
     LocalVarWrite(u8, Box<AstExpression>),
     NonLocalVarWrite(u8, u8, Box<AstExpression>),
     ArgWrite(u8, u8, Box<AstExpression>),
@@ -251,6 +253,8 @@ impl Display for AstExpression {
                 InlinedNode::AndInlined(node) => writeln!(f, "{}", node),
                 InlinedNode::ToDoInlined(node) => writeln!(f, "{}", node),
             },
+            AstExpression::IncLocal(idx) => writeln!(f, "Inc({})", idx),
+            AstExpression::DecLocal(idx) => writeln!(f, "Dec({})", idx),
         }
     }
 }

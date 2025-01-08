@@ -146,7 +146,13 @@ impl<'a> AstMethodCompilerCtxt<'a> {
             Expression::LocalVarRead(idx) => AstExpression::LocalVarRead(idx as u8),
             Expression::NonLocalVarRead(scope, idx) => AstExpression::NonLocalVarRead(scope as u8, idx as u8),
             Expression::ArgRead(scope, idx) => AstExpression::ArgRead(scope as u8, idx as u8),
-            Expression::LocalVarWrite(a, b) => AstExpression::LocalVarWrite(a as u8, Box::new(self.parse_expression(b.as_ref()))),
+            Expression::LocalVarWrite(a, b) => {
+                let local_write_expr = AstExpression::LocalVarWrite(a as u8, Box::new(self.parse_expression(b.as_ref())));
+                match self.maybe_make_inc_or_dec(&local_write_expr) {
+                    Some(inc_or_dec) => inc_or_dec,
+                    None => local_write_expr,
+                }
+            }
             Expression::NonLocalVarWrite(a, b, c) => AstExpression::NonLocalVarWrite(a as u8, b as u8, Box::new(self.parse_expression(c.as_ref()))),
             Expression::ArgWrite(a, b, c) => AstExpression::ArgWrite(a as u8, b as u8, Box::new(self.parse_expression(c.as_ref()))),
             Expression::Message(msg) => self.parse_message(msg.as_ref()),
@@ -169,6 +175,33 @@ impl<'a> AstMethodCompilerCtxt<'a> {
                 AstExpression::Block(self.gc_interface.alloc(ast_block))
             }
         }
+    }
+
+    pub fn maybe_make_inc_or_dec(&self, local_var_idx: &AstExpression) -> Option<AstExpression> {
+        let (a, b) = match local_var_idx {
+            AstExpression::LocalVarWrite(a, b) => (a, b),
+            _ => unreachable!(),
+        };
+
+        if let AstExpression::BinaryDispatch(message) = &**b {
+            let signature = self.interner.lookup(message.dispatch_node.signature);
+
+            if (signature == "+" || signature == "-") && message.arg == AstExpression::Literal(AstLiteral::Integer(1)) {
+                if let AstExpression::LocalVarRead(local_idx) = message.dispatch_node.receiver {
+                    if local_idx == *a {
+                        match signature {
+                            "+" => {
+                                return Some(AstExpression::IncLocal(*a));
+                            }
+                            "-" => return Some(AstExpression::DecLocal(*a)),
+                            _ => unreachable!(),
+                        }
+                    }
+                }
+            }
+        }
+
+        None
     }
 
     pub fn parse_body(&mut self, body: &ast::Body) -> AstBody {

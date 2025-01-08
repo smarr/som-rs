@@ -330,6 +330,8 @@ fn visit_expr(expr: &AstExpression, slot_visitor: &mut dyn SlotVisitor<SOMSlot>)
         AstExpression::GlobalRead(..)
         | AstExpression::LocalVarRead(..)
         | AstExpression::NonLocalVarRead(..)
+        | AstExpression::IncLocal(..)
+        | AstExpression::DecLocal(..)
         | AstExpression::ArgRead(..)
         | AstExpression::FieldRead(..) => {} // leaf nodes
     }
