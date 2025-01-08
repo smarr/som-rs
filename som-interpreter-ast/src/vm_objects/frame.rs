@@ -8,7 +8,7 @@ use std::marker::PhantomData;
 
 macro_rules! frame_args_ptr {
     ($base_ptr:expr) => {
-        ($base_ptr.ptr + std::mem::size_of::<Frame>()) as *mut Value
+        ($base_ptr.as_ptr().byte_add(std::mem::size_of::<Frame>())) as *mut Value
     };
 }
 
@@ -50,7 +50,7 @@ impl Frame {
         let mut frame_ptr = universe.gc_interface.alloc_with_size(frame, size);
 
         unsafe {
-            let mut locals_addr = (frame_ptr.ptr + size_of::<Frame>() + (nbr_args * size_of::<Value>())) as *mut Value;
+            let mut locals_addr = (frame_ptr.as_ptr().byte_add(size_of::<Frame>() + (nbr_args * size_of::<Value>()))) as *mut Value;
             for _ in 0..nbr_locals {
                 *locals_addr = Value::NIL;
                 locals_addr = locals_addr.wrapping_add(1);
@@ -84,7 +84,7 @@ impl Frame {
         let mut frame_ptr = universe.gc_interface.alloc_with_size(frame, size);
 
         unsafe {
-            let mut locals_addr = (frame_ptr.ptr + size_of::<Frame>() + (nbr_args * size_of::<Value>())) as *mut Value;
+            let mut locals_addr = (frame_ptr.as_ptr().byte_add(size_of::<Frame>() + (nbr_args * size_of::<Value>()))) as *mut Value;
             for _ in 0..nbr_locals {
                 *locals_addr = Value::NIL;
                 locals_addr = locals_addr.wrapping_add(1);

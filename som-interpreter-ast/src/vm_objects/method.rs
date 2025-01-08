@@ -65,7 +65,7 @@ pub struct Method {
 
 impl PartialEq for Method {
     fn eq(&self, other: &Self) -> bool {
-        self.kind == other.kind && self.signature == other.signature && (self.holder.ptr == other.holder.ptr)
+        self.kind == other.kind && self.signature == other.signature && (self.holder == other.holder)
     }
 }
 

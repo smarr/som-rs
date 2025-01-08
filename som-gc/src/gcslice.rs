@@ -21,7 +21,7 @@ where
     }
 
     pub fn len(&self) -> usize {
-        let len: &usize = unsafe { &*(self.0.ptr as *const usize) };
+        let len: &usize = unsafe { &*(self.0.as_ptr() as *const usize) };
         *len
     }
 
@@ -38,7 +38,7 @@ where
     /// # Safety
     /// Check ahead of time that n is within the slice's bounds.
     pub unsafe fn nth_addr(&self, n: usize) -> Address {
-        Address::from_usize(self.0.ptr + size_of::<usize>() + (n * std::mem::size_of::<T>()))
+        Address::from_usize(self.0.as_ptr().byte_add(size_of::<usize>() + (n * std::mem::size_of::<T>())) as usize)
     }
 
     #[inline(always)]
@@ -67,7 +67,7 @@ where
 
 impl<T> PartialEq for GcSlice<T> {
     fn eq(&self, other: &Self) -> bool {
-        self.0.ptr == other.0.ptr // not correct, should compare each element individually instead.
+        self.0 == other.0 // not correct i think? should compare each element individually instead.
     }
 }
 

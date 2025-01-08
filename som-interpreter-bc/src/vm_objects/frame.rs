@@ -170,7 +170,7 @@ impl Frame {
             frame.stack_ptr = 0;
 
             // setting up the self-referential pointers for args/locals accesses
-            frame.args_ptr = (frame_ptr.ptr + OFFSET_TO_STACK + stack_size * size_of::<Value>()) as *mut Value;
+            frame.args_ptr = (frame_ptr.as_ptr().byte_add(OFFSET_TO_STACK + stack_size * size_of::<Value>())) as *mut Value;
             frame.locals_ptr = frame.args_ptr.add(args.len());
 
             // initializing arguments from the args slice

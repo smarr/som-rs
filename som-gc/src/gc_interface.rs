@@ -269,9 +269,9 @@ impl GCInterface {
     /// Custom alloc function, for traits to be able to choose how to allocate their data.
     /// In practice, that's usually allowing for more memory than Rust might be able to infer from the struct size, and filling it with our own data.
     /// TODO: Even more in practice, it's not used much anymore. The issue is that if the alloc triggers and we use moving GC, the closure can now be holding outdated pointers.
-    pub fn alloc_with_post_init<T: HasTypeInfoForGC, F>(&mut self, obj: T, size: usize, mut post_alloc_init_closure: F) -> Gc<T>
+    pub fn alloc_with_post_init<T: HasTypeInfoForGC, F>(&mut self, obj: T, size: usize, post_alloc_init_closure: F) -> Gc<T>
     where
-        F: FnMut(Gc<T>),
+        F: Fn(Gc<T>),
     {
         let instance_ref = self.alloc_with_size(obj, size);
         post_alloc_init_closure(instance_ref);
