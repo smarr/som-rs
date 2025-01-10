@@ -103,14 +103,13 @@ pub fn visit_literal<'a>(lit: &Literal, slot_visitor: &'a mut (dyn SlotVisitor<S
 
 pub fn scan_object<'a>(object: ObjectReference, slot_visitor: &'a mut (dyn SlotVisitor<SOMSlot> + 'a)) {
     unsafe {
-        // let _ptr: *mut usize = unsafe { obj_addr.as_mut_ref() };
         let gc_id: &BCObjMagicId = VMObjectModel::ref_to_header(object).as_ref();
 
         trace!("entering scan_object (type: {:?})", gc_id);
 
         match gc_id {
             BCObjMagicId::Frame => {
-                let frame: &mut Frame = object.to_raw_address().as_mut_ref();
+                let frame: &Frame = object.to_raw_address().as_ref();
 
                 if !frame.prev_frame.is_empty() {
                     slot_visitor.visit_slot(SOMSlot::from(&frame.prev_frame));
@@ -128,13 +127,13 @@ pub fn scan_object<'a>(object: ObjectReference, slot_visitor: &'a mut (dyn SlotV
                     visit_value(val, slot_visitor)
                 }
 
-                let stack_iter = FrameStackIter::from(&*frame);
+                let stack_iter = FrameStackIter::from(frame);
                 for stack_item in stack_iter.into_iter() {
                     visit_value(stack_item, slot_visitor);
                 }
             }
             BCObjMagicId::Method => {
-                let method: &mut Method = object.to_raw_address().as_mut_ref();
+                let method: &Method = object.to_raw_address().as_ref();
 
                 match method {
                     Method::Defined(method) => {
@@ -163,7 +162,7 @@ pub fn scan_object<'a>(object: ObjectReference, slot_visitor: &'a mut (dyn SlotV
                 }
             }
             BCObjMagicId::Class => {
-                let class: &mut Class = object.to_raw_address().as_mut_ref();
+                let class: &Class = object.to_raw_address().as_ref();
 
                 slot_visitor.visit_slot(SOMSlot::from(&class.class));
 
@@ -180,7 +179,7 @@ pub fn scan_object<'a>(object: ObjectReference, slot_visitor: &'a mut (dyn SlotV
                 }
             }
             BCObjMagicId::Block => {
-                let block: &mut Block = object.to_raw_address().as_mut_ref();
+                let block: &Block = object.to_raw_address().as_ref();
 
                 if let Some(frame) = block.frame.as_ref() {
                     slot_visitor.visit_slot(SOMSlot::from(frame));
@@ -189,7 +188,7 @@ pub fn scan_object<'a>(object: ObjectReference, slot_visitor: &'a mut (dyn SlotV
                 slot_visitor.visit_slot(SOMSlot::from(&block.blk_info));
             }
             BCObjMagicId::Instance => {
-                let instance: &mut Instance = object.to_raw_address().as_mut_ref();
+                let instance: &Instance = object.to_raw_address().as_ref();
                 slot_visitor.visit_slot(SOMSlot::from(&instance.class));
 
                 let instance_as_gc: Gc<Instance> = object.to_raw_address().into();
@@ -199,7 +198,7 @@ pub fn scan_object<'a>(object: ObjectReference, slot_visitor: &'a mut (dyn SlotV
                 }
             }
             BCObjMagicId::ArrayVal => {
-                let arr: &mut Vec<Value> = object.to_raw_address().as_mut_ref();
+                let arr: &Vec<Value> = object.to_raw_address().as_ref();
                 for val in arr {
                     visit_value(val, slot_visitor)
                 }
@@ -272,7 +271,7 @@ fn get_object_size(object: ObjectReference) -> usize {
                 literals.get_true_size()
             }
             BCObjMagicId::Frame => unsafe {
-                let frame: &mut Frame = object.to_raw_address().as_mut_ref();
+                let frame: &Frame = object.to_raw_address().as_ref();
                 Frame::get_true_size(frame.get_max_stack_size(), frame.get_nbr_args(), frame.get_nbr_locals())
             },
             BCObjMagicId::ArrayVal => size_of::<Vec<Value>>(),
@@ -280,7 +279,7 @@ fn get_object_size(object: ObjectReference) -> usize {
             BCObjMagicId::Block => size_of::<Block>(),
             BCObjMagicId::Class => size_of::<Class>(),
             BCObjMagicId::Instance => unsafe {
-                let instance: &mut Instance = object.to_raw_address().as_mut_ref();
+                let instance: &Instance = object.to_raw_address().as_ref();
                 size_of::<Instance>() + instance.class.fields.len() * size_of::<Value>()
             },
         }

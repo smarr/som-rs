@@ -10,12 +10,10 @@ impl ReferenceGlue<SOMVM> for VMReferenceGlue {
     type FinalizableType = ObjectReference;
 
     fn set_referent(_reference: ObjectReference, _referent: ObjectReference) {
-        dbg!("wahii");
+        unimplemented!()
     }
     fn get_referent(_object: ObjectReference) -> Option<ObjectReference> {
-        dbg!("wahoo");
-        None
-        // unimplemented!()
+        unimplemented!()
     }
     fn clear_referent(_object: ObjectReference) {
         unimplemented!()

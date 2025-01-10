@@ -143,7 +143,7 @@ pub fn scan_object<'a>(object: ObjectReference, slot_visitor: &'a mut (dyn SlotV
 
         match gc_id {
             AstObjMagicId::Frame => {
-                let frame: &mut Frame = object.to_raw_address().as_mut_ref();
+                let frame: &Frame = object.to_raw_address().as_ref();
 
                 if !frame.prev_frame.is_empty() {
                     slot_visitor.visit_slot(SOMSlot::from(&frame.prev_frame));
@@ -163,12 +163,12 @@ pub fn scan_object<'a>(object: ObjectReference, slot_visitor: &'a mut (dyn SlotV
                 }
             }
             AstObjMagicId::Class => {
-                let class: &mut Class = object.to_raw_address().as_mut_ref();
+                let class: &Class = object.to_raw_address().as_ref();
 
                 slot_visitor.visit_slot(SOMSlot::from(&class.class));
 
-                if class.super_class.is_some() {
-                    slot_visitor.visit_slot(SOMSlot::from(class.super_class.as_ref().unwrap()));
+                if let Some(scls) = class.super_class.as_ref() {
+                    slot_visitor.visit_slot(SOMSlot::from(scls));
                 }
 
                 for (_, method_ref) in class.methods.iter() {
@@ -180,7 +180,7 @@ pub fn scan_object<'a>(object: ObjectReference, slot_visitor: &'a mut (dyn SlotV
                 }
             }
             AstObjMagicId::Method => {
-                let method: &mut Method = object.to_raw_address().as_mut_ref();
+                let method: &Method = object.to_raw_address().as_ref();
 
                 slot_visitor.visit_slot(SOMSlot::from(&method.holder));
 
@@ -195,7 +195,7 @@ pub fn scan_object<'a>(object: ObjectReference, slot_visitor: &'a mut (dyn SlotV
                 }
             }
             AstObjMagicId::Instance => {
-                let instance: &mut Instance = object.to_raw_address().as_mut_ref();
+                let instance: &Instance = object.to_raw_address().as_ref();
 
                 slot_visitor.visit_slot(SOMSlot::from(&instance.class));
 
@@ -204,13 +204,12 @@ pub fn scan_object<'a>(object: ObjectReference, slot_visitor: &'a mut (dyn SlotV
                 }
             }
             AstObjMagicId::Block => {
-                let block: &mut Block = object.to_raw_address().as_mut_ref();
+                let block: &Block = object.to_raw_address().as_ref();
                 slot_visitor.visit_slot(SOMSlot::from(&block.frame));
                 slot_visitor.visit_slot(SOMSlot::from(&block.block));
             }
             AstObjMagicId::AstBlock => {
-                let ast_block: &mut AstBlock = object.to_raw_address().as_mut_ref();
-
+                let ast_block: &AstBlock = object.to_raw_address().as_ref();
                 for expr in &ast_block.body.exprs {
                     visit_expr(expr, slot_visitor)
                 }
@@ -222,7 +221,7 @@ pub fn scan_object<'a>(object: ObjectReference, slot_visitor: &'a mut (dyn SlotV
                 }
             }
             AstObjMagicId::ArrayVal => {
-                let array_val: &mut Vec<Value> = object.to_raw_address().as_mut_ref();
+                let array_val: &Vec<Value> = object.to_raw_address().as_ref();
                 for val in array_val {
                     visit_value(val, slot_visitor)
                 }
@@ -356,7 +355,7 @@ fn get_object_size(object: ObjectReference) -> usize {
 
     match gc_id {
         AstObjMagicId::Frame => unsafe {
-            let frame: &mut Frame = object.to_raw_address().as_mut_ref();
+            let frame: &Frame = object.to_raw_address().as_ref();
             Frame::get_true_size(frame.nbr_args, frame.nbr_locals)
         },
         AstObjMagicId::Instance => size_of::<Instance>(),
