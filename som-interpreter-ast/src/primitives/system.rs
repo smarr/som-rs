@@ -111,8 +111,7 @@ fn global_put(universe: &mut Universe, _value_stack: &mut GlobalValueStack, _: V
     Ok(value)
 }
 
-fn exit(_: &mut Universe, _value_stack: &mut GlobalValueStack, status: i32) -> Result<Value, Error> {
-    const _: &str = "System>>#exit:";
+fn exit(_: &mut Universe, _value_stack: &mut GlobalValueStack, _: Value, status: i32) -> Result<Value, Error> {
     std::process::exit(status)
 }
 

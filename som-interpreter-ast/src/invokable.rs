@@ -27,37 +27,24 @@ pub trait Invoke {
 
 impl Invoke for Gc<Method> {
     fn invoke(&mut self, universe: &mut Universe, value_stack: &mut GlobalValueStack, nbr_args: usize) -> Return {
-        // println!("--- ...with args: {:?}", &args);
-
         debug_assert_valid_semispace_ptr!(self);
-        //println!("--- Invoking \"{:1}\" ({:2})", &self.signature, &self.holder.class().name);
 
-        //match &self.kind {
+        // match &self.kind {
         //    MethodKind::Defined(_method) => {
         //        println!("--- Invoking \"{:1}\" ({:2})", &self.signature, &self.holder.class().name);
         //    }
         //    MethodKind::Primitive(_func) => {
-        //        //println!("--- Invoking prim \"{:1}\" ({:2})", &self.signature, &self.holder.class().name);
+        //        // println!("--- Invoking prim \"{:1}\" ({:2})", &self.signature, &self.holder.class().name);
         //    }
         //    MethodKind::TrivialGetter(_g) => {
         //        println!("--- Invoking trivial getter \"{:1}\" ({:2})", &self.signature, &self.holder.class().name);
         //    }
         //    _ => {}
-        //}
+        // }
 
         match &mut self.kind {
             MethodKind::Defined(method) => universe.eval_with_frame(value_stack, method.locals_nbr, nbr_args, method),
-            MethodKind::Primitive(func) => {
-                // println!("--- Invoking prim \"{:1}\" ({:2})", &self.signature, &self.holder.class().name);
-                func(universe, value_stack, nbr_args)
-            }
-            // MethodKind::Specialized(specialized_kind) => {
-            //     // println!("--- Invoking specialized method \"{:1}\" ({:2})", &self.signature, &self.holder.class().name);
-            //     match specialized_kind {
-            //         MethodKindSpecialized::ToByDo(to_by_do_node) => to_by_do_node.invoke(universe, value_stack, nbr_args),
-            //         MethodKindSpecialized::DownToDo(down_to_do_node) => down_to_do_node.invoke(universe, value_stack, nbr_args),
-            //     }
-            // }
+            MethodKind::Primitive(func) => func(universe, value_stack, nbr_args),
             // since those two trivial methods don't need args, i guess it could be faster to handle them before args are even instantiated...
             MethodKind::TrivialLiteral(trivial_literal) => {
                 value_stack.remove_n_last(nbr_args);

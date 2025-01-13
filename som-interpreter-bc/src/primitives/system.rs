@@ -125,7 +125,7 @@ fn global_put(_: &mut Interpreter, universe: &mut Universe, _: Value, name: Inte
     Ok(Some(value))
 }
 
-fn exit(_: &mut Interpreter, _: &mut Universe, status: i32) -> Result<(), Error> {
+fn exit(_: &mut Interpreter, _: &mut Universe, _: Value, status: i32) -> Result<(), Error> {
     std::process::exit(status);
 }
 
