@@ -30,12 +30,23 @@ impl Invoke for Gc<Method> {
         // println!("--- ...with args: {:?}", &args);
 
         debug_assert_valid_semispace_ptr!(self);
+        //println!("--- Invoking \"{:1}\" ({:2})", &self.signature, &self.holder.class().name);
+
+        //match &self.kind {
+        //    MethodKind::Defined(_method) => {
+        //        println!("--- Invoking \"{:1}\" ({:2})", &self.signature, &self.holder.class().name);
+        //    }
+        //    MethodKind::Primitive(_func) => {
+        //        //println!("--- Invoking prim \"{:1}\" ({:2})", &self.signature, &self.holder.class().name);
+        //    }
+        //    MethodKind::TrivialGetter(_g) => {
+        //        println!("--- Invoking trivial getter \"{:1}\" ({:2})", &self.signature, &self.holder.class().name);
+        //    }
+        //    _ => {}
+        //}
 
         match &mut self.kind {
-            MethodKind::Defined(method) => {
-                // println!("--- Invoking \"{:1}\" ({:2})", &self.signature, &self.holder.class().name);
-                universe.eval_with_frame(value_stack, method.locals_nbr, nbr_args, method)
-            }
+            MethodKind::Defined(method) => universe.eval_with_frame(value_stack, method.locals_nbr, nbr_args, method),
             MethodKind::Primitive(func) => {
                 // println!("--- Invoking prim \"{:1}\" ({:2})", &self.signature, &self.holder.class().name);
                 func(universe, value_stack, nbr_args)

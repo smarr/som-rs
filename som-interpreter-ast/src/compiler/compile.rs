@@ -12,7 +12,6 @@ use som_core::ast::{Expression, Literal, MethodBody};
 use som_core::interner::Interner;
 use som_gc::gc_interface::GCInterface;
 use som_gc::gcref::Gc;
-use std::panic;
 
 pub struct AstMethodCompilerCtxt<'a> {
     /// The class in which context we're compiling. Needed for resolving field accesses. Should always be Some() outside of a testing context.
@@ -87,8 +86,14 @@ impl<'a> AstMethodCompilerCtxt<'a> {
             return None;
         }
 
+        let args_nbr = method_def.signature.chars().filter(|e| *e == ':').count();
+
         match method_def.body.exprs.first()? {
             AstExpression::LocalExit(expr) => {
+                if args_nbr != 0 {
+                    return None;
+                }
+
                 match expr.as_ref() {
                     AstExpression::Literal(lit) => {
                         Some(MethodKind::TrivialLiteral(TrivialLiteralMethod { literal: lit.clone() }))
@@ -99,10 +104,16 @@ impl<'a> AstMethodCompilerCtxt<'a> {
                     _ => None,
                 }
             }
-            AstExpression::FieldWrite(idx, expr) => match expr.as_ref() {
-                AstExpression::ArgRead(0, 1) => Some(MethodKind::TrivialSetter(TrivialSetterMethod { field_idx: *idx })),
-                _ => None,
-            },
+            AstExpression::FieldWrite(idx, expr) => {
+                if args_nbr != 1 {
+                    return None;
+                }
+
+                match expr.as_ref() {
+                    AstExpression::ArgRead(0, 1) => Some(MethodKind::TrivialSetter(TrivialSetterMethod { field_idx: *idx })),
+                    _ => None,
+                }
+            }
             _ => None,
         }
     }
