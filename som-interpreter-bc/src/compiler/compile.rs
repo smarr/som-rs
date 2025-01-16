@@ -27,9 +27,9 @@ use som_gc::gc_interface::GCInterface;
 
 pub(crate) trait GenCtxt {
     fn intern_symbol(&mut self, name: &str) -> Interned;
-    fn lookup_symbol(&self, interned: Interned) -> &str;
     fn get_scope(&self) -> usize;
     fn find_field(&mut self, name: &str) -> Option<usize>;
+    fn get_interner(&self) -> &Interner;
 }
 
 pub(crate) trait InnerGenCtxt: GenCtxt {
@@ -46,7 +46,83 @@ pub(crate) trait InnerGenCtxt: GenCtxt {
     fn patch_jump(&mut self, idx_to_backpatch: usize, new_val: u16);
     fn backpatch_jump_to_current(&mut self, idx_to_backpatch: usize);
     fn remove_dup_popx_pop_sequences(&mut self);
-    fn get_max_stack_size(&self) -> u8;
+}
+
+/// Calculates the maximum stack size possible. For each frame, this allows us to allocate a stack of precisely the maximum possible size it needs.
+/// TODO opt: it's possible our estimate is overly conservative. Reducing the max stack size reduces time spent allocating, and could maybe be a worthwhile optimization.
+pub(crate) fn get_max_stack_size(body: Option<&[Bytecode]>, literals: &[Literal], interner: &Interner) -> u8 {
+    let mut abstract_stack_size = 0;
+    let mut max_stack_size_observed: u8 = 0;
+
+    let Some(body) = body else {
+        return 0;
+    };
+
+    for bc in body {
+        match bc {
+            Bytecode::Dup
+            | Bytecode::Dup2
+            | Bytecode::PushLocal(..)
+            | Bytecode::PushNonLocal(..)
+            | Bytecode::PushArg(..)
+            | Bytecode::PushNonLocalArg(..)
+            | Bytecode::PushField(..)
+            | Bytecode::PushBlock(..)
+            | Bytecode::PushConstant(..)
+            | Bytecode::PushGlobal(..)
+            | Bytecode::Push0
+            | Bytecode::Push1
+            | Bytecode::PushNil
+            | Bytecode::PushSelf => {
+                abstract_stack_size += 1;
+                if abstract_stack_size > max_stack_size_observed {
+                    max_stack_size_observed = abstract_stack_size
+                }
+            }
+            Bytecode::Pop
+            | Bytecode::PopLocal(..)
+            | Bytecode::PopArg(..)
+            | Bytecode::PopField(..)
+            | Bytecode::JumpOnTruePop(..)
+            | Bytecode::JumpOnFalsePop(..) => abstract_stack_size -= 1,
+            Bytecode::Send1(_) => {}
+            Bytecode::Send2(_) => abstract_stack_size -= 1, // number of arguments (they all get popped) + 1 for the result
+            Bytecode::Send3(_) => abstract_stack_size -= 2,
+            Bytecode::SendN(idx) | Bytecode::SuperSend(idx) => {
+                let send_lit = literals.get(*idx as usize).expect("failed to look up a literal during compilation?");
+
+                let Literal::Symbol(send_sym) = send_lit else {
+                    panic!("literal not a symbol?")
+                };
+
+                let nb_params = {
+                    let uninterned = interner.lookup(*send_sym);
+                    match uninterned.chars().next() {
+                        Some(ch) if !ch.is_alphabetic() => 1,
+                        _ => uninterned.chars().filter(|ch| *ch == ':').count() as u8,
+                    }
+                };
+
+                if nb_params > 0 {
+                    abstract_stack_size -= nb_params - 1
+                }
+            }
+            Bytecode::Halt => {}
+            Bytecode::Inc => {}
+            Bytecode::Dec => {}
+            Bytecode::ReturnSelf => {}
+            Bytecode::ReturnLocal => {}
+            Bytecode::ReturnNonLocal(_) => {}
+            Bytecode::Jump(_) => {}
+            Bytecode::JumpBackward(_) => {}
+            Bytecode::JumpOnTrueTopNil(_) => {}
+            Bytecode::JumpOnFalseTopNil(_) => {}
+            Bytecode::JumpIfGreater(_) => {}
+        }
+    }
+
+    // NB: plus one to account for the one arg we push onto the stack to make sure they're reachable by the GC (needed for moving GC, not marksweep).
+    max_stack_size_observed + 2
 }
 
 struct BlockGenCtxt<'a> {
@@ -64,16 +140,16 @@ impl GenCtxt for BlockGenCtxt<'_> {
         self.outer.intern_symbol(name)
     }
 
-    fn lookup_symbol(&self, interned: Interned) -> &str {
-        self.outer.lookup_symbol(interned)
-    }
-
     fn get_scope(&self) -> usize {
         self.outer.get_scope() + 1
     }
 
     fn find_field(&mut self, name: &str) -> Option<usize> {
         self.outer.find_field(name)
+    }
+
+    fn get_interner(&self) -> &Interner {
+        self.outer.get_interner()
     }
 }
 
@@ -232,83 +308,6 @@ impl InnerGenCtxt for BlockGenCtxt<'_> {
             is_kept
         });
     }
-
-    /// Calculates the maximum stack size possible. For each frame, this allows us to allocate a stack of precisely the maximum possible size it needs.
-    /// TODO opt: it's possible our estimate is overly conservative. Reducing the max stack size reduces time spent allocating, and could maybe be a worthwhile optimization.
-    fn get_max_stack_size(&self) -> u8 {
-        let mut abstract_stack_size = 0;
-        let mut max_stack_size_observed: u8 = 0;
-
-        let Some(body) = self.body.as_ref() else {
-            return 0;
-        };
-
-        for bc in body {
-            match bc {
-                Bytecode::Dup
-                | Bytecode::Dup2
-                | Bytecode::PushLocal(..)
-                | Bytecode::PushNonLocal(..)
-                | Bytecode::PushArg(..)
-                | Bytecode::PushNonLocalArg(..)
-                | Bytecode::PushField(..)
-                | Bytecode::PushBlock(..)
-                | Bytecode::PushConstant(..)
-                | Bytecode::PushGlobal(..)
-                | Bytecode::Push0
-                | Bytecode::Push1
-                | Bytecode::PushNil
-                | Bytecode::PushSelf => {
-                    abstract_stack_size += 1;
-                    if abstract_stack_size > max_stack_size_observed {
-                        max_stack_size_observed = abstract_stack_size
-                    }
-                }
-                Bytecode::Pop
-                | Bytecode::PopLocal(..)
-                | Bytecode::PopArg(..)
-                | Bytecode::PopField(..)
-                | Bytecode::JumpOnTruePop(..)
-                | Bytecode::JumpOnFalsePop(..) => abstract_stack_size -= 1,
-                Bytecode::Send1(_) => {}
-                Bytecode::Send2(_) => abstract_stack_size -= 1, // number of arguments (they all get popped) + 1 for the result
-                Bytecode::Send3(_) => abstract_stack_size -= 2,
-                Bytecode::SendN(idx) | Bytecode::SuperSend(idx) => {
-                    let send_lit = self.get_literal(*idx as usize).expect("failed to look up a literal during compilation?");
-
-                    let Literal::Symbol(send_sym) = send_lit else {
-                        panic!("literal not a symbol?")
-                    };
-
-                    let nb_params = {
-                        let uninterned = self.lookup_symbol(*send_sym);
-                        match uninterned.chars().next() {
-                            Some(ch) if !ch.is_alphabetic() => 1,
-                            _ => uninterned.chars().filter(|ch| *ch == ':').count() as u8,
-                        }
-                    };
-
-                    if nb_params > 0 {
-                        abstract_stack_size -= nb_params - 1
-                    }
-                }
-                Bytecode::Halt => {}
-                Bytecode::Inc => {}
-                Bytecode::Dec => {}
-                Bytecode::ReturnSelf => {}
-                Bytecode::ReturnLocal => {}
-                Bytecode::ReturnNonLocal(_) => {}
-                Bytecode::Jump(_) => {}
-                Bytecode::JumpBackward(_) => {}
-                Bytecode::JumpOnTrueTopNil(_) => {}
-                Bytecode::JumpOnFalseTopNil(_) => {}
-                Bytecode::JumpIfGreater(_) => {}
-            }
-        }
-
-        // NB: plus one to account for the one arg we push onto the stack to make sure they're reachable by the GC (needed for moving GC, not marksweep).
-        max_stack_size_observed + 2
-    }
 }
 
 struct MethodGenCtxt<'a> {
@@ -323,16 +322,16 @@ impl GenCtxt for MethodGenCtxt<'_> {
         self.inner.intern_symbol(name)
     }
 
-    fn lookup_symbol(&self, interned: Interned) -> &str {
-        self.inner.lookup_symbol(interned)
-    }
-
     fn get_scope(&self) -> usize {
         0
     }
 
     fn find_field(&mut self, name: &str) -> Option<usize> {
         self.inner.find_field(name)
+    }
+
+    fn get_interner(&self) -> &Interner {
+        self.inner.get_interner()
     }
 }
 
@@ -379,10 +378,6 @@ impl InnerGenCtxt for MethodGenCtxt<'_> {
 
     fn remove_dup_popx_pop_sequences(&mut self) {
         self.inner.remove_dup_popx_pop_sequences();
-    }
-
-    fn get_max_stack_size(&self) -> u8 {
-        self.inner.get_max_stack_size()
     }
 
     fn get_nbr_locals(&self) -> usize {
@@ -607,16 +602,16 @@ impl GenCtxt for ClassGenCtxt<'_> {
         self.interner.intern(name)
     }
 
-    fn lookup_symbol(&self, name: Interned) -> &str {
-        self.interner.lookup(name)
-    }
-
     fn get_scope(&self) -> usize {
         unreachable!("Asking for scope in a class generation context?")
     }
 
     fn find_field(&mut self, name: &str) -> Option<usize> {
         self.fields.iter().position(|f_int| self.interner.lookup(*f_int) == name)
+    }
+
+    fn get_interner(&self) -> &Interner {
+        self.interner
     }
 }
 
@@ -761,10 +756,10 @@ fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::MethodDef, gc_interface: 
             ast::MethodBody::Body { .. } => {
                 // let locals = std::mem::take(&mut ctxt.inner.locals);
                 let nbr_locals = ctxt.inner.locals_nbr;
-                let max_stack_size = ctxt.get_max_stack_size();
-                let body = ctxt.inner.body.unwrap_or_default();
-                let literals: Vec<Literal> = ctxt.inner.literals.into_iter().collect();
+                let body = ctxt.inner.body.clone().unwrap_or_default();
+                let literals: Vec<Literal> = ctxt.inner.literals.clone().into_iter().collect();
                 let signature = ctxt.signature.clone();
+                let max_stack_size = get_max_stack_size(Some(&body), &literals, ctxt.get_interner());
                 let nbr_params = {
                     match ctxt.signature.chars().next() {
                         Some(ch) if !ch.is_alphabetic() => 1,
@@ -838,13 +833,13 @@ fn compile_block(outer: &mut dyn GenCtxt, defn: &ast::Block, gc_interface: &mut 
     //     .map(|name| ctxt.intern_symbol(&name))
     //     .collect()
     // };
-    let max_stack_size = ctxt.get_max_stack_size();
-    let literals: Vec<Literal> = ctxt.literals.into_iter().collect();
+    let literals: Vec<Literal> = ctxt.literals.clone().into_iter().collect();
     let signature = String::from("--block--");
-    let body = ctxt.body.unwrap_or_default();
+    let body = ctxt.body.clone().unwrap_or_default();
     let nbr_locals = ctxt.locals_nbr;
     let nbr_params = ctxt.args_nbr;
     let inline_cache = vec![None; body.len()];
+    let max_stack_size = get_max_stack_size(Some(&body), &literals, ctxt.get_interner());
 
     let block = Block {
         frame,

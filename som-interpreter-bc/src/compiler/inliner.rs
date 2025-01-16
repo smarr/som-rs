@@ -1,6 +1,6 @@
 #![allow(unused)] // because inlining can be disabled
 
-use crate::compiler::compile::{InnerGenCtxt, MethodCodegen};
+use crate::compiler::compile::{get_max_stack_size, InnerGenCtxt, MethodCodegen};
 use crate::compiler::inliner::JumpType::{JumpOnFalse, JumpOnTrue};
 use crate::compiler::inliner::OrAndChoice::{And, Or};
 use crate::compiler::Literal;
@@ -8,6 +8,7 @@ use crate::vm_objects::block::Block;
 use crate::vm_objects::method::{BasicMethodInfo, Method, MethodInfo};
 use som_core::ast;
 use som_core::bytecode::Bytecode;
+use som_core::interner::Interner;
 use som_gc::gc_interface::GCInterface;
 use som_gc::gcref::Gc;
 
@@ -32,7 +33,8 @@ pub(crate) trait PrimMessageInliner {
     /// Inlines a compiled block into the current scope.
     fn inline_compiled_block(&self, ctxt: &mut dyn InnerGenCtxt, block: &Method, mutator: &mut GCInterface) -> Option<()>;
     /// When inlining a block, adapt its potential children blocks to account for the inlining changes.
-    fn adapt_block_after_outer_inlined(&self, block_body: Gc<Block>, adjust_scope_by: usize, mutator: &mut GCInterface) -> Block;
+    fn adapt_block_after_outer_inlined(&self, block_body: Gc<Block>, adjust_scope_by: usize, interner: &Interner, mutator: &mut GCInterface)
+        -> Block;
     /// Inlines `ifTrue:` and `ifFalse:`.
     fn inline_if_true_or_if_false(&self, ctxt: &mut dyn InnerGenCtxt, jump_type: JumpType, mutator: &mut GCInterface) -> Option<()>;
     /// Inlines `ifTrue:ifFalse:`.
@@ -154,7 +156,7 @@ impl PrimMessageInliner for ast::Message {
                     Bytecode::PushBlock(block_idx) => {
                         match block.literals.get(*block_idx as usize)? {
                             Literal::Block(inner_block) => {
-                                let new_block = self.adapt_block_after_outer_inlined(*inner_block, 1, gc_interface);
+                                let new_block = self.adapt_block_after_outer_inlined(*inner_block, 1, ctxt.get_interner(), gc_interface);
                                 let idx = ctxt.push_literal(Literal::Block(gc_interface.alloc(new_block)));
                                 ctxt.push_instr(Bytecode::PushBlock(idx as u8));
                             }
@@ -210,9 +212,15 @@ impl PrimMessageInliner for ast::Message {
         Some(())
     }
 
-    fn adapt_block_after_outer_inlined(&self, orig_block: Gc<Block>, adjust_scope_by: usize, gc_interface: &mut GCInterface) -> Block {
+    fn adapt_block_after_outer_inlined(
+        &self,
+        orig_block: Gc<Block>,
+        adjust_scope_by: usize,
+        interner: &Interner,
+        gc_interface: &mut GCInterface,
+    ) -> Block {
         let mut block_literals_to_patch = vec![];
-        let new_body = orig_block
+        let new_body: Vec<Bytecode> = orig_block
             .blk_info
             .get_env()
             .body
@@ -265,7 +273,7 @@ impl PrimMessageInliner for ast::Message {
                         _ => panic!("PushBlock is not actually pushing a block somehow"),
                     };
 
-                    let new_block = self.adapt_block_after_outer_inlined(*inner_block, adjust_scope_by, gc_interface);
+                    let new_block = self.adapt_block_after_outer_inlined(*inner_block, adjust_scope_by, interner, gc_interface);
 
                     block_literals_to_patch.push((block_idx, gc_interface.alloc(new_block)));
 
@@ -275,7 +283,24 @@ impl PrimMessageInliner for ast::Message {
             })
             .collect();
 
-        let new_max_stack_size = 10;
+        let new_literals: Vec<Literal> = orig_block
+            .blk_info
+            .get_env()
+            .literals
+            .iter()
+            .enumerate()
+            .map(|(idx, l)| {
+                let block_ptr = block_literals_to_patch.iter().find_map(|(block_idx, blk)| (**block_idx == idx as u8).then_some(blk));
+
+                if let Some(block_ptr) = block_ptr {
+                    Literal::Block(*block_ptr)
+                } else {
+                    l.clone()
+                }
+            })
+            .collect();
+
+        let new_max_stack_size = get_max_stack_size(Some(&new_body), &new_literals, interner);
 
         // can't just clone the inner_block then modify the body/literals because the body is behind an Rc (not Rc<RefCell<>>), so immutable
         // though if we ever want to do some runtime bytecode rewriting, it'll have to be an Rc<RefCell<>> and this code will be refactorable (not so many individual calls to .clone())
@@ -285,22 +310,7 @@ impl PrimMessageInliner for ast::Message {
             blk_info: gc_interface.alloc(Method::Defined(MethodInfo {
                 base_method_info: BasicMethodInfo::new(String::from(orig_block.blk_info.signature()), *orig_block.blk_info.holder()),
                 nbr_locals: orig_block.blk_info.get_env().nbr_locals,
-                literals: orig_block
-                    .blk_info
-                    .get_env()
-                    .literals
-                    .iter()
-                    .enumerate()
-                    .map(|(idx, l)| {
-                        let block_ptr = block_literals_to_patch.iter().find_map(|(block_idx, blk)| (**block_idx == idx as u8).then_some(blk));
-
-                        if let Some(block_ptr) = block_ptr {
-                            Literal::Block(*block_ptr)
-                        } else {
-                            l.clone()
-                        }
-                    })
-                    .collect(),
+                literals: new_literals,
                 body: new_body,
                 nbr_params: orig_block.blk_info.get_env().nbr_params,
                 max_stack_size: new_max_stack_size,
