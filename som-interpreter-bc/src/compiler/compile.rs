@@ -50,13 +50,9 @@ pub(crate) trait InnerGenCtxt: GenCtxt {
 
 /// Calculates the maximum stack size possible. For each frame, this allows us to allocate a stack of precisely the maximum possible size it needs.
 /// TODO opt: it's possible our estimate is overly conservative. Reducing the max stack size reduces time spent allocating, and could maybe be a worthwhile optimization.
-pub(crate) fn get_max_stack_size(body: Option<&[Bytecode]>, literals: &[Literal], interner: &Interner) -> u8 {
+pub(crate) fn get_max_stack_size(body: &[Bytecode], literals: &[Literal], interner: &Interner) -> u8 {
     let mut abstract_stack_size = 0;
     let mut max_stack_size_observed: u8 = 0;
-
-    let Some(body) = body else {
-        return 0;
-    };
 
     for bc in body {
         match bc {
@@ -759,7 +755,7 @@ fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::MethodDef, gc_interface: 
                 let body = ctxt.inner.body.clone().unwrap_or_default();
                 let literals: Vec<Literal> = ctxt.inner.literals.clone().into_iter().collect();
                 let signature = ctxt.signature.clone();
-                let max_stack_size = get_max_stack_size(Some(&body), &literals, ctxt.get_interner());
+                let max_stack_size = get_max_stack_size(&body, &literals, ctxt.get_interner());
                 let nbr_params = {
                     match ctxt.signature.chars().next() {
                         Some(ch) if !ch.is_alphabetic() => 1,
@@ -839,7 +835,7 @@ fn compile_block(outer: &mut dyn GenCtxt, defn: &ast::Block, gc_interface: &mut 
     let nbr_locals = ctxt.locals_nbr;
     let nbr_params = ctxt.args_nbr;
     let inline_cache = vec![None; body.len()];
-    let max_stack_size = get_max_stack_size(Some(&body), &literals, ctxt.get_interner());
+    let max_stack_size = get_max_stack_size(&body, &literals, ctxt.get_interner());
 
     let block = Block {
         frame,

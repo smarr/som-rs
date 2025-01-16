@@ -103,6 +103,13 @@ impl Method {
         }
     }
 
+    pub fn get_env_mut(&mut self) -> &mut MethodInfo {
+        match self {
+            Method::Defined(env) => env,
+            _ => panic!("requesting method metadata from primitive/trivial method"),
+        }
+    }
+
     #[cfg(feature = "frame-debug-info")]
     pub fn get_block_debug_info(&self) -> &BlockDebugInfo {
         match &self {

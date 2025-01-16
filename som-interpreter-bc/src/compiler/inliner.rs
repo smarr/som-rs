@@ -25,54 +25,53 @@ pub(crate) enum OrAndChoice {
 // TODO some of those should return Result types and throw errors instead, most likely.
 pub(crate) trait PrimMessageInliner {
     /// Starts inlining a function if it's on the list of inlinable functions.
-    fn inline_if_possible(&self, ctxt: &mut dyn InnerGenCtxt, mutator: &mut GCInterface) -> Option<()>;
+    fn inline_if_possible(&self, ctxt: &mut dyn InnerGenCtxt, gc_interface: &mut GCInterface) -> Option<()>;
     /// Inlines an expression. If this results in a PushBlock, calls `inline_last_push_block_bc(...)` to inline the block.
-    fn inline_expression(&self, ctxt: &mut dyn InnerGenCtxt, expression: &ast::Expression, mutator: &mut GCInterface) -> Option<()>;
+    fn inline_expression(&self, ctxt: &mut dyn InnerGenCtxt, expression: &ast::Expression, gc_interface: &mut GCInterface) -> Option<()>;
     /// Gets the last bytecode, assumes it to be a PushBlock, removes it and inlines the block - a set of operations for which there is a redundant need.
-    fn inline_last_push_block_bc(&self, ctxt: &mut dyn InnerGenCtxt, mutator: &mut GCInterface) -> Option<()>;
+    fn inline_last_push_block_bc(&self, ctxt: &mut dyn InnerGenCtxt, gc_interface: &mut GCInterface) -> Option<()>;
     /// Inlines a compiled block into the current scope.
-    fn inline_compiled_block(&self, ctxt: &mut dyn InnerGenCtxt, block: &Method, mutator: &mut GCInterface) -> Option<()>;
+    fn inline_compiled_block(&self, ctxt: &mut dyn InnerGenCtxt, block: &Method, gc_interface: &mut GCInterface) -> Option<()>;
     /// When inlining a block, adapt its potential children blocks to account for the inlining changes.
-    fn adapt_block_after_outer_inlined(&self, block_body: Gc<Block>, adjust_scope_by: usize, interner: &Interner, mutator: &mut GCInterface)
-        -> Block;
+    fn adapt_block_after_outer_inlined(&self, block_body: Gc<Block>, adjust_scope_by: usize, interner: &Interner);
     /// Inlines `ifTrue:` and `ifFalse:`.
-    fn inline_if_true_or_if_false(&self, ctxt: &mut dyn InnerGenCtxt, jump_type: JumpType, mutator: &mut GCInterface) -> Option<()>;
+    fn inline_if_true_or_if_false(&self, ctxt: &mut dyn InnerGenCtxt, jump_type: JumpType, gc_interface: &mut GCInterface) -> Option<()>;
     /// Inlines `ifTrue:ifFalse:`.
-    fn inline_if_true_if_false(&self, ctxt: &mut dyn InnerGenCtxt, jump_type: JumpType, mutator: &mut GCInterface) -> Option<()>;
+    fn inline_if_true_if_false(&self, ctxt: &mut dyn InnerGenCtxt, jump_type: JumpType, gc_interface: &mut GCInterface) -> Option<()>;
     /// Inlines `whileTrue:` and `whileFalse:`.
-    fn inline_while(&self, ctxt: &mut dyn InnerGenCtxt, jump_type: JumpType, mutator: &mut GCInterface) -> Option<()>;
+    fn inline_while(&self, ctxt: &mut dyn InnerGenCtxt, jump_type: JumpType, gc_interface: &mut GCInterface) -> Option<()>;
     /// Inlines `and:` and `or:`.
-    fn inline_or_and(&self, ctxt: &mut dyn InnerGenCtxt, or_and_choice: OrAndChoice, mutator: &mut GCInterface) -> Option<()>;
+    fn inline_or_and(&self, ctxt: &mut dyn InnerGenCtxt, or_and_choice: OrAndChoice, gc_interface: &mut GCInterface) -> Option<()>;
     /// Inlines `to:do`.
-    fn inline_to_do(&self, ctxt: &mut dyn InnerGenCtxt, mutator: &mut GCInterface) -> Option<()>;
+    fn inline_to_do(&self, ctxt: &mut dyn InnerGenCtxt, gc_interface: &mut GCInterface) -> Option<()>;
 }
 
 impl PrimMessageInliner for ast::Message {
-    fn inline_if_possible(&self, ctxt: &mut dyn InnerGenCtxt, mutator: &mut GCInterface) -> Option<()> {
+    fn inline_if_possible(&self, ctxt: &mut dyn InnerGenCtxt, gc_interface: &mut GCInterface) -> Option<()> {
         match self.signature.as_str() {
-            "ifTrue:" => self.inline_if_true_or_if_false(ctxt, JumpOnFalse, mutator),
-            "ifFalse:" => self.inline_if_true_or_if_false(ctxt, JumpOnTrue, mutator),
-            "ifTrue:ifFalse:" => self.inline_if_true_if_false(ctxt, JumpOnFalse, mutator),
-            "ifFalse:ifTrue:" => self.inline_if_true_if_false(ctxt, JumpOnTrue, mutator),
-            "whileTrue:" => self.inline_while(ctxt, JumpOnFalse, mutator),
-            "whileFalse:" => self.inline_while(ctxt, JumpOnTrue, mutator),
-            "or:" | "||" => self.inline_or_and(ctxt, Or, mutator),
-            "and:" | "&&" => self.inline_or_and(ctxt, And, mutator),
-            "to:do:" => self.inline_to_do(ctxt, mutator),
+            "ifTrue:" => self.inline_if_true_or_if_false(ctxt, JumpOnFalse, gc_interface),
+            "ifFalse:" => self.inline_if_true_or_if_false(ctxt, JumpOnTrue, gc_interface),
+            "ifTrue:ifFalse:" => self.inline_if_true_if_false(ctxt, JumpOnFalse, gc_interface),
+            "ifFalse:ifTrue:" => self.inline_if_true_if_false(ctxt, JumpOnTrue, gc_interface),
+            "whileTrue:" => self.inline_while(ctxt, JumpOnFalse, gc_interface),
+            "whileFalse:" => self.inline_while(ctxt, JumpOnTrue, gc_interface),
+            "or:" | "||" => self.inline_or_and(ctxt, Or, gc_interface),
+            "and:" | "&&" => self.inline_or_and(ctxt, And, gc_interface),
+            "to:do:" => self.inline_to_do(ctxt, gc_interface),
             // to:by:do, downTo:do:, perhaps?
             _ => None,
         }
     }
 
-    fn inline_expression(&self, ctxt: &mut dyn InnerGenCtxt, expression: &ast::Expression, mutator: &mut GCInterface) -> Option<()> {
-        expression.codegen(ctxt, mutator)?;
+    fn inline_expression(&self, ctxt: &mut dyn InnerGenCtxt, expression: &ast::Expression, gc_interface: &mut GCInterface) -> Option<()> {
+        expression.codegen(ctxt, gc_interface)?;
         match ctxt.get_instructions().last()? {
-            Bytecode::PushBlock(_) => self.inline_last_push_block_bc(ctxt, mutator),
+            Bytecode::PushBlock(_) => self.inline_last_push_block_bc(ctxt, gc_interface),
             _ => Some(()),
         }
     }
 
-    fn inline_last_push_block_bc(&self, ctxt: &mut dyn InnerGenCtxt, mutator: &mut GCInterface) -> Option<()> {
+    fn inline_last_push_block_bc(&self, ctxt: &mut dyn InnerGenCtxt, gc_interface: &mut GCInterface) -> Option<()> {
         let block_idx = match ctxt.get_instructions().last()? {
             Bytecode::PushBlock(val) => *val,
             bc => panic!("inlining function expects last bytecode to be a PUSH_BLOCK, instead it was {}.", bc),
@@ -85,7 +84,7 @@ impl PrimMessageInliner for ast::Message {
         };
         ctxt.remove_literal(block_idx as usize);
 
-        match self.inline_compiled_block(ctxt, &(cond_block_ref.blk_info), mutator) {
+        match self.inline_compiled_block(ctxt, &(cond_block_ref.blk_info), gc_interface) {
             None => panic!("Inlining a compiled block failed!"),
             _ => Some(()),
         }
@@ -156,8 +155,8 @@ impl PrimMessageInliner for ast::Message {
                     Bytecode::PushBlock(block_idx) => {
                         match block.literals.get(*block_idx as usize)? {
                             Literal::Block(inner_block) => {
-                                let new_block = self.adapt_block_after_outer_inlined(*inner_block, 1, ctxt.get_interner(), gc_interface);
-                                let idx = ctxt.push_literal(Literal::Block(gc_interface.alloc(new_block)));
+                                self.adapt_block_after_outer_inlined(*inner_block, 1, ctxt.get_interner());
+                                let idx = ctxt.push_literal(Literal::Block(*inner_block));
                                 ctxt.push_instr(Bytecode::PushBlock(idx as u8));
                             }
                             _ => panic!("PushBlock not actually pushing a block somehow"),
@@ -212,14 +211,8 @@ impl PrimMessageInliner for ast::Message {
         Some(())
     }
 
-    fn adapt_block_after_outer_inlined(
-        &self,
-        orig_block: Gc<Block>,
-        adjust_scope_by: usize,
-        interner: &Interner,
-        gc_interface: &mut GCInterface,
-    ) -> Block {
-        let mut block_literals_to_patch = vec![];
+    // TODO: kinda ugly orig_block isn't passed as a &mut Gc<Block> to show this function is all about mutating it.
+    fn adapt_block_after_outer_inlined(&self, mut orig_block: Gc<Block>, adjust_scope_by: usize, interner: &Interner) {
         let new_body: Vec<Bytecode> = orig_block
             .blk_info
             .get_env()
@@ -273,9 +266,7 @@ impl PrimMessageInliner for ast::Message {
                         _ => panic!("PushBlock is not actually pushing a block somehow"),
                     };
 
-                    let new_block = self.adapt_block_after_outer_inlined(*inner_block, adjust_scope_by, interner, gc_interface);
-
-                    block_literals_to_patch.push((block_idx, gc_interface.alloc(new_block)));
+                    self.adapt_block_after_outer_inlined(*inner_block, adjust_scope_by, interner);
 
                     Bytecode::PushBlock(*block_idx)
                 }
@@ -283,45 +274,14 @@ impl PrimMessageInliner for ast::Message {
             })
             .collect();
 
-        let new_literals: Vec<Literal> = orig_block
-            .blk_info
-            .get_env()
-            .literals
-            .iter()
-            .enumerate()
-            .map(|(idx, l)| {
-                let block_ptr = block_literals_to_patch.iter().find_map(|(block_idx, blk)| (**block_idx == idx as u8).then_some(blk));
+        let new_max_stack_size = get_max_stack_size(&new_body, &orig_block.blk_info.get_env().literals, interner);
 
-                if let Some(block_ptr) = block_ptr {
-                    Literal::Block(*block_ptr)
-                } else {
-                    l.clone()
-                }
-            })
-            .collect();
-
-        let new_max_stack_size = get_max_stack_size(Some(&new_body), &new_literals, interner);
-
-        // can't just clone the inner_block then modify the body/literals because the body is behind an Rc (not Rc<RefCell<>>), so immutable
-        // though if we ever want to do some runtime bytecode rewriting, it'll have to be an Rc<RefCell<>> and this code will be refactorable (not so many individual calls to .clone())
-        // TODO: we now pass a mutable pointer to a Block actually, so this is all avoidable!
-        Block {
-            frame: orig_block.frame,
-            blk_info: gc_interface.alloc(Method::Defined(MethodInfo {
-                base_method_info: BasicMethodInfo::new(String::from(orig_block.blk_info.signature()), *orig_block.blk_info.holder()),
-                nbr_locals: orig_block.blk_info.get_env().nbr_locals,
-                literals: new_literals,
-                body: new_body,
-                nbr_params: orig_block.blk_info.get_env().nbr_params,
-                max_stack_size: new_max_stack_size,
-                inline_cache: orig_block.blk_info.get_env().inline_cache.clone(),
-                #[cfg(feature = "frame-debug-info")]
-                block_debug_info: orig_block.blk_info.get_env().block_debug_info.clone(),
-            })),
-        }
+        let blk_method = orig_block.blk_info.get_env_mut();
+        blk_method.body = new_body;
+        blk_method.max_stack_size = new_max_stack_size;
     }
 
-    fn inline_if_true_or_if_false(&self, ctxt: &mut dyn InnerGenCtxt, jump_type: JumpType, mutator: &mut GCInterface) -> Option<()> {
+    fn inline_if_true_or_if_false(&self, ctxt: &mut dyn InnerGenCtxt, jump_type: JumpType, gc_interface: &mut GCInterface) -> Option<()> {
         // TODO opt: we only inline when it's a block (see BooleanTest:testIfTrueWithValueBlock to see why), but we could easily only inline when it's any expression that's safe to be inlined. Most fall under that category
         if self.values.len() != 1 || !matches!(self.values.first()?, ast::Expression::Block(_)) {
             return None;
@@ -333,14 +293,14 @@ impl PrimMessageInliner for ast::Message {
             JumpOnTrue => ctxt.push_instr(Bytecode::JumpOnTrueTopNil(0)),
         }
 
-        self.inline_expression(ctxt, self.values.first()?, mutator);
+        self.inline_expression(ctxt, self.values.first()?, gc_interface);
 
         ctxt.backpatch_jump_to_current(jump_idx);
 
         Some(())
     }
 
-    fn inline_if_true_if_false(&self, ctxt: &mut dyn InnerGenCtxt, jump_type: JumpType, mutator: &mut GCInterface) -> Option<()> {
+    fn inline_if_true_if_false(&self, ctxt: &mut dyn InnerGenCtxt, jump_type: JumpType, gc_interface: &mut GCInterface) -> Option<()> {
         if self.values.len() != 2
             || !matches!(self.values.first()?, ast::Expression::Block(_))
             || !matches!(self.values.get(1)?, ast::Expression::Block(_))
@@ -354,21 +314,21 @@ impl PrimMessageInliner for ast::Message {
             JumpOnTrue => ctxt.push_instr(Bytecode::JumpOnTruePop(0)),
         }
 
-        self.inline_expression(ctxt, self.values.first()?, mutator);
+        self.inline_expression(ctxt, self.values.first()?, gc_interface);
 
         let middle_jump_idx = ctxt.get_cur_instr_idx();
         ctxt.push_instr(Bytecode::Jump(0));
 
         ctxt.backpatch_jump_to_current(start_jump_idx);
 
-        self.inline_expression(ctxt, self.values.get(1)?, mutator);
+        self.inline_expression(ctxt, self.values.get(1)?, gc_interface);
 
         ctxt.backpatch_jump_to_current(middle_jump_idx);
 
         Some(())
     }
 
-    fn inline_while(&self, ctxt: &mut dyn InnerGenCtxt, jump_type: JumpType, mutator: &mut GCInterface) -> Option<()> {
+    fn inline_while(&self, ctxt: &mut dyn InnerGenCtxt, jump_type: JumpType, gc_interface: &mut GCInterface) -> Option<()> {
         if self.values.len() != 1 || !matches!(self.values.first()?, ast::Expression::Block(_)) {
             // I guess it doesn't have to be a block, but really, it is in all our benchmarks
             return None;
@@ -377,7 +337,7 @@ impl PrimMessageInliner for ast::Message {
         let idx_pre_condition = ctxt.get_cur_instr_idx();
 
         // by the time we see it's a "whileTrue:" or a "whileFalse:", there's already been a PushBlock, since they're methods defined on Block
-        self.inline_last_push_block_bc(ctxt, mutator);
+        self.inline_last_push_block_bc(ctxt, gc_interface);
 
         let cond_jump_idx = ctxt.get_cur_instr_idx();
         match jump_type {
@@ -385,7 +345,7 @@ impl PrimMessageInliner for ast::Message {
             JumpOnTrue => ctxt.push_instr(Bytecode::JumpOnTruePop(0)),
         }
 
-        self.inline_expression(ctxt, self.values.first()?, mutator);
+        self.inline_expression(ctxt, self.values.first()?, gc_interface);
 
         ctxt.push_instr(Bytecode::Pop);
 
@@ -397,7 +357,7 @@ impl PrimMessageInliner for ast::Message {
         Some(())
     }
 
-    fn inline_or_and(&self, ctxt: &mut dyn InnerGenCtxt, or_and_choice: OrAndChoice, mutator: &mut GCInterface) -> Option<()> {
+    fn inline_or_and(&self, ctxt: &mut dyn InnerGenCtxt, or_and_choice: OrAndChoice, gc_interface: &mut GCInterface) -> Option<()> {
         if self.values.len() != 1 || !matches!(self.values.first()?, ast::Expression::Block(_)) {
             return None;
         }
@@ -409,7 +369,7 @@ impl PrimMessageInliner for ast::Message {
             And => ctxt.push_instr(Bytecode::JumpOnFalsePop(0)),
         }
 
-        self.inline_expression(ctxt, self.values.first()?, mutator);
+        self.inline_expression(ctxt, self.values.first()?, gc_interface);
 
         let skip_return_true_idx = ctxt.get_cur_instr_idx();
         ctxt.push_instr(Bytecode::Jump(0));
@@ -428,12 +388,12 @@ impl PrimMessageInliner for ast::Message {
         Some(())
     }
 
-    fn inline_to_do(&self, ctxt: &mut dyn InnerGenCtxt, mutator: &mut GCInterface) -> Option<()> {
+    fn inline_to_do(&self, ctxt: &mut dyn InnerGenCtxt, gc_interface: &mut GCInterface) -> Option<()> {
         if self.values.len() != 2 || !matches!(self.values.get(1)?, ast::Expression::Block(_)) {
             return None;
         }
 
-        self.inline_expression(ctxt, self.values.first()?, mutator);
+        self.inline_expression(ctxt, self.values.first()?, gc_interface);
 
         let idx_loop_accumulator = ctxt.get_nbr_locals() as u8;
 
@@ -445,7 +405,7 @@ impl PrimMessageInliner for ast::Message {
         ctxt.push_instr(Bytecode::Dup);
         ctxt.push_instr(Bytecode::PopLocal(0, idx_loop_accumulator));
 
-        self.inline_expression(ctxt, self.values.get(1)?, mutator); // inline the block
+        self.inline_expression(ctxt, self.values.get(1)?, gc_interface); // inline the block
 
         ctxt.push_instr(Bytecode::Pop);
         ctxt.push_instr(Bytecode::Inc);
