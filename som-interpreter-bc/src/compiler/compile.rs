@@ -121,8 +121,8 @@ pub(crate) fn get_max_stack_size(body: Option<&[Bytecode]>, literals: &[Literal]
         }
     }
 
-    // NB: plus one to account for the one arg we push onto the stack to make sure they're reachable by the GC (needed for moving GC, not marksweep).
-    max_stack_size_observed + 2
+    // Need to add an extra slot for the hack invoke case
+    max_stack_size_observed + 1
 }
 
 struct BlockGenCtxt<'a> {

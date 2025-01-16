@@ -121,7 +121,7 @@ fn frame_mixed_local_and_arg_access(universe: &mut Universe) {
 
 #[rstest]
 fn frame_stack_accesses(universe: &mut Universe) {
-    let method_ref = get_method("foo: a and: b = ( | a b c | ^ false )", "foo:and:", universe);
+    let method_ref = get_method("foo: a and: b = ( | a b c | ^ self call: a with: b args: c )", "foo:and:", universe);
 
     let frame_ptr = Frame::alloc_initial_method(method_ref, &[Value::Double(1000.0), Value::SYSTEM], universe.gc_interface);
     let mut frame = frame_ptr;
@@ -146,9 +146,7 @@ fn frame_stack_accesses(universe: &mut Universe) {
 
 #[rstest]
 fn frame_stack_split_off(universe: &mut Universe) {
-    let mut method_ref = get_method("foo: a and: b = ( | a b c | ^ false )", "foo:and:", universe);
-
-    assert_eq!(method_ref.get_env().max_stack_size, 3);
+    let mut method_ref = get_method("foo: a and: b = ( | a b c | ^ self call: a with: b )", "foo:and:", universe);
 
     match &mut *method_ref {
         Method::Defined(env) => env.max_stack_size = 5, // just to make the example bigger
@@ -178,7 +176,7 @@ fn frame_stack_split_off(universe: &mut Universe) {
 
 #[rstest]
 fn frame_stack_iter(universe: &mut Universe) {
-    let method_ref = get_method("foo: a and: b = ( | a b c | ^ false )", "foo:and:", universe);
+    let method_ref = get_method("foo: a and: b = ( | a b c | ^ self call: a with: b args: c )", "foo:and:", universe);
 
     let mut frame_ptr = Frame::alloc_initial_method(method_ref, &[Value::Double(1000.0), Value::SYSTEM], universe.gc_interface);
     frame_ptr.stack_push(Value::Boolean(true));
@@ -193,4 +191,11 @@ fn frame_stack_iter(universe: &mut Universe) {
     assert_eq!(stack_iter.next(), Some(&Value::Boolean(false)));
     assert_eq!(stack_iter.next(), Some(&Value::Boolean(true)));
     assert_eq!(stack_iter.next(), None);
+}
+
+#[rstest]
+fn frame_stack_max_size(universe: &mut Universe) {
+    let method_ref = get_method("foo: a and: b = ( | a b c | ^ self call: a with: b )", "foo:and:", universe);
+
+    assert_eq!(method_ref.get_env().max_stack_size, 4); // 3 + 1 extra
 }
