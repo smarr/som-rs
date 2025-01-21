@@ -3,21 +3,23 @@
 //!
 #![warn(missing_docs)]
 
-use anyhow::{bail, Context};
-#[cfg(feature = "jemalloc")]
-use jemallocator::Jemalloc;
-use som_gc::gcref::Gc;
-use som_interpreter_bc::vm_objects::class::Class;
 use std::path::PathBuf;
 use std::sync::atomic::Ordering;
-use structopt::StructOpt;
+
+use anyhow::{bail, Context};
+use clap::Parser;
+#[cfg(feature = "jemalloc")]
+use jemallocator::Jemalloc;
+
 mod shell;
 
+use som_gc::gcref::Gc;
 use som_interpreter_bc::debug::disassembler::disassemble_method_body;
 #[cfg(feature = "profiler")]
 use som_interpreter_bc::debug::profiler::Profiler;
 use som_interpreter_bc::universe::Universe;
 use som_interpreter_bc::value::Value;
+use som_interpreter_bc::vm_objects::class::Class;
 use som_interpreter_bc::vm_objects::method::Method;
 use som_interpreter_bc::{INTERPRETER_RAW_PTR_CONST, UNIVERSE_RAW_PTR_CONST};
 
@@ -25,8 +27,8 @@ use som_interpreter_bc::{INTERPRETER_RAW_PTR_CONST, UNIVERSE_RAW_PTR_CONST};
 #[global_allocator]
 static GLOBAL: Jemalloc = Jemalloc;
 
-#[derive(Debug, Clone, PartialEq, StructOpt)]
-#[structopt(about, author)]
+#[derive(Debug, Clone, PartialEq, clap::StructOpt)]
+#[clap(about, author)]
 struct Options {
     /// File to evaluate.
     file: Option<PathBuf>,
@@ -35,19 +37,19 @@ struct Options {
     args: Vec<String>,
 
     /// Set search path for application classes.
-    #[structopt(long, short)]
+    #[clap(long, short, multiple_values(true))]
     classpath: Vec<PathBuf>,
 
     /// Disassemble the class, instead of executing.
-    #[structopt(long, short)]
+    #[clap(long, short)]
     disassemble: bool,
 
     /// Enable verbose output (with timing information).
-    #[structopt(short = "v")]
+    #[clap(short = 'v')]
     verbose: bool,
 
     /// Enable verbose output (with timing information).
-    #[structopt(long, short = "hs")]
+    #[clap(long, short = 'h')]
     heap_size: Option<usize>,
 }
 

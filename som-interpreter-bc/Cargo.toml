@@ -18,7 +18,7 @@ som-gc = { path = "../som-gc", version = "0.1.0" }
 mmtk = "0.30.0"
 
 # CLI interface
-structopt = "0.3.25"
+clap = { version = "3.0", features = ["derive"] }
 
 # error handling
 anyhow = "1.0.51"

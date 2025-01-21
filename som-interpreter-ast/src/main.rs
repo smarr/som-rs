@@ -3,12 +3,13 @@
 //!
 #![warn(missing_docs)]
 
-use anyhow::anyhow;
-#[cfg(feature = "jemalloc")]
-use jemallocator::Jemalloc;
 use std::path::PathBuf;
 use std::sync::atomic::Ordering;
-use structopt::StructOpt;
+
+use anyhow::anyhow;
+use clap::Parser;
+#[cfg(feature = "jemalloc")]
+use jemallocator::Jemalloc;
 
 mod shell;
 
@@ -23,26 +24,26 @@ use som_interpreter_ast::{STACK_ARGS_RAW_PTR_CONST, UNIVERSE_RAW_PTR_CONST};
 #[global_allocator]
 static GLOBAL: Jemalloc = Jemalloc;
 
-#[derive(Debug, Clone, PartialEq, StructOpt)]
-#[structopt(about, author)]
+#[derive(Debug, Clone, PartialEq, clap::StructOpt)]
+#[clap(about, author)]
 struct Options {
     /// Files to evaluate.
-    #[structopt(name = "FILE")]
+    #[clap(name = "FILE")]
     file: Option<PathBuf>,
 
-    #[structopt(name = "ARGS")]
+    #[clap(name = "ARGS")]
     args: Vec<String>,
 
     /// Set search path for application classes.
-    #[structopt(short, long)]
+    #[clap(short, long, multiple_values(true))]
     classpath: Vec<PathBuf>,
 
     /// Enable verbose output (with timing information).
-    #[structopt(short = "v")]
+    #[clap(short = 'v')]
     verbose: bool,
 
     /// Enable verbose output (with timing information).
-    #[structopt(long, short = "hs")]
+    #[clap(long, short = 'h')]
     heap_size: Option<usize>,
 }
 
