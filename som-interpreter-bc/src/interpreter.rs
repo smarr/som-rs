@@ -124,57 +124,17 @@ impl Interpreter {
             // dbg!(self.current_frame);
 
             match bytecode {
-                Bytecode::Dup2 => {
-                    let second_to_last = *self.current_frame.stack_nth_back(1);
-                    self.current_frame.stack_push(second_to_last)
+                Bytecode::Send1(idx) => {
+                    send! {self, universe, &mut self.current_frame, idx, Some(0)}
                 }
-                Bytecode::JumpIfGreater(offset) => {
-                    let top = self.current_frame.stack_last();
-                    let top2 = self.current_frame.stack_nth_back(1);
-
-                    let is_greater = {
-                        if let (Some(a), Some(b)) = (top.as_integer(), top2.as_integer()) {
-                            a > b
-                        } else if let (Some(a), Some(b)) = (top.as_double(), top2.as_double()) {
-                            a > b
-                        } else {
-                            panic!("we don't handle this case.")
-                        }
-                    };
-
-                    if is_greater {
-                        self.current_frame.stack_pop();
-                        self.current_frame.stack_pop();
-                        self.bytecode_idx += offset - 1;
-                    }
+                Bytecode::Send2(idx) => {
+                    send! {self, universe, &mut self.current_frame, idx, Some(1)}
                 }
-                Bytecode::Dup => {
-                    let value = *self.current_frame.stack_last();
-                    self.current_frame.stack_push(value);
+                Bytecode::Send3(idx) => {
+                    send! {self, universe, &mut self.current_frame, idx, Some(2)}
                 }
-                Bytecode::Inc => {
-                    let last = self.current_frame.stack_last_mut();
-                    if let Some(int) = last.as_integer() {
-                        *last = Value::new_integer(int + 1);
-                    } else if let Some(double) = last.as_double() {
-                        *last = Value::new_double(double + 1.0);
-                    } else if let Some(mut big_int) = last.as_big_integer::<Gc<BigInt>>() {
-                        *big_int += 1;
-                    } else {
-                        panic!("Invalid type in Inc")
-                    }
-                }
-                Bytecode::Dec => {
-                    let last = self.current_frame.stack_last_mut();
-                    if let Some(int) = last.as_integer() {
-                        *last = Value::new_integer(int - 1); // TODO: see Bytecode::Inc
-                    } else if let Some(double) = last.as_double() {
-                        *last = Value::new_double(double - 1.0);
-                    } else if let Some(mut big_int) = last.as_big_integer::<Gc<BigInt>>() {
-                        *big_int -= 1;
-                    } else {
-                        panic!("Invalid type in DEC")
-                    }
+                Bytecode::SendN(idx) => {
+                    send! {self, universe, &mut self.current_frame, idx, None}
                 }
                 Bytecode::PushLocal(idx) => {
                     let value = *self.current_frame.lookup_local(idx as usize);
@@ -183,7 +143,6 @@ impl Interpreter {
                 Bytecode::PushNonLocal(up_idx, idx) => {
                     debug_assert_ne!(up_idx, 0);
                     let from = Frame::nth_frame_back(&self.current_frame, up_idx);
-                    let _frame = &*from;
                     let value = *from.lookup_local(idx as usize);
                     self.current_frame.stack_push(value);
                 }
@@ -211,6 +170,34 @@ impl Interpreter {
                         }
                     };
                     self.current_frame.stack_push(val);
+                }
+                Bytecode::Dup => {
+                    let value = *self.current_frame.stack_last();
+                    self.current_frame.stack_push(value);
+                }
+                Bytecode::Inc => {
+                    let last = self.current_frame.stack_last_mut();
+                    if let Some(int) = last.as_integer() {
+                        *last = Value::new_integer(int + 1);
+                    } else if let Some(double) = last.as_double() {
+                        *last = Value::new_double(double + 1.0);
+                    } else if let Some(mut big_int) = last.as_big_integer::<Gc<BigInt>>() {
+                        *big_int += 1;
+                    } else {
+                        panic!("Invalid type in Inc")
+                    }
+                }
+                Bytecode::Dec => {
+                    let last = self.current_frame.stack_last_mut();
+                    if let Some(int) = last.as_integer() {
+                        *last = Value::new_integer(int - 1);
+                    } else if let Some(double) = last.as_double() {
+                        *last = Value::new_double(double - 1.0);
+                    } else if let Some(mut big_int) = last.as_big_integer::<Gc<BigInt>>() {
+                        *big_int -= 1;
+                    } else {
+                        panic!("Invalid type in DEC")
+                    }
                 }
                 Bytecode::PushBlock(idx) => {
                     let literal = self.current_frame.lookup_constant(idx as usize);
@@ -280,18 +267,6 @@ impl Interpreter {
                         panic!("trying to assign a field to a {:?}?", &self_val)
                     }
                 }
-                Bytecode::Send1(idx) => {
-                    send! {self, universe, &mut self.current_frame, idx, Some(0)}
-                }
-                Bytecode::Send2(idx) => {
-                    send! {self, universe, &mut self.current_frame, idx, Some(1)}
-                }
-                Bytecode::Send3(idx) => {
-                    send! {self, universe, &mut self.current_frame, idx, Some(2)}
-                }
-                Bytecode::SendN(idx) => {
-                    send! {self, universe, &mut self.current_frame, idx, None}
-                }
                 Bytecode::SuperSend(lit_idx) => {
                     let Literal::Symbol(symbol) = self.current_frame.lookup_constant(lit_idx as usize).clone() else {
                         unreachable!()
@@ -327,7 +302,7 @@ impl Interpreter {
                 Bytecode::ReturnNonLocal(up_idx) => {
                     let method_frame = Frame::nth_frame_back(&self.current_frame, up_idx);
 
-                    let escaped_frames = {
+                    let escaped_frames_nbr = {
                         let mut current_frame = self.current_frame;
                         let mut count = 0;
 
@@ -343,9 +318,8 @@ impl Interpreter {
                         }
                     };
 
-                    if let Some(count) = escaped_frames {
+                    if let Some(count) = escaped_frames_nbr {
                         let val = self.current_frame.stack_pop();
-
                         self.pop_n_frames(count + 1);
                         self.current_frame.stack_push(val);
                     } else {
@@ -368,6 +342,10 @@ impl Interpreter {
                             .expect("A block has escaped and `escapedBlock:` is not defined on receiver");
                     }
                 }
+                Bytecode::Dup2 => {
+                    let second_to_last = *self.current_frame.stack_nth_back(1);
+                    self.current_frame.stack_push(second_to_last)
+                }
                 Bytecode::Jump(offset) => {
                     self.bytecode_idx += offset - 1; // minus one because it gets incremented by one already every loop
                 }
@@ -375,11 +353,11 @@ impl Interpreter {
                     self.bytecode_idx -= offset + 1;
                 }
                 Bytecode::JumpOnTrueTopNil(offset) => {
-                    let condition_result = self.current_frame.stack_last();
+                    let condition_result = self.current_frame.stack_last_mut();
 
                     if condition_result.is_boolean_true() {
                         self.bytecode_idx += offset - 1;
-                        *self.current_frame.stack_last_mut() = Value::NIL;
+                        *condition_result = Value::NIL;
                     } else if condition_result.is_boolean_false() {
                         self.current_frame.stack_pop();
                     } else {
@@ -387,13 +365,13 @@ impl Interpreter {
                     }
                 }
                 Bytecode::JumpOnFalseTopNil(offset) => {
-                    let condition_result = self.current_frame.stack_last();
+                    let condition_result = self.current_frame.stack_last_mut();
 
                     if condition_result.is_boolean_true() {
                         self.current_frame.stack_pop();
                     } else if condition_result.is_boolean_false() {
                         self.bytecode_idx += offset - 1;
-                        *self.current_frame.stack_last_mut() = Value::NIL;
+                        *condition_result = Value::NIL;
                     } else {
                         panic!("JumpOnFalseTopNil condition did not evaluate to boolean (was {:?})", condition_result)
                     }
@@ -418,6 +396,25 @@ impl Interpreter {
                         // pass
                     } else {
                         panic!("JumpOnFalsePop condition did not evaluate to boolean (was {:?})", condition_result)
+                    }
+                }
+                Bytecode::JumpIfGreater(offset) => {
+                    let top = self.current_frame.stack_last();
+                    let top2 = self.current_frame.stack_nth_back(1);
+
+                    let is_greater = {
+                        if let (Some(a), Some(b)) = (top.as_integer(), top2.as_integer()) {
+                            a > b
+                        } else if let (Some(a), Some(b)) = (top.as_double(), top2.as_double()) {
+                            a > b
+                        } else {
+                            panic!("JumpifGreater: we don't handle this case.")
+                        }
+                    };
+
+                    if is_greater {
+                        self.current_frame.remove_n_last_elements(2);
+                        self.bytecode_idx += offset - 1;
                     }
                 }
             }
