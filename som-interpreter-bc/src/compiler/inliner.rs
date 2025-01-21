@@ -192,8 +192,7 @@ impl PrimMessageInliner for ast::Message {
                     Bytecode::JumpOnTrueTopNil(idx) => ctxt.push_instr(Bytecode::JumpOnTrueTopNil(*idx)),
                     Bytecode::JumpOnFalseTopNil(idx) => ctxt.push_instr(Bytecode::JumpOnFalseTopNil(*idx)),
                     Bytecode::JumpIfGreater(idx) => ctxt.push_instr(Bytecode::JumpIfGreater(*idx)),
-                    Bytecode::Halt
-                    | Bytecode::Dup
+                    Bytecode::Dup
                     | Bytecode::Dup2
                     | Bytecode::Inc
                     | Bytecode::Dec

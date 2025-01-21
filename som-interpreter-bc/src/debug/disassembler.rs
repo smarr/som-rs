@@ -27,9 +27,6 @@ fn disassemble_body(universe: &Universe, class: &Class, level: usize, env: &mut 
         // print!("{padding} {0}", bytecode.padded_name());
 
         match bytecode {
-            Bytecode::Halt => {
-                println!();
-            }
             Bytecode::Dup | Bytecode::Dup2 => {
                 println!();
             }

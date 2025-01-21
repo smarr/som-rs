@@ -148,9 +148,6 @@ impl Interpreter {
                         self.bytecode_idx += offset - 1;
                     }
                 }
-                Bytecode::Halt => {
-                    return Some(Value::NIL);
-                }
                 Bytecode::Dup => {
                     let value = *self.current_frame.stack_last();
                     self.current_frame.stack_push(value);

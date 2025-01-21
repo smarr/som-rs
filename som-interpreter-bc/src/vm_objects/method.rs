@@ -257,7 +257,6 @@ impl fmt::Display for Method {
                         | Bytecode::JumpIfGreater(idx) => {
                             write!(f, "index: {}", idx)?;
                         }
-                        Bytecode::Halt => {}
                     }
                 }
                 Ok(())

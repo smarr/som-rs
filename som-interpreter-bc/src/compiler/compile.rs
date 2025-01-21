@@ -103,7 +103,6 @@ pub(crate) fn get_max_stack_size(body: &[Bytecode], literals: &[Literal], intern
                     abstract_stack_size -= nb_params - 1
                 }
             }
-            Bytecode::Halt => {}
             Bytecode::Inc => {}
             Bytecode::Dec => {}
             Bytecode::ReturnSelf => {}

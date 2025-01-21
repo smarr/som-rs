@@ -3,7 +3,6 @@ use std::fmt;
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Bytecode {
-    Halt,
     Dup,
     PushLocal(u8),
     PushNonLocal(u8, u8),
@@ -48,7 +47,6 @@ impl Bytecode {
     pub fn name(self) -> &'static str {
         // NAMES[self as usize]
         match self {
-            Self::Halt                  => "HALT",
             Self::Dup                   => "DUP",
             Self::Inc                   => "INC",
             Self::Dec                   => "DEC",
@@ -92,7 +90,6 @@ impl Bytecode {
     pub fn padded_name(self) -> &'static str {
         // PADDED_NAMES[self as usize]
         match self {
-            Self::Halt                  => "HALT                   ",
             Self::Dup                   => "DUP                    ",
             Self::Inc                   => "INC                    ",
             Self::Dec                   => "DEC                    ",
@@ -132,8 +129,7 @@ impl Bytecode {
     }
 }
 
-pub static NAMES: [&str; 34] = [
-    "HALT",
+pub static NAMES: [&str; 33] = [
     "DUP",
     "INC",
     "PUSH_LOCAL",
@@ -169,8 +165,7 @@ pub static NAMES: [&str; 34] = [
     "RETURN_NON_LOCAL",
 ];
 
-pub static PADDED_NAMES: [&str; 34] = [
-    "HALT            ",
+pub static PADDED_NAMES: [&str; 33] = [
     "DUP             ",
     "INC             ",
     "PUSH_LOCAL      ",
@@ -210,7 +205,6 @@ impl fmt::Display for Bytecode {
     #[rustfmt::skip]
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Self::Halt                      => write!(f, "HALT"),
             Self::Dup                       => write!(f, "DUP"),
             Self::Inc                       => write!(f, "INC"),
             Self::Dec                       => write!(f, "DEC"),
