@@ -14,25 +14,22 @@ use som_gc::gc_interface::GCInterface;
 use som_gc::gcref::Gc;
 use std::time::Instant;
 
-macro_rules! send {
-    ($interp:expr, $universe:expr, $frame:expr, $lit_idx:expr, $nb_params:expr) => {{
-        let Literal::Symbol(symbol) = $frame.lookup_constant($lit_idx as usize).clone() else {
+macro_rules! get_symbol_from_literal_idx {
+    ($frame:expr, $lit_idx:expr) => {
+        if let Literal::Symbol(symbol) = *$frame.lookup_constant($lit_idx as usize) {
+            symbol
+        } else {
             unreachable!()
-        };
-        let nb_params = match $nb_params {
-            Some(v) => v,
-            None => {
-                let signature = $universe.lookup_symbol(symbol);
-                nb_params(signature)
-            }
-        };
-        let method = {
-            // dbg!($universe.lookup_symbol(symbol));
-            let receiver = $interp.current_frame.stack_nth_back(nb_params);
-            let receiver_class = receiver.class($universe);
-            resolve_method($frame, &receiver_class, symbol, $interp.bytecode_idx)
-        };
-        do_send($interp, $universe, method, symbol, nb_params as usize);
+        }
+    };
+}
+
+macro_rules! resolve_method_and_send {
+    ($self:expr, $universe:expr, $symbol:expr, $nbr_args:expr) => {{
+        let receiver = $self.current_frame.stack_nth_back($nbr_args);
+        let receiver_class = receiver.class($universe);
+        let method = resolve_method(&mut $self.current_frame, &receiver_class, $symbol, $self.bytecode_idx);
+        do_send($self, $universe, method, $symbol, $nbr_args);
     }};
 }
 
@@ -124,17 +121,25 @@ impl Interpreter {
             // dbg!(self.current_frame);
 
             match bytecode {
-                Bytecode::Send1(idx) => {
-                    send! {self, universe, &mut self.current_frame, idx, Some(0)}
+                Bytecode::Send1(lit_idx) => {
+                    let symbol = get_symbol_from_literal_idx!(self.current_frame, lit_idx);
+                    resolve_method_and_send!(self, universe, symbol, 0)
                 }
-                Bytecode::Send2(idx) => {
-                    send! {self, universe, &mut self.current_frame, idx, Some(1)}
+                Bytecode::Send2(lit_idx) => {
+                    let symbol = get_symbol_from_literal_idx!(self.current_frame, lit_idx);
+                    resolve_method_and_send!(self, universe, symbol, 1)
                 }
-                Bytecode::Send3(idx) => {
-                    send! {self, universe, &mut self.current_frame, idx, Some(2)}
+                Bytecode::Send3(lit_idx) => {
+                    let symbol = get_symbol_from_literal_idx!(self.current_frame, lit_idx);
+                    resolve_method_and_send!(self, universe, symbol, 2)
                 }
-                Bytecode::SendN(idx) => {
-                    send! {self, universe, &mut self.current_frame, idx, None}
+                Bytecode::SendN(lit_idx) => {
+                    let symbol = get_symbol_from_literal_idx!(self.current_frame, lit_idx);
+                    let nbr_args = {
+                        let signature = universe.lookup_symbol(symbol);
+                        nb_params(signature)
+                    };
+                    resolve_method_and_send!(self, universe, symbol, nbr_args)
                 }
                 Bytecode::PushLocal(idx) => {
                     let value = *self.current_frame.lookup_local(idx as usize);
