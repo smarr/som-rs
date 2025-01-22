@@ -50,7 +50,7 @@ pub(crate) trait InnerGenCtxt: GenCtxt {
 
 /// Calculates the maximum stack size possible. For each frame, this allows us to allocate a stack of precisely the maximum possible size it needs.
 /// TODO opt: it's possible our estimate is overly conservative. Reducing the max stack size reduces time spent allocating, and could maybe be a worthwhile optimization.
-pub(crate) fn get_max_stack_size(body: &[Bytecode], literals: &[Literal], interner: &Interner) -> u8 {
+pub(crate) fn get_max_stack_size(body: &[Bytecode], interner: &Interner) -> u8 {
     let mut abstract_stack_size = 0;
     let mut max_stack_size_observed: u8 = 0;
 
@@ -84,15 +84,9 @@ pub(crate) fn get_max_stack_size(body: &[Bytecode], literals: &[Literal], intern
             Bytecode::Send1(_) => {}
             Bytecode::Send2(_) => abstract_stack_size -= 1, // number of arguments (they all get popped) + 1 for the result
             Bytecode::Send3(_) => abstract_stack_size -= 2,
-            Bytecode::SendN(idx) | Bytecode::SuperSend(idx) => {
-                let send_lit = literals.get(*idx as usize).expect("failed to look up a literal during compilation?");
-
-                let Literal::Symbol(send_sym) = send_lit else {
-                    panic!("literal not a symbol?")
-                };
-
+            Bytecode::SendN(symbol) | Bytecode::SuperSend(symbol) => {
                 let nb_params = {
-                    let uninterned = interner.lookup(*send_sym);
+                    let uninterned = interner.lookup(*symbol);
                     match uninterned.chars().next() {
                         Some(ch) if !ch.is_alphabetic() => 1,
                         _ => uninterned.chars().filter(|ch| *ch == ':').count() as u8,
@@ -491,16 +485,15 @@ impl MethodCodegen for ast::Expression {
                 };
 
                 let sym = ctxt.intern_symbol(message.signature.as_str());
-                let idx = ctxt.push_literal(Literal::Symbol(sym));
 
                 match is_super_call {
                     false => match nb_params {
-                        0 => ctxt.push_instr(Bytecode::Send1(idx as u8)),
-                        1 => ctxt.push_instr(Bytecode::Send2(idx as u8)),
-                        2 => ctxt.push_instr(Bytecode::Send3(idx as u8)),
-                        _ => ctxt.push_instr(Bytecode::SendN(idx as u8)),
+                        0 => ctxt.push_instr(Bytecode::Send1(sym)),
+                        1 => ctxt.push_instr(Bytecode::Send2(sym)),
+                        2 => ctxt.push_instr(Bytecode::Send3(sym)),
+                        _ => ctxt.push_instr(Bytecode::SendN(sym)),
                     },
-                    true => ctxt.push_instr(Bytecode::SuperSend(idx as u8)),
+                    true => ctxt.push_instr(Bytecode::SuperSend(sym)),
                 }
 
                 Some(())
@@ -754,7 +747,7 @@ fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::MethodDef, gc_interface: 
                 let body = ctxt.inner.body.clone().unwrap_or_default();
                 let literals: Vec<Literal> = ctxt.inner.literals.clone().into_iter().collect();
                 let signature = ctxt.signature.clone();
-                let max_stack_size = get_max_stack_size(&body, &literals, ctxt.get_interner());
+                let max_stack_size = get_max_stack_size(&body, ctxt.get_interner());
                 let nbr_params = {
                     match ctxt.signature.chars().next() {
                         Some(ch) if !ch.is_alphabetic() => 1,
@@ -834,7 +827,7 @@ fn compile_block(outer: &mut dyn GenCtxt, defn: &ast::Block, gc_interface: &mut 
     let nbr_locals = ctxt.locals_nbr;
     let nbr_params = ctxt.args_nbr;
     let inline_cache = vec![None; body.len()];
-    let max_stack_size = get_max_stack_size(&body, &literals, ctxt.get_interner());
+    let max_stack_size = get_max_stack_size(&body, ctxt.get_interner());
 
     let block = Block {
         frame,

@@ -111,11 +111,7 @@ fn disassemble_body(universe: &Universe, class: &Class, level: usize, env: &mut 
             }
             Bytecode::Send1(idx) | Bytecode::Send2(idx) | Bytecode::Send3(idx) | Bytecode::SendN(idx) | Bytecode::SuperSend(idx) => {
                 print!(" {idx}");
-                let Some(Literal::Symbol(signature)) = current.resolve_literal(idx) else {
-                    println!(" (invalid signature)");
-                    continue;
-                };
-                println!(" (#{0})", universe.lookup_symbol(*signature));
+                println!(" (#{0})", universe.lookup_symbol(idx));
             }
             Bytecode::ReturnLocal | Bytecode::ReturnSelf => {
                 println!();

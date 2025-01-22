@@ -14,16 +14,6 @@ use som_gc::gc_interface::GCInterface;
 use som_gc::gcref::Gc;
 use std::time::Instant;
 
-macro_rules! get_symbol_from_literal_idx {
-    ($frame:expr, $lit_idx:expr) => {
-        if let Literal::Symbol(symbol) = *$frame.lookup_constant($lit_idx as usize) {
-            symbol
-        } else {
-            unreachable!()
-        }
-    };
-}
-
 macro_rules! resolve_method_and_send {
     ($self:expr, $universe:expr, $symbol:expr, $nbr_args:expr) => {{
         let receiver = $self.current_frame.stack_nth_back($nbr_args);
@@ -121,24 +111,17 @@ impl Interpreter {
             // dbg!(self.current_frame);
 
             match bytecode {
-                Bytecode::Send1(lit_idx) => {
-                    let symbol = get_symbol_from_literal_idx!(self.current_frame, lit_idx);
+                Bytecode::Send1(symbol) => {
                     resolve_method_and_send!(self, universe, symbol, 0)
                 }
-                Bytecode::Send2(lit_idx) => {
-                    let symbol = get_symbol_from_literal_idx!(self.current_frame, lit_idx);
+                Bytecode::Send2(symbol) => {
                     resolve_method_and_send!(self, universe, symbol, 1)
                 }
-                Bytecode::Send3(lit_idx) => {
-                    let symbol = get_symbol_from_literal_idx!(self.current_frame, lit_idx);
+                Bytecode::Send3(symbol) => {
                     resolve_method_and_send!(self, universe, symbol, 2)
                 }
-                Bytecode::SendN(lit_idx) => {
-                    let symbol = get_symbol_from_literal_idx!(self.current_frame, lit_idx);
-                    let nbr_args = {
-                        let signature = universe.lookup_symbol(symbol);
-                        nb_params(signature)
-                    };
+                Bytecode::SendN(symbol) => {
+                    let nbr_args = nb_params(universe.lookup_symbol(symbol));
                     resolve_method_and_send!(self, universe, symbol, nbr_args)
                 }
                 Bytecode::PushLocal(idx) => {
@@ -272,10 +255,7 @@ impl Interpreter {
                         panic!("trying to assign a field to a {:?}?", &self_val)
                     }
                 }
-                Bytecode::SuperSend(lit_idx) => {
-                    let Literal::Symbol(symbol) = self.current_frame.lookup_constant(lit_idx as usize).clone() else {
-                        unreachable!()
-                    };
+                Bytecode::SuperSend(symbol) => {
                     let nb_params = {
                         let signature = universe.lookup_symbol(symbol);
                         nb_params(signature)

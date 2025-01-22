@@ -7,6 +7,7 @@
 //!
 
 use std::collections::HashMap;
+use std::fmt::Display;
 use std::mem;
 
 /// An interned string.
@@ -18,6 +19,13 @@ use std::mem;
 /// on our benchmarks, but sounds like a bad choice for very large systems?
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
 pub struct Interned(pub u16);
+
+// hack. we pretty much never want this, and instead to print the associated string.
+impl Display for Interned {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&format!("{}", self.0))
+    }
+}
 
 /// A string interner.
 ///

@@ -1,5 +1,5 @@
-use som_core::bytecode::Bytecode;
 use som_core::bytecode::Bytecode::*;
+use som_core::{bytecode::Bytecode, interner::Interned};
 use som_interpreter_bc::compiler::compile::compile_class;
 use som_interpreter_bc::universe::Universe;
 use som_interpreter_bc::vm_objects::method::Method;
@@ -111,14 +111,15 @@ fn send_bytecodes() {
     ";
 
     let bytecodes = get_bytecodes_from_method(class_txt, "run");
-    expect_bytecode_sequence(&bytecodes, &[Push1, Send1(0)]);
+
+    expect_bytecode_sequence(&bytecodes, &[Push1, Send1(Interned(94))]);
 
     // we do a "+ 2" to not have the bytecode INC replace a Send2.
-    expect_bytecode_sequence(&bytecodes, &[Push1, PushConstant(1), Send2(2)]);
+    expect_bytecode_sequence(&bytecodes, &[Push1, PushConstant(0), Send2(Interned(12))]);
 
-    expect_bytecode_sequence(&bytecodes, &[PushSelf, Push1, Push1, Send3(3)]);
+    expect_bytecode_sequence(&bytecodes, &[PushSelf, Push1, Push1, Send3(Interned(187))]);
 
-    expect_bytecode_sequence(&bytecodes, &[PushSelf, Push1, Push1, Push1, SendN(4)]);
+    expect_bytecode_sequence(&bytecodes, &[PushSelf, Push1, Push1, Push1, SendN(Interned(188))]);
 }
 
 #[test]
@@ -135,13 +136,13 @@ fn super_send_bytecodes() {
 
     let bytecodes = get_bytecodes_from_method(class_txt, "run");
 
-    expect_bytecode_sequence(&bytecodes, &[PushSelf, SuperSend(0)]);
+    expect_bytecode_sequence(&bytecodes, &[PushSelf, SuperSend(Interned(187))]);
 
-    expect_bytecode_sequence(&bytecodes, &[PushSelf, Push1, SuperSend(1)]);
+    expect_bytecode_sequence(&bytecodes, &[PushSelf, Push1, SuperSend(Interned(188))]);
 
-    expect_bytecode_sequence(&bytecodes, &[PushSelf, Push1, Push1, SuperSend(2)]);
+    expect_bytecode_sequence(&bytecodes, &[PushSelf, Push1, Push1, SuperSend(Interned(189))]);
 
-    expect_bytecode_sequence(&bytecodes, &[PushSelf, Push1, Push1, Push1, SuperSend(3)]);
+    expect_bytecode_sequence(&bytecodes, &[PushSelf, Push1, Push1, Push1, SuperSend(Interned(190))]);
 }
 
 #[test]
@@ -201,7 +202,7 @@ fn something_jump_bug_popx() {
         PopLocal(0, 0),
         Pop,
         PushLocal(0),
-        Send1(1),
+        Send1(Interned(2)),
         ReturnNonLocal(1),
         Pop,
         ReturnSelf,
@@ -213,7 +214,7 @@ fn something_jump_bug_popx() {
         Push1,
         PopLocal(0, 0),
         PushLocal(0),
-        Send1(1),
+        Send1(Interned(2)),
         ReturnNonLocal(1),
         Pop,
         ReturnSelf,

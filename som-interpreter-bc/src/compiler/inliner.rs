@@ -134,24 +134,14 @@ impl PrimMessageInliner for ast::Message {
                     | Bytecode::Send2(lit_idx)
                     | Bytecode::Send3(lit_idx)
                     | Bytecode::SendN(lit_idx)
-                    | Bytecode::SuperSend(lit_idx) => {
-                        match block.literals.get(*lit_idx as usize)? {
-                            Literal::Symbol(interned) => {
-                                // I'm 99% sure this doesn't push duplicate literals. But it miiiight?
-                                let idx = ctxt.push_literal(Literal::Symbol(*interned));
-
-                                match block_bc {
-                                    Bytecode::Send1(_) => ctxt.push_instr(Bytecode::Send1(idx as u8)),
-                                    Bytecode::Send2(_) => ctxt.push_instr(Bytecode::Send2(idx as u8)),
-                                    Bytecode::Send3(_) => ctxt.push_instr(Bytecode::Send3(idx as u8)),
-                                    Bytecode::SendN(_) => ctxt.push_instr(Bytecode::SendN(idx as u8)),
-                                    Bytecode::SuperSend(_) => ctxt.push_instr(Bytecode::SuperSend(idx as u8)),
-                                    _ => unreachable!(),
-                                }
-                            }
-                            _ => panic!("Unexpected block literal type, not yet implemented"),
-                        }
-                    }
+                    | Bytecode::SuperSend(lit_idx) => match block_bc {
+                        Bytecode::Send1(_) => ctxt.push_instr(Bytecode::Send1(*lit_idx)),
+                        Bytecode::Send2(_) => ctxt.push_instr(Bytecode::Send2(*lit_idx)),
+                        Bytecode::Send3(_) => ctxt.push_instr(Bytecode::Send3(*lit_idx)),
+                        Bytecode::SendN(_) => ctxt.push_instr(Bytecode::SendN(*lit_idx)),
+                        Bytecode::SuperSend(_) => ctxt.push_instr(Bytecode::SuperSend(*lit_idx)),
+                        _ => unreachable!(),
+                    },
                     Bytecode::PushBlock(block_idx) => {
                         match block.literals.get(*block_idx as usize)? {
                             Literal::Block(inner_block) => {
@@ -273,7 +263,7 @@ impl PrimMessageInliner for ast::Message {
             })
             .collect();
 
-        let new_max_stack_size = get_max_stack_size(&new_body, &orig_block.blk_info.get_env().literals, interner);
+        let new_max_stack_size = get_max_stack_size(&new_body, interner);
 
         let blk_method = orig_block.blk_info.get_env_mut();
         blk_method.body = new_body;

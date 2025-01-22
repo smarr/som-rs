@@ -1,5 +1,5 @@
-use som_core::bytecode::Bytecode;
 use som_core::bytecode::Bytecode::*;
+use som_core::{bytecode::Bytecode, interner::Interned};
 use std::path::PathBuf;
 
 use som_interpreter_bc::compiler::compile::compile_class;
@@ -148,7 +148,7 @@ fn while_true_false_inlining_ok() {
         &[
             PushLocal(0),
             PushConstant(1),
-            Send2(2),
+            Send2(Interned(71)),
             JumpOnFalsePop(5),
             PushLocal(0),
             Inc,

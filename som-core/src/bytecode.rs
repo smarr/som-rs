@@ -1,5 +1,7 @@
 use std::fmt;
 
+use crate::interner::Interned;
+
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Bytecode {
@@ -22,11 +24,11 @@ pub enum Bytecode {
     PopLocal(u8, u8),
     PopArg(u8, u8),
     PopField(u8),
-    Send1(u8),
-    Send2(u8),
-    Send3(u8),
-    SendN(u8),
-    SuperSend(u8),
+    Send1(Interned),
+    Send2(Interned),
+    Send3(Interned),
+    SendN(Interned),
+    SuperSend(Interned),
     ReturnSelf,
     ReturnLocal,
     ReturnNonLocal(u8),
