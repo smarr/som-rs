@@ -348,7 +348,7 @@ impl BaseValue {
     /// Returns this value as a symbol, if such is its type.
     #[inline(always)]
     pub fn as_symbol(self) -> Option<Interned> {
-        self.is_symbol().then_some(Interned((self.encoded & 0xFFFFFFFF) as u32))
+        self.is_symbol().then_some(Interned((self.encoded & 0xFFFFFFFF) as u16))
     }
 
     #[inline(always)]

@@ -12,15 +12,19 @@ use std::mem;
 /// An interned string.
 ///
 /// This is fast to move, clone and compare.
+///
+/// NB: this was originally a u32, which I think is more sensible. It's now a u16 to have Send
+/// bytecodes store an Interned reference directly without increasing the enum size. This is fine
+/// on our benchmarks, but sounds like a bad choice for very large systems?
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
-pub struct Interned(pub u32);
+pub struct Interned(pub u16);
 
 /// A string interner.
 ///
 /// This particular implementation comes from [matklad's "Fast and Simple Rust Interner" blog post](https://matklad.github.io/2020/03/22/fast-simple-rust-interner.html).
 #[derive(Debug)]
 pub struct Interner {
-    map: HashMap<&'static str, u32>,
+    map: HashMap<&'static str, u16>,
     vec: Vec<&'static str>,
     buf: String,
     full: Vec<String>,
@@ -44,7 +48,7 @@ impl Interner {
             return Interned(id);
         }
         let name = unsafe { self.alloc(name) };
-        let id = self.map.len() as u32;
+        let id = self.map.len() as u16;
         self.map.insert(name, id);
         self.vec.push(name);
 
@@ -63,7 +67,7 @@ impl Interner {
 
     /// Get the ID given a string, if it exists. Only used for testing at the moment
     pub fn reverse_lookup(&self, name: &str) -> Option<Interned> {
-        self.vec.iter().position(|n| n == &name).map(|e| Interned(e as u32))
+        self.vec.iter().position(|n| n == &name).map(|e| Interned(e as u16))
     }
 
     unsafe fn alloc(&mut self, name: &str) -> &'static str {
