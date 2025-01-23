@@ -3,13 +3,12 @@
 //!
 #![warn(missing_docs)]
 
-use std::path::PathBuf;
 use std::sync::atomic::Ordering;
 
 use anyhow::{bail, Context};
-use clap::Parser;
 #[cfg(feature = "jemalloc")]
 use jemallocator::Jemalloc;
+use som_core::cli_parser::CLIOptions;
 
 mod shell;
 
@@ -27,32 +26,6 @@ use som_interpreter_bc::{INTERPRETER_RAW_PTR_CONST, UNIVERSE_RAW_PTR_CONST};
 #[global_allocator]
 static GLOBAL: Jemalloc = Jemalloc;
 
-#[derive(Debug, Clone, PartialEq, clap::StructOpt)]
-#[clap(about, author)]
-struct Options {
-    /// File to evaluate.
-    file: Option<PathBuf>,
-
-    /// Arguments to pass to the `#run:` function.
-    args: Vec<String>,
-
-    /// Set search path for application classes.
-    #[clap(long, short, multiple_values(true))]
-    classpath: Vec<PathBuf>,
-
-    /// Disassemble the class, instead of executing.
-    #[clap(long, short)]
-    disassemble: bool,
-
-    /// Enable verbose output (with timing information).
-    #[clap(short = 'v')]
-    verbose: bool,
-
-    /// Enable verbose output (with timing information).
-    #[clap(long, short = 'h')]
-    heap_size: Option<usize>,
-}
-
 fn main() -> anyhow::Result<()> {
     let result = run();
     #[cfg(feature = "profiler")]
@@ -61,7 +34,7 @@ fn main() -> anyhow::Result<()> {
 }
 
 fn run() -> anyhow::Result<()> {
-    let opts: Options = Options::from_args();
+    let opts: CLIOptions = CLIOptions::parse();
 
     // dbg!(size_of::<Bytecode>()); std::process::exit(0);
 
@@ -108,7 +81,7 @@ fn run() -> anyhow::Result<()> {
     Ok(())
 }
 
-fn disassemble_class(opts: Options) -> anyhow::Result<()> {
+fn disassemble_class(opts: CLIOptions) -> anyhow::Result<()> {
     let Some(ref file) = opts.file else {
         bail!("no class specified for disassembly");
     };
@@ -139,7 +112,7 @@ fn disassemble_class(opts: Options) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn dump_class_methods(class: Gc<Class>, opts: &Options, file_stem: &str, universe: &mut Universe) {
+fn dump_class_methods(class: Gc<Class>, opts: &CLIOptions, file_stem: &str, universe: &mut Universe) {
     let methods: Vec<Gc<Method>> = if opts.args.is_empty() {
         class.methods.values().cloned().collect::<Vec<Gc<Method>>>()
     } else {

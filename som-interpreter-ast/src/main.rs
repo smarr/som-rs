@@ -3,13 +3,12 @@
 //!
 #![warn(missing_docs)]
 
-use std::path::PathBuf;
 use std::sync::atomic::Ordering;
 
 use anyhow::anyhow;
-use clap::Parser;
 #[cfg(feature = "jemalloc")]
 use jemallocator::Jemalloc;
+use som_core::cli_parser::CLIOptions;
 
 mod shell;
 
@@ -24,31 +23,8 @@ use som_interpreter_ast::{STACK_ARGS_RAW_PTR_CONST, UNIVERSE_RAW_PTR_CONST};
 #[global_allocator]
 static GLOBAL: Jemalloc = Jemalloc;
 
-#[derive(Debug, Clone, PartialEq, clap::StructOpt)]
-#[clap(about, author)]
-struct Options {
-    /// Files to evaluate.
-    #[clap(name = "FILE")]
-    file: Option<PathBuf>,
-
-    #[clap(name = "ARGS")]
-    args: Vec<String>,
-
-    /// Set search path for application classes.
-    #[clap(short, long, multiple_values(true))]
-    classpath: Vec<PathBuf>,
-
-    /// Enable verbose output (with timing information).
-    #[clap(short = 'v')]
-    verbose: bool,
-
-    /// Enable verbose output (with timing information).
-    #[clap(long, short = 'h')]
-    heap_size: Option<usize>,
-}
-
 fn main() -> anyhow::Result<()> {
-    let opts: Options = Options::from_args();
+    let opts: CLIOptions = CLIOptions::parse();
 
     match opts.file {
         None => {

@@ -14,9 +14,6 @@ som-lexer = { path = "../som-lexer", version = "0.1.0" }
 som-parser = { package = "som-parser-symbols", path = "../som-parser-symbols", version = "0.1.0" }
 som-gc = { path = "../som-gc", version = "0.1.0" }
 
-# CLI interface
-clap = { version = "3.0", features = ["derive"] }
-
 # error handling
 anyhow = "1.0.51"
 
