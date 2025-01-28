@@ -1,7 +1,7 @@
-use std::ops::Deref;
-
 use anyhow::{Context, Error};
 use num_bigint::BigInt;
+use std::borrow::Cow;
+use std::ops::Deref;
 
 use crate::{interner::Interned, value::BaseValue};
 
@@ -89,5 +89,19 @@ where
             .or_else(|| value.as_symbol().map(Self::Symbol))
             .or_else(|| value.as_char().map(Self::Char))
             .context("could not resolve `Value` as `String`, `Symbol` or `Char`")
+    }
+}
+
+// TODO: actually use
+impl<SPTR: Deref<Target = String>> StringLike<SPTR> {
+    pub fn as_str<'a, F>(&'a self, lookup_symbol_fn: F) -> Cow<'a, str>
+    where
+        F: Fn(Interned) -> &'a str,
+    {
+        match self {
+            StringLike::String(ref value) => Cow::from(value.as_str()),
+            StringLike::Symbol(sym) => Cow::from(lookup_symbol_fn(*sym)),
+            StringLike::Char(char) => Cow::from(char.to_string()),
+        }
     }
 }

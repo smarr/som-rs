@@ -143,19 +143,26 @@ fn eq(_: &mut Interpreter, universe: &mut Universe, a: Value, b: Value) -> Resul
         return Ok(false);
     };
 
-    let a = match a {
-        StringLike::String(ref value) => value.as_str(),
-        StringLike::Char(char) => &*String::from(char),
-        StringLike::Symbol(sym) => universe.lookup_symbol(sym),
-    };
+    match (&a, &b) {
+        (StringLike::Char(c1), StringLike::Char(c2)) => Ok(*c1 == *c2),
+        (StringLike::Symbol(sym1), StringLike::Symbol(sym2)) => Ok(*sym1 == *sym2),
+        (StringLike::String(str1), StringLike::String(str2)) => Ok(str1.as_str().eq(str2.as_str())),
+        _ => {
+            let a = match a {
+                StringLike::String(ref value) => value.as_str(),
+                StringLike::Char(char) => &*String::from(char),
+                StringLike::Symbol(sym) => universe.lookup_symbol(sym),
+            };
 
-    let b = match b {
-        StringLike::String(ref value) => value.as_str(),
-        StringLike::Char(char) => &*String::from(char),
-        StringLike::Symbol(sym) => universe.lookup_symbol(sym),
-    };
+            let b = match b {
+                StringLike::String(ref value) => value.as_str(),
+                StringLike::Char(char) => &*String::from(char),
+                StringLike::Symbol(sym) => universe.lookup_symbol(sym),
+            };
 
-    Ok(a == b)
+            Ok(a == b)
+        }
+    }
 }
 
 fn prim_substring_from_to(_: &mut Interpreter, universe: &mut Universe, receiver: StringLike, from: i32, to: i32) -> Result<Gc<String>, Error> {

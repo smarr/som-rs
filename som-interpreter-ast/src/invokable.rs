@@ -30,15 +30,15 @@ impl Invoke for Gc<Method> {
         debug_assert_valid_semispace_ptr!(self);
 
         // match &self.kind {
-        //    MethodKind::Defined(_method) => {
-        //        println!("--- Invoking \"{:1}\" ({:2})", &self.signature, &self.holder.class().name);
-        //    }
+        //    // MethodKind::Defined(_method) => {
+        //    //     println!("--- Invoking \"{:1}\" ({:2})", &self.signature, &self.holder.class().name);
+        //    // }
         //    MethodKind::Primitive(_func) => {
-        //        // println!("--- Invoking prim \"{:1}\" ({:2})", &self.signature, &self.holder.class().name);
+        //        println!("--- Invoking prim \"{:1}\" ({:2})", &self.signature, &self.holder.class().name);
         //    }
-        //    MethodKind::TrivialGetter(_g) => {
-        //        println!("--- Invoking trivial getter \"{:1}\" ({:2})", &self.signature, &self.holder.class().name);
-        //    }
+        //    // MethodKind::TrivialGetter(_g) => {
+        //    //     println!("--- Invoking trivial getter \"{:1}\" ({:2})", &self.signature, &self.holder.class().name);
+        //    // }
         //    _ => {}
         // }
 
