@@ -92,7 +92,6 @@ where
     }
 }
 
-// TODO: actually use
 impl<SPTR: Deref<Target = String>> StringLike<SPTR> {
     pub fn as_str<'a, F>(&'a self, lookup_symbol_fn: F) -> Cow<'a, str>
     where

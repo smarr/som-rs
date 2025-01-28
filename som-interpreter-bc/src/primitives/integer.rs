@@ -57,11 +57,7 @@ macro_rules! demote {
 fn from_string(_: &mut Interpreter, universe: &mut Universe, _: Value, string: StringLike) -> Result<Value, Error> {
     const _: &str = "Integer>>#fromString:";
 
-    let string = match string {
-        StringLike::String(ref value) => value.as_str(),
-        StringLike::Symbol(sym) => universe.lookup_symbol(sym),
-        StringLike::Char(char) => &*String::from(char),
-    };
+    let string = string.as_str(|sym| universe.lookup_symbol(sym));
 
     // bad implem, can be improved
     match string.parse::<i32>() {

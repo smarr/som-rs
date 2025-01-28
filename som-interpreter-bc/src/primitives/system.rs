@@ -40,13 +40,9 @@ pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([]));
 fn load_file(_: &mut Interpreter, universe: &mut Universe, _: Value, path: StringLike) -> Result<Option<Gc<String>>, Error> {
     const _: &str = "System>>#loadFie:";
 
-    let path = match path {
-        StringLike::String(ref string) => string.as_str(),
-        StringLike::Char(char) => &*String::from(char),
-        StringLike::Symbol(sym) => universe.lookup_symbol(sym),
-    };
+    let path = path.as_str(|sym| universe.lookup_symbol(sym));
 
-    let Ok(value) = fs::read_to_string(path) else {
+    let Ok(value) = fs::read_to_string(&*path) else {
         return Ok(None);
     };
 
@@ -54,14 +50,7 @@ fn load_file(_: &mut Interpreter, universe: &mut Universe, _: Value, path: Strin
 }
 
 fn print_string(_: &mut Interpreter, universe: &mut Universe, _: Value, string: StringLike) -> Result<System, Error> {
-    const _: &str = "System>>#printString:";
-
-    let string = match string {
-        StringLike::String(ref string) => string.as_str(),
-        StringLike::Char(char) => &*String::from(char),
-        StringLike::Symbol(sym) => universe.lookup_symbol(sym),
-    };
-
+    let string = string.as_str(|sym| universe.lookup_symbol(sym));
     print!("{string}");
     std::io::stdout().flush()?;
 
@@ -74,11 +63,7 @@ fn print_newline(_: &mut Interpreter, _: &mut Universe, _: Value) -> Result<Nil,
 }
 
 fn error_print(_: &mut Interpreter, universe: &mut Universe, _: Value, string: StringLike) -> Result<System, Error> {
-    let string = match string {
-        StringLike::String(ref string) => string.as_str(),
-        StringLike::Char(char) => &*String::from(char),
-        StringLike::Symbol(sym) => universe.lookup_symbol(sym),
-    };
+    let string = string.as_str(|sym| universe.lookup_symbol(sym));
 
     eprint!("{string}");
     std::io::stderr().flush()?;
@@ -87,16 +72,8 @@ fn error_print(_: &mut Interpreter, universe: &mut Universe, _: Value, string: S
 }
 
 fn error_println(_: &mut Interpreter, universe: &mut Universe, _: Value, string: StringLike) -> Result<System, Error> {
-    const _: &str = "System>>#errorPrintln:";
-
-    let string = match string {
-        StringLike::String(ref string) => string.as_str(),
-        StringLike::Char(char) => &*String::from(char),
-        StringLike::Symbol(sym) => universe.lookup_symbol(sym),
-    };
-
+    let string = string.as_str(|sym| universe.lookup_symbol(sym));
     eprintln!("{string}");
-
     Ok(System)
 }
 
