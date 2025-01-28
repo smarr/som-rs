@@ -124,6 +124,7 @@ impl Value {
         new_symbol(value: Interned) -> Self,
         new_big_integer(value: Gc<BigInt>) -> Self,
         new_string(value: Gc<String>) -> Self,
+        new_char(value: char) -> Self,
         Boolean(value: bool) -> Self,
         Integer(value: i32) -> Self,
         Double(value: f64) -> Self,
@@ -148,6 +149,7 @@ impl Value {
             INTEGER_TAG | BIG_INTEGER_TAG => universe.core.integer_class(),
             SYMBOL_TAG => universe.core.symbol_class(),
             STRING_TAG => universe.core.string_class(),
+            CHAR_TAG => universe.core.string_class(),
             ARRAY_TAG => universe.core.array_class(),
             BLOCK_TAG => self.as_block().unwrap().class(universe),
             INSTANCE_TAG => self.as_instance().unwrap().class(),
@@ -241,6 +243,8 @@ impl From<Value> for ValueEnum {
             Self::Class(value)
         } else if let Some(value) = value.as_value_gc_ptr::<Method>() {
             Self::Invokable(value)
+        } else if let Some(value) = value.as_char() {
+            Self::Char(value)
         } else {
             todo!()
         }
@@ -258,6 +262,7 @@ impl From<ValueEnum> for Value {
             ValueEnum::Double(value) => Self::new_double(value),
             ValueEnum::Symbol(value) => Self::new_symbol(value),
             ValueEnum::String(value) => Self::new_string(value),
+            ValueEnum::Char(value) => Self::new_char(value),
             // ValueEnum::Array(value) => Self::new_array(value),
             ValueEnum::Array(_value) => unimplemented!("no impl for arr, same as BC"),
             ValueEnum::Block(value) => TypedPtrValue::new(value).into(),
@@ -328,6 +333,8 @@ pub enum ValueEnum {
     Class(Gc<Class>),
     /// A bare invokable.
     Invokable(Gc<Method>),
+    /// A single character
+    Char(char),
 }
 
 impl ValueEnum {
@@ -343,6 +350,7 @@ impl ValueEnum {
             Self::Double(_) => universe.core.double_class(),
             Self::Symbol(_) => universe.core.symbol_class(),
             Self::String(_) => universe.core.string_class(),
+            Self::Char(_) => universe.core.string_class(),
             Self::Array(_) => universe.core.array_class(),
             Self::Block(block) => block.class(universe),
             Self::Instance(instance_ptr) => instance_ptr.class(),
@@ -394,6 +402,7 @@ impl ValueEnum {
                 }
             }
             Self::String(value) => value.as_str().to_string(),
+            Self::Char(value) => String::from(*value),
             Self::Array(values) => {
                 // TODO (from nicolas): I think we can do better here (less allocations).
                 let strings: Vec<String> = values.iter().map(|value| value.to_string(universe)).collect();
@@ -444,6 +453,7 @@ impl fmt::Debug for ValueEnum {
             Self::Double(val) => f.debug_tuple("Double").field(val).finish(),
             Self::Symbol(val) => f.debug_tuple("Symbol").field(val).finish(),
             Self::String(val) => f.debug_tuple("String").field(val).finish(),
+            Self::Char(val) => f.debug_tuple("Char").field(val).finish(),
             Self::Array(val) => f.debug_tuple("Array").field(&val).finish(),
             Self::Block(val) => f.debug_tuple("Block").field(val).finish(),
             Self::Instance(val) => f.debug_tuple("Instance").field(&val).finish(),

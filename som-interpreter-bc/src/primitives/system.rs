@@ -42,6 +42,7 @@ fn load_file(_: &mut Interpreter, universe: &mut Universe, _: Value, path: Strin
 
     let path = match path {
         StringLike::String(ref string) => string.as_str(),
+        StringLike::Char(char) => &*String::from(char),
         StringLike::Symbol(sym) => universe.lookup_symbol(sym),
     };
 
@@ -57,6 +58,7 @@ fn print_string(_: &mut Interpreter, universe: &mut Universe, _: Value, string: 
 
     let string = match string {
         StringLike::String(ref string) => string.as_str(),
+        StringLike::Char(char) => &*String::from(char),
         StringLike::Symbol(sym) => universe.lookup_symbol(sym),
     };
 
@@ -72,10 +74,9 @@ fn print_newline(_: &mut Interpreter, _: &mut Universe, _: Value) -> Result<Nil,
 }
 
 fn error_print(_: &mut Interpreter, universe: &mut Universe, _: Value, string: StringLike) -> Result<System, Error> {
-    const _: &str = "System>>#errorPrint:";
-
     let string = match string {
         StringLike::String(ref string) => string.as_str(),
+        StringLike::Char(char) => &*String::from(char),
         StringLike::Symbol(sym) => universe.lookup_symbol(sym),
     };
 
@@ -90,6 +91,7 @@ fn error_println(_: &mut Interpreter, universe: &mut Universe, _: Value, string:
 
     let string = match string {
         StringLike::String(ref string) => string.as_str(),
+        StringLike::Char(char) => &*String::from(char),
         StringLike::Symbol(sym) => universe.lookup_symbol(sym),
     };
 

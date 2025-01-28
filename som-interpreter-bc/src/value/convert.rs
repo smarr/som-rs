@@ -148,6 +148,12 @@ impl IntoValue for f64 {
     }
 }
 
+impl IntoValue for char {
+    fn into_value(&self) -> Value {
+        Value::Char(*self)
+    }
+}
+
 impl IntoValue for Interned {
     fn into_value(&self) -> Value {
         Value::Symbol(*self)
@@ -252,6 +258,7 @@ impl IntoValue for StringLike {
     fn into_value(&self) -> Value {
         match self {
             StringLike::String(value) => value.into_value(),
+            StringLike::Char(value) => value.into_value(),
             StringLike::Symbol(value) => value.into_value(),
         }
     }

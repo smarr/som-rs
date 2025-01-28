@@ -60,6 +60,7 @@ fn from_string(_: &mut Interpreter, universe: &mut Universe, _: Value, string: S
     let string = match string {
         StringLike::String(ref value) => value.as_str(),
         StringLike::Symbol(sym) => universe.lookup_symbol(sym),
+        StringLike::Char(char) => &*String::from(char),
     };
 
     // bad implem, can be improved

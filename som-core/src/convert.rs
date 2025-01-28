@@ -73,6 +73,7 @@ where
 pub enum StringLike<SPTR> {
     String(SPTR),
     Symbol(Interned),
+    Char(char),
 }
 
 impl<SPTR> TryFrom<BaseValue> for StringLike<SPTR>
@@ -86,6 +87,7 @@ where
             .as_string()
             .map(Self::String)
             .or_else(|| value.as_symbol().map(Self::Symbol))
-            .context("could not resolve `Value` as `String`, or `Symbol`")
+            .or_else(|| value.as_char().map(Self::Char))
+            .context("could not resolve `Value` as `String`, `Symbol` or `Char`")
     }
 }

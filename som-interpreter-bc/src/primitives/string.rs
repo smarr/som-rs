@@ -36,6 +36,9 @@ fn length(_: &mut Interpreter, universe: &mut Universe, receiver: StringLike) ->
     let string = match receiver {
         StringLike::String(ref value) => value.as_str(),
         StringLike::Symbol(sym) => universe.lookup_symbol(sym),
+        StringLike::Char(_) => {
+            return Ok(Value::Integer(1));
+        }
     };
 
     let length = string.chars().count();
@@ -52,6 +55,7 @@ fn hashcode(_: &mut Interpreter, universe: &mut Universe, receiver: StringLike) 
 
     let string = match receiver {
         StringLike::String(ref value) => value.as_str(),
+        StringLike::Char(char) => &*String::from(char),
         StringLike::Symbol(sym) => universe.lookup_symbol(sym),
     };
 
@@ -67,10 +71,11 @@ fn is_letters(_: &mut Interpreter, universe: &mut Universe, receiver: StringLike
 
     let string = match receiver {
         StringLike::String(ref value) => value.as_str(),
+        StringLike::Char(char) => &*String::from(char),
         StringLike::Symbol(sym) => universe.lookup_symbol(sym),
     };
 
-    Ok(!string.is_empty() && !string.is_empty() && string.chars().all(char::is_alphabetic))
+    Ok(!string.is_empty() && string.chars().all(char::is_alphabetic))
 }
 
 fn is_digits(_: &mut Interpreter, universe: &mut Universe, receiver: StringLike) -> Result<bool, Error> {
@@ -79,6 +84,7 @@ fn is_digits(_: &mut Interpreter, universe: &mut Universe, receiver: StringLike)
     let string = match receiver {
         StringLike::String(ref value) => value.as_str(),
         StringLike::Symbol(sym) => universe.lookup_symbol(sym),
+        StringLike::Char(char) => &*String::from(char),
     };
 
     Ok(!string.is_empty() && string.chars().all(char::is_numeric))
@@ -89,6 +95,7 @@ fn is_whitespace(_: &mut Interpreter, universe: &mut Universe, receiver: StringL
 
     let string = match receiver {
         StringLike::String(ref value) => value.as_str(),
+        StringLike::Char(char) => &*String::from(char),
         StringLike::Symbol(sym) => universe.lookup_symbol(sym),
     };
 
@@ -100,11 +107,13 @@ fn concatenate(_: &mut Interpreter, universe: &mut Universe, receiver: StringLik
 
     let s1 = match receiver {
         StringLike::String(ref value) => value.as_str(),
+        StringLike::Char(char) => &*String::from(char),
         StringLike::Symbol(sym) => universe.lookup_symbol(sym),
     };
 
     let s2 = match other {
         StringLike::String(ref value) => value.as_str(),
+        StringLike::Char(char) => &*String::from(char),
         StringLike::Symbol(sym) => universe.lookup_symbol(sym),
     };
 
@@ -116,6 +125,7 @@ fn as_symbol(_: &mut Interpreter, universe: &mut Universe, receiver: StringLike)
 
     let symbol = match receiver {
         StringLike::String(ref value) => universe.intern_symbol(value.as_str()),
+        StringLike::Char(char) => universe.intern_symbol(&String::from(char)),
         StringLike::Symbol(symbol) => symbol,
     };
 
@@ -135,11 +145,13 @@ fn eq(_: &mut Interpreter, universe: &mut Universe, a: Value, b: Value) -> Resul
 
     let a = match a {
         StringLike::String(ref value) => value.as_str(),
+        StringLike::Char(char) => &*String::from(char),
         StringLike::Symbol(sym) => universe.lookup_symbol(sym),
     };
 
     let b = match b {
         StringLike::String(ref value) => value.as_str(),
+        StringLike::Char(char) => &*String::from(char),
         StringLike::Symbol(sym) => universe.lookup_symbol(sym),
     };
 
@@ -155,19 +167,21 @@ fn prim_substring_from_to(_: &mut Interpreter, universe: &mut Universe, receiver
     let string = match receiver {
         StringLike::String(ref value) => value.as_str(),
         StringLike::Symbol(sym) => universe.lookup_symbol(sym),
+        StringLike::Char(char) => &*String::from(char),
     };
 
     Ok(universe.gc_interface.alloc(string.chars().skip(from).take(to - from).collect()))
 }
 
-fn char_at(_: &mut Interpreter, universe: &mut Universe, receiver: StringLike, idx: i32) -> Result<Gc<String>, Error> {
+fn char_at(_: &mut Interpreter, universe: &mut Universe, receiver: StringLike, idx: i32) -> Result<Value, Error> {
     let string = match receiver {
         StringLike::String(ref value) => value.as_str(),
+        StringLike::Char(char) => &*String::from(char),
         StringLike::Symbol(sym) => universe.lookup_symbol(sym),
     };
 
-    // TODO opt: just return a pointer to the char in question, right?
-    Ok(universe.gc_interface.alloc(String::from(string.chars().nth((idx - 1) as usize).unwrap())))
+    let char = string.chars().nth((idx - 1) as usize).unwrap();
+    Ok(Value::Char(char))
 }
 
 /// Search for an instance primitive matching the given signature.

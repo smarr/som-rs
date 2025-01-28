@@ -49,6 +49,7 @@ macro_rules! demote {
 fn from_string(universe: &mut Universe, _value_stack: &mut GlobalValueStack, _: Value, string: StringLike) -> Result<Value, Error> {
     let value = match string {
         StringLike::String(ref value) => value.as_str(),
+        StringLike::Char(char) => &*String::from(char),
         StringLike::Symbol(sym) => universe.lookup_symbol(sym),
     };
 

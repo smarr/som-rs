@@ -14,6 +14,7 @@ use crate::vm_objects::instance::Instance;
 use crate::vm_objects::method::Method;
 use num_bigint::BigInt;
 use som_core::interner::Interned;
+use som_core::value::BaseValue;
 use som_gc::gcref::Gc;
 
 use super::HeapValPtr;
@@ -166,6 +167,12 @@ impl IntoValue for Gc<String> {
     }
 }
 
+impl IntoValue for char {
+    fn into_value(&self) -> Value {
+        BaseValue::Char(*self).into()
+    }
+}
+
 impl IntoValue for Gc<BigInt> {
     fn into_value(&self) -> Value {
         Value::BigInteger(*self)
@@ -257,6 +264,7 @@ impl IntoValue for StringLike {
     fn into_value(&self) -> Value {
         match self {
             StringLike::String(value) => value.into_value(),
+            StringLike::Char(value) => value.into_value(),
             StringLike::Symbol(value) => value.into_value(),
         }
     }

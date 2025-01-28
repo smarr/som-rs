@@ -67,10 +67,8 @@ pub const BOOLEAN_TAG: u64 = 0b100 | BASE_TAG;
 /// Tag bits for the `Symbol` type.
 pub const SYMBOL_TAG: u64 = 0b101 | BASE_TAG;
 
-// The following non-pointer type tags are still available (maybe useful for optimisations ?):
+pub const CHAR_TAG: u64 = 0b110 | BASE_TAG;
 
-// /// Tag bits for the `???` type.
-// const RESERVED1_TAG: u64 = 0b110 | BASE_TAG;
 // /// Tag bits for the `???` type.
 // const RESERVED2_TAG: u64 = 0b111 | BASE_TAG;
 
@@ -217,6 +215,11 @@ impl BaseValue {
         Self::new(SYMBOL_TAG, value.0.into())
     }
 
+    #[inline(always)]
+    pub fn new_char(value: char) -> Self {
+        Self::new(CHAR_TAG, value.into())
+    }
+
     /// Returns a new big integer value.
     #[inline(always)]
     pub fn new_big_integer<BigIntPtr>(value: BigIntPtr) -> Self
@@ -297,6 +300,11 @@ impl BaseValue {
         self.tag() == SYMBOL_TAG
     }
 
+    #[inline(always)]
+    pub fn is_char(self) -> bool {
+        self.tag() == CHAR_TAG
+    }
+
     // ----------------
 
     /// Returns this value as a big integer, if such is its type.
@@ -337,6 +345,11 @@ impl BaseValue {
     #[inline(always)]
     pub fn as_boolean(self) -> Option<bool> {
         self.is_boolean().then_some((self.encoded & 0x1) == 0x1)
+    }
+
+    #[inline(always)]
+    pub fn as_char(self) -> Option<char> {
+        self.is_char().then_some((self.encoded & 0xFFFFFFFF) as u8 as char)
     }
 
     /// Returns this value as a boolean, but without checking whether or not it really is one.
@@ -407,6 +420,12 @@ impl BaseValue {
     #[inline(always)]
     pub fn Symbol(value: Interned) -> Self {
         Self::new_symbol(value)
+    }
+
+    #[allow(non_snake_case)]
+    #[inline(always)]
+    pub fn Char(value: char) -> Self {
+        Self::new_char(value)
     }
 
     #[allow(non_snake_case)]

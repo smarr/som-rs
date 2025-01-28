@@ -36,6 +36,7 @@ pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([]));
 fn load_file(universe: &mut Universe, _value_stack: &mut GlobalValueStack, _: Value, path: StringLike) -> Result<Value, Error> {
     let path = match path {
         StringLike::String(ref string) => string,
+        StringLike::Char(char) => &*String::from(char),
         StringLike::Symbol(sym) => universe.lookup_symbol(sym),
     };
 
@@ -48,6 +49,7 @@ fn load_file(universe: &mut Universe, _value_stack: &mut GlobalValueStack, _: Va
 fn print_string(universe: &mut Universe, _value_stack: &mut GlobalValueStack, _: Value, string: StringLike) -> Result<Value, Error> {
     let string = match string {
         StringLike::String(ref string) => string,
+        StringLike::Char(char) => &*String::from(char),
         StringLike::Symbol(sym) => universe.lookup_symbol(sym),
     };
 
@@ -63,6 +65,7 @@ fn print_newline(_: &mut Universe, _value_stack: &mut GlobalValueStack, _: Value
 fn error_print(universe: &mut Universe, _value_stack: &mut GlobalValueStack, _: Value, string: StringLike) -> Result<Value, Error> {
     let string = match string {
         StringLike::String(ref string) => string,
+        StringLike::Char(char) => &*String::from(char),
         StringLike::Symbol(sym) => universe.lookup_symbol(sym),
     };
 
@@ -75,6 +78,7 @@ fn error_println(universe: &mut Universe, _value_stack: &mut GlobalValueStack, _
 
     let string = match string {
         StringLike::String(ref string) => string,
+        StringLike::Char(char) => &*String::from(char),
         StringLike::Symbol(sym) => universe.lookup_symbol(sym),
     };
 

@@ -51,6 +51,7 @@ fn from_string(universe: &mut Universe, _value_stack: &mut GlobalValueStack, _: 
 
     let string = match string {
         StringLike::String(ref value) => value.as_str(),
+        StringLike::Char(char) => &*String::from(char),
         StringLike::Symbol(sym) => universe.lookup_symbol(sym),
     };
 
