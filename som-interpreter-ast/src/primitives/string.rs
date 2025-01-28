@@ -119,17 +119,10 @@ fn as_symbol(universe: &mut Universe, _value_stack: &mut GlobalValueStack, value
 }
 
 fn char_at(universe: &mut Universe, _value_stack: &mut GlobalValueStack, receiver: StringLike, idx: i32) -> Result<Value, Error> {
-    let string = match receiver {
-        StringLike::String(ref value) => value.as_str(),
-        StringLike::Char(char) => &*String::from(char),
-        StringLike::Symbol(sym) => universe.lookup_symbol(sym),
-    };
+    let string = receiver.as_str(|sym| universe.lookup_symbol(sym));
 
-    // Ok(Value::String(
-    //     universe.gc_interface.alloc(String::from(string.chars().nth((idx - 1) as usize).unwrap())),
-    // ))
-    let char = string.chars().nth((idx - 1) as usize).unwrap();
-    let char_val = Value(BaseValue::Char(char));
+    let char = *string.as_bytes().get((idx - 1) as usize).unwrap();
+    let char_val = Value(BaseValue::Char(char.into()));
     Ok(char_val)
 }
 

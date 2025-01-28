@@ -123,8 +123,8 @@ fn prim_substring_from_to(_: &mut Interpreter, universe: &mut Universe, receiver
 
 fn char_at(_: &mut Interpreter, universe: &mut Universe, receiver: StringLike, idx: i32) -> Result<Value, Error> {
     let string = receiver.as_str(|sym| universe.lookup_symbol(sym));
-    let char = string.chars().nth((idx - 1) as usize).unwrap();
-    Ok(Value::Char(char))
+    let char = *string.as_bytes().get((idx - 1) as usize).unwrap();
+    Ok(Value::Char(char.into()))
 }
 
 /// Search for an instance primitive matching the given signature.
