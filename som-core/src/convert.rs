@@ -92,7 +92,7 @@ where
     }
 }
 
-impl<SPTR: Deref<Target = String>> StringLike<SPTR> {
+impl<SPTR: Deref<Target = String> + std::fmt::Debug> StringLike<SPTR> {
     pub fn as_str<'a, F>(&'a self, lookup_symbol_fn: F) -> Cow<'a, str>
     where
         F: Fn(Interned) -> &'a str,
@@ -101,6 +101,26 @@ impl<SPTR: Deref<Target = String>> StringLike<SPTR> {
             StringLike::String(ref value) => Cow::from(value.as_str()),
             StringLike::Symbol(sym) => Cow::from(lookup_symbol_fn(*sym)),
             StringLike::Char(char) => Cow::from(char.to_string()),
+        }
+    }
+
+    /// I wish this were in an Eq trait, but it needs to lookup symbols.
+    /// Is there a way to make this more idiomatic, at least? A better name?
+    pub fn eq_stringlike<'a, F>(&'a self, other: &'a Self, lookup_symbol_fn: F) -> bool
+    where
+        F: Copy + Fn(Interned) -> &'a str,
+    {
+        match (&self, &other) {
+            (StringLike::Char(c1), StringLike::Char(c2)) => *c1 == *c2,
+            (StringLike::Char(c1), StringLike::String(s2)) => s2.len() == 1 && *c1 == s2.chars().next().unwrap(),
+            (StringLike::String(s1), StringLike::Char(c2)) => s1.len() == 1 && s1.chars().next().unwrap() == *c2,
+            (StringLike::Symbol(sym1), StringLike::Symbol(sym2)) => (*sym1 == *sym2) || (lookup_symbol_fn(*sym1).eq(lookup_symbol_fn(*sym2))),
+            (StringLike::String(str1), StringLike::String(str2)) => str1.as_str().eq(str2.as_str()),
+            _ => {
+                let a = self.as_str(lookup_symbol_fn);
+                let b = other.as_str(lookup_symbol_fn);
+                *a == *b
+            }
         }
     }
 }

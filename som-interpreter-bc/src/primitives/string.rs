@@ -99,8 +99,6 @@ fn as_symbol(_: &mut Interpreter, universe: &mut Universe, receiver: StringLike)
 }
 
 fn eq(_: &mut Interpreter, universe: &mut Universe, a: Value, b: Value) -> Result<bool, Error> {
-    const _: &str = "String>>#=";
-
     let Ok(a) = StringLike::try_from(a.0) else {
         return Ok(false);
     };
@@ -109,16 +107,7 @@ fn eq(_: &mut Interpreter, universe: &mut Universe, a: Value, b: Value) -> Resul
         return Ok(false);
     };
 
-    match (&a, &b) {
-        (StringLike::Char(c1), StringLike::Char(c2)) => Ok(*c1 == *c2),
-        (StringLike::Symbol(sym1), StringLike::Symbol(sym2)) => Ok(*sym1 == *sym2),
-        (StringLike::String(str1), StringLike::String(str2)) => Ok(str1.as_str().eq(str2.as_str())),
-        _ => {
-            let a = a.as_str(|sym| universe.lookup_symbol(sym));
-            let b = b.as_str(|sym| universe.lookup_symbol(sym));
-            Ok(*a == *b)
-        }
-    }
+    Ok(a.eq_stringlike(&b, |sym| universe.lookup_symbol(sym)))
 }
 
 fn prim_substring_from_to(_: &mut Interpreter, universe: &mut Universe, receiver: StringLike, from: i32, to: i32) -> Result<Gc<String>, Error> {
