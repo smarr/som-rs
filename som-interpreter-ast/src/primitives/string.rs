@@ -3,7 +3,7 @@ use crate::primitives::PrimitiveFn;
 use crate::universe::{GlobalValueStack, Universe};
 use crate::value::convert::{Primitive, StringLike};
 use crate::value::Value;
-use anyhow::{bail, Error};
+use anyhow::Error;
 use once_cell::sync::Lazy;
 use som_core::value::BaseValue;
 use std::collections::hash_map::DefaultHasher;
@@ -27,19 +27,12 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
 pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([]));
 
 fn length(universe: &mut Universe, _value_stack: &mut GlobalValueStack, value: StringLike) -> Result<Value, Error> {
-    const SIGNATURE: &str = "String>>#length";
-
-    let value = match value {
-        StringLike::String(ref value) => value.as_str(),
-        StringLike::Symbol(sym) => universe.lookup_symbol(sym),
-        StringLike::Char(_) => {
-            return Ok(Value::Integer(1));
-        }
-    };
-
-    match i32::try_from(value.chars().count()) {
-        Ok(idx) => Ok(Value::Integer(idx)),
-        Err(err) => bail!(format!("'{}': {}", SIGNATURE, err)),
+    // tragically, we do not allow strings to have over 2 billion characters and just cast as i32
+    // i apologize to everyone for that. i will strive to be better
+    match value {
+        StringLike::String(ref value) => Ok(Value::Integer(value.len() as i32)),
+        StringLike::Symbol(sym) => Ok(Value::Integer(universe.lookup_symbol(sym).len() as i32)),
+        StringLike::Char(_) => Ok(Value::Integer(1)),
     }
 }
 

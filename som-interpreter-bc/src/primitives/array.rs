@@ -42,8 +42,6 @@ fn at_put(_: &mut Interpreter, _: &mut Universe, receiver: HeapValPtr<VecValue>,
 }
 
 fn length(_: &mut Interpreter, _: &mut Universe, receiver: HeapValPtr<VecValue>) -> Result<i32, Error> {
-    const _: &str = "Array>>#length";
-
     receiver.deref().0.len().try_into().context("could not convert `usize` to `i32`")
 }
 

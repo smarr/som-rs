@@ -1,5 +1,5 @@
 use std::collections::hash_map::DefaultHasher;
-use std::convert::{TryFrom, TryInto};
+use std::convert::TryFrom;
 use std::hash::Hasher;
 
 use crate::interpreter::Interpreter;
@@ -9,7 +9,6 @@ use crate::universe::Universe;
 use crate::value::convert::{Primitive, StringLike};
 use crate::value::Value;
 use anyhow::Error;
-use num_bigint::BigInt;
 use once_cell::sync::Lazy;
 use som_core::interner::Interned;
 use som_gc::gcref::Gc;
@@ -31,23 +30,13 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
 pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([]));
 
 fn length(_: &mut Interpreter, universe: &mut Universe, receiver: StringLike) -> Result<Value, Error> {
-    const _: &str = "String>>#length";
-
-    let string = match receiver {
-        StringLike::String(ref value) => value.as_str(),
-        StringLike::Symbol(sym) => universe.lookup_symbol(sym),
-        StringLike::Char(_) => {
-            return Ok(Value::Integer(1));
-        }
-    };
-
-    let length = string.chars().count();
-    let value = match length.try_into() {
-        Ok(value) => Value::Integer(value),
-        Err(_) => Value::BigInteger(universe.gc_interface.alloc(BigInt::from(length))),
-    };
-
-    Ok(value)
+    // tragically, we do not allow strings to have over 2 billion characters and just cast as i32
+    // i apologize to everyone for that. i will strive to be better
+    match receiver {
+        StringLike::String(ref value) => Ok(Value::Integer(value.len() as i32)),
+        StringLike::Symbol(sym) => Ok(Value::Integer(universe.lookup_symbol(sym).len() as i32)),
+        StringLike::Char(_) => Ok(Value::Integer(1)),
+    }
 }
 
 fn hashcode(_: &mut Interpreter, universe: &mut Universe, receiver: StringLike) -> Result<i32, Error> {
