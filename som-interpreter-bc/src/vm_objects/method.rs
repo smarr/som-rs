@@ -1,6 +1,6 @@
-use std::fmt;
-
 use som_core::bytecode::Bytecode;
+use std::fmt;
+use std::fmt::{Debug, Formatter};
 
 use crate::compiler::Literal;
 use crate::interpreter::Interpreter;
@@ -58,6 +58,12 @@ pub enum Method {
     TrivialGetter(TrivialGetterMethod, BasicMethodInfo),
     /// A trivial setter method
     TrivialSetter(TrivialSetterMethod, BasicMethodInfo),
+}
+
+impl Debug for Method {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.write_str("Method debug (TODO)")
+    }
 }
 
 impl Method {

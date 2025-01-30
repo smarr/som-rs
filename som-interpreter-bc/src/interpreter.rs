@@ -1,7 +1,7 @@
 use crate::compiler::{value_from_literal, Literal};
 use crate::universe::Universe;
 use crate::value::Value;
-use crate::vm_objects::block::Block;
+use crate::vm_objects::block::{Block, CacheEntry};
 use crate::vm_objects::class::Class;
 use crate::vm_objects::frame::Frame;
 use crate::vm_objects::instance::Instance;
@@ -460,10 +460,11 @@ impl Interpreter {
             // This is a **HACK**: it may be possible to refactor the code to properly use lifetimes to inform the compiler that the lifetime of a method is completely tied to a class.
             unsafe {
                 match maybe_found {
-                    Some((receiver, method)) if receiver.as_ptr() == class.as_ptr() => Some(&**method),
+                    Some(CacheEntry::Send(receiver, method)) if receiver.as_ptr() == class.as_ptr() => Some(&**method),
+                    Some(CacheEntry::Global(_)) => panic!("global cache entry for a send?"),
                     place @ None => {
                         let found = class.lookup_method_as_static_ref(signature);
-                        *place = found.map(|method| (*class, method));
+                        *place = found.map(|method| CacheEntry::Send(*class, method));
                         found
                     }
                     _ => class.lookup_method_as_static_ref(signature),

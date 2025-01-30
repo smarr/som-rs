@@ -1,4 +1,5 @@
 use crate::universe::Universe;
+use crate::value::Value;
 use crate::vm_objects::class::Class;
 use crate::vm_objects::frame::Frame;
 use crate::vm_objects::method::{Method, MethodInfo};
@@ -6,7 +7,13 @@ use som_gc::debug_assert_valid_semispace_ptr;
 use som_gc::gcref::Gc;
 use std::fmt;
 
-pub type BodyInlineCache = Vec<Option<(Gc<Class>, &'static Gc<Method>)>>;
+#[derive(Debug, Clone)]
+pub enum CacheEntry {
+    Send(Gc<Class>, &'static Gc<Method>),
+    Global(Value), // unused for now
+}
+
+pub type BodyInlineCache = Vec<Option<CacheEntry>>;
 
 /// Represents an executable block.
 #[derive(Clone)]

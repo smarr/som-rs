@@ -1,6 +1,6 @@
 use crate::compiler::Literal;
 use crate::value::Value;
-use crate::vm_objects::block::Block;
+use crate::vm_objects::block::{Block, CacheEntry};
 use crate::vm_objects::class::Class;
 use crate::vm_objects::frame::{Frame, FrameStackIter};
 use crate::vm_objects::instance::Instance;
@@ -139,10 +139,17 @@ pub fn scan_object<'a>(object: ObjectReference, slot_visitor: &'a mut (dyn SlotV
                     Method::Defined(method) => {
                         slot_visitor.visit_slot(SOMSlot::from(&method.base_method_info.holder));
 
-                        for (cls_ptr, _method_ptr) in method.inline_cache.iter().flatten() {
-                            slot_visitor.visit_slot(SOMSlot::from(cls_ptr));
-                            // since we store a "**Method", it's already adjusted by "*Method" being visited elsewhere
-                            // slot_visitor.visit_slot(SOMSlot::from(&**method_ptr));
+                        for cache_entry in method.inline_cache.iter().flatten() {
+                            match cache_entry {
+                                CacheEntry::Send(cls_ptr, _) => {
+                                    slot_visitor.visit_slot(SOMSlot::from(cls_ptr));
+                                    // since we store a "**Method", it's already adjusted by "*Method" being visited elsewhere
+                                    // slot_visitor.visit_slot(SOMSlot::from(&**method_ptr));
+                                }
+                                CacheEntry::Global(_) => {
+                                    todo!()
+                                }
+                            }
                         }
 
                         for lit in &method.literals {
