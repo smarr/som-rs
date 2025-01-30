@@ -1,6 +1,6 @@
 use crate::compiler::Literal;
 use crate::value::Value;
-use crate::vm_objects::block::{Block, BodyInlineCache};
+use crate::vm_objects::block::{Block, CacheEntry};
 use crate::vm_objects::class::Class;
 use crate::vm_objects::method::Method;
 use crate::HACK_FRAME_FRAME_ARGS_PTR;
@@ -230,10 +230,12 @@ impl Frame {
         self.current_context.get_env().max_stack_size as usize
     }
 
+    /// # Safety
+    /// So long as idx is a bytecode_idx, it's valid, since there's as many entries as there are bytecode. Otherwise, it could break.
     #[inline(always)]
-    pub fn get_inline_cache(&mut self) -> &mut BodyInlineCache {
+    pub unsafe fn get_inline_cache_entry(&mut self, idx: usize) -> &mut Option<CacheEntry> {
         match self.current_context.deref_mut() {
-            Method::Defined(env) => &mut env.inline_cache,
+            Method::Defined(env) => env.inline_cache.get_unchecked_mut(idx),
             _ => unreachable!(),
         }
     }

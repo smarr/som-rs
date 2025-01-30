@@ -206,9 +206,7 @@ impl Interpreter {
                     self.current_frame.stack_push(value);
                 }
                 Bytecode::PushGlobal(idx) => {
-                    if let Some(CacheEntry::Global(value)) =
-                        unsafe { self.current_frame.get_inline_cache().get_unchecked_mut(self.bytecode_idx as usize) }
-                    {
+                    if let Some(CacheEntry::Global(value)) = unsafe { self.current_frame.get_inline_cache_entry(self.bytecode_idx as usize) } {
                         let value = *value;
                         self.current_frame.stack_push(value);
                         continue;
@@ -221,9 +219,7 @@ impl Interpreter {
                     };
                     if let Some(value) = universe.lookup_global(*symbol) {
                         self.current_frame.stack_push(value);
-                        unsafe {
-                            *self.current_frame.get_inline_cache().get_unchecked_mut(self.bytecode_idx as usize) = Some(CacheEntry::Global(value))
-                        }
+                        unsafe { *self.current_frame.get_inline_cache_entry(self.bytecode_idx as usize) = Some(CacheEntry::Global(value)) }
                     } else {
                         let self_value = self.current_frame.get_self();
                         universe.unknown_global(self, self_value, *symbol)?;
@@ -464,7 +460,7 @@ impl Interpreter {
             // SAFETY: this access is actually safe because the bytecode compiler
             // makes sure the cache has as many entries as there are bytecode instructions,
             // therefore we can avoid doing any redundant bounds checks here.
-            let maybe_found = unsafe { frame.get_inline_cache().get_unchecked_mut(bytecode_idx as usize) };
+            let maybe_found = unsafe { frame.get_inline_cache_entry(bytecode_idx as usize) };
 
             // SAFETY: unsafe access to a class method as a static reference. It *should* be safe because methods are never added or removed, so the pointer will always be valid.
             // ...unless it is moved by GC, which is what this hack is for: by holding onto a pointer to the Gc<Method> pointer, if moved by Gc, we're still handling a valid value.
