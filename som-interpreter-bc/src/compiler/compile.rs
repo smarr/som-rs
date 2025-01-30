@@ -1,10 +1,12 @@
 //!
 //! This is the bytecode compiler for the Simple Object Machine.
 //!
+
 use indexmap::{IndexMap, IndexSet};
 use num_bigint::BigInt;
 use som_gc::gcref::Gc;
 use som_gc::gcslice::GcSlice;
+use std::cell::Cell;
 use std::str::FromStr;
 
 #[cfg(not(feature = "inlining-disabled"))]
@@ -634,7 +636,10 @@ fn compile_method(outer: &mut dyn GenCtxt, defn: &ast::MethodDef, gc_interface: 
         match (body.as_slice(), nbr_params) {
             ([Bytecode::PushGlobal(x), Bytecode::ReturnLocal], 0) => match literals.get(*x as usize)? {
                 Literal::Symbol(interned) => Some(Method::TrivialGlobal(
-                    TrivialGlobalMethod { global_name: *interned },
+                    TrivialGlobalMethod {
+                        global_name: *interned,
+                        cached_entry: Cell::new(None),
+                    },
                     BasicMethodInfo::new(String::from(signature), Gc::default()),
                 )),
                 _ => None,
