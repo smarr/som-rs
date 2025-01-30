@@ -206,6 +206,14 @@ impl Interpreter {
                     self.current_frame.stack_push(value);
                 }
                 Bytecode::PushGlobal(idx) => {
+                    if let Some(CacheEntry::Global(value)) =
+                        unsafe { self.current_frame.get_inline_cache().get_unchecked_mut(self.bytecode_idx as usize) }
+                    {
+                        let value = *value;
+                        self.current_frame.stack_push(value);
+                        continue;
+                    }
+
                     let literal = self.current_frame.lookup_constant(idx as usize);
                     let symbol = match literal {
                         Literal::Symbol(sym) => sym,
@@ -213,6 +221,9 @@ impl Interpreter {
                     };
                     if let Some(value) = universe.lookup_global(*symbol) {
                         self.current_frame.stack_push(value);
+                        unsafe {
+                            *self.current_frame.get_inline_cache().get_unchecked_mut(self.bytecode_idx as usize) = Some(CacheEntry::Global(value))
+                        }
                     } else {
                         let self_value = self.current_frame.get_self();
                         universe.unknown_global(self, self_value, *symbol)?;

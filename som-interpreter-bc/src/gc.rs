@@ -146,8 +146,8 @@ pub fn scan_object<'a>(object: ObjectReference, slot_visitor: &'a mut (dyn SlotV
                                     // since we store a "**Method", it's already adjusted by "*Method" being visited elsewhere
                                     // slot_visitor.visit_slot(SOMSlot::from(&**method_ptr));
                                 }
-                                CacheEntry::Global(_) => {
-                                    todo!()
+                                CacheEntry::Global(val) => {
+                                    visit_value(val, slot_visitor);
                                 }
                             }
                         }
