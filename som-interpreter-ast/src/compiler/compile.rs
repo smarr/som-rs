@@ -1,7 +1,7 @@
 use super::inliner::PrimMessageInliner;
 use crate::ast::{
     AstBinaryDispatch, AstBlock, AstBody, AstDispatchNode, AstExpression, AstLiteral, AstMethodDef, AstNAryDispatch, AstSuperMessage,
-    AstTernaryDispatch, AstUnaryDispatch,
+    AstTernaryDispatch, AstUnaryDispatch, GlobalNode,
 };
 use crate::primitives::UNIMPLEM_PRIMITIVE;
 use crate::specialized::trivial_methods::{TrivialGetterMethod, TrivialGlobalMethod, TrivialLiteralMethod, TrivialSetterMethod};
@@ -99,7 +99,7 @@ impl<'a> AstMethodCompilerCtxt<'a> {
                         Some(MethodKind::TrivialLiteral(TrivialLiteralMethod { literal: lit.clone() }))
                         // todo avoid clone by moving code to previous function tbh
                     }
-                    AstExpression::GlobalRead(global) => Some(MethodKind::TrivialGlobal(TrivialGlobalMethod { global_name: *global })),
+                    AstExpression::GlobalRead(global) => Some(MethodKind::TrivialGlobal(TrivialGlobalMethod { global_name: global.clone() })),
                     AstExpression::FieldRead(idx) => Some(MethodKind::TrivialGetter(TrivialGetterMethod { field_idx: *idx })),
                     _ => None,
                 }
@@ -314,12 +314,12 @@ impl<'a> AstMethodCompilerCtxt<'a> {
         }
 
         if self.class.is_none() {
-            return AstExpression::GlobalRead(self.interner.intern(name.as_str()));
+            return AstExpression::GlobalRead(Box::new(GlobalNode::from(self.interner.intern(name.as_str()))));
         }
 
         match self.class.unwrap().get_field_offset_by_name(&name) {
             Some(offset) => AstExpression::FieldRead(offset as u8),
-            _ => AstExpression::GlobalRead(self.interner.intern(name.as_str())),
+            _ => AstExpression::GlobalRead(Box::new(GlobalNode::from(self.interner.intern(name.as_str())))),
         }
     }
 

@@ -1,10 +1,9 @@
-use crate::ast::AstLiteral;
+use crate::ast::{AstLiteral, GlobalNode};
 use crate::evaluate::Evaluate;
 use crate::invokable::{Invoke, Return};
 use crate::universe::{GlobalValueStack, Universe};
 use crate::value::Value;
-use crate::vm_objects::frame::FrameAccess;
-use som_core::interner::Interned;
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct TrivialLiteralMethod {
     pub(crate) literal: AstLiteral,
@@ -12,21 +11,12 @@ pub struct TrivialLiteralMethod {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct TrivialGlobalMethod {
-    pub(crate) global_name: Interned,
+    pub(crate) global_name: Box<GlobalNode>,
 }
 
 impl Evaluate for TrivialGlobalMethod {
     fn evaluate(&mut self, universe: &mut Universe, value_stack: &mut GlobalValueStack) -> Return {
-        // TODO: logic duplicated with globalread - need to avoid that somehow
-        universe
-            .lookup_global(self.global_name)
-            .map(Return::Local)
-            .or_else(|| {
-                let frame = universe.current_frame;
-                let self_value = frame.get_self();
-                universe.unknown_global(value_stack, self_value, self.global_name)
-            })
-            .unwrap_or_else(|| panic!("global not found and unknown_global call failed somehow?"))
+        self.global_name.evaluate(universe, value_stack)
     }
 }
 

@@ -31,7 +31,7 @@ pub struct AstBody {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum AstExpression {
-    GlobalRead(Interned),
+    GlobalRead(Box<GlobalNode>),
     LocalVarRead(u8),
     NonLocalVarRead(u8, u8),
     ArgRead(u8, u8),
@@ -70,6 +70,17 @@ pub enum AstLiteral {
     BigInteger(Gc<BigInt>),
     /// Represents an array literal (eg. `$(1 2 3)`)
     Array(GcSlice<AstLiteral>),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct GlobalNode {
+    pub global: Interned,
+}
+
+impl From<Interned> for GlobalNode {
+    fn from(value: Interned) -> Self {
+        Self { global: value }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
