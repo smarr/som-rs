@@ -35,7 +35,7 @@ pub mod vm_objects;
 /// To interact with the GC.
 pub mod gc;
 /// Specialized AST nodes
-pub mod specialized;
+pub mod nodes;
 /// Facilities for manipulating values.
 pub mod value;
 

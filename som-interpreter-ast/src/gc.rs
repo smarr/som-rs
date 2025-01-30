@@ -191,7 +191,12 @@ pub fn scan_object<'a>(object: ObjectReference, slot_visitor: &'a mut (dyn SlotV
                         }
                     }
                     MethodKind::TrivialLiteral(trivial_lit) => visit_literal(&trivial_lit.literal, slot_visitor),
-                    MethodKind::Primitive(_) | MethodKind::TrivialGlobal(_) | MethodKind::TrivialGetter(_) | MethodKind::TrivialSetter(_) => {} // MethodKind::Specialized(_) => {} // for now, specialized methods don't contain data that needs to be traced.
+                    MethodKind::TrivialGlobal(trivial_global) => {
+                        if let Some(cached_entry) = trivial_global.global_name.cached_entry.as_ref() {
+                            visit_value(cached_entry, slot_visitor)
+                        }
+                    }
+                    MethodKind::Primitive(_) | MethodKind::TrivialGetter(_) | MethodKind::TrivialSetter(_) => {} // MethodKind::Specialized(_) => {} // for now, specialized methods don't contain data that needs to be traced.
                 }
             }
             AstObjMagicId::Instance => {
@@ -326,8 +331,12 @@ fn visit_expr(expr: &AstExpression, slot_visitor: &mut dyn SlotVisitor<SOMSlot>)
                 visit_expr(arg, slot_visitor);
             }
         }
-        AstExpression::GlobalRead(..)
-        | AstExpression::LocalVarRead(..)
+        AstExpression::GlobalRead(global_node) => {
+            if let Some(cached_entry) = global_node.cached_entry.as_ref() {
+                unsafe { visit_value(cached_entry, slot_visitor) }
+            }
+        }
+        AstExpression::LocalVarRead(..)
         | AstExpression::NonLocalVarRead(..)
         | AstExpression::IncLocal(..)
         | AstExpression::DecLocal(..)

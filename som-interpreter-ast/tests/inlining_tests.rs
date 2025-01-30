@@ -3,11 +3,12 @@ use som_core::interner::Interner;
 use som_gc::gc_interface::GCInterface;
 use som_interpreter_ast::ast::AstExpression::*;
 use som_interpreter_ast::ast::InlinedNode::IfInlined;
-use som_interpreter_ast::ast::{AstBinaryDispatch, AstBody, AstDispatchNode, AstLiteral, AstMethodDef, AstUnaryDispatch, GlobalNode, InlinedNode};
+use som_interpreter_ast::ast::{AstBinaryDispatch, AstBody, AstDispatchNode, AstLiteral, AstMethodDef, AstUnaryDispatch, InlinedNode};
 use som_interpreter_ast::compiler::compile::AstMethodCompilerCtxt;
 use som_interpreter_ast::gc::get_callbacks_for_gc;
-use som_interpreter_ast::specialized::inlined::if_inlined_node::IfInlinedNode;
-use som_interpreter_ast::specialized::inlined::to_do_inlined_node::ToDoInlinedNode;
+use som_interpreter_ast::nodes::global_read::GlobalNode;
+use som_interpreter_ast::nodes::inlined::if_inlined_node::IfInlinedNode;
+use som_interpreter_ast::nodes::inlined::to_do_inlined_node::ToDoInlinedNode;
 use som_interpreter_ast::universe::DEFAULT_HEAP_SIZE;
 use som_lexer::{Lexer, Token};
 use som_parser::lang;
@@ -45,18 +46,16 @@ fn if_true_inlining_ok(mut interner: Interner) {
                 exprs: vec![
                     InlinedCall(Box::new(IfInlined(IfInlinedNode {
                         expected_bool: true,
-                        cond_expr: GlobalRead(Box::new(GlobalNode {
-                            global: interner.reverse_lookup("true").unwrap()
-                        })),
+                        cond_expr: GlobalRead(Box::new(GlobalNode::from(interner.reverse_lookup("true").unwrap()))),
                         body_instrs: AstBody {
-                            exprs: vec![LocalExit(Box::new(GlobalRead(Box::new(GlobalNode {
-                                global: interner.reverse_lookup("true").unwrap()
-                            }))))],
+                            exprs: vec![LocalExit(Box::new(GlobalRead(Box::new(GlobalNode::from(
+                                interner.reverse_lookup("true").unwrap()
+                            )))))],
                         },
                     },),)),
-                    LocalExit(Box::new(GlobalRead(Box::new(GlobalNode {
-                        global: interner.reverse_lookup("false").unwrap()
-                    })))),
+                    LocalExit(Box::new(GlobalRead(Box::new(GlobalNode::from(
+                        interner.reverse_lookup("false").unwrap()
+                    ))))),
                 ],
             },
         }
@@ -88,9 +87,7 @@ fn if_false_inlining_ok(mut interner: Interner) {
                             receiver: LocalVarRead(0),
                             inline_cache: None
                         },
-                        arg: GlobalRead(Box::new(GlobalNode {
-                            global: interner.reverse_lookup("nil").unwrap()
-                        })),
+                        arg: GlobalRead(Box::new(GlobalNode::from(interner.reverse_lookup("nil").unwrap()))),
                     }),),
                     body_instrs: AstBody {
                         exprs: vec![LocalExit(Box::new(LocalVarRead(0)))]
@@ -143,7 +140,7 @@ pub fn recursive_inlining(mut interner: Interner) {
                                             body block:
                                                 AstBody:
                                                     NonLocalExit(1)
-                                                        GlobalRead(GlobalNode{global:Interned(4)})";
+                                                        GlobalRead(Interned(4))";
 
     let resolve = get_ast(contains_key_txt, &mut interner);
 

@@ -1,10 +1,11 @@
 use super::inliner::PrimMessageInliner;
 use crate::ast::{
     AstBinaryDispatch, AstBlock, AstBody, AstDispatchNode, AstExpression, AstLiteral, AstMethodDef, AstNAryDispatch, AstSuperMessage,
-    AstTernaryDispatch, AstUnaryDispatch, GlobalNode,
+    AstTernaryDispatch, AstUnaryDispatch,
 };
+use crate::nodes::global_read::GlobalNode;
+use crate::nodes::trivial_methods::{TrivialGetterMethod, TrivialGlobalMethod, TrivialLiteralMethod, TrivialSetterMethod};
 use crate::primitives::UNIMPLEM_PRIMITIVE;
-use crate::specialized::trivial_methods::{TrivialGetterMethod, TrivialGlobalMethod, TrivialLiteralMethod, TrivialSetterMethod};
 use crate::vm_objects::class::Class;
 use crate::vm_objects::method::MethodKind;
 use som_core::ast;

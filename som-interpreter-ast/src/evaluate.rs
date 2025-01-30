@@ -1,6 +1,6 @@
 use crate::ast::{
     AstBinaryDispatch, AstBlock, AstBody, AstDispatchNode, AstExpression, AstLiteral, AstMethodDef, AstNAryDispatch, AstSuperMessage, AstTerm,
-    AstTernaryDispatch, AstUnaryDispatch, GlobalNode, InlinedNode,
+    AstTernaryDispatch, AstUnaryDispatch, InlinedNode,
 };
 use crate::gc::VecValue;
 use crate::invokable::{Invoke, Return};
@@ -144,20 +144,6 @@ impl Evaluate for AstExpression {
                 InlinedNode::ToDoInlined(to_do_inlined) => to_do_inlined.evaluate(universe, value_stack),
             },
         }
-    }
-}
-
-impl Evaluate for GlobalNode {
-    fn evaluate(&mut self, universe: &mut Universe, value_stack: &mut GlobalValueStack) -> Return {
-        universe
-            .lookup_global(self.global)
-            .map(Return::Local)
-            .or_else(|| {
-                let frame = universe.current_frame;
-                let self_value = frame.get_self();
-                universe.unknown_global(value_stack, self_value, self.global)
-            })
-            .unwrap_or_else(|| panic!("global not found and unknown_global call failed somehow?"))
     }
 }
 

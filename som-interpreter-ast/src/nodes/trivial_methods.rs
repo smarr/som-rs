@@ -1,6 +1,7 @@
-use crate::ast::{AstLiteral, GlobalNode};
+use crate::ast::AstLiteral;
 use crate::evaluate::Evaluate;
 use crate::invokable::{Invoke, Return};
+use crate::nodes::global_read::GlobalNode;
 use crate::universe::{GlobalValueStack, Universe};
 use crate::value::Value;
 

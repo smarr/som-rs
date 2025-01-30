@@ -1,9 +1,10 @@
-use crate::specialized::inlined::and_inlined_node::AndInlinedNode;
-use crate::specialized::inlined::if_inlined_node::IfInlinedNode;
-use crate::specialized::inlined::if_true_if_false_inlined_node::IfTrueIfFalseInlinedNode;
-use crate::specialized::inlined::or_inlined_node::OrInlinedNode;
-use crate::specialized::inlined::to_do_inlined_node::ToDoInlinedNode;
-use crate::specialized::inlined::while_inlined_node::WhileInlinedNode;
+use crate::nodes::global_read::GlobalNode;
+use crate::nodes::inlined::and_inlined_node::AndInlinedNode;
+use crate::nodes::inlined::if_inlined_node::IfInlinedNode;
+use crate::nodes::inlined::if_true_if_false_inlined_node::IfTrueIfFalseInlinedNode;
+use crate::nodes::inlined::or_inlined_node::OrInlinedNode;
+use crate::nodes::inlined::to_do_inlined_node::ToDoInlinedNode;
+use crate::nodes::inlined::while_inlined_node::WhileInlinedNode;
 use crate::vm_objects::class::Class;
 use crate::vm_objects::method::Method;
 use indenter::indented;
@@ -70,17 +71,6 @@ pub enum AstLiteral {
     BigInteger(Gc<BigInt>),
     /// Represents an array literal (eg. `$(1 2 3)`)
     Array(GcSlice<AstLiteral>),
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct GlobalNode {
-    pub global: Interned,
-}
-
-impl From<Interned> for GlobalNode {
-    fn from(value: Interned) -> Self {
-        Self { global: value }
-    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -180,7 +170,7 @@ impl Display for AstBlock {
 impl Display for AstExpression {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            AstExpression::GlobalRead(name) => writeln!(f, "GlobalRead({:?})", name),
+            AstExpression::GlobalRead(global_node) => writeln!(f, "GlobalRead({:?})", global_node.global),
             AstExpression::LocalVarRead(index) => writeln!(f, "LocalVarRead({})", index),
             AstExpression::NonLocalVarRead(level, index) => {
                 writeln!(f, "NonLocalVarRead({}, {})", level, index)

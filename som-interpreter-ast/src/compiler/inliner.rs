@@ -1,11 +1,11 @@
 use super::compile::{AstMethodCompilerCtxt, AstScopeCtxt};
 use crate::ast::{AstBlock, AstBody, AstExpression, InlinedNode};
-use crate::specialized::inlined::and_inlined_node::AndInlinedNode;
-use crate::specialized::inlined::if_inlined_node::IfInlinedNode;
-use crate::specialized::inlined::if_true_if_false_inlined_node::IfTrueIfFalseInlinedNode;
-use crate::specialized::inlined::or_inlined_node::OrInlinedNode;
-use crate::specialized::inlined::to_do_inlined_node::ToDoInlinedNode;
-use crate::specialized::inlined::while_inlined_node::WhileInlinedNode;
+use crate::nodes::inlined::and_inlined_node::AndInlinedNode;
+use crate::nodes::inlined::if_inlined_node::IfInlinedNode;
+use crate::nodes::inlined::if_true_if_false_inlined_node::IfTrueIfFalseInlinedNode;
+use crate::nodes::inlined::or_inlined_node::OrInlinedNode;
+use crate::nodes::inlined::to_do_inlined_node::ToDoInlinedNode;
+use crate::nodes::inlined::while_inlined_node::WhileInlinedNode;
 use som_core::ast;
 use som_core::ast::{Block, Expression, Literal};
 
