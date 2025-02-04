@@ -29,3 +29,6 @@ are-we-fast-yet/
 
 # used when building mmtk from source to do better debugging
 mmtk-core/
+
+# profiler data
+*.mm_profdata

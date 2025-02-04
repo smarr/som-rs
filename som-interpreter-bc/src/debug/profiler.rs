@@ -41,7 +41,10 @@ impl Profiler {
 
     /// Return the global instance of the profiler.
     pub fn global() -> &'static Self {
-        unsafe { INSTANCE.get_or_init(Self::default) }
+        #[allow(static_mut_refs)]
+        unsafe {
+            INSTANCE.get_or_init(Self::default)
+        }
     }
 
     /// Drop the global instance of the profiler.
@@ -54,6 +57,7 @@ impl Profiler {
         // Mutating statics is unsafe, so we need to wrap it as so.
         // This is actually safe though because init and drop are only called at the beginning and end of the application.
         unsafe {
+            #[allow(static_mut_refs)]
             INSTANCE.take().expect("could not take back profiler instance");
         }
     }

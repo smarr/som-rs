@@ -37,13 +37,6 @@ macro_rules! profiler_maybe_start {
     }};
 }
 
-//macro_rules! profiler_maybe_start {
-//    ($bc_name:expr) => {
-//        #[cfg(feature = "profiler")]
-//        let timing = Profiler::global().start_detached_event($bc_name, "bytecodes");
-//    };
-//}
-
 macro_rules! profiler_maybe_stop {
     ($timing:expr) => {
         #[cfg(feature = "profiler")]
@@ -138,6 +131,8 @@ impl Interpreter {
 
             // dbg!(self.current_frame);
 
+            // for the optional profiler macros not to be reported as warnings
+            #[allow(clippy::let_unit_value)]
             match bytecode {
                 Bytecode::Send1(symbol) => {
                     let _timing = profiler_maybe_start!("SEND");
