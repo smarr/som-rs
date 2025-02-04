@@ -1,5 +1,3 @@
-use std::convert::{TryFrom, TryInto};
-
 use crate::interpreter::Interpreter;
 use crate::primitives::PrimInfo;
 use crate::primitives::PrimitiveFn;
@@ -10,9 +8,9 @@ use anyhow::{bail, Context, Error};
 use num_bigint::{BigInt, BigUint, ToBigInt};
 use num_traits::{Signed, ToPrimitive};
 use once_cell::sync::Lazy;
-use rand::distributions::Uniform;
 use rand::Rng;
 use som_gc::gcref::Gc;
+use std::convert::{TryFrom, TryInto};
 
 pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
     Box::new([
@@ -95,11 +93,7 @@ fn at_random(_: &mut Interpreter, _: &mut Universe, receiver: IntegerLike) -> Re
     const SIGNATURE: &str = "Integer>>#atRandom";
 
     let chosen = match receiver {
-        IntegerLike::Integer(value) => {
-            let distribution = Uniform::new(0, value);
-            let mut rng = rand::thread_rng();
-            rng.sample(distribution)
-        }
+        IntegerLike::Integer(value) => rand::rng().random_range(0..=value),
         IntegerLike::BigInteger(_) => {
             bail!("'{SIGNATURE}': the range is too big to pick a random value from");
         }

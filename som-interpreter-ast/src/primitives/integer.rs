@@ -7,7 +7,6 @@ use anyhow::{bail, Error};
 use num_bigint::{BigInt, BigUint, Sign, ToBigInt};
 use num_traits::{Signed, ToPrimitive};
 use once_cell::sync::Lazy;
-use rand::distributions::Uniform;
 use rand::Rng;
 
 pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
@@ -87,11 +86,7 @@ fn at_random(_: &mut Universe, _value_stack: &mut GlobalValueStack, receiver: In
     const SIGNATURE: &str = "Integer>>#atRandom";
 
     let chosen = match receiver {
-        IntegerLike::Integer(value) => {
-            let distribution = Uniform::new(0, value);
-            let mut rng = rand::thread_rng();
-            rng.sample(distribution)
-        }
+        IntegerLike::Integer(value) => rand::rng().random_range(0..=value),
         IntegerLike::BigInteger(_) => {
             bail!(format!("'{}': the range is too big to pick a random value from", SIGNATURE,))
         }
