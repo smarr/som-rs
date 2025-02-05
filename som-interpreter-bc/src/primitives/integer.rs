@@ -3,7 +3,7 @@ use crate::interpreter::Interpreter;
 use crate::primitives::PrimInfo;
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
-use crate::value::convert::{DoubleLike, IntegerLike, Primitive, StringLike};
+use crate::value::convert::{DoubleLike, IntegerLike, IntoValue, Primitive, StringLike};
 use crate::value::Value;
 use anyhow::{bail, Context, Error};
 use num_bigint::{BigInt, BigUint, ToBigInt};
@@ -36,6 +36,9 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
         (">>>", self::shift_right.into_func(), true),
         ("bitXor:", self::bitxor.into_func(), true),
         ("sqrt", self::sqrt.into_func(), true),
+        ("max:", self::max.into_func(), true),
+        ("min:", self::min.into_func(), true),
+        ("abs:", self::abs.into_func(), true),
         ("asString", self::as_string.into_func(), true),
         ("asDouble", self::as_double.into_func(), true),
         ("atRandom", self::at_random.into_func(), true),
@@ -354,6 +357,34 @@ fn sqrt(_: &mut Interpreter, universe: &mut Universe, a: DoubleLike) -> Result<V
     };
 
     Ok(value)
+}
+
+fn max(_: &mut Interpreter, _: &mut Universe, a: DoubleLike, b: DoubleLike) -> Result<Value, Error> {
+    match DoubleLike::gt(&a, &b) {
+        true => Ok(a.into_value()),
+        false => Ok(b.into_value()),
+    }
+}
+
+fn min(_: &mut Interpreter, _: &mut Universe, a: DoubleLike, b: DoubleLike) -> Result<Value, Error> {
+    match DoubleLike::gt(&a, &b) {
+        true => Ok(b.into_value()),
+        false => Ok(a.into_value()),
+    }
+}
+
+fn abs(_: &mut Interpreter, universe: &mut Universe, a: DoubleLike) -> Result<Value, Error> {
+    match a {
+        DoubleLike::Double(f) => match f < 0.0 {
+            true => Ok((-f).into_value()),
+            false => Ok(f.into_value()),
+        },
+        DoubleLike::Integer(i) => Ok(i.into_value()),
+        DoubleLike::BigInteger(v) => {
+            let bigint: Gc<BigInt> = universe.gc_interface.alloc(v.abs());
+            Ok(bigint.into_value())
+        }
+    }
 }
 
 fn bitand(_: &mut Interpreter, universe: &mut Universe, a: IntegerLike, b: IntegerLike) -> Result<Value, Error> {

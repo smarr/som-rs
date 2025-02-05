@@ -2,7 +2,7 @@ use super::PrimInfo;
 use crate::gc::VecValue;
 use crate::primitives::PrimitiveFn;
 use crate::universe::{GlobalValueStack, Universe};
-use crate::value::convert::{DoubleLike, IntegerLike, Primitive, StringLike};
+use crate::value::convert::{DoubleLike, IntegerLike, IntoValue, Primitive, StringLike};
 use crate::value::Value;
 use anyhow::{bail, Error};
 use num_bigint::{BigInt, BigUint, Sign, ToBigInt};
@@ -34,6 +34,9 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
         (">>>", self::shift_right.into_func(), true),
         ("bitXor:", self::bitxor.into_func(), true),
         ("sqrt", self::sqrt.into_func(), true),
+        ("max:", self::max.into_func(), true),
+        ("min:", self::min.into_func(), true),
+        ("abs:", self::abs.into_func(), true),
         ("asString", self::as_string.into_func(), true),
         ("asDouble", self::as_double.into_func(), true),
         ("atRandom", self::at_random.into_func(), true),
@@ -286,6 +289,34 @@ fn sqrt(universe: &mut Universe, _value_stack: &mut GlobalValueStack, a: DoubleL
         }
         DoubleLike::BigInteger(a) => demote!(&mut universe.gc_interface, a.sqrt()),
         DoubleLike::Double(a) => Ok(Value::Double(a.sqrt())),
+    }
+}
+
+fn max(_: &mut Universe, _value_stack: &mut GlobalValueStack, a: DoubleLike, b: DoubleLike) -> Result<Value, Error> {
+    match DoubleLike::gt(&a, &b) {
+        true => Ok(a.into_value()),
+        false => Ok(b.into_value()),
+    }
+}
+
+fn min(_: &mut Universe, _value_stack: &mut GlobalValueStack, a: DoubleLike, b: DoubleLike) -> Result<Value, Error> {
+    match DoubleLike::gt(&a, &b) {
+        true => Ok(b.into_value()),
+        false => Ok(a.into_value()),
+    }
+}
+
+fn abs(universe: &mut Universe, _value_stack: &mut GlobalValueStack, a: DoubleLike) -> Result<Value, Error> {
+    match a {
+        DoubleLike::Double(f) => match f < 0.0 {
+            true => Ok((-f).into_value()),
+            false => Ok(f.into_value()),
+        },
+        DoubleLike::Integer(i) => Ok(i.into_value()),
+        DoubleLike::BigInteger(v) => {
+            let bigint: Gc<BigInt> = universe.gc_interface.alloc(v.abs());
+            Ok(bigint.into_value())
+        }
     }
 }
 

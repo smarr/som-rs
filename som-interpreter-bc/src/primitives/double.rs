@@ -2,7 +2,7 @@ use crate::interpreter::Interpreter;
 use crate::primitives::PrimInfo;
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
-use crate::value::convert::{DoubleLike, Primitive};
+use crate::value::convert::{DoubleLike, IntoValue, Primitive};
 use crate::value::{HeapValPtr, Value};
 use anyhow::{Context, Error};
 use num_traits::ToPrimitive;
@@ -26,6 +26,8 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
         ("//", self::divide.into_func(), true),
         ("%", self::modulo.into_func(), true),
         ("sqrt", self::sqrt.into_func(), true),
+        ("max:", self::max.into_func(), true),
+        ("min:", self::min.into_func(), true),
         ("round", self::round.into_func(), true),
         ("cos", self::cos.into_func(), true),
         ("sin", self::sin.into_func(), true),
@@ -81,6 +83,26 @@ fn sqrt(_: &mut Interpreter, _: &mut Universe, receiver: DoubleLike) -> Result<f
     let receiver = promote!(SIGNATURE, receiver);
 
     Ok(receiver.sqrt())
+}
+
+fn max(_: &mut Interpreter, _: &mut Universe, receiver: f64, other: DoubleLike) -> Result<Value, Error> {
+    const SIGNATURE: &str = "Double>>#max";
+
+    let other_val = promote!(SIGNATURE, other);
+    match other_val >= receiver {
+        true => Ok(other_val.into_value()),
+        false => Ok(receiver.into_value()),
+    }
+}
+
+fn min(_: &mut Interpreter, _: &mut Universe, receiver: f64, other: DoubleLike) -> Result<Value, Error> {
+    const SIGNATURE: &str = "Double>>#min";
+
+    let other_val = promote!(SIGNATURE, other);
+    match other_val >= receiver {
+        true => Ok(receiver.into_value()),
+        false => Ok(other_val.into_value()),
+    }
 }
 
 fn round(_: &mut Interpreter, _: &mut Universe, receiver: DoubleLike) -> Result<f64, Error> {
