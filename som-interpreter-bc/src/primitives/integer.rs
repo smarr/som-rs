@@ -1,3 +1,4 @@
+use crate::gc::VecValue;
 use crate::interpreter::Interpreter;
 use crate::primitives::PrimInfo;
 use crate::primitives::PrimitiveFn;
@@ -40,7 +41,7 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
         ("atRandom", self::at_random.into_func(), true),
         ("as32BitSignedValue", self::as_32bit_signed_value.into_func(), true),
         ("as32BitUnsignedValue", self::as_32bit_unsigned_value.into_func(), true),
-        //("to:", self::to.into_func(), true),
+        ("to:", self::to.into_func(), true),
     ])
 });
 pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([("fromString:", self::from_string.into_func(), true)]));
@@ -506,6 +507,12 @@ fn shift_right(_: &mut Interpreter, universe: &mut Universe, a: IntegerLike, b: 
     };
 
     Ok(value)
+}
+
+fn to(_: &mut Interpreter, universe: &mut Universe, a: i32, b: i32) -> Result<Value, Error> {
+    let vec: Vec<Value> = (a..=b).map(Value::Integer).collect();
+    let alloc_vec: Gc<VecValue> = universe.gc_interface.alloc(VecValue(vec));
+    Ok(Value::Array(alloc_vec))
 }
 
 /// Search for an instance primitive matching the given signature.

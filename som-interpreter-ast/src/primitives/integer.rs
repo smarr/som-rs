@@ -1,4 +1,5 @@
 use super::PrimInfo;
+use crate::gc::VecValue;
 use crate::primitives::PrimitiveFn;
 use crate::universe::{GlobalValueStack, Universe};
 use crate::value::convert::{DoubleLike, IntegerLike, Primitive, StringLike};
@@ -8,6 +9,7 @@ use num_bigint::{BigInt, BigUint, Sign, ToBigInt};
 use num_traits::{Signed, ToPrimitive};
 use once_cell::sync::Lazy;
 use rand::Rng;
+use som_gc::gcref::Gc;
 
 pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
     Box::new([
@@ -37,6 +39,7 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
         ("atRandom", self::at_random.into_func(), true),
         ("as32BitSignedValue", self::as_32bit_signed_value.into_func(), true),
         ("as32BitUnsignedValue", self::as_32bit_unsigned_value.into_func(), true),
+        ("to:", self::to.into_func(), true),
     ])
 });
 
@@ -424,6 +427,12 @@ fn shift_right(universe: &mut Universe, _value_stack: &mut GlobalValueStack, a: 
             demote!(gc_interface, BigInt::from_signed_bytes_le(&result.to_bytes_le()))
         }
     }
+}
+
+fn to(universe: &mut Universe, _value_stack: &mut GlobalValueStack, a: i32, b: i32) -> Result<Value, Error> {
+    let vec: Vec<Value> = (a..=b).map(Value::Integer).collect();
+    let alloc_vec: Gc<VecValue> = universe.gc_interface.alloc(VecValue(vec));
+    Ok(Value::Array(alloc_vec))
 }
 
 /// Search for an instance primitive matching the given signature.
