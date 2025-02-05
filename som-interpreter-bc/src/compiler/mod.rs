@@ -6,8 +6,8 @@ use crate::gc::VecValue;
 use crate::value::Value;
 use crate::vm_objects::block::Block;
 use num_bigint::BigInt;
-use som_core::interner::Interned;
 use som_gc::{gc_interface::GCInterface, gcref::Gc, gcslice::GcSlice};
+use som_value::interned::Interned;
 use std::hash::{Hash, Hasher};
 
 /// Facilities to compile code.

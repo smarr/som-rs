@@ -3,7 +3,7 @@ use crate::invokable::Return;
 use crate::universe::{GlobalValueStack, Universe};
 use crate::value::Value;
 use crate::vm_objects::frame::FrameAccess;
-use som_core::interner::Interned;
+use som_value::interned::Interned;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct GlobalNode {

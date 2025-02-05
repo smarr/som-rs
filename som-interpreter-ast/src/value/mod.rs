@@ -1,5 +1,5 @@
-use som_core::value::BaseValue;
 use som_gc::gcref::Gc;
+use som_value::value::BaseValue;
 
 /// The main value type.
 pub mod nan_boxed_val;
@@ -14,4 +14,4 @@ pub mod value_ptr;
 pub struct Value(pub(crate) BaseValue);
 
 /// A pointer to a Value on the GC heap.
-pub type HeapValPtr<T> = som_core::value_ptr::ValStaticPtr<T, Gc<T>>;
+pub type HeapValPtr<T> = som_value::value_ptr::ValStaticPtr<T, Gc<T>>;

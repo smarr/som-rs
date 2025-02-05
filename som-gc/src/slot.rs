@@ -2,7 +2,7 @@ use crate::gcref::Gc;
 use crate::gcslice::GcSlice;
 use mmtk::util::{Address, ObjectReference};
 use mmtk::vm::slot::{SimpleSlot, Slot};
-use som_core::value::BaseValue;
+use som_value::value::BaseValue;
 // pub type SOMSlot = mmtk::vm::slot::SimpleSlot;
 
 // because of NaN boxing, we make a new slot specifically for accessing values, which contain internally a GCRef

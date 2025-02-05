@@ -1,5 +1,7 @@
-use crate::interner::Interned;
-use crate::value_ptr::{HasPointerTag, TypedPtrValue};
+use crate::{
+    interned::Interned,
+    value_ptr::{HasPointerTag, TypedPtrValue},
+};
 use num_bigint::BigInt;
 use std::ops::Deref;
 

@@ -6,16 +6,10 @@
 pub mod ast;
 /// The SOM bytecode definitions. Used only by the bytecode interpreter, so should maybe be moved.
 pub mod bytecode;
-/// To convert values to types, and vice versa.
-pub mod convert;
 /// The SOM core classes.
 pub mod core_classes;
 /// Facilities for string interning.
 pub mod interner;
-/// Shared value representation logic (NaN boxing really)
-pub mod value;
-/// Class for storing a value itself as a typed pointer.
-pub mod value_ptr;
 
 /// For parsing command line arguments
 pub mod cli_parser;

@@ -1,5 +1,5 @@
-use som_core::bytecode::Bytecode::*;
-use som_core::{bytecode::Bytecode, interner::Interned};
+use som_core::bytecode::Bytecode::{self, *};
+use som_value::interned::Interned;
 use std::path::PathBuf;
 
 use som_interpreter_bc::compiler::compile::compile_class;

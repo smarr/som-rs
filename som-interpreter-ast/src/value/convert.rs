@@ -1,7 +1,9 @@
 use std::convert::TryFrom;
 
 use anyhow::{bail, Context, Error};
-use som_core::value_ptr::HasPointerTag;
+use som_value::interned::Interned;
+use som_value::value::BaseValue;
+use som_value::value_ptr::HasPointerTag;
 
 use crate::gc::VecValue;
 use crate::invokable::Return;
@@ -13,15 +15,13 @@ use crate::vm_objects::class::Class;
 use crate::vm_objects::instance::Instance;
 use crate::vm_objects::method::Method;
 use num_bigint::BigInt;
-use som_core::interner::Interned;
-use som_core::value::BaseValue;
 use som_gc::gcref::Gc;
 
 use super::HeapValPtr;
 
-pub type DoubleLike = som_core::convert::DoubleLike<Gc<BigInt>>;
-pub type IntegerLike = som_core::convert::IntegerLike<Gc<BigInt>>;
-pub type StringLike = som_core::convert::StringLike<Gc<String>>;
+pub type DoubleLike = som_value::convert::DoubleLike<Gc<BigInt>>;
+pub type IntegerLike = som_value::convert::IntegerLike<Gc<BigInt>>;
+pub type StringLike = som_value::convert::StringLike<Gc<String>>;
 
 pub trait IntoValue {
     #[allow(clippy::wrong_self_convention)] // though i guess we could/should rename it

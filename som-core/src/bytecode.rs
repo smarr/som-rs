@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::interner::Interned;
+use som_value::interned::Interned;
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

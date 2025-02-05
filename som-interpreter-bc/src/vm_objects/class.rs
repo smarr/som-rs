@@ -3,8 +3,8 @@ use std::fmt;
 use crate::value::Value;
 use crate::vm_objects::method::Method;
 use indexmap::IndexMap;
-use som_core::interner::Interned;
 use som_gc::gcref::Gc;
+use som_value::interned::Interned;
 // /// A reference that may be either weak or owned/strong.
 // #[derive(Debug, Clone)]
 // pub enum MaybeWeak<A> {

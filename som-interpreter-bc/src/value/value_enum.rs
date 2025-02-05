@@ -5,9 +5,9 @@ use crate::vm_objects::class::Class;
 use crate::vm_objects::instance::Instance;
 use crate::vm_objects::method::Method;
 use num_bigint::BigInt;
-use som_core::interner::Interned;
-use som_core::value_ptr::TypedPtrValue;
 use som_gc::gcref::Gc;
+use som_value::interned::Interned;
+use som_value::value_ptr::TypedPtrValue;
 use std::fmt;
 
 /// Represents an SOM value as an enum.

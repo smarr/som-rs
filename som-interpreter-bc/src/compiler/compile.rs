@@ -4,8 +4,10 @@
 
 use indexmap::{IndexMap, IndexSet};
 use num_bigint::BigInt;
+use som_core::interner::Interner;
 use som_gc::gcref::Gc;
 use som_gc::gcslice::GcSlice;
+use som_value::interned::Interned;
 use std::cell::Cell;
 use std::str::FromStr;
 
@@ -24,7 +26,6 @@ use som_core::ast;
 use som_core::ast::BlockDebugInfo;
 use som_core::ast::{Expression, MethodBody};
 use som_core::bytecode::Bytecode;
-use som_core::interner::{Interned, Interner};
 use som_gc::gc_interface::GCInterface;
 
 pub(crate) trait GenCtxt {

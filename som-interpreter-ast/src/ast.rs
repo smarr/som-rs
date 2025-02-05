@@ -9,9 +9,9 @@ use crate::vm_objects::class::Class;
 use crate::vm_objects::method::Method;
 use indenter::indented;
 use num_bigint::BigInt;
-use som_core::interner::Interned;
 use som_gc::gcref::Gc;
 use som_gc::gcslice::GcSlice;
+use som_value::interned::Interned;
 use std::fmt::Write;
 use std::fmt::{Debug, Display, Formatter};
 

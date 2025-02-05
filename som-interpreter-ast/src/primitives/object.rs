@@ -9,7 +9,7 @@ use crate::value::Value;
 use crate::vm_objects::class::Class;
 use anyhow::{bail, Error};
 use once_cell::sync::Lazy;
-use som_core::interner::Interned;
+use som_value::interned::Interned;
 use std::collections::hash_map::DefaultHasher;
 use std::convert::TryFrom;
 use std::hash::{Hash, Hasher};

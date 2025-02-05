@@ -5,7 +5,7 @@ use crate::value::convert::{Primitive, StringLike};
 use crate::value::Value;
 use anyhow::Error;
 use once_cell::sync::Lazy;
-use som_core::value::BaseValue;
+use som_value::value::BaseValue;
 use std::collections::hash_map::DefaultHasher;
 use std::convert::TryFrom;
 use std::hash::Hasher;

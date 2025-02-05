@@ -3,7 +3,8 @@ use num_bigint::BigInt;
 use std::borrow::Cow;
 use std::ops::Deref;
 
-use crate::{interner::Interned, value::BaseValue};
+use crate::interned::Interned;
+use crate::value::BaseValue;
 
 // Unfinished: using TryFrom to replace the convert.rs types FromArgs
 

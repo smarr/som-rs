@@ -5,7 +5,7 @@ use crate::value::convert::Primitive;
 use crate::value::Value;
 use anyhow::Error;
 use once_cell::sync::Lazy;
-use som_core::interner::Interned;
+use som_value::interned::Interned;
 
 pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([("asString", self::as_string.into_func(), true)]));
 

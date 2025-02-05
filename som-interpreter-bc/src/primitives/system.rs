@@ -13,8 +13,8 @@ use crate::vm_objects::class::Class;
 use anyhow::{Context, Error};
 use num_bigint::BigInt;
 use once_cell::sync::Lazy;
-use som_core::interner::Interned;
 use som_gc::gcref::Gc;
+use som_value::interned::Interned;
 
 pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
     Box::new([

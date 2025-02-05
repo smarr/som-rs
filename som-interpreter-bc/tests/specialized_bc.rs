@@ -1,10 +1,10 @@
-use som_core::bytecode::Bytecode::*;
-use som_core::{bytecode::Bytecode, interner::Interned};
+use som_core::bytecode::Bytecode::{self, *};
 use som_interpreter_bc::compiler::compile::compile_class;
 use som_interpreter_bc::universe::Universe;
 use som_interpreter_bc::vm_objects::method::Method;
 use som_lexer::{Lexer, Token};
 use som_parser::lang;
+use som_value::interned::Interned;
 use std::path::PathBuf;
 
 fn setup_universe() -> Universe {
