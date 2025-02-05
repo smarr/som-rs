@@ -15,7 +15,14 @@ use std::convert::{TryFrom, TryInto};
 pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
     Box::new([
         ("<", self::lt.into_func(), true),
+        ("<=", self::lt_or_eq.into_func(), true),
+        (">", self::gt.into_func(), true),
+        (">=", self::gt_or_eq.into_func(), true),
         ("=", self::eq.into_func(), true),
+        ("~=", self::uneq.into_func(), true),
+        ("<>", self::uneq.into_func(), true),
+        ("==", self::eq_eq.into_func(), true),
+        // -----------------
         ("+", self::plus.into_func(), true),
         ("-", self::minus.into_func(), true),
         ("*", self::times.into_func(), true),
@@ -33,11 +40,7 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
         ("atRandom", self::at_random.into_func(), true),
         ("as32BitSignedValue", self::as_32bit_signed_value.into_func(), true),
         ("as32BitUnsignedValue", self::as_32bit_unsigned_value.into_func(), true),
-        // ("to:do:", self::to_do.into_func(), true),
-        // ("to:by:do:", self::to_by_do.into_func(), true),
-        // ("downTo:do:", self::down_to_do.into_func(), true),
-        // ("downTo:by:do:", self::down_to_by_do.into_func(), true),
-        // ("timesRepeat:", self::times_repeat.into_func(), true),
+        //("to:", self::to.into_func(), true),
     ])
 });
 pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([("fromString:", self::from_string.into_func(), true)]));
@@ -385,27 +388,22 @@ fn bitxor(_: &mut Interpreter, universe: &mut Universe, a: IntegerLike, b: Integ
 }
 
 fn lt(_: &mut Interpreter, _: &mut Universe, a: DoubleLike, b: DoubleLike) -> Result<Value, Error> {
-    const SIGNATURE: &str = "Integer>>#<";
+    Ok(Value::Boolean(DoubleLike::lt(&a, &b)))
+}
 
-    let value = match (a, b) {
-        (DoubleLike::Integer(a), DoubleLike::Integer(b)) => Value::Boolean(a < b),
-        (DoubleLike::BigInteger(a), DoubleLike::BigInteger(b)) => Value::Boolean(*a < *b),
-        (DoubleLike::Double(a), DoubleLike::Double(b)) => Value::Boolean(a < b),
-        (DoubleLike::Integer(a), DoubleLike::Double(b)) => Value::Boolean((a as f64) < b),
-        (DoubleLike::Double(a), DoubleLike::Integer(b)) => Value::Boolean(a < (b as f64)),
-        (DoubleLike::BigInteger(a), DoubleLike::Integer(b)) => Value::Boolean(*a < BigInt::from(b)),
-        (DoubleLike::Integer(a), DoubleLike::BigInteger(b)) => Value::Boolean(BigInt::from(a) < *b),
-        _ => {
-            bail!("'{SIGNATURE}': wrong types");
-        }
-    };
+fn lt_or_eq(_: &mut Interpreter, _: &mut Universe, a: DoubleLike, b: DoubleLike) -> Result<Value, Error> {
+    Ok(Value::Boolean(DoubleLike::lt_or_eq(&a, &b)))
+}
 
-    Ok(value)
+fn gt(_: &mut Interpreter, _: &mut Universe, a: DoubleLike, b: DoubleLike) -> Result<Value, Error> {
+    Ok(Value::Boolean(DoubleLike::gt(&a, &b)))
+}
+
+fn gt_or_eq(_: &mut Interpreter, _: &mut Universe, a: DoubleLike, b: DoubleLike) -> Result<Value, Error> {
+    Ok(Value::Boolean(DoubleLike::gt_or_eq(&a, &b)))
 }
 
 fn eq(_: &mut Interpreter, _: &mut Universe, a: Value, b: Value) -> Result<bool, Error> {
-    const _: &str = "Integer>>#=";
-
     let Ok(a) = DoubleLike::try_from(a.0) else {
         return Ok(false);
     };
@@ -414,16 +412,35 @@ fn eq(_: &mut Interpreter, _: &mut Universe, a: Value, b: Value) -> Result<bool,
         return Ok(false);
     };
 
-    let value = match (a, b) {
-        (DoubleLike::Integer(a), DoubleLike::Integer(b)) => a == b,
-        (DoubleLike::BigInteger(a), DoubleLike::BigInteger(b)) => *a == *b,
-        (DoubleLike::Double(a), DoubleLike::Double(b)) => a == b,
-        (DoubleLike::Integer(a), DoubleLike::Double(b)) => (a as f64) == b,
-        (DoubleLike::Double(a), DoubleLike::Integer(b)) => a == (b as f64),
-        _ => false,
+    Ok(DoubleLike::eq(&a, &b))
+}
+
+fn eq_eq(_: &mut Interpreter, _: &mut Universe, a: Value, b: Value) -> Result<bool, Error> {
+    let Ok(a) = DoubleLike::try_from(a.0) else {
+        return Ok(false);
     };
 
-    Ok(value)
+    let Ok(b) = DoubleLike::try_from(b.0) else {
+        return Ok(false);
+    };
+
+    match (a, b) {
+        (DoubleLike::Integer(a), DoubleLike::Integer(b)) => Ok(a == b),
+        (DoubleLike::BigInteger(a), DoubleLike::BigInteger(b)) => Ok(*a == *b),
+        _ => Ok(false),
+    }
+}
+
+fn uneq(_: &mut Interpreter, _: &mut Universe, a: Value, b: Value) -> Result<bool, Error> {
+    let Ok(a) = DoubleLike::try_from(a.0) else {
+        return Ok(false);
+    };
+
+    let Ok(b) = DoubleLike::try_from(b.0) else {
+        return Ok(false);
+    };
+
+    Ok(!DoubleLike::eq(&a, &b))
 }
 
 fn shift_left(_: &mut Interpreter, universe: &mut Universe, a: IntegerLike, b: i32) -> Result<Value, Error> {
