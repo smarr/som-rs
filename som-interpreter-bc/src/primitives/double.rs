@@ -11,13 +11,20 @@ use som_gc::gcref::Gc;
 
 pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
     Box::new([
+        ("<", self::lt.into_func(), true),
+        ("<=", self::lt_or_eq.into_func(), true),
+        (">", self::gt.into_func(), true),
+        (">=", self::gt_or_eq.into_func(), true),
+        ("=", self::eq.into_func(), true),
+        ("~=", self::uneq.into_func(), true),
+        ("<>", self::uneq.into_func(), true),
+        ("==", self::eq_eq.into_func(), true),
+        // -----------------
         ("+", self::plus.into_func(), true),
         ("-", self::minus.into_func(), true),
         ("*", self::times.into_func(), true),
         ("//", self::divide.into_func(), true),
         ("%", self::modulo.into_func(), true),
-        ("=", self::eq.into_func(), true),
-        ("<", self::lt.into_func(), true),
         ("sqrt", self::sqrt.into_func(), true),
         ("round", self::round.into_func(), true),
         ("cos", self::cos.into_func(), true),
@@ -101,18 +108,62 @@ fn sin(_: &mut Interpreter, _: &mut Universe, receiver: DoubleLike) -> Result<f6
 }
 
 fn eq(_: &mut Interpreter, _: &mut Universe, a: Value, b: Value) -> Result<bool, Error> {
-    const _: &str = "Double>>#=";
+    let Ok(a) = DoubleLike::try_from(a.0) else {
+        return Ok(false);
+    };
 
-    Ok(a == b)
+    let Ok(b) = DoubleLike::try_from(b.0) else {
+        return Ok(false);
+    };
+
+    Ok(DoubleLike::eq(&a, &b))
 }
 
-fn lt(_: &mut Interpreter, _: &mut Universe, a: DoubleLike, b: DoubleLike) -> Result<bool, Error> {
+fn eq_eq(_: &mut Interpreter, _: &mut Universe, a: Value, b: Value) -> Result<bool, Error> {
+    let Ok(a) = DoubleLike::try_from(a.0) else {
+        return Ok(false);
+    };
+
+    let Ok(b) = DoubleLike::try_from(b.0) else {
+        return Ok(false);
+    };
+
+    match (a, b) {
+        (DoubleLike::Double(a), DoubleLike::Double(b)) => Ok(a == b),
+        _ => Ok(false),
+    }
+}
+
+fn uneq(_: &mut Interpreter, _: &mut Universe, a: Value, b: Value) -> Result<bool, Error> {
+    let Ok(a) = DoubleLike::try_from(a.0) else {
+        return Ok(false);
+    };
+
+    let Ok(b) = DoubleLike::try_from(b.0) else {
+        return Ok(false);
+    };
+
+    Ok(!DoubleLike::eq(&a, &b))
+}
+
+fn lt(_: &mut Interpreter, _: &mut Universe, a: f64, b: DoubleLike) -> Result<bool, Error> {
     const SIGNATURE: &str = "Double>>#<";
+    Ok(a < promote!(SIGNATURE, b))
+}
 
-    let a = promote!(SIGNATURE, a);
-    let b = promote!(SIGNATURE, b);
+fn lt_or_eq(_: &mut Interpreter, _: &mut Universe, a: f64, b: DoubleLike) -> Result<bool, Error> {
+    const SIGNATURE: &str = "Double>>#<=";
+    Ok(a <= promote!(SIGNATURE, b))
+}
 
-    Ok(a < b)
+fn gt(_: &mut Interpreter, _: &mut Universe, a: f64, b: DoubleLike) -> Result<bool, Error> {
+    const SIGNATURE: &str = "Double>>#>";
+    Ok(a > promote!(SIGNATURE, b))
+}
+
+fn gt_or_eq(_: &mut Interpreter, _: &mut Universe, a: f64, b: DoubleLike) -> Result<bool, Error> {
+    const SIGNATURE: &str = "Double>>#>=";
+    Ok(a >= promote!(SIGNATURE, b))
 }
 
 fn plus(_: &mut Interpreter, _: &mut Universe, a: DoubleLike, b: DoubleLike) -> Result<f64, Error> {

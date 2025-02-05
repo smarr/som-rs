@@ -9,13 +9,20 @@ use once_cell::sync::Lazy;
 
 pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
     Box::new([
+        ("<", self::lt.into_func(), true),
+        ("<=", self::lt_or_eq.into_func(), true),
+        (">", self::gt.into_func(), true),
+        (">=", self::gt_or_eq.into_func(), true),
+        ("=", self::eq.into_func(), true),
+        ("~=", self::uneq.into_func(), true),
+        ("<>", self::uneq.into_func(), true),
+        ("==", self::eq_eq.into_func(), true),
+        // -----------------
         ("+", self::plus.into_func(), true),
         ("-", self::minus.into_func(), true),
         ("*", self::times.into_func(), true),
         ("//", self::divide.into_func(), true),
         ("%", self::modulo.into_func(), true),
-        ("=", self::eq.into_func(), true),
-        ("<", self::lt.into_func(), true),
         ("sqrt", self::sqrt.into_func(), true),
         ("round", self::round.into_func(), true),
         ("cos", self::cos.into_func(), true),
@@ -105,17 +112,49 @@ fn sin(_: &mut Universe, _value_stack: &mut GlobalValueStack, receiver: DoubleLi
     Ok(Value::Double(value.sin()))
 }
 
+// TODO: I'm not sure it's the fastest way to go about it. Maybe take in a f64 directly - not sure.
+// Ditto for several primitives that are very frequently invoked: is it best to rely on `DoubleLike`, on `Value`, on `f64` directly? A mix of all?
 fn eq(_: &mut Universe, _value_stack: &mut GlobalValueStack, a: Value, b: Value) -> Result<Value, Error> {
     Ok(Value::Boolean(a == b))
 }
 
-fn lt(_: &mut Universe, _value_stack: &mut GlobalValueStack, a: DoubleLike, b: DoubleLike) -> Result<Value, Error> {
+fn eq_eq(_: &mut Universe, _value_stack: &mut GlobalValueStack, a: Value, b: Value) -> Result<bool, Error> {
+    let Ok(a) = DoubleLike::try_from(a.0) else {
+        return Ok(false);
+    };
+
+    let Ok(b) = DoubleLike::try_from(b.0) else {
+        return Ok(false);
+    };
+
+    match (a, b) {
+        (DoubleLike::Double(a), DoubleLike::Double(b)) => Ok(a == b),
+        _ => Ok(false),
+    }
+}
+
+fn uneq(_: &mut Universe, _value_stack: &mut GlobalValueStack, a: DoubleLike, b: DoubleLike) -> Result<bool, Error> {
+    Ok(!DoubleLike::eq(&a, &b))
+}
+
+fn lt(_: &mut Universe, _value_stack: &mut GlobalValueStack, a: f64, b: DoubleLike) -> Result<bool, Error> {
     const SIGNATURE: &str = "Double>>#<";
+    Ok(a < promote!(SIGNATURE, b))
+}
 
-    let a = promote!(SIGNATURE, a);
-    let b = promote!(SIGNATURE, b);
+fn lt_or_eq(_: &mut Universe, _value_stack: &mut GlobalValueStack, a: f64, b: DoubleLike) -> Result<bool, Error> {
+    const SIGNATURE: &str = "Double>>#<=";
+    Ok(a <= promote!(SIGNATURE, b))
+}
 
-    Ok(Value::Boolean(a < b))
+fn gt(_: &mut Universe, _value_stack: &mut GlobalValueStack, a: f64, b: DoubleLike) -> Result<bool, Error> {
+    const SIGNATURE: &str = "Double>>#>";
+    Ok(a > promote!(SIGNATURE, b))
+}
+
+fn gt_or_eq(_: &mut Universe, _value_stack: &mut GlobalValueStack, a: f64, b: DoubleLike) -> Result<bool, Error> {
+    const SIGNATURE: &str = "Double>>#>=";
+    Ok(a >= promote!(SIGNATURE, b))
 }
 
 fn plus(_: &mut Universe, _value_stack: &mut GlobalValueStack, a: DoubleLike, b: DoubleLike) -> Result<Value, Error> {
