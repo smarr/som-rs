@@ -3,7 +3,6 @@ use crate::value::Value;
 use crate::vm_objects::block::{Block, CacheEntry};
 use crate::vm_objects::class::Class;
 use crate::vm_objects::method::Method;
-use crate::HACK_FRAME_FRAME_ARGS_PTR;
 use core::mem::size_of;
 use som_core::bytecode::Bytecode;
 use som_gc::gc_interface::GCInterface;
@@ -44,33 +43,6 @@ pub struct Frame {
 }
 
 impl Frame {
-    pub fn alloc_from_method_from_frame(
-        method: &Gc<Method>,
-        nbr_args: usize,
-        prev_frame: &mut Gc<Frame>,
-        gc_interface: &mut GCInterface,
-    ) -> Gc<Frame> {
-        // ...I spent ages debugging a release-only bug, and this turned out to be the fix.
-        // Whatever rust thinks it CAN do with the prev_frame ref (likely assume it points to the same data), it can't do safely in some cases... So we tell it not to.
-        std::hint::black_box(&prev_frame);
-
-        let (max_stack_size, nbr_locals) = match &**method {
-            Method::Defined(m_env) => (m_env.max_stack_size as usize, m_env.nbr_locals),
-            _ => unreachable!("if we're allocating a method frame, it has to be defined."),
-        };
-
-        let size = Frame::get_true_size(max_stack_size, nbr_args, nbr_locals);
-        let mut frame_ptr: Gc<Frame> = gc_interface.request_memory_for_type(size);
-
-        *frame_ptr = Frame::from_method(*method);
-
-        let args = prev_frame.stack_n_last_elements(nbr_args);
-        Frame::init_frame_post_alloc(frame_ptr, args, max_stack_size, *prev_frame);
-        prev_frame.remove_n_last_elements(nbr_args);
-
-        frame_ptr
-    }
-
     /// Allocates a frame for a block.
     /// We assume that the block is on the stack of the previous frame, as is the case when calling
     /// the primitive functions that create new blocks. We do this to make sure it's reachable
@@ -88,51 +60,14 @@ impl Frame {
         };
 
         let size = Frame::get_true_size(max_stack_size, nbr_locals, nbr_args);
-
         let mut frame_ptr: Gc<Frame> = gc_interface.request_memory_for_type(size);
+
         let block_value = prev_frame.stack_nth_back(nbr_args - 1);
         *frame_ptr = Frame::from_block(block_value.as_block().unwrap());
 
         let args = prev_frame.stack_n_last_elements(nbr_args);
         Frame::init_frame_post_alloc(frame_ptr, args, max_stack_size, *prev_frame);
         prev_frame.remove_n_last_elements(nbr_args);
-
-        frame_ptr
-    }
-
-    /// Allocates a method, given some arguments directly as opposed to off of a previous frame's stack.
-    ///
-    /// Could also take a pointer to the method to not have to push it on the stack, like the normal-case frame method alloc function.
-    /// But it's a rare enough path that the perf impact would be none.
-    pub fn alloc_from_method_with_args(method: Gc<Method>, args: &[Value], prev_frame: &mut Gc<Frame>, gc_interface: &mut GCInterface) -> Gc<Frame> {
-        let (max_stack_size, nbr_locals) = match &*method {
-            Method::Defined(m_env) => (m_env.max_stack_size as usize, m_env.nbr_locals),
-            _ => unreachable!("if we're allocating a method frame, it has to be defined."),
-        };
-
-        let size = Frame::get_true_size(max_stack_size, args.len(), nbr_locals);
-
-        unsafe {
-            HACK_FRAME_FRAME_ARGS_PTR = Some(Vec::from(args));
-        }
-
-        prev_frame.stack_push(Value::Invokable(method));
-
-        let mut frame_ptr: Gc<Frame> = gc_interface.request_memory_for_type(size);
-
-        #[allow(static_mut_refs)]
-        unsafe {
-            let method = prev_frame.stack_pop().as_invokable().unwrap();
-            *frame_ptr = Frame::from_method(method);
-            Frame::init_frame_post_alloc(
-                frame_ptr,
-                HACK_FRAME_FRAME_ARGS_PTR.as_ref().unwrap().as_slice(),
-                max_stack_size,
-                *prev_frame,
-            );
-
-            HACK_FRAME_FRAME_ARGS_PTR = None;
-        }
 
         frame_ptr
     }
@@ -163,7 +98,7 @@ impl Frame {
         frame_ptr
     }
 
-    fn init_frame_post_alloc(frame_ptr: Gc<Frame>, args: &[Value], stack_size: usize, prev_frame: Gc<Frame>) {
+    pub(crate) fn init_frame_post_alloc(frame_ptr: Gc<Frame>, args: &[Value], stack_size: usize, prev_frame: Gc<Frame>) {
         unsafe {
             let mut frame = frame_ptr;
 
@@ -201,7 +136,7 @@ impl Frame {
     }
 
     // Creates a frame from a block. Meant to only be called by the alloc_from_method function
-    fn from_method(method: Gc<Method>) -> Self {
+    pub(crate) fn from_method(method: Gc<Method>) -> Self {
         Self {
             prev_frame: Gc::default(),
             current_context: method,

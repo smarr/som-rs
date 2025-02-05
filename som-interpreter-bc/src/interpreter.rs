@@ -11,6 +11,7 @@ use anyhow::Context;
 #[cfg(feature = "profiler")]
 use crate::debug::profiler::Profiler;
 
+use crate::HACK_FRAME_FRAME_ARGS_PTR;
 use num_bigint::BigInt;
 use som_core::bytecode::Bytecode;
 use som_gc::gc_interface::GCInterface;
@@ -53,6 +54,10 @@ pub struct Interpreter {
     pub current_frame: Gc<Frame>,
     /// Pointer to the frame's bytecodes, to not have to read them from the frame directly
     pub current_bytecodes: *const Vec<Bytecode>,
+    /// GC can trigger when the interpreter wants to allocate a new frame.
+    /// We're then in a situation where we've looked up a `Method` (which is how we knew we were dealing with a non-primitive, and so that we had to create a frame)
+    /// So this method can't be stored on the Rust stack, or GC would miss it. Therefore: we keep it reachable there.
+    pub frame_method_root: Gc<Method>,
 }
 
 impl Interpreter {
@@ -62,13 +67,34 @@ impl Interpreter {
             bytecode_idx: 0,
             current_frame: base_frame,
             current_bytecodes: base_frame.get_bytecode_ptr(),
+            frame_method_root: Gc::default(),
         }
     }
 
     /// Creates and allocates a new frame corresponding to a method.
     /// nbr_args is the number of arguments, including the self value, which it takes from the previous frame.
-    pub fn push_method_frame(&mut self, method: &Gc<Method>, nbr_args: usize, mutator: &mut GCInterface) -> Gc<Frame> {
-        let frame_ptr = Frame::alloc_from_method_from_frame(method, nbr_args, &mut self.current_frame, mutator);
+    pub fn push_method_frame(&mut self, method: Gc<Method>, nbr_args: usize, mutator: &mut GCInterface) -> Gc<Frame> {
+        // ...I spent ages debugging a release-only bug, and this turned out to be the fix.
+        // Whatever rust thinks it CAN do with the prev_frame ref (likely assume it points to the same data), it can't do safely in some cases... So we tell it not to.
+        let prev_frame = &mut self.current_frame;
+        std::hint::black_box(&prev_frame); // paranoia?
+
+        self.frame_method_root = method;
+        std::hint::black_box(&self.frame_method_root); // paranoia
+
+        let (max_stack_size, nbr_locals) = match &*method {
+            Method::Defined(m_env) => (m_env.max_stack_size as usize, m_env.nbr_locals),
+            _ => unreachable!("if we're allocating a method frame, it has to be defined."),
+        };
+
+        let size = Frame::get_true_size(max_stack_size, nbr_args, nbr_locals);
+        let mut frame_ptr: Gc<Frame> = mutator.request_memory_for_type(size);
+
+        *frame_ptr = Frame::from_method(self.frame_method_root);
+
+        let args = prev_frame.stack_n_last_elements(nbr_args);
+        Frame::init_frame_post_alloc(frame_ptr, args, max_stack_size, *prev_frame);
+        prev_frame.remove_n_last_elements(nbr_args);
 
         self.bytecode_idx = 0;
         self.current_bytecodes = frame_ptr.get_bytecode_ptr();
@@ -79,7 +105,35 @@ impl Interpreter {
     /// Creates and allocates a new frame corresponding to a method, with arguments provided.
     /// Used in primitives and corner cases like DNU calls.
     pub fn push_method_frame_with_args(&mut self, method: Gc<Method>, args: &[Value], mutator: &mut GCInterface) -> Gc<Frame> {
-        let frame_ptr = Frame::alloc_from_method_with_args(method, args, &mut self.current_frame, mutator);
+        let prev_frame = &mut self.current_frame;
+        std::hint::black_box(&prev_frame); // paranoia?
+
+        self.frame_method_root = method;
+        std::hint::black_box(&self.frame_method_root); // paranoia
+
+        let (max_stack_size, nbr_locals) = match &*method {
+            Method::Defined(m_env) => (m_env.max_stack_size as usize, m_env.nbr_locals),
+            _ => unreachable!("if we're allocating a method frame, it has to be defined."),
+        };
+
+        let size = Frame::get_true_size(max_stack_size, args.len(), nbr_locals);
+
+        unsafe {
+            HACK_FRAME_FRAME_ARGS_PTR = Some(Vec::from(args));
+        }
+
+        let mut frame_ptr: Gc<Frame> = mutator.request_memory_for_type(size);
+
+        #[allow(static_mut_refs)]
+        unsafe {
+            *frame_ptr = Frame::from_method(self.frame_method_root);
+            Frame::init_frame_post_alloc(
+                frame_ptr,
+                HACK_FRAME_FRAME_ARGS_PTR.as_ref().unwrap().as_slice(),
+                max_stack_size,
+                *prev_frame,
+            );
+        }
 
         self.bytecode_idx = 0;
         self.current_bytecodes = frame_ptr.get_bytecode_ptr();
@@ -294,7 +348,7 @@ impl Interpreter {
                     profiler_maybe_stop!(_timing);
                 }
                 Bytecode::PushSelf => {
-                    let _timing = profiler_maybe_start!("PUSH_NIL");
+                    let _timing = profiler_maybe_start!("PUSH_SELF");
                     let self_val = *self.current_frame.lookup_argument(0);
                     self.current_frame.stack_push(self_val);
                     profiler_maybe_stop!(_timing);
@@ -505,7 +559,7 @@ impl Interpreter {
             }
         }
 
-        pub fn do_send(interpreter: &mut Interpreter, universe: &mut Universe, method: Option<&Gc<Method>>, symbol: Interned, nb_params: usize) {
+        pub fn do_send(interpreter: &mut Interpreter, universe: &mut Universe, method: Option<Gc<Method>>, symbol: Interned, nb_params: usize) {
             // we store the current bytecode idx to be able to correctly restore the bytecode state when we pop frames
             interpreter.current_frame.bytecode_idx = interpreter.bytecode_idx;
 
@@ -526,7 +580,7 @@ impl Interpreter {
                 return;
             };
 
-            match &**method {
+            match &*method {
                 Method::Defined(_) => {
                     // let name = &method.holder().name.clone();
                     // eprintln!("Invoking {:?} (in {:?})", &method.signature(), &name);
@@ -549,26 +603,21 @@ impl Interpreter {
             }
         }
 
-        fn resolve_method(frame: &mut Gc<Frame>, class: &Gc<Class>, signature: Interned, bytecode_idx: u16) -> Option<&'static Gc<Method>> {
+        fn resolve_method(frame: &mut Gc<Frame>, class: &Gc<Class>, signature: Interned, bytecode_idx: u16) -> Option<Gc<Method>> {
             // SAFETY: this access is actually safe because the bytecode compiler
             // makes sure the cache has as many entries as there are bytecode instructions,
             // therefore we can avoid doing any redundant bounds checks here.
             let maybe_found = unsafe { frame.get_inline_cache_entry(bytecode_idx as usize) };
 
-            // SAFETY: unsafe access to a class method as a static reference. It *should* be safe because methods are never added or removed, so the pointer will always be valid.
-            // ...unless it is moved by GC, which is what this hack is for: by holding onto a pointer to the Gc<Method> pointer, if moved by Gc, we're still handling a valid value.
-            // This is a **HACK**: it may be possible to refactor the code to properly use lifetimes to inform the compiler that the lifetime of a method is completely tied to a class.
-            unsafe {
-                match maybe_found {
-                    Some(CacheEntry::Send(receiver, method)) if receiver.as_ptr() == class.as_ptr() => Some(&**method),
-                    Some(CacheEntry::Global(_)) => panic!("global cache entry for a send?"),
-                    place @ None => {
-                        let found = class.lookup_method_as_static_ref(signature);
-                        *place = found.map(|method| CacheEntry::Send(*class, method));
-                        found
-                    }
-                    _ => class.lookup_method_as_static_ref(signature),
+            match maybe_found {
+                Some(CacheEntry::Send(receiver, method)) if receiver.as_ptr() == class.as_ptr() => Some(*method),
+                Some(CacheEntry::Global(_)) => panic!("global cache entry for a send?"),
+                place @ None => {
+                    let found = class.lookup_method(signature);
+                    *place = found.map(|method| CacheEntry::Send(*class, method));
+                    found
                 }
+                _ => class.lookup_method(signature),
             }
         }
 

@@ -9,7 +9,7 @@ use std::fmt;
 
 #[derive(Debug, Clone)]
 pub enum CacheEntry {
-    Send(Gc<Class>, &'static Gc<Method>),
+    Send(Gc<Class>, Gc<Method>),
     Global(Value), // unused for now
 }
 

@@ -69,21 +69,6 @@ impl Class {
         self.methods.get(&signature).cloned().or_else(|| self.super_class.as_ref()?.lookup_method(signature))
     }
 
-    /// Search for a given method within this class, and return a STATIC reference to it.
-    /// This is needed because if we copy the pointer instead, we end up hanging onto an invalid reference if moving GC happens and it's only stored on the Rust stack.
-    /// A possible fix is pushing it onto the frame stack before collection happens, but that's a minor slowdown. Hence this function instead.
-    ///
-    /// # Safety
-    /// This assumes the returned pointer will always point to a method. This is the case: we never add, or remove, methods to a class. And we don't support class unloading.
-    /// If moving GC does move the `Gc<Method>`, then the static reference will now point to the moved method pointer, which is valid behavior.
-    pub unsafe fn lookup_method_as_static_ref(&self, signature: Interned) -> Option<&'static Gc<Method>> {
-        let method_ptr = self.methods.get(&signature);
-        match method_ptr {
-            None => self.super_class.as_ref()?.lookup_method_as_static_ref(signature),
-            Some(method_ptr) => Some(std::mem::transmute::<&Gc<Method>, &'static Gc<Method>>(method_ptr)),
-        }
-    }
-
     /// Search for a local binding.
     pub fn lookup_field(&self, idx: usize) -> Value {
         self.fields.get(idx).copied().unwrap_or_else(|| {

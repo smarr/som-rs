@@ -5,7 +5,7 @@ use crate::vm_objects::class::Class;
 use crate::vm_objects::frame::{Frame, FrameStackIter};
 use crate::vm_objects::instance::Instance;
 use crate::vm_objects::method::Method;
-use crate::{HACK_FRAME_FRAME_ARGS_PTR, INTERPRETER_RAW_PTR_CONST, UNIVERSE_RAW_PTR_CONST};
+use crate::{INTERPRETER_RAW_PTR_CONST, UNIVERSE_RAW_PTR_CONST};
 use core::mem::size_of;
 use log::{debug, trace};
 use mmtk::util::ObjectReference;
@@ -141,10 +141,9 @@ pub fn scan_object<'a>(object: ObjectReference, slot_visitor: &'a mut (dyn SlotV
 
                         for cache_entry in method.inline_cache.iter().flatten() {
                             match cache_entry {
-                                CacheEntry::Send(cls_ptr, _) => {
+                                CacheEntry::Send(cls_ptr, method_ptr) => {
                                     slot_visitor.visit_slot(SOMSlot::from(cls_ptr));
-                                    // since we store a "**Method", it's already adjusted by "*Method" being visited elsewhere
-                                    // slot_visitor.visit_slot(SOMSlot::from(&**method_ptr));
+                                    slot_visitor.visit_slot(SOMSlot::from(method_ptr));
                                 }
                                 CacheEntry::Global(val) => {
                                     visit_value(val, slot_visitor);
@@ -241,6 +240,11 @@ fn get_roots_in_mutator_thread(_mutator: &mut Mutator<SOMVM>) -> Vec<SOMSlot> {
         );
         to_process.push(SOMSlot::from(current_frame_addr));
 
+        let frame_method_root = &(**INTERPRETER_RAW_PTR_CONST.as_ptr()).frame_method_root;
+        if !frame_method_root.is_empty() {
+            to_process.push(SOMSlot::from(frame_method_root));
+        }
+
         // walk globals (includes core classes)
         debug!("scanning roots: globals");
         for (_name, val) in (**UNIVERSE_RAW_PTR_CONST.as_ptr()).globals.iter_mut() {
@@ -251,15 +255,6 @@ fn get_roots_in_mutator_thread(_mutator: &mut Mutator<SOMVM>) -> Vec<SOMSlot> {
 
         // we update the core classes in their class also though, to properly move them
         (**UNIVERSE_RAW_PTR_CONST.as_ptr()).core.iter().for_each(|(_, cls_ptr)| to_process.push(SOMSlot::from(cls_ptr)));
-
-        #[allow(static_mut_refs)]
-        if HACK_FRAME_FRAME_ARGS_PTR.is_some() {
-            for elem in HACK_FRAME_FRAME_ARGS_PTR.as_ref().unwrap() {
-                if elem.is_ptr_type() {
-                    to_process.push(SOMSlot::from(elem.as_mut_ptr()));
-                }
-            }
-        }
 
         debug!("scanning roots: finished");
         to_process
