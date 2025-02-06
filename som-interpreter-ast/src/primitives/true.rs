@@ -1,6 +1,7 @@
 use anyhow::Error;
 use once_cell::sync::Lazy;
 
+use crate::invokable::Return;
 use crate::primitives::PrimInfo;
 use crate::primitives::PrimitiveFn;
 use crate::universe::GlobalValueStack;
@@ -13,6 +14,10 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
         ("not", self::not.into_func(), true),
         ("or:", self::or.into_func(), true),
         ("||", self::or.into_func(), true),
+        ("and:", self::and_if_true.into_func(), true),
+        ("&&", self::and_if_true.into_func(), true),
+        ("ifTrue:", self::and_if_true.into_func(), true),
+        ("ifFalse:", self::if_false.into_func(), true),
     ])
 });
 
@@ -24,6 +29,19 @@ fn not(_universe: &mut Universe, _value_stack: &mut GlobalValueStack, _: Value) 
 
 fn or(_universe: &mut Universe, _value_stack: &mut GlobalValueStack, _self: Value, _other: Value) -> Result<bool, Error> {
     Ok(true)
+}
+
+fn and_if_true(universe: &mut Universe, value_stack: &mut GlobalValueStack, _self: Value, other: Value) -> Result<Return, Error> {
+    if let Some(blk) = other.as_block() {
+        value_stack.push(other);
+        Ok(universe.eval_block_with_frame(value_stack, blk.block.nbr_locals, 1))
+    } else {
+        Ok(Return::Local(other))
+    }
+}
+
+fn if_false(_universe: &mut Universe, _value_stack: &mut GlobalValueStack, _self: Value, _other: Value) -> Result<Return, Error> {
+    Ok(Return::Local(Value::NIL))
 }
 
 /// Search for an instance primitive matching the given signature.

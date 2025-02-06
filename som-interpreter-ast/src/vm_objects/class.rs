@@ -122,12 +122,12 @@ impl Class {
             .collect();
 
         if let Some(primitives) = primitives::get_class_primitives(&defn.name) {
-            for (signature, primitive, warning) in primitives {
+            for (signature, primitive, _warning) in primitives {
                 let interned_signature = interner.intern(signature);
 
-                if *warning && !static_methods.contains_key(&interned_signature) {
-                    eprintln!("Warning: Primitive '{}' is not in class definition for class '{}'", signature, defn.name);
-                }
+                //if *warning && !static_methods.contains_key(&interned_signature) {
+                //    eprintln!("Warning: Primitive '{}' is not in class definition for class '{}'", signature, defn.name);
+                //}
 
                 let method = Method {
                     kind: MethodKind::Primitive(*primitive),
@@ -154,12 +154,12 @@ impl Class {
             .collect();
 
         if let Some(primitives) = primitives::get_instance_primitives(&defn.name) {
-            for (signature, primitive, warning) in primitives {
+            for (signature, primitive, _warning) in primitives {
                 let interned_signature = interner.intern(signature);
 
-                if *warning && !instance_methods.contains_key(&interned_signature) {
-                    eprintln!("Warning: Primitive '{}' is not in class definition for class '{}'", signature, defn.name);
-                }
+                //if *warning && !instance_methods.contains_key(&interned_signature) {
+                //    eprintln!("Warning: Primitive '{}' is not in class definition for class '{}'", signature, defn.name);
+                //}
 
                 let method = Method {
                     kind: MethodKind::Primitive(*primitive),

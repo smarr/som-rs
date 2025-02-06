@@ -903,11 +903,11 @@ pub fn compile_class(
     }
 
     if let Some(primitives) = primitives::get_class_primitives(&defn.name) {
-        for &(signature, primitive, warning) in primitives {
-            let symbol = static_class_ctxt.interner.intern(signature);
-            if warning && !static_class_ctxt.methods.contains_key(&symbol) {
-                eprintln!("Warning: Primitive '{}' is not in class definition for class '{}'", signature, defn.name);
-            }
+        for &(signature, primitive, _warning) in primitives {
+            //let symbol = static_class_ctxt.interner.intern(signature);
+            //if warning && !static_class_ctxt.methods.contains_key(&symbol) {
+            //    eprintln!("Warning: Primitive '{}' is not in class definition for class '{}'", signature, defn.name);
+            //}
 
             let method = Method::Primitive(primitive, BasicMethodInfo::new(String::from(signature), static_class_gc_ptr));
 
@@ -968,11 +968,11 @@ pub fn compile_class(
     }
 
     if let Some(primitives) = primitives::get_instance_primitives(&defn.name) {
-        for &(signature, primitive, warning) in primitives {
-            let symbol = instance_class_ctxt.interner.intern(signature);
-            if warning && !instance_class_ctxt.methods.contains_key(&symbol) {
-                eprintln!("Warning: Primitive '{}' is not in class definition for class '{}'", signature, defn.name);
-            }
+        for &(signature, primitive, _warning) in primitives {
+            //let symbol = instance_class_ctxt.interner.intern(signature);
+            //if warning && !instance_class_ctxt.methods.contains_key(&symbol) {
+            //    eprintln!("Warning: Primitive '{}' is not in class definition for class '{}'", signature, defn.name);
+            //}
 
             let method = Method::Primitive(primitive, BasicMethodInfo::new(String::from(signature), instance_class_gc_ptr));
             let signature = instance_class_ctxt.interner.intern(signature);
