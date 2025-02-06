@@ -16,6 +16,10 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
         ("at:", self::at.into_func(), true),
         ("at:put:", self::at_put.into_func(), true),
         ("length", self::length.into_func(), true),
+        ("copy:", self::copy.into_func(), true),
+        //("putAll:", self::put_all.into_func(), true),
+        //("do:", self::do.into_func(), true),
+        //("doIndexes:", self::do_indexes.into_func(), true),
     ])
 });
 
@@ -46,11 +50,15 @@ fn length(_: &mut Interpreter, _: &mut Universe, receiver: HeapValPtr<VecValue>)
 }
 
 fn new(_: &mut Interpreter, universe: &mut Universe, _: Value, count: i32) -> Result<Gc<VecValue>, Error> {
-    const _: &str = "Array>>#new:";
-
     let count = usize::try_from(count)?;
     let allocated = universe.gc_interface.alloc(VecValue(vec![Value::NIL; count]));
 
+    Ok(allocated)
+}
+
+fn copy(_: &mut Interpreter, universe: &mut Universe, arr: HeapValPtr<VecValue>) -> Result<Gc<VecValue>, Error> {
+    let copied_arr = VecValue((*arr.deref()).0.clone());
+    let allocated: Gc<VecValue> = universe.gc_interface.alloc(copied_arr);
     Ok(allocated)
 }
 

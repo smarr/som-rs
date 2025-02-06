@@ -7,6 +7,7 @@ use crate::value::HeapValPtr;
 use crate::value::Value;
 use anyhow::{bail, Error};
 use once_cell::sync::Lazy;
+use som_gc::gcref::Gc;
 use std::convert::TryFrom;
 
 pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
@@ -14,6 +15,7 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
         ("at:", self::at.into_func(), true),
         ("at:put:", self::at_put.into_func(), true),
         ("length", self::length.into_func(), true),
+        ("copy:", self::copy.into_func(), true),
     ])
 });
 
@@ -61,6 +63,12 @@ fn new(universe: &mut Universe, _value_stack: &mut GlobalValueStack, _: Value, c
         Ok(length) => Ok(Value::Array(universe.gc_interface.alloc(VecValue(vec![Value::NIL; length])))),
         Err(err) => bail!(format!("'{}': {}", SIGNATURE, err)),
     }
+}
+
+fn copy(universe: &mut Universe, _value_stack: &mut GlobalValueStack, arr: HeapValPtr<VecValue>) -> Result<Gc<VecValue>, Error> {
+    let copied_arr = VecValue((*arr.deref()).0.clone());
+    let allocated: Gc<VecValue> = universe.gc_interface.alloc(copied_arr);
+    Ok(allocated)
 }
 
 /// Search for an instance primitive matching the given signature.
