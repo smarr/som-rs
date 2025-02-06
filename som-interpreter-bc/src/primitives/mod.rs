@@ -6,6 +6,8 @@ pub mod array;
 pub mod class;
 /// Primitives for the **Double** class.
 pub mod double;
+/// Primitives for the **False** class.
+pub mod r#false;
 /// Primitives for the **Integer** class.
 pub mod integer;
 /// Primitives for the **Method** class and the **Primitive** class.
@@ -18,6 +20,8 @@ pub mod string;
 pub mod symbol;
 /// Primitives for the **System** class.
 pub mod system;
+/// Primitives for the **True** class.
+pub mod r#true;
 
 pub use self::blocks::{block1, block2, block3};
 use crate::interpreter::Interpreter;
@@ -40,6 +44,7 @@ pub fn get_class_primitives(class_name: &str) -> Option<&'static [PrimInfo]> {
         "Block3" => Some(self::block3::CLASS_PRIMITIVES.as_ref()),
         "Class" => Some(self::class::CLASS_PRIMITIVES.as_ref()),
         "Double" => Some(self::double::CLASS_PRIMITIVES.as_ref()),
+        "False" => Some(self::r#false::CLASS_PRIMITIVES.as_ref()),
         "Integer" => Some(self::integer::CLASS_PRIMITIVES.as_ref()),
         "Method" => Some(self::method::CLASS_PRIMITIVES.as_ref()),
         "Primitive" => Some(self::method::CLASS_PRIMITIVES.as_ref()),
@@ -47,6 +52,7 @@ pub fn get_class_primitives(class_name: &str) -> Option<&'static [PrimInfo]> {
         "String" => Some(self::string::CLASS_PRIMITIVES.as_ref()),
         "Symbol" => Some(self::symbol::CLASS_PRIMITIVES.as_ref()),
         "System" => Some(self::system::CLASS_PRIMITIVES.as_ref()),
+        "True" => Some(self::r#true::CLASS_PRIMITIVES.as_ref()),
         _ => None,
     }
 }
@@ -59,6 +65,7 @@ pub fn get_instance_primitives(class_name: &str) -> Option<&'static [PrimInfo]> 
         "Block3" => Some(self::block3::INSTANCE_PRIMITIVES.as_ref()),
         "Class" => Some(self::class::INSTANCE_PRIMITIVES.as_ref()),
         "Double" => Some(self::double::INSTANCE_PRIMITIVES.as_ref()),
+        "False" => Some(self::r#false::INSTANCE_PRIMITIVES.as_ref()),
         "Integer" => Some(self::integer::INSTANCE_PRIMITIVES.as_ref()),
         "Method" => Some(self::method::INSTANCE_PRIMITIVES.as_ref()),
         "Primitive" => Some(self::method::INSTANCE_PRIMITIVES.as_ref()),
@@ -66,6 +73,7 @@ pub fn get_instance_primitives(class_name: &str) -> Option<&'static [PrimInfo]> 
         "String" => Some(self::string::INSTANCE_PRIMITIVES.as_ref()),
         "Symbol" => Some(self::symbol::INSTANCE_PRIMITIVES.as_ref()),
         "System" => Some(self::system::INSTANCE_PRIMITIVES.as_ref()),
+        "True" => Some(self::r#true::INSTANCE_PRIMITIVES.as_ref()),
         _ => None,
     }
 }
