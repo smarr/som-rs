@@ -14,7 +14,7 @@ use crate::debug::profiler::Profiler;
 use crate::HACK_FRAME_FRAME_ARGS_PTR;
 use num_bigint::BigInt;
 use som_core::bytecode::Bytecode;
-use som_gc::gc_interface::GCInterface;
+use som_gc::gc_interface::{AllocSiteMarker, GCInterface};
 use som_gc::gcref::Gc;
 use som_value::interned::Interned;
 use std::time::Instant;
@@ -88,7 +88,7 @@ impl Interpreter {
         };
 
         let size = Frame::get_true_size(max_stack_size, nbr_args, nbr_locals);
-        let mut frame_ptr: Gc<Frame> = mutator.request_memory_for_type(size);
+        let mut frame_ptr: Gc<Frame> = mutator.request_memory_for_type(size, Some(AllocSiteMarker::MethodFrame));
 
         *frame_ptr = Frame::from_method(self.frame_method_root);
 
@@ -122,7 +122,7 @@ impl Interpreter {
             HACK_FRAME_FRAME_ARGS_PTR = Some(Vec::from(args));
         }
 
-        let mut frame_ptr: Gc<Frame> = mutator.request_memory_for_type(size);
+        let mut frame_ptr: Gc<Frame> = mutator.request_memory_for_type(size, Some(AllocSiteMarker::MethodFrameWithArgs));
 
         #[allow(static_mut_refs)]
         unsafe {
@@ -293,7 +293,8 @@ impl Interpreter {
                     let literal = self.current_frame.lookup_constant(idx as usize);
                     let mut block = match literal {
                         Literal::Block(blk) => {
-                            let mut new_blk = universe.gc_interface.request_memory_for_type::<Block>(std::mem::size_of::<Block>());
+                            let mut new_blk =
+                                universe.gc_interface.request_memory_for_type::<Block>(std::mem::size_of::<Block>(), Some(AllocSiteMarker::Block));
                             *new_blk = (**blk).clone();
                             new_blk
                         }

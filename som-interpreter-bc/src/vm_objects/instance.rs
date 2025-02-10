@@ -1,7 +1,7 @@
 use crate::value::{HeapValPtr, Value};
 use crate::vm_objects::class::Class;
 use core::mem::size_of;
-use som_gc::gc_interface::GCInterface;
+use som_gc::gc_interface::{AllocSiteMarker, GCInterface};
 use som_gc::gcref::Gc;
 use std::fmt;
 use std::marker::PhantomData;
@@ -36,7 +36,7 @@ impl Instance {
         };
 
         let size = size_of::<Instance>() + (nbr_fields * size_of::<Value>());
-        gc_interface.alloc_with_post_init(instance, size, post_alloc_closure)
+        gc_interface.alloc_with_post_init(instance, size, Some(AllocSiteMarker::Instance), post_alloc_closure)
     }
 
     /// Get the class of which this is an instance from.

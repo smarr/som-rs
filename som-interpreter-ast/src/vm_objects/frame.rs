@@ -2,6 +2,7 @@ use crate::universe::{GlobalValueStack, Universe};
 use crate::value::Value;
 use core::mem::size_of;
 use som_gc::debug_assert_valid_semispace_ptr;
+use som_gc::gc_interface::AllocSiteMarker;
 use som_gc::gcref::Gc;
 use std::fmt::{Debug, Formatter};
 use std::marker::PhantomData;
@@ -47,7 +48,7 @@ impl Frame {
         };
 
         let size = size_of::<Frame>() + ((frame.nbr_args + frame.nbr_locals) as usize * size_of::<Value>());
-        let mut frame_ptr = universe.gc_interface.alloc_with_size(frame, size);
+        let mut frame_ptr = universe.gc_interface.alloc_with_size(frame, size, Some(AllocSiteMarker::AstFrame));
 
         unsafe {
             let mut locals_addr = (frame_ptr.as_ptr().byte_add(size_of::<Frame>() + (nbr_args * size_of::<Value>()))) as *mut Value;
@@ -81,7 +82,7 @@ impl Frame {
         };
 
         let size = size_of::<Frame>() + ((frame.nbr_args + frame.nbr_locals) as usize * size_of::<Value>());
-        let mut frame_ptr = universe.gc_interface.alloc_with_size(frame, size);
+        let mut frame_ptr = universe.gc_interface.alloc_with_size(frame, size, Some(AllocSiteMarker::AstFrame));
 
         unsafe {
             let mut locals_addr = (frame_ptr.as_ptr().byte_add(size_of::<Frame>() + (nbr_args * size_of::<Value>()))) as *mut Value;

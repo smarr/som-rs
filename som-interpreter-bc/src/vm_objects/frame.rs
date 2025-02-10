@@ -5,7 +5,7 @@ use crate::vm_objects::class::Class;
 use crate::vm_objects::method::Method;
 use core::mem::size_of;
 use som_core::bytecode::Bytecode;
-use som_gc::gc_interface::GCInterface;
+use som_gc::gc_interface::{AllocSiteMarker, GCInterface};
 use som_gc::gcref::Gc;
 use std::fmt::{Debug, Formatter};
 use std::marker::PhantomData;
@@ -60,7 +60,7 @@ impl Frame {
         };
 
         let size = Frame::get_true_size(max_stack_size, nbr_locals, nbr_args);
-        let mut frame_ptr: Gc<Frame> = gc_interface.request_memory_for_type(size);
+        let mut frame_ptr: Gc<Frame> = gc_interface.request_memory_for_type(size, Some(AllocSiteMarker::BlockFrame));
 
         let block_value = prev_frame.stack_nth_back(nbr_args - 1);
         *frame_ptr = Frame::from_block(block_value.as_block().unwrap());
@@ -84,7 +84,7 @@ impl Frame {
         let size = Frame::get_true_size(max_stack_size, args.len(), nbr_locals);
 
         let nbr_gc_runs = gc_interface.get_nbr_collections();
-        let mut frame_ptr: Gc<Frame> = gc_interface.request_memory_for_type(size);
+        let mut frame_ptr: Gc<Frame> = gc_interface.request_memory_for_type(size, Some(AllocSiteMarker::InitMethodFrame));
 
         assert_eq!(
             nbr_gc_runs,

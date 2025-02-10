@@ -29,7 +29,9 @@ fn superclass(_: &mut Universe, _value_stack: &mut GlobalValueStack, receiver: H
 }
 
 fn new(universe: &mut Universe, _value_stack: &mut GlobalValueStack, receiver: HeapValPtr<Class>) -> Result<Value, Error> {
-    let mut instance_ptr = universe.gc_interface.request_memory_for_type(size_of::<Instance>());
+    let mut instance_ptr = universe
+        .gc_interface
+        .request_memory_for_type(size_of::<Instance>(), Some(som_gc::gc_interface::AllocSiteMarker::Instance));
     *instance_ptr = Instance::from_class(receiver.deref());
     Ok(Value::Instance(instance_ptr))
 }

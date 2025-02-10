@@ -169,19 +169,36 @@ impl GCInterface {
     }
 }
 
+/// Explicitly mentions what an allocation was requested for.
+/// The intent is to help debugging: we can track where GC was triggered, and what triggered it. This is all to find GC bugs.
+#[derive(Debug)]
+pub enum AllocSiteMarker {
+    AstFrame,
+    MethodFrame,
+    MethodFrameWithArgs,
+    InitMethodFrame,
+    Block,
+    BlockFrame,
+    Instance,
+}
+
 impl GCInterface {
+    pub fn alloc<T: HasTypeInfoForGC>(&mut self, obj: T) -> Gc<T> {
+        self.alloc_with_size(obj, size_of::<T>(), None)
+    }
+
     /// Allocates a type on the heap and returns a pointer to it.
     /// Considers that the provided object's size can be trivially inferred with a `size_of` call (which isn't the case for all of our objects, e.g. frames)
-    pub fn alloc<T: HasTypeInfoForGC>(&mut self, obj: T) -> Gc<T> {
-        self.alloc_with_size(obj, size_of::<T>())
+    pub fn alloc_with_marker<T: HasTypeInfoForGC>(&mut self, obj: T, alloc_origin_marker: Option<AllocSiteMarker>) -> Gc<T> {
+        self.alloc_with_size(obj, size_of::<T>(), alloc_origin_marker)
     }
 
     /// Allocates a type, but with a given size.
-    pub fn alloc_with_size<T: HasTypeInfoForGC>(&mut self, obj: T, size: usize) -> Gc<T> {
+    pub fn alloc_with_size<T: HasTypeInfoForGC>(&mut self, obj: T, size: usize, alloc_origin_marker: Option<AllocSiteMarker>) -> Gc<T> {
         debug_assert!(size >= MIN_OBJECT_SIZE);
 
         // adding VM header size (type info) to amount we allocate
-        let header_addr = self.request_bytes(size + OBJECT_REF_OFFSET);
+        let header_addr = self.request_bytes(size + OBJECT_REF_OFFSET, alloc_origin_marker);
 
         debug_assert!(!header_addr.is_zero());
         let obj_addr = SOMVM::object_start_to_ref(header_addr);
@@ -197,8 +214,16 @@ impl GCInterface {
         Gc::from(obj_addr.to_raw_address())
     }
 
-    // Allocates a type on the heap and returns a pointer to it.
     pub fn alloc_slice<T: SupportedSliceType + std::fmt::Debug>(&mut self, obj: &[T]) -> GcSlice<T> {
+        self.alloc_slice_with_marker(obj, None)
+    }
+
+    // Allocates a type on the heap and returns a pointer to it.
+    pub fn alloc_slice_with_marker<T: SupportedSliceType + std::fmt::Debug>(
+        &mut self,
+        obj: &[T],
+        alloc_origin_marker: Option<AllocSiteMarker>,
+    ) -> GcSlice<T> {
         let mut size = {
             match std::mem::size_of_val(obj) {
                 v if v < MIN_OBJECT_SIZE => MIN_OBJECT_SIZE,
@@ -208,7 +233,7 @@ impl GCInterface {
 
         size += std::mem::size_of::<usize>(); // size stored at the start
 
-        let header_addr: Address = self.request_bytes(size + OBJECT_REF_OFFSET);
+        let header_addr: Address = self.request_bytes(size + OBJECT_REF_OFFSET, alloc_origin_marker);
         let len_addr = SOMVM::object_start_to_ref(header_addr);
         let obj_addr = len_addr.to_raw_address().add(size_of::<usize>());
 
@@ -235,9 +260,19 @@ impl GCInterface {
     /// Request `size` bytes from MMTk.
     /// Importantly, this MAY TRIGGER A COLLECTION. Which means any function that relies on it must be mindful of this,
     /// such as by making sure no arguments are dangling on the Rust stack away from the GC's reach.
-    pub fn request_bytes(&mut self, size: usize) -> Address {
+    pub fn request_bytes(&mut self, size: usize, alloc_origin_marker: Option<AllocSiteMarker>) -> Address {
         //unsafe { &mut (*self.default_allocator) }.alloc(size, GC_ALIGN, GC_OFFSET)
-        unsafe { &mut (*self.default_allocator) }.alloc(size, GC_ALIGN, GC_OFFSET)
+        let _gc_watcher = self.start_the_world_count;
+        let addr = unsafe { &mut (*self.default_allocator) }.alloc(size, GC_ALIGN, GC_OFFSET);
+        #[cfg(debug_assertions)]
+        if self.start_the_world_count > _gc_watcher {
+            match alloc_origin_marker {
+                Some(alloc_type) => println!("GC was triggered after allocating a {:?}", alloc_type),
+                None => println!("GC triggered after allocating something (no marker)"),
+            };
+        }
+
+        addr
 
         // TODO: this code should work, and -does-, but sometimes returns references to the old space, as far as i can tell.
         // code taken from MMTk docs. https://docs.mmtk.io/portingguide/perf_tuning/alloc.html#option-3-embed-the-fast-path-struct
@@ -257,8 +292,8 @@ impl GCInterface {
     }
 
     /// TODO doc + should likely deduce the size from the type
-    pub fn request_memory_for_type<T: HasTypeInfoForGC>(&mut self, type_size: usize) -> Gc<T> {
-        let mut bytes = self.request_bytes(type_size + OBJECT_REF_OFFSET);
+    pub fn request_memory_for_type<T: HasTypeInfoForGC>(&mut self, type_size: usize, alloc_origin_marker: Option<AllocSiteMarker>) -> Gc<T> {
+        let mut bytes = self.request_bytes(type_size + OBJECT_REF_OFFSET, alloc_origin_marker);
         unsafe {
             *bytes.as_mut_ref::<u8>() = T::get_magic_gc_id();
             bytes += OBJECT_REF_OFFSET;
@@ -269,11 +304,17 @@ impl GCInterface {
     /// Custom alloc function, for traits to be able to choose how to allocate their data.
     /// In practice, that's usually allowing for more memory than Rust might be able to infer from the struct size, and filling it with our own data.
     /// TODO: Even more in practice, it's not used much anymore. The issue is that if the alloc triggers and we use moving GC, the closure can now be holding outdated pointers.
-    pub fn alloc_with_post_init<T: HasTypeInfoForGC, F>(&mut self, obj: T, size: usize, post_alloc_init_closure: F) -> Gc<T>
+    pub fn alloc_with_post_init<T: HasTypeInfoForGC, F>(
+        &mut self,
+        obj: T,
+        size: usize,
+        alloc_origin_marker: Option<AllocSiteMarker>,
+        post_alloc_init_closure: F,
+    ) -> Gc<T>
     where
         F: Fn(Gc<T>),
     {
-        let instance_ref = self.alloc_with_size(obj, size);
+        let instance_ref = self.alloc_with_size(obj, size, alloc_origin_marker);
         post_alloc_init_closure(instance_ref);
         instance_ref
     }
