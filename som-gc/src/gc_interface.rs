@@ -260,13 +260,13 @@ impl GCInterface {
     /// Request `size` bytes from MMTk.
     /// Importantly, this MAY TRIGGER A COLLECTION. Which means any function that relies on it must be mindful of this,
     /// such as by making sure no arguments are dangling on the Rust stack away from the GC's reach.
-    pub fn request_bytes(&mut self, size: usize, alloc_origin_marker: Option<AllocSiteMarker>) -> Address {
+    pub fn request_bytes(&mut self, size: usize, _alloc_origin_marker: Option<AllocSiteMarker>) -> Address {
         //unsafe { &mut (*self.default_allocator) }.alloc(size, GC_ALIGN, GC_OFFSET)
         let _gc_watcher = self.start_the_world_count;
         let addr = unsafe { &mut (*self.default_allocator) }.alloc(size, GC_ALIGN, GC_OFFSET);
         #[cfg(debug_assertions)]
         if self.start_the_world_count > _gc_watcher {
-            match alloc_origin_marker {
+            match _alloc_origin_marker {
                 Some(alloc_type) => println!("GC was triggered after allocating a {:?}", alloc_type),
                 None => println!("GC triggered after allocating something (no marker)"),
             };
@@ -299,24 +299,6 @@ impl GCInterface {
             bytes += OBJECT_REF_OFFSET;
             bytes.into()
         }
-    }
-
-    /// Custom alloc function, for traits to be able to choose how to allocate their data.
-    /// In practice, that's usually allowing for more memory than Rust might be able to infer from the struct size, and filling it with our own data.
-    /// TODO: Even more in practice, it's not used much anymore. The issue is that if the alloc triggers and we use moving GC, the closure can now be holding outdated pointers.
-    pub fn alloc_with_post_init<T: HasTypeInfoForGC, F>(
-        &mut self,
-        obj: T,
-        size: usize,
-        alloc_origin_marker: Option<AllocSiteMarker>,
-        post_alloc_init_closure: F,
-    ) -> Gc<T>
-    where
-        F: Fn(Gc<T>),
-    {
-        let instance_ref = self.alloc_with_size(obj, size, alloc_origin_marker);
-        post_alloc_init_closure(instance_ref);
-        instance_ref
     }
 
     /// Dispatches a manual collection request to MMTk.

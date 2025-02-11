@@ -1,7 +1,6 @@
-use crate::value::{HeapValPtr, Value};
+use crate::value::Value;
 use crate::vm_objects::class::Class;
 use core::mem::size_of;
-use som_gc::gc_interface::{AllocSiteMarker, GCInterface};
 use som_gc::gcref::Gc;
 use std::fmt;
 use std::marker::PhantomData;
@@ -16,29 +15,6 @@ pub struct Instance {
 }
 
 impl Instance {
-    /// Construct an instance for a given class.
-    ///
-    /// We need to pass a value pointer to the class on the heap since if allocating the instance triggers garbage collection,
-    /// we still want to have a valid pointer to the class, which wouldn't happen if it was just a `Gc<Class>` stored on the Rust stack as a function argument.
-    pub fn from_class(class: HeapValPtr<Class>, gc_interface: &mut GCInterface) -> Gc<Instance> {
-        let nbr_fields = class.deref().get_nbr_fields();
-
-        let instance = Self {
-            class: Gc::default(),
-            fields_marker: PhantomData,
-        };
-
-        let post_alloc_closure = |mut instance_ref: Gc<Instance>| {
-            for idx in 0..nbr_fields {
-                Instance::assign_field(instance_ref, idx, Value::NIL)
-            }
-            instance_ref.class = class.deref();
-        };
-
-        let size = size_of::<Instance>() + (nbr_fields * size_of::<Value>());
-        gc_interface.alloc_with_post_init(instance, size, Some(AllocSiteMarker::Instance), post_alloc_closure)
-    }
-
     /// Get the class of which this is an instance from.
     pub fn class(&self) -> Gc<Class> {
         self.class

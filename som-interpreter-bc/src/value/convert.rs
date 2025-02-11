@@ -1,7 +1,6 @@
-use std::convert::TryFrom;
-
 use anyhow::{bail, Context, Error};
 use som_value::value_ptr::HasPointerTag;
+use std::convert::TryFrom;
 
 use crate::gc::VecValue;
 use crate::interpreter::Interpreter;

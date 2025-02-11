@@ -9,8 +9,10 @@ use crate::vm_objects::class::Class;
 use crate::vm_objects::instance::Instance;
 use anyhow::Error;
 use once_cell::sync::Lazy;
+use som_gc::gc_interface::AllocSiteMarker;
 use som_gc::gcref::Gc;
 use som_value::interned::Interned;
+use std::marker::PhantomData;
 
 pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
     Box::new({
@@ -35,9 +37,22 @@ fn superclass(_: &mut Interpreter, _: &mut Universe, receiver: HeapValPtr<Class>
     Ok(super_class_val)
 }
 
-fn new(_: &mut Interpreter, universe: &mut Universe, receiver: HeapValPtr<Class>) -> Result<Gc<Instance>, Error> {
-    let instance = Instance::from_class(receiver, universe.gc_interface);
-    Ok(instance)
+fn new(interp: &mut Interpreter, universe: &mut Universe) -> Result<(), Error> {
+    let nbr_fields = interp.current_frame.stack_last().as_class().unwrap().get_nbr_fields();
+    let size = size_of::<Instance>() + (nbr_fields * size_of::<Value>());
+
+    let mut instance_ptr: Gc<Instance> = universe.gc_interface.request_memory_for_type(size, Some(AllocSiteMarker::Instance));
+    *instance_ptr = Instance {
+        class: interp.current_frame.stack_last().as_class().unwrap(),
+        fields_marker: PhantomData,
+    };
+
+    for idx in 0..nbr_fields {
+        Instance::assign_field(instance_ptr, idx, Value::NIL)
+    }
+
+    *interp.current_frame.stack_last_mut() = Value::Instance(instance_ptr);
+    Ok(())
 }
 
 fn name(_: &mut Interpreter, universe: &mut Universe, receiver: HeapValPtr<Class>) -> Result<Interned, Error> {
