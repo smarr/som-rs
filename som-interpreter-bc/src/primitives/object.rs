@@ -65,7 +65,7 @@ fn perform(interpreter: &mut Interpreter, universe: &mut Universe, receiver: Val
 
     // TODO: popping from the previous frame in this, and all the other perform family function should NOT happen
     // if GC happens, that makes those values (receiver, signature) orphaned, and might cause a crash. it's highly unlikely in practice but TODO fix
-    interpreter.current_frame.remove_n_last_elements(2);
+    interpreter.get_current_frame().remove_n_last_elements(2);
 
     let Some(invokable) = receiver.lookup_method(universe, signature) else {
         let signature_str = universe.lookup_symbol(signature).to_owned();
@@ -95,7 +95,7 @@ fn perform_with_arguments(
 ) -> Result<(), Error> {
     const SIGNATURE: &str = "Object>>#perform:withArguments:";
 
-    interpreter.current_frame.remove_n_last_elements(3);
+    interpreter.get_current_frame().remove_n_last_elements(3);
 
     let Some(invokable) = receiver.lookup_method(universe, signature) else {
         let signature_str = universe.lookup_symbol(signature).to_owned();
@@ -118,7 +118,7 @@ fn perform_in_super_class(
 ) -> Result<(), Error> {
     const SIGNATURE: &str = "Object>>#perform:inSuperclass:";
 
-    interpreter.current_frame.remove_n_last_elements(3);
+    interpreter.get_current_frame().remove_n_last_elements(3);
 
     let Some(invokable) = class.deref().lookup_method(signature) else {
         let signature_str = universe.lookup_symbol(signature).to_owned();
@@ -142,7 +142,7 @@ fn perform_with_arguments_in_super_class(
 ) -> Result<(), Error> {
     const SIGNATURE: &str = "Object>>#perform:withArguments:inSuperclass:";
 
-    interpreter.current_frame.remove_n_last_elements(4);
+    interpreter.get_current_frame().remove_n_last_elements(4);
 
     let method = class.deref().lookup_method(signature);
 

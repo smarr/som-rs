@@ -39,8 +39,8 @@ fn or_and_if_false(interpreter: &mut Interpreter, universe: &mut Universe, _self
     } else {
         // if it's not a block... we remove the arguments off the stack, and add the result back to
         // it ourselves: that being the "other" value.
-        interpreter.current_frame.remove_n_last_elements(2);
-        interpreter.current_frame.stack_push(other);
+        interpreter.get_current_frame().remove_n_last_elements(2);
+        interpreter.get_current_frame().stack_push(other);
     }
     Ok(())
 }

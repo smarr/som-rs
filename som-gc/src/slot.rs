@@ -58,7 +58,11 @@ unsafe impl Send for RefValueSlot {}
 impl Slot for RefValueSlot {
     fn load(&self) -> Option<ObjectReference> {
         unsafe {
-            debug_assert!((*self.value).is_ptr_type());
+            debug_assert!(
+                (*self.value).is_ptr_type(),
+                "load failed, not a pointer type (value: {})",
+                (*self.value).as_u64()
+            );
             ObjectReference::from_raw_address(Address::from_usize((*self.value).extract_pointer_bits() as usize))
         }
     }

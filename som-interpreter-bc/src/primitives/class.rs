@@ -38,20 +38,29 @@ fn superclass(_: &mut Interpreter, _: &mut Universe, receiver: HeapValPtr<Class>
 }
 
 fn new(interp: &mut Interpreter, universe: &mut Universe) -> Result<(), Error> {
-    let nbr_fields = interp.current_frame.stack_last().as_class().unwrap().get_nbr_fields();
+    //std::hint::black_box(&interp.current_frame);
+    let nbr_fields = interp.get_current_frame().stack_last().as_class().unwrap().get_nbr_fields();
     let size = size_of::<Instance>() + (nbr_fields * size_of::<Value>());
 
     let mut instance_ptr: Gc<Instance> = universe.gc_interface.request_memory_for_type(size, Some(AllocSiteMarker::Instance));
     *instance_ptr = Instance {
-        class: interp.current_frame.stack_last().as_class().unwrap(),
+        class: interp.get_current_frame().stack_last().as_class().unwrap(),
         fields_marker: PhantomData,
     };
+
+    //dbg!(instance_ptr.class);
+    //dbg!(instance_ptr.class.super_class());
 
     for idx in 0..nbr_fields {
         Instance::assign_field(instance_ptr, idx, Value::NIL)
     }
 
-    *interp.current_frame.stack_last_mut() = Value::Instance(instance_ptr);
+    interp.get_current_frame().stack_pop();
+    interp.get_current_frame().stack_push(Value::Instance(instance_ptr));
+
+    //assert_eq!(interp.current_frame.stack_last().as_class(), None);
+    //assert!(interp.current_frame.stack_last().as_instance().is_some());
+    //dbg!(&interp.current_frame);
     Ok(())
 }
 

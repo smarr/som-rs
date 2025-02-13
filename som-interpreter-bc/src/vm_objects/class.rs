@@ -29,7 +29,7 @@ pub struct Class {
     pub field_names: Vec<Interned>,
     /// The class' methods/invokables.
     pub methods: IndexMap<Interned, Gc<Method>>,
-    /// Is this class a static one ?
+    /// Is this class a static one ? Unused argument.
     pub is_static: bool,
 }
 

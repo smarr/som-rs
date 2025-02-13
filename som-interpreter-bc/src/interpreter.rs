@@ -7,6 +7,7 @@ use crate::vm_objects::frame::Frame;
 use crate::vm_objects::instance::Instance;
 use crate::vm_objects::method::Method;
 use anyhow::Context;
+use std::cell::UnsafeCell;
 
 #[cfg(feature = "profiler")]
 use crate::debug::profiler::Profiler;
@@ -21,9 +22,9 @@ use std::time::Instant;
 
 macro_rules! resolve_method_and_send {
     ($self:expr, $universe:expr, $symbol:expr, $nbr_args:expr) => {{
-        let receiver = $self.current_frame.stack_nth_back($nbr_args);
+        let receiver = $self.get_current_frame().stack_nth_back($nbr_args);
         let receiver_class = receiver.class($universe);
-        let method = resolve_method(&mut $self.current_frame, &receiver_class, $symbol, $self.bytecode_idx);
+        let method = resolve_method(&mut $self.get_current_frame(), &receiver_class, $symbol, $self.bytecode_idx);
         do_send($self, $universe, method, $symbol, $nbr_args);
     }};
 }
@@ -51,7 +52,7 @@ pub struct Interpreter {
     /// The current bytecode index.
     pub bytecode_idx: u16,
     /// The current frame.
-    pub current_frame: Gc<Frame>,
+    pub current_frame: UnsafeCell<Gc<Frame>>,
     /// Pointer to the frame's bytecodes, to not have to read them from the frame directly
     pub current_bytecodes: *const Vec<Bytecode>,
     /// GC can trigger when the interpreter wants to allocate a new frame.
@@ -65,20 +66,26 @@ impl Interpreter {
         Self {
             start_time: Instant::now(),
             bytecode_idx: 0,
-            current_frame: base_frame,
+            current_frame: UnsafeCell::from(base_frame),
             current_bytecodes: base_frame.get_bytecode_ptr(),
             frame_method_root: Gc::default(),
         }
     }
 
+    /// Return the current frame.
+    /// It's in an `UnsafeCell` for moving GC reasons: you get many bugs by using Gc<Frame> by
+    /// itself, since Rust assumes that it hasn't moved when it in fact very much has
+    pub fn get_current_frame(&self) -> Gc<Frame> {
+        unsafe { *self.current_frame.get() }
+    }
+
+    pub fn get_current_frame_mut(&mut self) -> &mut Gc<Frame> {
+        self.current_frame.get_mut()
+    }
+
     /// Creates and allocates a new frame corresponding to a method.
     /// nbr_args is the number of arguments, including the self value, which it takes from the previous frame.
     pub fn push_method_frame(&mut self, method: Gc<Method>, nbr_args: usize, mutator: &mut GCInterface) -> Gc<Frame> {
-        // ...I spent ages debugging a release-only bug, and this turned out to be the fix.
-        // Whatever rust thinks it CAN do with the prev_frame ref (likely assume it points to the same data), it can't do safely in some cases... So we tell it not to.
-        let prev_frame = &mut self.current_frame;
-        std::hint::black_box(&prev_frame); // paranoia?
-
         self.frame_method_root = method;
         std::hint::black_box(&self.frame_method_root); // paranoia
 
@@ -92,22 +99,20 @@ impl Interpreter {
 
         *frame_ptr = Frame::from_method(self.frame_method_root);
 
+        let mut prev_frame = self.get_current_frame();
         let args = prev_frame.stack_n_last_elements(nbr_args);
-        Frame::init_frame_post_alloc(frame_ptr, args, max_stack_size, *prev_frame);
+        Frame::init_frame_post_alloc(frame_ptr, args, max_stack_size, prev_frame);
         prev_frame.remove_n_last_elements(nbr_args);
 
         self.bytecode_idx = 0;
         self.current_bytecodes = frame_ptr.get_bytecode_ptr();
-        self.current_frame = frame_ptr;
+        self.current_frame = UnsafeCell::from(frame_ptr);
         frame_ptr
     }
 
     /// Creates and allocates a new frame corresponding to a method, with arguments provided.
     /// Used in primitives and corner cases like DNU calls.
     pub fn push_method_frame_with_args(&mut self, method: Gc<Method>, args: &[Value], mutator: &mut GCInterface) -> Gc<Frame> {
-        let prev_frame = &mut self.current_frame;
-        std::hint::black_box(&prev_frame); // paranoia?
-
         self.frame_method_root = method;
         std::hint::black_box(&self.frame_method_root); // paranoia
 
@@ -131,30 +136,30 @@ impl Interpreter {
                 frame_ptr,
                 HACK_FRAME_FRAME_ARGS_PTR.as_ref().unwrap().as_slice(),
                 max_stack_size,
-                *prev_frame,
+                self.get_current_frame(),
             );
         }
 
         self.bytecode_idx = 0;
         self.current_bytecodes = frame_ptr.get_bytecode_ptr();
-        self.current_frame = frame_ptr;
+        self.current_frame = UnsafeCell::from(frame_ptr);
 
         frame_ptr
     }
 
     /// Creates and allocates a new frame corresponding to a method.
     pub fn push_block_frame(&mut self, nbr_args: usize, mutator: &mut GCInterface) -> Gc<Frame> {
-        let frame_ptr = Frame::alloc_from_block(nbr_args, &mut self.current_frame, mutator);
+        let frame_ptr = Frame::alloc_from_block(nbr_args, self.get_current_frame_mut(), mutator);
         self.bytecode_idx = 0;
         self.current_bytecodes = frame_ptr.get_bytecode_ptr();
-        self.current_frame = frame_ptr;
+        self.current_frame = UnsafeCell::from(frame_ptr);
         frame_ptr
     }
 
     pub fn pop_frame(&mut self) {
-        // dbg!(self.current_frame.prev_frame.ptr);
-        let new_current_frame = self.current_frame.prev_frame;
-        self.current_frame = new_current_frame;
+        // dbg!(self.get_current_frame().prev_frame.ptr);
+        let new_current_frame = self.get_current_frame().prev_frame;
+        self.current_frame = UnsafeCell::from(new_current_frame);
         match new_current_frame.is_empty() {
             true => {}
             false => {
@@ -165,8 +170,8 @@ impl Interpreter {
     }
 
     pub fn pop_n_frames(&mut self, n: u8) {
-        let new_current_frame = Frame::nth_frame_back_through_frame_list(&self.current_frame, n + 1);
-        self.current_frame = new_current_frame;
+        let new_current_frame = Frame::nth_frame_back_through_frame_list(&self.get_current_frame(), n + 1);
+        self.current_frame = UnsafeCell::from(new_current_frame);
         match new_current_frame.is_empty() {
             true => {}
             false => {
@@ -211,37 +216,37 @@ impl Interpreter {
                 }
                 Bytecode::PushLocal(idx) => {
                     let _timing = profiler_maybe_start!("PUSH_LOCAL");
-                    let value = *self.current_frame.lookup_local(idx as usize);
-                    self.current_frame.stack_push(value);
+                    let value = *self.get_current_frame().lookup_local(idx as usize);
+                    self.get_current_frame().stack_push(value);
                     profiler_maybe_stop!(_timing);
                 }
                 Bytecode::PushNonLocal(up_idx, idx) => {
                     let _timing = profiler_maybe_start!("PUSHNONLOCAL");
                     debug_assert_ne!(up_idx, 0);
-                    let from = Frame::nth_frame_back(&self.current_frame, up_idx);
+                    let from = Frame::nth_frame_back(&self.get_current_frame(), up_idx);
                     let value = *from.lookup_local(idx as usize);
-                    self.current_frame.stack_push(value);
+                    self.get_current_frame().stack_push(value);
                     profiler_maybe_stop!(_timing);
                 }
                 Bytecode::PushArg(idx) => {
                     let _timing = profiler_maybe_start!("PUSH_ARG");
                     debug_assert_ne!(idx, 0); // that's a ReturnSelf case.
-                    let value = *self.current_frame.lookup_argument(idx as usize);
-                    self.current_frame.stack_push(value);
+                    let value = *self.get_current_frame().lookup_argument(idx as usize);
+                    self.get_current_frame().stack_push(value);
                     profiler_maybe_stop!(_timing);
                 }
                 Bytecode::PushNonLocalArg(up_idx, idx) => {
                     let _timing = profiler_maybe_start!("PUSH_NON_LOCAL_ARG");
                     debug_assert_ne!(up_idx, 0);
                     debug_assert_ne!((up_idx, idx), (0, 0)); // that's a ReturnSelf case.
-                    let from = Frame::nth_frame_back(&self.current_frame, up_idx);
+                    let from = Frame::nth_frame_back(&self.get_current_frame(), up_idx);
                     let value = from.lookup_argument(idx as usize);
-                    self.current_frame.stack_push(*value);
+                    self.get_current_frame().stack_push(*value);
                     profiler_maybe_stop!(_timing);
                 }
                 Bytecode::PushField(idx) => {
                     let _timing = profiler_maybe_start!("PUSH_FIELD");
-                    let self_val = self.current_frame.get_self();
+                    let self_val = self.get_current_frame().get_self();
                     let val = {
                         if let Some(instance) = self_val.as_instance() {
                             *Instance::lookup_field(instance, idx as usize)
@@ -251,18 +256,18 @@ impl Interpreter {
                             panic!("trying to read a field from a {:?}?", &self_val)
                         }
                     };
-                    self.current_frame.stack_push(val);
+                    self.get_current_frame().stack_push(val);
                     profiler_maybe_stop!(_timing);
                 }
                 Bytecode::Dup => {
                     let _timing = profiler_maybe_start!("DUP");
-                    let value = *self.current_frame.stack_last();
-                    self.current_frame.stack_push(value);
+                    let value = *self.get_current_frame().stack_last();
+                    self.get_current_frame().stack_push(value);
                     profiler_maybe_stop!(_timing);
                 }
                 Bytecode::Inc => {
                     let _timing = profiler_maybe_start!("INC");
-                    let last = self.current_frame.stack_last_mut();
+                    let last = self.get_current_frame().stack_last_mut();
                     if let Some(int) = last.as_integer() {
                         *last = Value::new_integer(int + 1);
                     } else if let Some(double) = last.as_double() {
@@ -276,7 +281,7 @@ impl Interpreter {
                 }
                 Bytecode::Dec => {
                     let _timing = profiler_maybe_start!("DEC");
-                    let last = self.current_frame.stack_last_mut();
+                    let last = self.get_current_frame().stack_last_mut();
                     if let Some(int) = last.as_integer() {
                         *last = Value::new_integer(int - 1);
                     } else if let Some(double) = last.as_double() {
@@ -290,7 +295,8 @@ impl Interpreter {
                 }
                 Bytecode::PushBlock(idx) => {
                     let _timing = profiler_maybe_start!("PUSH_BLOCK");
-                    let literal = self.current_frame.lookup_constant(idx as usize);
+                    let current_frame = self.get_current_frame();
+                    let literal = current_frame.lookup_constant(idx as usize);
                     let mut block = match literal {
                         Literal::Block(blk) => {
                             let mut new_blk =
@@ -300,83 +306,85 @@ impl Interpreter {
                         }
                         _ => panic!("PushBlock expected a block, but got another invalid literal"),
                     };
-                    block.frame.replace(self.current_frame);
-                    self.current_frame.stack_push(Value::Block(block));
+                    block.frame.replace(self.get_current_frame());
+                    self.get_current_frame().stack_push(Value::Block(block));
                     profiler_maybe_stop!(_timing);
                 }
                 Bytecode::PushConstant(idx) => {
                     let _timing = profiler_maybe_start!("PUSH_CONSTANT");
-                    let literal = self.current_frame.lookup_constant(idx as usize);
+                    let current_frame = self.get_current_frame();
+                    let literal = current_frame.lookup_constant(idx as usize);
                     let value = value_from_literal(literal, universe.gc_interface);
-                    self.current_frame.stack_push(value);
+                    self.get_current_frame().stack_push(value);
                     profiler_maybe_stop!(_timing);
                 }
                 Bytecode::PushGlobal(idx) => {
                     let _timing = profiler_maybe_start!("PUSH_GLOBAL");
-                    if let Some(CacheEntry::Global(value)) = unsafe { self.current_frame.get_inline_cache_entry(self.bytecode_idx as usize) } {
+                    if let Some(CacheEntry::Global(value)) = unsafe { self.get_current_frame().get_inline_cache_entry(self.bytecode_idx as usize) } {
                         let value = *value;
-                        self.current_frame.stack_push(value);
+                        self.get_current_frame().stack_push(value);
                         continue;
                     }
 
-                    let literal = self.current_frame.lookup_constant(idx as usize);
+                    let current_frame = self.get_current_frame();
+                    let literal = current_frame.lookup_constant(idx as usize);
                     let symbol = match literal {
                         Literal::Symbol(sym) => sym,
                         _ => panic!("Global is not a symbol."),
                     };
                     if let Some(value) = universe.lookup_global(*symbol) {
-                        self.current_frame.stack_push(value);
-                        unsafe { *self.current_frame.get_inline_cache_entry(self.bytecode_idx as usize) = Some(CacheEntry::Global(value)) }
+                        self.get_current_frame().stack_push(value);
+                        unsafe { *self.get_current_frame().get_inline_cache_entry(self.bytecode_idx as usize) = Some(CacheEntry::Global(value)) }
                     } else {
-                        let self_value = self.current_frame.get_self();
+                        let self_value = self.get_current_frame().get_self();
                         universe.unknown_global(self, self_value, *symbol)?;
                     };
                     profiler_maybe_stop!(_timing);
                 }
                 Bytecode::Push0 => {
                     let _timing = profiler_maybe_start!("PUSH_0");
-                    self.current_frame.stack_push(Value::INTEGER_ZERO);
+                    self.get_current_frame().stack_push(Value::INTEGER_ZERO);
                     profiler_maybe_stop!(_timing);
                 }
                 Bytecode::Push1 => {
                     let _timing = profiler_maybe_start!("PUSH_1");
-                    self.current_frame.stack_push(Value::INTEGER_ONE);
+                    self.get_current_frame().stack_push(Value::INTEGER_ONE);
                     profiler_maybe_stop!(_timing);
                 }
                 Bytecode::PushNil => {
                     let _timing = profiler_maybe_start!("PUSH_NIL");
-                    self.current_frame.stack_push(Value::NIL);
+                    self.get_current_frame().stack_push(Value::NIL);
                     profiler_maybe_stop!(_timing);
                 }
                 Bytecode::PushSelf => {
                     let _timing = profiler_maybe_start!("PUSH_SELF");
-                    let self_val = *self.current_frame.lookup_argument(0);
-                    self.current_frame.stack_push(self_val);
+                    let self_val = *self.get_current_frame().lookup_argument(0);
+                    self.get_current_frame().stack_push(self_val);
                     profiler_maybe_stop!(_timing);
                 }
                 Bytecode::Pop => {
                     let _timing = profiler_maybe_start!("POP");
-                    self.current_frame.stack_pop();
+                    self.get_current_frame().stack_pop();
                     profiler_maybe_stop!(_timing);
                 }
                 Bytecode::PopLocal(up_idx, idx) => {
                     let _timing = profiler_maybe_start!("POP_LOCAL");
-                    let value = self.current_frame.stack_pop();
-                    let mut from = Frame::nth_frame_back(&self.current_frame, up_idx);
+                    let value = self.get_current_frame().stack_pop();
+                    let mut from = Frame::nth_frame_back(self.get_current_frame_mut(), up_idx);
                     from.assign_local(idx as usize, value);
                     profiler_maybe_stop!(_timing);
                 }
                 Bytecode::PopArg(up_idx, idx) => {
                     let _timing = profiler_maybe_start!("POP_ARG");
-                    let value = self.current_frame.stack_pop();
-                    let mut from = Frame::nth_frame_back(&self.current_frame, up_idx);
+                    let value = self.get_current_frame().stack_pop();
+                    let mut from = Frame::nth_frame_back(self.get_current_frame_mut(), up_idx);
                     from.assign_arg(idx as usize, value);
                     profiler_maybe_stop!(_timing);
                 }
                 Bytecode::PopField(idx) => {
                     let _timing = profiler_maybe_start!("POP_FIELD");
-                    let value = self.current_frame.stack_pop();
-                    let self_val = self.current_frame.get_self();
+                    let value = self.get_current_frame().stack_pop();
+                    let self_val = self.get_current_frame().get_self();
                     if let Some(instance) = self_val.as_instance() {
                         Instance::assign_field(instance, idx as usize, value);
                     } else if let Some(cls) = self_val.as_class() {
@@ -395,39 +403,39 @@ impl Interpreter {
 
                     let method = {
                         // let method_with_holder = $frame.borrow().get_holding_method();
-                        let holder = self.current_frame.get_method_holder();
-                        // dbg!(&holder);
+                        let holder = self.get_current_frame().get_method_holder();
+                        //dbg!(&holder);
                         let super_class = holder.super_class().unwrap();
-                        // dbg!(&super_class);
-                        resolve_method(&mut self.current_frame, &super_class, symbol, self.bytecode_idx)
+                        //dbg!(&super_class);
+                        resolve_method(self.current_frame.get_mut(), &super_class, symbol, self.bytecode_idx)
                     };
                     do_send(self, universe, method, symbol, nb_params);
                     profiler_maybe_stop!(_timing);
                 }
                 Bytecode::ReturnSelf => {
                     let _timing = profiler_maybe_start!("RETURN_SELF");
-                    let self_val = *self.current_frame.lookup_argument(0);
+                    let self_val = *self.get_current_frame().lookup_argument(0);
                     self.pop_frame();
-                    self.current_frame.stack_push(self_val);
+                    self.get_current_frame().stack_push(self_val);
                     profiler_maybe_stop!(_timing);
                 }
                 Bytecode::ReturnLocal => {
                     let _timing = profiler_maybe_start!("RETURN_LOCAL");
-                    let val = self.current_frame.stack_pop();
+                    let val = self.get_current_frame().stack_pop();
                     self.pop_frame();
-                    if self.current_frame.is_empty() {
+                    if self.get_current_frame().is_empty() {
                         profiler_maybe_stop!(_timing);
                         return Some(val);
                     }
-                    self.current_frame.stack_push(val);
+                    self.get_current_frame().stack_push(val);
                     profiler_maybe_stop!(_timing);
                 }
                 Bytecode::ReturnNonLocal(up_idx) => {
                     let _timing = profiler_maybe_start!("RETURN_NON_LOCAL");
-                    let method_frame = Frame::nth_frame_back(&self.current_frame, up_idx);
+                    let method_frame = Frame::nth_frame_back(&self.get_current_frame(), up_idx);
 
                     let escaped_frames_nbr = {
-                        let mut current_frame = self.current_frame;
+                        let mut current_frame = self.get_current_frame();
                         let mut count = 0;
 
                         loop {
@@ -443,13 +451,13 @@ impl Interpreter {
                     };
 
                     if let Some(count) = escaped_frames_nbr {
-                        let val = self.current_frame.stack_pop();
+                        let val = self.get_current_frame().stack_pop();
                         self.pop_n_frames(count + 1);
-                        self.current_frame.stack_push(val);
+                        self.get_current_frame().stack_push(val);
                     } else {
                         // Block has escaped its method frame.
-                        let instance = self.current_frame.get_self();
-                        let block = match self.current_frame.lookup_argument(0).as_block() {
+                        let instance = self.get_current_frame().get_self();
+                        let block = match self.get_current_frame().lookup_argument(0).as_block() {
                             Some(block) => block,
                             _ => {
                                 // Should never happen, because `universe.current_frame()` would
@@ -459,7 +467,7 @@ impl Interpreter {
                         };
 
                         // we store the current bytecode idx to be able to correctly restore the bytecode state when we pop frames
-                        self.current_frame.bytecode_idx = self.bytecode_idx;
+                        self.get_current_frame().bytecode_idx = self.bytecode_idx;
 
                         universe
                             .escaped_block(self, instance, block)
@@ -469,8 +477,8 @@ impl Interpreter {
                 }
                 Bytecode::Dup2 => {
                     let _timing = profiler_maybe_start!("DUP2");
-                    let second_to_last = *self.current_frame.stack_nth_back(1);
-                    self.current_frame.stack_push(second_to_last);
+                    let second_to_last = *self.get_current_frame().stack_nth_back(1);
+                    self.get_current_frame().stack_push(second_to_last);
                     profiler_maybe_stop!(_timing);
                 }
                 Bytecode::Jump(offset) => {
@@ -485,13 +493,13 @@ impl Interpreter {
                 }
                 Bytecode::JumpOnTrueTopNil(offset) => {
                     let _timing = profiler_maybe_start!("JUMP_ON_TRUE_TOP_NIL");
-                    let condition_result = self.current_frame.stack_last_mut();
+                    let condition_result = self.get_current_frame().stack_last_mut();
 
                     if condition_result.is_boolean_true() {
                         self.bytecode_idx += offset - 1;
                         *condition_result = Value::NIL;
                     } else if condition_result.is_boolean_false() {
-                        self.current_frame.stack_pop();
+                        self.get_current_frame().stack_pop();
                     } else {
                         panic!("JumpOnTrueTopNil condition did not evaluate to boolean (was {:?})", condition_result)
                     };
@@ -499,10 +507,10 @@ impl Interpreter {
                 }
                 Bytecode::JumpOnFalseTopNil(offset) => {
                     let _timing = profiler_maybe_start!("JUMP_ON_FALSE_TOP_NIL");
-                    let condition_result = self.current_frame.stack_last_mut();
+                    let condition_result = self.get_current_frame().stack_last_mut();
 
                     if condition_result.is_boolean_true() {
-                        self.current_frame.stack_pop();
+                        self.get_current_frame().stack_pop();
                     } else if condition_result.is_boolean_false() {
                         self.bytecode_idx += offset - 1;
                         *condition_result = Value::NIL;
@@ -513,7 +521,7 @@ impl Interpreter {
                 }
                 Bytecode::JumpOnTruePop(offset) => {
                     let _timing = profiler_maybe_start!("JUMP_ON_TRUE_POP");
-                    let condition_result = self.current_frame.stack_pop();
+                    let condition_result = self.get_current_frame().stack_pop();
 
                     if condition_result.is_boolean_true() {
                         self.bytecode_idx += offset - 1;
@@ -526,7 +534,7 @@ impl Interpreter {
                 }
                 Bytecode::JumpOnFalsePop(offset) => {
                     let _timing = profiler_maybe_start!("JUMP_ON_FALSE_POP");
-                    let condition_result = self.current_frame.stack_pop();
+                    let condition_result = self.get_current_frame().stack_pop();
 
                     if condition_result.is_boolean_false() {
                         self.bytecode_idx += offset - 1;
@@ -539,8 +547,8 @@ impl Interpreter {
                 }
                 Bytecode::JumpIfGreater(offset) => {
                     let _timing = profiler_maybe_start!("JUMP_IF_GREATER");
-                    let top = self.current_frame.stack_last();
-                    let top2 = self.current_frame.stack_nth_back(1);
+                    let top = self.get_current_frame().stack_last();
+                    let top2 = self.get_current_frame().stack_nth_back(1);
 
                     let is_greater = {
                         if let (Some(a), Some(b)) = (top.as_integer(), top2.as_integer()) {
@@ -553,7 +561,7 @@ impl Interpreter {
                     };
 
                     if is_greater {
-                        self.current_frame.remove_n_last_elements(2);
+                        self.get_current_frame().remove_n_last_elements(2);
                         self.bytecode_idx += offset - 1;
                     }
                 }
@@ -562,13 +570,13 @@ impl Interpreter {
 
         pub fn do_send(interpreter: &mut Interpreter, universe: &mut Universe, method: Option<Gc<Method>>, symbol: Interned, nb_params: usize) {
             // we store the current bytecode idx to be able to correctly restore the bytecode state when we pop frames
-            interpreter.current_frame.bytecode_idx = interpreter.bytecode_idx;
+            interpreter.get_current_frame().bytecode_idx = interpreter.bytecode_idx;
 
             let Some(method) = method else {
-                let frame_copy = interpreter.current_frame;
+                let frame_copy = interpreter.get_current_frame();
                 let args = frame_copy.stack_n_last_elements(nb_params);
-                interpreter.current_frame.remove_n_last_elements(nb_params);
-                let self_value = interpreter.current_frame.clone().stack_pop();
+                interpreter.get_current_frame().remove_n_last_elements(nb_params);
+                let self_value = interpreter.get_current_frame().clone().stack_pop();
 
                 // could be avoided by passing args slice directly...
                 // ...but A) DNU is a very rare path and B) i guess we allocate a new args arr in the DNU call anyway
@@ -583,12 +591,13 @@ impl Interpreter {
 
             match &*method {
                 Method::Defined(_) => {
-                    // let name = &method.holder().name.clone();
-                    // eprintln!("Invoking {:?} (in {:?})", &method.signature(), &name);
+                    //let name = &method.holder().name.clone();
+                    //eprintln!("Invoking {:?} (in {:?})", &method.signature(), &name);
                     interpreter.push_method_frame(method, nb_params + 1, universe.gc_interface);
                 }
                 Method::Primitive(func, _met_info) => {
-                    // eprintln!("Invoking prim {:?} (in {:?})", &_met_info.signature, &_met_info.holder.name);
+                    //eprintln!("Invoking prim {:?} (in {:?})", &_met_info.signature, &_met_info.holder.name);
+
                     // dbg!(interpreter.current_frame);
                     func(interpreter, universe, nb_params + 1)
                         .with_context(|| anyhow::anyhow!("error calling primitive `{}`", universe.lookup_symbol(symbol)))
@@ -596,7 +605,7 @@ impl Interpreter {
                 }
                 Method::TrivialGlobal(met, _) => met.invoke(universe, interpreter),
                 Method::TrivialLiteral(met, _) => {
-                    interpreter.current_frame.stack_pop(); // remove the receiver
+                    interpreter.get_current_frame().stack_pop(); // remove the receiver
                     met.invoke(universe, interpreter)
                 }
                 Method::TrivialGetter(met, _) => met.invoke(universe, interpreter),

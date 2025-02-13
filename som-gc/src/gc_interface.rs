@@ -180,6 +180,9 @@ pub enum AllocSiteMarker {
     Block,
     BlockFrame,
     Instance,
+    Method,
+    Class,
+    Array,
 }
 
 impl GCInterface {

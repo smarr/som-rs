@@ -160,9 +160,9 @@ impl Invoke for Gc<Method> {
             }
             Method::Primitive(func, ..) => {
                 let nbr_args = args.len() + 1;
-                interpreter.current_frame.stack_push(receiver);
+                interpreter.get_current_frame().stack_push(receiver);
                 for arg in args {
-                    interpreter.current_frame.stack_push(arg)
+                    interpreter.get_current_frame().stack_push(arg)
                 }
                 func(interpreter, universe, nbr_args).unwrap_or_else(|_| panic!("invoking func {} failed", &self.signature()));
 

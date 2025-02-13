@@ -233,7 +233,7 @@ fn get_roots_in_mutator_thread(_mutator: &mut Mutator<SOMVM>) -> Vec<SOMSlot> {
         );
 
         // walk the frame list.
-        let current_frame_addr = &(**INTERPRETER_RAW_PTR_CONST.as_ptr()).current_frame;
+        let current_frame_addr = &*(**INTERPRETER_RAW_PTR_CONST.as_ptr()).current_frame.get();
         debug!(
             "scanning root: current_frame (method: {})",
             current_frame_addr.current_context.get_env().base_method_info.signature

@@ -9,6 +9,7 @@ use crate::value::convert::Primitive;
 use crate::value::{HeapValPtr, Value};
 use anyhow::{Context, Error};
 use once_cell::sync::Lazy;
+use som_gc::gc_interface::AllocSiteMarker;
 use som_gc::gcref::Gc;
 
 pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
@@ -51,7 +52,7 @@ fn length(_: &mut Interpreter, _: &mut Universe, receiver: HeapValPtr<VecValue>)
 
 fn new(_: &mut Interpreter, universe: &mut Universe, _: Value, count: i32) -> Result<Gc<VecValue>, Error> {
     let count = usize::try_from(count)?;
-    let allocated = universe.gc_interface.alloc(VecValue(vec![Value::NIL; count]));
+    let allocated = universe.gc_interface.alloc_with_marker(VecValue(vec![Value::NIL; count]), Some(AllocSiteMarker::Array));
 
     Ok(allocated)
 }

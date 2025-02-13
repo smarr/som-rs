@@ -26,7 +26,7 @@ use som_core::ast;
 use som_core::ast::BlockDebugInfo;
 use som_core::ast::{Expression, MethodBody};
 use som_core::bytecode::Bytecode;
-use som_gc::gc_interface::GCInterface;
+use som_gc::gc_interface::{AllocSiteMarker, GCInterface};
 
 pub(crate) trait GenCtxt {
     fn intern_symbol(&mut self, name: &str) -> Interned;
@@ -893,13 +893,13 @@ pub fn compile_class(
         is_static: true,
     };
 
-    let static_class_gc_ptr = gc_interface.alloc(static_class);
+    let static_class_gc_ptr = gc_interface.alloc_with_marker(static_class, Some(AllocSiteMarker::Class));
 
     for method in &defn.static_methods {
         let signature = static_class_ctxt.interner.intern(method.signature.as_str());
         let mut method = compile_method(&mut static_class_ctxt, method, gc_interface)?;
         method.set_holder(static_class_gc_ptr);
-        static_class_ctxt.methods.insert(signature, gc_interface.alloc(method));
+        static_class_ctxt.methods.insert(signature, gc_interface.alloc_with_marker(method, Some(AllocSiteMarker::Method)));
     }
 
     if let Some(primitives) = primitives::get_class_primitives(&defn.name) {
@@ -912,7 +912,7 @@ pub fn compile_class(
             let method = Method::Primitive(primitive, BasicMethodInfo::new(String::from(signature), static_class_gc_ptr));
 
             let signature = static_class_ctxt.interner.intern(signature);
-            static_class_ctxt.methods.insert(signature, gc_interface.alloc(method));
+            static_class_ctxt.methods.insert(signature, gc_interface.alloc_with_marker(method, Some(AllocSiteMarker::Class)));
         }
     }
 
@@ -958,13 +958,13 @@ pub fn compile_class(
         is_static: false,
     };
 
-    let instance_class_gc_ptr = gc_interface.alloc(instance_class);
+    let instance_class_gc_ptr = gc_interface.alloc_with_marker(instance_class, Some(AllocSiteMarker::Class));
 
     for method in &defn.instance_methods {
         let signature = instance_class_ctxt.interner.intern(method.signature.as_str());
         let mut method = compile_method(&mut instance_class_ctxt, method, gc_interface)?;
         method.set_holder(instance_class_gc_ptr);
-        instance_class_ctxt.methods.insert(signature, gc_interface.alloc(method));
+        instance_class_ctxt.methods.insert(signature, gc_interface.alloc_with_marker(method, Some(AllocSiteMarker::Method)));
     }
 
     if let Some(primitives) = primitives::get_instance_primitives(&defn.name) {
@@ -976,7 +976,7 @@ pub fn compile_class(
 
             let method = Method::Primitive(primitive, BasicMethodInfo::new(String::from(signature), instance_class_gc_ptr));
             let signature = instance_class_ctxt.interner.intern(signature);
-            instance_class_ctxt.methods.insert(signature, gc_interface.alloc(method));
+            instance_class_ctxt.methods.insert(signature, gc_interface.alloc_with_marker(method, Some(AllocSiteMarker::Method)));
         }
     }
 

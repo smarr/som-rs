@@ -35,8 +35,8 @@ fn and_if_true(interpreter: &mut Interpreter, universe: &mut Universe, _self: Va
     if other.as_block().is_some() {
         interpreter.push_block_frame(1, universe.gc_interface);
     } else {
-        interpreter.current_frame.remove_n_last_elements(2);
-        interpreter.current_frame.stack_push(other);
+        interpreter.get_current_frame().remove_n_last_elements(2);
+        interpreter.get_current_frame().stack_push(other);
     }
     Ok(())
 }

@@ -246,7 +246,7 @@ impl Universe {
         let method_name = self.intern_symbol("unknownGlobal:");
         let method = value.lookup_method(self, method_name)?;
 
-        interpreter.current_frame.bytecode_idx = interpreter.bytecode_idx;
+        interpreter.get_current_frame().bytecode_idx = interpreter.bytecode_idx;
         interpreter.push_method_frame_with_args(method, &[value, Value::Symbol(name)], self.gc_interface);
 
         Some(())

@@ -217,8 +217,8 @@ pub trait IntoReturn {
 
 impl<T: IntoValue> IntoReturn for T {
     fn into_return(self, interpreter: &mut Interpreter, nbr_args: usize) -> Result<(), Error> {
-        interpreter.current_frame.remove_n_last_elements(nbr_args);
-        interpreter.current_frame.stack_push(self.into_value());
+        interpreter.get_current_frame().remove_n_last_elements(nbr_args);
+        interpreter.get_current_frame().stack_push(self.into_value());
         Ok(())
     }
 }
@@ -295,7 +295,7 @@ macro_rules! derive_stuff {
                 // To match the AST doing the same.
                 // # Safety
                 // Not -positive- this is safe with moving GC, actually. We want to pass moving-GC-proof refs to the values directly, does this really achieve that? TODO check.
-                let args: &[Value] = unsafe { &* (interpreter.current_frame.stack_n_last_elements(nbr_args) as *const _) };
+                let args: &[Value] = unsafe { &* (interpreter.get_current_frame().stack_n_last_elements(nbr_args) as *const _) };
                 let mut args_iter = args.iter();
                 $(
                     #[allow(non_snake_case)]
