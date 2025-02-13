@@ -22,7 +22,8 @@ use std::time::Instant;
 
 macro_rules! resolve_method_and_send {
     ($self:expr, $universe:expr, $symbol:expr, $nbr_args:expr) => {{
-        let receiver = $self.get_current_frame().stack_nth_back($nbr_args);
+        let current_frame = $self.get_current_frame();
+        let receiver = current_frame.stack_nth_back($nbr_args);
         let receiver_class = receiver.class($universe);
         let method = resolve_method(&mut $self.get_current_frame(), &receiver_class, $symbol, $self.bytecode_idx);
         do_send($self, $universe, method, $symbol, $nbr_args);
@@ -143,6 +144,10 @@ impl Interpreter {
         self.bytecode_idx = 0;
         self.current_bytecodes = frame_ptr.get_bytecode_ptr();
         self.current_frame = UnsafeCell::from(frame_ptr);
+
+        unsafe {
+            HACK_FRAME_FRAME_ARGS_PTR = None;
+        }
 
         frame_ptr
     }
@@ -267,7 +272,9 @@ impl Interpreter {
                 }
                 Bytecode::Inc => {
                     let _timing = profiler_maybe_start!("INC");
-                    let last = self.get_current_frame().stack_last_mut();
+                    let mut current_frame = self.get_current_frame();
+                    let last = current_frame.stack_last_mut();
+
                     if let Some(int) = last.as_integer() {
                         *last = Value::new_integer(int + 1);
                     } else if let Some(double) = last.as_double() {
@@ -281,7 +288,9 @@ impl Interpreter {
                 }
                 Bytecode::Dec => {
                     let _timing = profiler_maybe_start!("DEC");
-                    let last = self.get_current_frame().stack_last_mut();
+                    let mut current_frame = self.get_current_frame();
+                    let last = current_frame.stack_last_mut();
+
                     if let Some(int) = last.as_integer() {
                         *last = Value::new_integer(int - 1);
                     } else if let Some(double) = last.as_double() {
@@ -493,7 +502,8 @@ impl Interpreter {
                 }
                 Bytecode::JumpOnTrueTopNil(offset) => {
                     let _timing = profiler_maybe_start!("JUMP_ON_TRUE_TOP_NIL");
-                    let condition_result = self.get_current_frame().stack_last_mut();
+                    let mut current_frame = self.get_current_frame();
+                    let condition_result = current_frame.stack_last_mut();
 
                     if condition_result.is_boolean_true() {
                         self.bytecode_idx += offset - 1;
@@ -507,7 +517,8 @@ impl Interpreter {
                 }
                 Bytecode::JumpOnFalseTopNil(offset) => {
                     let _timing = profiler_maybe_start!("JUMP_ON_FALSE_TOP_NIL");
-                    let condition_result = self.get_current_frame().stack_last_mut();
+                    let mut current_frame = self.get_current_frame();
+                    let condition_result = current_frame.stack_last_mut();
 
                     if condition_result.is_boolean_true() {
                         self.get_current_frame().stack_pop();
@@ -547,8 +558,9 @@ impl Interpreter {
                 }
                 Bytecode::JumpIfGreater(offset) => {
                     let _timing = profiler_maybe_start!("JUMP_IF_GREATER");
-                    let top = self.get_current_frame().stack_last();
-                    let top2 = self.get_current_frame().stack_nth_back(1);
+                    let current_frame = self.get_current_frame();
+                    let top = current_frame.stack_last();
+                    let top2 = current_frame.stack_nth_back(1);
 
                     let is_greater = {
                         if let (Some(a), Some(b)) = (top.as_integer(), top2.as_integer()) {

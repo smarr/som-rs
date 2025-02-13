@@ -77,7 +77,8 @@ pub struct TrivialSetterMethod {
 impl TrivialSetterMethod {
     pub fn invoke(&self, _universe: &mut Universe, interpreter: &mut Interpreter) {
         let val = interpreter.get_current_frame().stack_pop();
-        let rcvr = interpreter.get_current_frame().stack_last();
+        let current_frame = interpreter.get_current_frame();
+        let rcvr = current_frame.stack_last();
 
         if let Some(cls) = rcvr.as_class() {
             cls.class().assign_field(self.field_idx as usize, val);
