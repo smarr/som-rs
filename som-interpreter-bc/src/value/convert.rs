@@ -282,7 +282,7 @@ impl IntoValue for DoubleLike {
     }
 }
 
-macro_rules! derive_stuff {
+macro_rules! derive_prims {
     ($($ty:ident),* $(,)?) => {
 
         impl <F, R, $($ty),*> $crate::value::convert::Primitive<($($ty),*,)> for F
@@ -309,12 +309,48 @@ macro_rules! derive_stuff {
     };
 }
 
-derive_stuff!(_A);
-derive_stuff!(_A, _B);
-derive_stuff!(_A, _B, _C);
-derive_stuff!(_A, _B, _C, _D);
-derive_stuff!(_A, _B, _C, _D, _E);
-derive_stuff!(_A, _B, _C, _D, _E, _F);
+pub struct NoInterp {}
+
+macro_rules! derive_prims_no_interp {
+    ($($ty:ident),* $(,)?) => {
+
+        impl <F, R, $($ty),*> $crate::value::convert::Primitive<(NoInterp, $($ty),*,)> for F
+        where
+            F: Fn($($ty),*) -> Result<R, Error> + Send + Sync + 'static,
+            R: $crate::value::convert::IntoValue,
+            $($ty: $crate::value::convert::FromArgs),*,
+        {
+            fn invoke(&self, interpreter: &mut $crate::interpreter::Interpreter, _: &mut $crate::universe::Universe, nbr_args: usize) -> Result<(), Error> {
+                let mut cur_frame = interpreter.get_current_frame();
+
+                let result = {
+                    let args: &[Value] = cur_frame.stack_n_last_elements(nbr_args);
+                    let mut args_iter = args.iter();
+                    $(
+                        #[allow(non_snake_case)]
+                        let $ty = $ty::from_args(args_iter.next().unwrap()).unwrap();
+                    )*
+
+                   (self)($($ty),*,)?.into_value()
+                };
+
+                cur_frame.remove_n_last_elements(nbr_args);
+                cur_frame.stack_push(result);
+                Ok(())
+            }
+        }
+    };
+}
+
+derive_prims!(_A);
+derive_prims!(_A, _B);
+derive_prims!(_A, _B, _C);
+derive_prims!(_A, _B, _C, _D);
+
+derive_prims_no_interp!(_A);
+derive_prims_no_interp!(_A, _B);
+derive_prims_no_interp!(_A, _B, _C);
+derive_prims_no_interp!(_A, _B, _C, _D);
 
 // TODO: adapt macro instead
 impl<F> Primitive<()> for F

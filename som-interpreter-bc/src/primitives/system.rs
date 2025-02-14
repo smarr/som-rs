@@ -57,7 +57,7 @@ fn print_string(_: &mut Interpreter, universe: &mut Universe, _: Value, string: 
     Ok(System)
 }
 
-fn print_newline(_: &mut Interpreter, _: &mut Universe, _: Value) -> Result<Nil, Error> {
+fn print_newline(_: Value) -> Result<Nil, Error> {
     println!();
     Ok(Nil)
 }

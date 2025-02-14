@@ -85,7 +85,7 @@ fn as_string(_: &mut Interpreter, universe: &mut Universe, receiver: IntegerLike
     Ok(universe.gc_interface.alloc(receiver))
 }
 
-fn as_double(_: &mut Interpreter, _: &mut Universe, receiver: IntegerLike) -> Result<f64, Error> {
+fn as_double(receiver: IntegerLike) -> Result<f64, Error> {
     const _: &str = "Integer>>#asDouble";
 
     let value = match receiver {
@@ -96,7 +96,7 @@ fn as_double(_: &mut Interpreter, _: &mut Universe, receiver: IntegerLike) -> Re
     Ok(value)
 }
 
-fn at_random(_: &mut Interpreter, _: &mut Universe, receiver: IntegerLike) -> Result<i32, Error> {
+fn at_random(receiver: IntegerLike) -> Result<i32, Error> {
     const SIGNATURE: &str = "Integer>>#atRandom";
 
     let chosen = match receiver {
@@ -109,7 +109,7 @@ fn at_random(_: &mut Interpreter, _: &mut Universe, receiver: IntegerLike) -> Re
     Ok(chosen)
 }
 
-fn as_32bit_signed_value(_: &mut Interpreter, _: &mut Universe, receiver: IntegerLike) -> Result<i32, Error> {
+fn as_32bit_signed_value(receiver: IntegerLike) -> Result<i32, Error> {
     const _: &str = "Integer>>#as32BitSignedValue";
 
     let value = match receiver {
@@ -275,7 +275,7 @@ fn divide(_: &mut Interpreter, universe: &mut Universe, a: DoubleLike, b: Double
     Ok(value)
 }
 
-fn divide_float(_: &mut Interpreter, _: &mut Universe, a: DoubleLike, b: DoubleLike) -> Result<f64, Error> {
+fn divide_float(a: DoubleLike, b: DoubleLike) -> Result<f64, Error> {
     const SIGNATURE: &str = "Integer>>#//";
 
     let a = match a {
@@ -328,7 +328,7 @@ fn modulo(_: &mut Interpreter, universe: &mut Universe, a: IntegerLike, b: i32) 
     Ok(result)
 }
 
-fn remainder(_: &mut Interpreter, _: &mut Universe, a: i32, b: i32) -> Result<i32, Error> {
+fn remainder(a: i32, b: i32) -> Result<i32, Error> {
     const _: &str = "Integer>>#rem:";
 
     let result = a % b;
@@ -359,14 +359,14 @@ fn sqrt(_: &mut Interpreter, universe: &mut Universe, a: DoubleLike) -> Result<V
     Ok(value)
 }
 
-fn max(_: &mut Interpreter, _: &mut Universe, a: DoubleLike, b: DoubleLike) -> Result<Value, Error> {
+fn max(a: DoubleLike, b: DoubleLike) -> Result<Value, Error> {
     match DoubleLike::gt(&a, &b) {
         true => Ok(a.into_value()),
         false => Ok(b.into_value()),
     }
 }
 
-fn min(_: &mut Interpreter, _: &mut Universe, a: DoubleLike, b: DoubleLike) -> Result<Value, Error> {
+fn min(a: DoubleLike, b: DoubleLike) -> Result<Value, Error> {
     match DoubleLike::gt(&a, &b) {
         true => Ok(b.into_value()),
         false => Ok(a.into_value()),
@@ -419,23 +419,23 @@ fn bitxor(_: &mut Interpreter, universe: &mut Universe, a: IntegerLike, b: Integ
     Ok(value)
 }
 
-fn lt(_: &mut Interpreter, _: &mut Universe, a: DoubleLike, b: DoubleLike) -> Result<Value, Error> {
+fn lt(a: DoubleLike, b: DoubleLike) -> Result<Value, Error> {
     Ok(Value::Boolean(DoubleLike::lt(&a, &b)))
 }
 
-fn lt_or_eq(_: &mut Interpreter, _: &mut Universe, a: DoubleLike, b: DoubleLike) -> Result<Value, Error> {
+fn lt_or_eq(a: DoubleLike, b: DoubleLike) -> Result<Value, Error> {
     Ok(Value::Boolean(DoubleLike::lt_or_eq(&a, &b)))
 }
 
-fn gt(_: &mut Interpreter, _: &mut Universe, a: DoubleLike, b: DoubleLike) -> Result<Value, Error> {
+fn gt(a: DoubleLike, b: DoubleLike) -> Result<Value, Error> {
     Ok(Value::Boolean(DoubleLike::gt(&a, &b)))
 }
 
-fn gt_or_eq(_: &mut Interpreter, _: &mut Universe, a: DoubleLike, b: DoubleLike) -> Result<Value, Error> {
+fn gt_or_eq(a: DoubleLike, b: DoubleLike) -> Result<Value, Error> {
     Ok(Value::Boolean(DoubleLike::gt_or_eq(&a, &b)))
 }
 
-fn eq(_: &mut Interpreter, _: &mut Universe, a: Value, b: Value) -> Result<bool, Error> {
+fn eq(a: Value, b: Value) -> Result<bool, Error> {
     let Ok(a) = DoubleLike::try_from(a.0) else {
         return Ok(false);
     };
@@ -447,7 +447,7 @@ fn eq(_: &mut Interpreter, _: &mut Universe, a: Value, b: Value) -> Result<bool,
     Ok(DoubleLike::eq(&a, &b))
 }
 
-fn eq_eq(_: &mut Interpreter, _: &mut Universe, a: Value, b: Value) -> Result<bool, Error> {
+fn eq_eq(a: Value, b: Value) -> Result<bool, Error> {
     let Ok(a) = DoubleLike::try_from(a.0) else {
         return Ok(false);
     };
@@ -463,7 +463,7 @@ fn eq_eq(_: &mut Interpreter, _: &mut Universe, a: Value, b: Value) -> Result<bo
     }
 }
 
-fn uneq(_: &mut Interpreter, _: &mut Universe, a: Value, b: Value) -> Result<bool, Error> {
+fn uneq(a: Value, b: Value) -> Result<bool, Error> {
     let Ok(a) = DoubleLike::try_from(a.0) else {
         return Ok(false);
     };

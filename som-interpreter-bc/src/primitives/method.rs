@@ -21,7 +21,7 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
 });
 pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([]));
 
-fn holder(_: &mut Interpreter, _: &mut Universe, invokable: HeapValPtr<Method>) -> Result<Gc<Class>, Error> {
+fn holder(invokable: HeapValPtr<Method>) -> Result<Gc<Class>, Error> {
     const _: &str = "Method>>#holder";
 
     Ok(*invokable.deref().holder())

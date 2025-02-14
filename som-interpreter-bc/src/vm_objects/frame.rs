@@ -336,8 +336,9 @@ impl Frame {
         unsafe { self.nth_stack(self.stack_ptr - (n as u8 + 1)) }
     }
 
+    // TODO: should not be a static ref.
     #[inline(always)]
-    pub fn stack_n_last_elements(&self, n: usize) -> &[Value] {
+    pub fn stack_n_last_elements(&self, n: usize) -> &'static [Value] {
         unsafe {
             let slice_ptr = self.nth_stack(self.stack_ptr - n as u8);
             std::slice::from_raw_parts(slice_ptr, n)

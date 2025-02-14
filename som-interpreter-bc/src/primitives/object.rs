@@ -41,7 +41,7 @@ fn class(_: &mut Interpreter, universe: &mut Universe, receiver: Value) -> Resul
     Ok(receiver.class(universe))
 }
 
-fn object_size(_: &mut Interpreter, _: &mut Universe, receiver: Value) -> Result<i32, Error> {
+fn object_size(receiver: Value) -> Result<i32, Error> {
     const SIGNATURE: &str = "Object>>#objectSize";
 
     core::mem::size_of_val(&receiver)
@@ -49,14 +49,14 @@ fn object_size(_: &mut Interpreter, _: &mut Universe, receiver: Value) -> Result
         .with_context(|| format!("`{SIGNATURE}`: could not convert `usize` to `i32`"))
 }
 
-fn hashcode(_: &mut Interpreter, _: &mut Universe, receiver: Value) -> Result<i32, Error> {
+fn hashcode(receiver: Value) -> Result<i32, Error> {
     let mut hasher = DefaultHasher::new();
     receiver.hash(&mut hasher);
     let hash = (hasher.finish() as i32).abs();
     Ok(hash)
 }
 
-fn eq(_: &mut Interpreter, _: &mut Universe, receiver: Value, other: Value) -> Result<bool, Error> {
+fn eq(receiver: Value, other: Value) -> Result<bool, Error> {
     Ok(receiver == other)
 }
 
@@ -158,7 +158,7 @@ fn perform_with_arguments_in_super_class(
     Ok(())
 }
 
-fn inst_var_at(_: &mut Interpreter, _: &mut Universe, receiver: Value, index: i32) -> Result<Option<Value>, Error> {
+fn inst_var_at(receiver: Value, index: i32) -> Result<Option<Value>, Error> {
     // expect_args!(SIGNATURE, interpreter, [
     //     object => object,
     //     Value::Integer(index) => index,
@@ -192,7 +192,7 @@ fn inst_var_at(_: &mut Interpreter, _: &mut Universe, receiver: Value, index: i3
     }
 }
 
-fn inst_var_at_put(_: &mut Interpreter, _: &mut Universe, receiver: Value, index: i32, value: Value) -> Result<Option<Value>, Error> {
+fn inst_var_at_put(receiver: Value, index: i32, value: Value) -> Result<Option<Value>, Error> {
     let index = usize::try_from(index.saturating_sub(1))?;
     if let Some(instance) = receiver.as_instance() {
         Instance::assign_field(instance, index, value)

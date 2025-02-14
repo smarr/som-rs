@@ -79,7 +79,7 @@ pub fn get_instance_primitives(class_name: &str) -> Option<&'static [PrimInfo]> 
 }
 
 /// Function called for an unimplemented primitive.
-fn unimplem_prim_fn(_: &mut Interpreter, _: &mut Universe, _: i32) -> Result<i32, Error> {
+fn unimplem_prim_fn(_: i32) -> Result<i32, Error> {
     panic!("called an unimplemented primitive")
 }
 

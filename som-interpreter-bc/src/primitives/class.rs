@@ -27,7 +27,7 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
 });
 pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([]));
 
-fn superclass(_: &mut Interpreter, _: &mut Universe, receiver: HeapValPtr<Class>) -> Result<Value, Error> {
+fn superclass(receiver: HeapValPtr<Class>) -> Result<Value, Error> {
     const _: &str = "Class>>#superclass";
 
     let super_class = receiver.deref().super_class();

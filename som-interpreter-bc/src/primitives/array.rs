@@ -26,7 +26,7 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
 
 pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([("new:", self::new.into_func(), true)]));
 
-fn at(_: &mut Interpreter, _: &mut Universe, receiver: HeapValPtr<VecValue>, index: i32) -> Result<Value, Error> {
+fn at(receiver: HeapValPtr<VecValue>, index: i32) -> Result<Value, Error> {
     const _: &str = "Array>>#at:";
 
     let index = usize::try_from(index - 1)?;
@@ -34,7 +34,7 @@ fn at(_: &mut Interpreter, _: &mut Universe, receiver: HeapValPtr<VecValue>, ind
     receiver.deref().0.get(index).cloned().context("index out of bounds")
 }
 
-fn at_put(_: &mut Interpreter, _: &mut Universe, receiver: HeapValPtr<VecValue>, index: i32, value: Value) -> Result<Gc<VecValue>, Error> {
+fn at_put(receiver: HeapValPtr<VecValue>, index: i32, value: Value) -> Result<Gc<VecValue>, Error> {
     const _: &str = "Array>>#at:put:";
 
     let index = usize::try_from(index - 1)?;
@@ -46,7 +46,7 @@ fn at_put(_: &mut Interpreter, _: &mut Universe, receiver: HeapValPtr<VecValue>,
     Ok(receiver.deref())
 }
 
-fn length(_: &mut Interpreter, _: &mut Universe, receiver: HeapValPtr<VecValue>) -> Result<i32, Error> {
+fn length(receiver: HeapValPtr<VecValue>) -> Result<i32, Error> {
     receiver.deref().0.len().try_into().context("could not convert `usize` to `i32`")
 }
 
