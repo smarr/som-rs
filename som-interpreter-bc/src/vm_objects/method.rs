@@ -156,7 +156,7 @@ impl Invoke for Gc<Method> {
             Method::Defined(_) => {
                 let mut frame_args = vec![receiver];
                 frame_args.append(&mut args);
-                interpreter.push_method_frame_with_args(*self, frame_args.as_slice(), universe.gc_interface);
+                interpreter.push_method_frame_with_args(*self, frame_args, universe.gc_interface);
             }
             Method::Primitive(func, ..) => {
                 let nbr_args = args.len() + 1;

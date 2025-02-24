@@ -12,7 +12,6 @@ use std::cell::UnsafeCell;
 #[cfg(feature = "profiler")]
 use crate::debug::profiler::Profiler;
 
-use crate::HACK_FRAME_FRAME_ARGS_PTR;
 use num_bigint::BigInt;
 use som_core::bytecode::Bytecode;
 use som_gc::gc_interface::{AllocSiteMarker, GCInterface};
@@ -60,6 +59,7 @@ pub struct Interpreter {
     /// We're then in a situation where we've looked up a `Method` (which is how we knew we were dealing with a non-primitive, and so that we had to create a frame)
     /// So this method can't be stored on the Rust stack, or GC would miss it. Therefore: we keep it reachable there.
     pub frame_method_root: Gc<Method>,
+    pub frame_args_root: Option<Vec<Value>>,
 }
 
 impl Interpreter {
@@ -70,6 +70,7 @@ impl Interpreter {
             current_frame: UnsafeCell::from(base_frame),
             current_bytecodes: base_frame.get_bytecode_ptr(),
             frame_method_root: Gc::default(),
+            frame_args_root: None,
         }
     }
 
@@ -113,7 +114,7 @@ impl Interpreter {
 
     /// Creates and allocates a new frame corresponding to a method, with arguments provided.
     /// Used in primitives and corner cases like DNU calls.
-    pub fn push_method_frame_with_args(&mut self, method: Gc<Method>, args: &[Value], mutator: &mut GCInterface) -> Gc<Frame> {
+    pub fn push_method_frame_with_args(&mut self, method: Gc<Method>, args: Vec<Value>, mutator: &mut GCInterface) -> Gc<Frame> {
         self.frame_method_root = method;
         std::hint::black_box(&self.frame_method_root); // paranoia
 
@@ -124,30 +125,22 @@ impl Interpreter {
 
         let size = Frame::get_true_size(max_stack_size, args.len(), nbr_locals);
 
-        unsafe {
-            HACK_FRAME_FRAME_ARGS_PTR = Some(Vec::from(args));
-        }
+        self.frame_args_root = Some(args);
 
         let mut frame_ptr: Gc<Frame> = mutator.request_memory_for_type(size, Some(AllocSiteMarker::MethodFrameWithArgs));
 
-        #[allow(static_mut_refs)]
-        unsafe {
-            *frame_ptr = Frame::from_method(self.frame_method_root);
-            Frame::init_frame_post_alloc(
-                frame_ptr,
-                HACK_FRAME_FRAME_ARGS_PTR.as_ref().unwrap().as_slice(),
-                max_stack_size,
-                self.get_current_frame(),
-            );
-        }
+        *frame_ptr = Frame::from_method(self.frame_method_root);
+        Frame::init_frame_post_alloc(
+            frame_ptr,
+            self.frame_args_root.as_ref().unwrap(),
+            max_stack_size,
+            self.get_current_frame(),
+        );
 
         self.bytecode_idx = 0;
         self.current_bytecodes = frame_ptr.get_bytecode_ptr();
         self.current_frame = UnsafeCell::from(frame_ptr);
-
-        unsafe {
-            HACK_FRAME_FRAME_ARGS_PTR = None;
-        }
+        self.frame_args_root = None;
 
         frame_ptr
     }

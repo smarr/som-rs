@@ -245,6 +245,15 @@ fn get_roots_in_mutator_thread(_mutator: &mut Mutator<SOMVM>) -> Vec<SOMSlot> {
             to_process.push(SOMSlot::from(frame_method_root));
         }
 
+        let frame_args_root = &(**INTERPRETER_RAW_PTR_CONST.as_ptr()).frame_args_root;
+        if let Some(frame_args) = frame_args_root {
+            for arg in frame_args {
+                if arg.is_ptr_type() {
+                    to_process.push(SOMSlot::from(arg.as_mut_ptr()));
+                }
+            }
+        }
+
         // walk globals (includes core classes)
         debug!("scanning roots: globals");
         for (_name, val) in (**UNIVERSE_RAW_PTR_CONST.as_ptr()).globals.iter_mut() {
