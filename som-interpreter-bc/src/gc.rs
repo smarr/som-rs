@@ -301,30 +301,7 @@ fn get_object_size(object: ObjectReference) -> usize {
     obj_size
 }
 
-fn adapt_post_copy(object: ObjectReference, original_obj: ObjectReference) {
-    let gc_id: &BCObjMagicId = unsafe { object.to_raw_address().as_ref() };
-
-    unsafe {
-        if gc_id == &BCObjMagicId::Frame {
-            debug!("adapt_post_copy: frame");
-
-            let frame: &mut Frame = object.to_raw_address().add(8).as_mut_ref();
-
-            let frame_addr_usize: usize = object.to_raw_address().add(8).as_usize();
-            let og_frame_ptr: *const Frame = original_obj.to_raw_address().to_ptr();
-
-            let offset = frame_addr_usize as isize - og_frame_ptr as isize;
-            // frame.stack_ptr = frame.stack_ptr.byte_offset(offset);
-            frame.args_ptr = frame.args_ptr.byte_offset(offset);
-            frame.locals_ptr = frame.locals_ptr.byte_offset(offset);
-
-            debug_assert_eq!((*og_frame_ptr).lookup_argument(0), frame.lookup_argument(0));
-            if frame.get_nbr_locals() >= 1 {
-                debug_assert_eq!((*og_frame_ptr).lookup_local(0), frame.lookup_local(0));
-            }
-        }
-    }
-}
+fn adapt_post_copy(_object: ObjectReference, _original_obj: ObjectReference) {}
 
 pub fn get_callbacks_for_gc() -> MMTKtoVMCallbacks {
     MMTKtoVMCallbacks {

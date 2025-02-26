@@ -59,7 +59,7 @@ impl ObjectModel<SOMVM> for VMObjectModel {
 
         copy_context.post_copy(header_dst_obj, bytes, semantics);
 
-        (MMTK_TO_VM_INTERFACE.get().unwrap().adapt_post_copy)(header_dst_obj, from);
+        //        (MMTK_TO_VM_INTERFACE.get().unwrap().adapt_post_copy)(header_dst_obj, from);
 
         debug!("Copied object {} into {}", from, header_dst_obj);
 

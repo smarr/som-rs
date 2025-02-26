@@ -32,10 +32,6 @@ pub struct Frame {
     /// Alternatively, can be seen as number of elements on the stack
     pub stack_ptr: u8,
 
-    // pub stack_ptr: *mut Value,
-    pub args_ptr: *mut Value,
-    pub locals_ptr: *mut Value,
-
     /// markers. we don't use them directly. it's mostly a reminder that the struct looks different in memory... not the cleanest but not sure how else to go about it
     pub stack_marker: PhantomData<[Value]>,
     pub args_marker: PhantomData<[Value]>,
@@ -104,16 +100,14 @@ impl Frame {
 
             frame.stack_ptr = 0;
 
-            // setting up the self-referential pointers for args/locals accesses
-            frame.args_ptr = (frame_ptr.as_ptr().byte_add(OFFSET_TO_STACK + stack_size * size_of::<Value>())) as *mut Value;
-            frame.locals_ptr = frame.args_ptr.add(args.len());
-
             // initializing arguments from the args slice
-            std::slice::from_raw_parts_mut(frame.args_ptr, args.len()).copy_from_slice(args);
+            let args_ptr = frame_ptr.as_ptr().byte_add(OFFSET_TO_STACK + stack_size * size_of::<Value>()) as *mut Value;
+            std::slice::from_raw_parts_mut(args_ptr, args.len()).copy_from_slice(args);
 
             // setting all locals to NIL.
+            let locals_ptr = frame_ptr.as_ptr().byte_add(OFFSET_TO_STACK + (stack_size + args.len()) * size_of::<Value>()) as *mut Value;
             for idx in 0..frame.get_nbr_locals() {
-                *frame.locals_ptr.add(idx) = Value::NIL;
+                *locals_ptr.add(idx) = Value::NIL;
             }
 
             frame.prev_frame = prev_frame; // because GC can have moved the previous frame!
@@ -127,8 +121,6 @@ impl Frame {
             current_context: block.blk_info,
             bytecode_idx: 0,
             stack_ptr: 0,
-            args_ptr: std::ptr::null_mut(),
-            locals_ptr: std::ptr::null_mut(),
             args_marker: PhantomData,
             locals_marker: PhantomData,
             stack_marker: PhantomData,
@@ -142,8 +134,6 @@ impl Frame {
             current_context: method,
             bytecode_idx: 0,
             stack_ptr: 0,
-            args_ptr: std::ptr::null_mut(),
-            locals_ptr: std::ptr::null_mut(),
             args_marker: PhantomData,
             locals_marker: PhantomData,
             stack_marker: PhantomData,
@@ -210,26 +200,44 @@ impl Frame {
     }
 
     /// Search for a local binding.
+    /// This function, and its friends, is kinda ugly. That's what you get for using self-referential pointers.
+    /// NOTE: fetching locals like this instead of storing a pointer in the frame to locals and arguments respectively, is a very minor slowdown.
+    /// But moving GC and self-referential pointers led to some ugly bugs..
+    /// I think storing self-referential pointers into `UnsafeCell`s might be enough to fix things though - TODO.
     #[inline(always)]
     pub fn lookup_local(&self, idx: usize) -> &Value {
-        unsafe { &*self.locals_ptr.add(idx) }
+        unsafe {
+            let value_heap_ptr = (self as *const Self).byte_add(OFFSET_TO_STACK) as *mut Value;
+            let locals_ptr = value_heap_ptr.add(self.get_max_stack_size() + self.current_context.get_env().nbr_params + 1);
+            &*locals_ptr.add(idx)
+        }
     }
 
     /// Assign to a local binding.
     #[inline(always)]
     pub fn assign_local(&mut self, idx: usize, value: Value) {
-        unsafe { *self.locals_ptr.add(idx) = value }
+        unsafe {
+            let value_heap_ptr = (self as *const Self).byte_add(OFFSET_TO_STACK) as *mut Value;
+            let locals_ptr = value_heap_ptr.add(self.get_max_stack_size() + self.current_context.get_env().nbr_params + 1);
+            *locals_ptr.add(idx) = value
+        }
     }
 
     #[inline(always)]
     pub fn lookup_argument(&self, idx: usize) -> &Value {
-        unsafe { &*self.args_ptr.add(idx) }
+        unsafe {
+            let args_ptr = (self as *const Self as usize + OFFSET_TO_STACK + self.get_max_stack_size() * size_of::<Value>()) as *mut Value;
+            &*args_ptr.add(idx)
+        }
     }
 
     /// Assign to an argument.
     #[inline(always)]
     pub fn assign_arg(&mut self, idx: usize, value: Value) {
-        unsafe { *self.args_ptr.add(idx) = value }
+        unsafe {
+            let args_ptr = (self as *const Self as usize + OFFSET_TO_STACK + self.get_max_stack_size() * size_of::<Value>()) as *mut Value;
+            *args_ptr.add(idx) = value
+        }
     }
 
     #[inline(always)]

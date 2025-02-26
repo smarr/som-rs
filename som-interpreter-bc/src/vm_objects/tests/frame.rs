@@ -86,6 +86,8 @@ fn frame_basic_arg_access(universe: &mut Universe) {
 
     let mut frame = Frame::alloc_initial_method(method_ref, &[Value::NIL, Value::INTEGER_ZERO, Value::INTEGER_ONE], universe.gc_interface);
 
+    assert_eq!(frame.get_nbr_args(), 4); // 3 + self
+
     assert_eq!(frame.lookup_argument(0), &Value::NIL);
     assert_eq!(frame.lookup_argument(1), &Value::INTEGER_ZERO);
     assert_eq!(frame.lookup_argument(2), &Value::INTEGER_ONE);
@@ -98,10 +100,12 @@ fn frame_basic_arg_access(universe: &mut Universe) {
 fn frame_mixed_local_and_arg_access(universe: &mut Universe) {
     let method_ref = get_method("foo: a and: b = ( | a b c | ^ false )", "foo:and:", universe);
 
-    let mut frame = Frame::alloc_initial_method(method_ref, &[Value::Double(1000.0), Value::SYSTEM], universe.gc_interface);
+    let mut frame = Frame::alloc_initial_method(method_ref, &[Value::NIL, Value::Double(1000.0), Value::SYSTEM], universe.gc_interface);
 
-    assert_eq!(frame.lookup_argument(0), &Value::Double(1000.0));
-    assert_eq!(frame.lookup_argument(1), &Value::SYSTEM);
+    assert_eq!(frame.get_nbr_args(), 3); // 2 + self
+
+    assert_eq!(frame.lookup_argument(1), &Value::Double(1000.0));
+    assert_eq!(frame.lookup_argument(2), &Value::SYSTEM);
     assert_eq!(frame.lookup_local(0), &Value::NIL);
     assert_eq!(frame.lookup_local(1), &Value::NIL);
     assert_eq!(frame.lookup_local(2), &Value::NIL);
