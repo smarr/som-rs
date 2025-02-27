@@ -32,6 +32,13 @@ pub struct Frame {
     /// Alternatively, can be seen as number of elements on the stack
     pub stack_ptr: u8,
 
+    /// It's also stored in the current context, but we keep it here for faster access since we
+    /// need it to calculate the offset to local variables
+    pub nbr_args: u8,
+
+    /// Needed for similar reasons as the number of arguments, for easier access to args and locals.
+    pub max_stack_size: u8,
+
     /// markers. we don't use them directly. it's mostly a reminder that the struct looks different in memory... not the cleanest but not sure how else to go about it
     pub stack_marker: PhantomData<[Value]>,
     pub args_marker: PhantomData<[Value]>,
@@ -100,6 +107,9 @@ impl Frame {
 
             frame.stack_ptr = 0;
 
+            frame.max_stack_size = stack_size as u8;
+            frame.nbr_args = args.len() as u8;
+
             // initializing arguments from the args slice
             let args_ptr = frame_ptr.as_ptr().byte_add(OFFSET_TO_STACK + stack_size * size_of::<Value>()) as *mut Value;
             std::slice::from_raw_parts_mut(args_ptr, args.len()).copy_from_slice(args);
@@ -121,6 +131,8 @@ impl Frame {
             current_context: block.blk_info,
             bytecode_idx: 0,
             stack_ptr: 0,
+            nbr_args: 0,
+            max_stack_size: 0,
             args_marker: PhantomData,
             locals_marker: PhantomData,
             stack_marker: PhantomData,
@@ -134,6 +146,8 @@ impl Frame {
             current_context: method,
             bytecode_idx: 0,
             stack_ptr: 0,
+            nbr_args: 0,
+            max_stack_size: 0,
             args_marker: PhantomData,
             locals_marker: PhantomData,
             stack_marker: PhantomData,
@@ -152,7 +166,7 @@ impl Frame {
 
     #[inline(always)]
     pub fn get_max_stack_size(&self) -> usize {
-        self.current_context.get_env().max_stack_size as usize
+        self.max_stack_size as usize
     }
 
     /// # Safety
@@ -208,7 +222,7 @@ impl Frame {
     pub fn lookup_local(&self, idx: usize) -> &Value {
         unsafe {
             let value_heap_ptr = (self as *const Self).byte_add(OFFSET_TO_STACK) as *mut Value;
-            let locals_ptr = value_heap_ptr.add(self.get_max_stack_size() + self.current_context.get_env().nbr_params + 1);
+            let locals_ptr = value_heap_ptr.add(self.get_max_stack_size() + self.nbr_args as usize);
             &*locals_ptr.add(idx)
         }
     }
@@ -218,7 +232,7 @@ impl Frame {
     pub fn assign_local(&mut self, idx: usize, value: Value) {
         unsafe {
             let value_heap_ptr = (self as *const Self).byte_add(OFFSET_TO_STACK) as *mut Value;
-            let locals_ptr = value_heap_ptr.add(self.get_max_stack_size() + self.current_context.get_env().nbr_params + 1);
+            let locals_ptr = value_heap_ptr.add(self.get_max_stack_size() + self.nbr_args as usize);
             *locals_ptr.add(idx) = value
         }
     }

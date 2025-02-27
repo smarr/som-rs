@@ -267,6 +267,8 @@ impl GCInterface {
         //unsafe { &mut (*self.default_allocator) }.alloc(size, GC_ALIGN, GC_OFFSET)
         let _gc_watcher = self.start_the_world_count;
         let addr = unsafe { &mut (*self.default_allocator) }.alloc(size, GC_ALIGN, GC_OFFSET);
+        std::sync::atomic::fence(std::sync::atomic::Ordering::Release);
+
         #[cfg(debug_assertions)]
         if self.start_the_world_count > _gc_watcher {
             match _alloc_origin_marker {
