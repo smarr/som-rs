@@ -60,8 +60,10 @@ impl Slot for RefValueSlot {
         unsafe {
             debug_assert!(
                 (*self.value).is_ptr_type(),
-                "load failed, not a pointer type (value: {})",
-                (*self.value).as_u64()
+                "load failed, pointer 0x{:x} does not point to a value pointer type (value: {}, tag: {})",
+                self.value as usize,
+                (*self.value).as_u64(),
+                (*self.value).tag()
             );
             ObjectReference::from_raw_address(Address::from_usize((*self.value).extract_pointer_bits() as usize))
         }
