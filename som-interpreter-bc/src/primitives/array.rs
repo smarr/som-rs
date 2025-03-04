@@ -5,7 +5,7 @@ use crate::gc::VecValue;
 use crate::interpreter::Interpreter;
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
-use crate::value::convert::Primitive;
+use crate::value::convert::{IntoValue, Primitive};
 use crate::value::{HeapValPtr, Value};
 use anyhow::{Context, Error};
 use once_cell::sync::Lazy;
@@ -50,11 +50,20 @@ fn length(receiver: HeapValPtr<VecValue>) -> Result<i32, Error> {
     receiver.deref().0.len().try_into().context("could not convert `usize` to `i32`")
 }
 
-fn new(_: &mut Interpreter, universe: &mut Universe, _: Value, count: i32) -> Result<Gc<VecValue>, Error> {
-    let count = usize::try_from(count)?;
-    let allocated = universe.gc_interface.alloc_with_marker(VecValue(vec![Value::NIL; count]), Some(AllocSiteMarker::Array));
+fn new(interp: &mut Interpreter, universe: &mut Universe) -> Result<(), Error> {
+    // this whole thing is an attempt at fixing a GC related bug when allocating an Array
+    // I think it did work, to be fair... but TODO clean up.
 
-    Ok(allocated)
+    std::hint::black_box(&interp.current_frame);
+
+    let count = usize::try_from(interp.get_current_frame().stack_pop().as_integer().unwrap())?;
+    interp.get_current_frame().stack_pop(); // receiver is just an unneeded Array class
+
+    let mut arr_ptr: Gc<VecValue> = universe.gc_interface.request_memory_for_type(size_of::<VecValue>(), Some(AllocSiteMarker::Array));
+    *arr_ptr = VecValue(vec![Value::NIL; count]);
+
+    interp.get_current_frame().stack_push(arr_ptr.into_value());
+    Ok(())
 }
 
 fn copy(_: &mut Interpreter, universe: &mut Universe, arr: HeapValPtr<VecValue>) -> Result<Gc<VecValue>, Error> {

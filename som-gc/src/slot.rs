@@ -27,8 +27,14 @@ impl<T> From<&GcSlice<T>> for SOMSlot {
 }
 
 impl From<*mut BaseValue> for SOMSlot {
+    // we allow unsafe derefs since it's just for debugging
+    #[allow(clippy::not_unsafe_ptr_arg_deref)]
     fn from(value: *mut BaseValue) -> Self {
-        SOMSlot::RefValueSlot(RefValueSlot { value })
+        SOMSlot::RefValueSlot(RefValueSlot {
+            value,
+            #[cfg(debug_assertions)]
+            expected_tag: (unsafe { *value }).tag(),
+        })
     }
 }
 
@@ -51,6 +57,11 @@ impl Slot for SOMSlot {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct RefValueSlot {
     value: *mut BaseValue,
+    #[cfg(debug_assertions)]
+    /// for debugging. Sometimes, a bug makes it that the value's type changes in between the time
+    /// it's stored and the time it's loaded.
+    /// So this can be used to check the original type, by manually comparing it to the NaN boxing tag list.
+    expected_tag: u64,
 }
 
 unsafe impl Send for RefValueSlot {}
@@ -58,12 +69,14 @@ unsafe impl Send for RefValueSlot {}
 impl Slot for RefValueSlot {
     fn load(&self) -> Option<ObjectReference> {
         unsafe {
+            #[cfg(debug_assertions)] // a bit silly, but otherwise rust complains release versions don't have expected_tag
             debug_assert!(
                 (*self.value).is_ptr_type(),
-                "load failed, pointer 0x{:x} does not point to a value pointer type (value: {}, tag: {})",
+                "load failed, pointer 0x{:x} does not point to a value pointer type (value: {}, tag: {}, expected_tag: {})",
                 self.value as usize,
                 (*self.value).as_u64(),
-                (*self.value).tag()
+                (*self.value).tag(),
+                self.expected_tag
             );
             ObjectReference::from_raw_address(Address::from_usize((*self.value).extract_pointer_bits() as usize))
         }

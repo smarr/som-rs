@@ -253,7 +253,7 @@ impl GCInterface {
     /// Request `size` bytes from MMTk.
     /// Importantly, this MAY TRIGGER A COLLECTION. Which means any function that relies on it must be mindful of this,
     /// such as by making sure no arguments are dangling on the Rust stack away from the GC's reach.
-    pub fn request_bytes(&mut self, size: usize) -> Address {
+    pub fn request_bytes(&mut self, size: usize, _alloc_origin_marker: Option<AllocSiteMarker>) -> Address {
         unsafe { &mut (*self.default_allocator) }.alloc(size, GC_ALIGN, GC_OFFSET)
         // slow path, for debugging
         // crate::api::mmtk_alloc(&mut self.mutator, size, GC_ALIGN, GC_OFFSET, AllocationSemantics::Default)
@@ -265,7 +265,12 @@ impl GCInterface {
     /// such as by making sure no arguments are dangling on the Rust stack away from the GC's reach.
     pub fn request_bytes(&mut self, size: usize, _alloc_origin_marker: Option<AllocSiteMarker>) -> Address {
         //unsafe { &mut (*self.default_allocator) }.alloc(size, GC_ALIGN, GC_OFFSET)
+
         let _gc_watcher = self.start_the_world_count;
+
+        // Release builds must not assume this value is unchanging: it can, that's the point of the check later on.
+        std::hint::black_box(&self.start_the_world_count);
+
         let addr = unsafe { &mut (*self.default_allocator) }.alloc(size, GC_ALIGN, GC_OFFSET);
         std::sync::atomic::fence(std::sync::atomic::Ordering::Release);
 
