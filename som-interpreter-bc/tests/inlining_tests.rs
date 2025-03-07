@@ -41,7 +41,12 @@ fn get_bytecodes_from_method(class_txt: &str, method_name: &str) -> Vec<Bytecode
 }
 
 fn expect_bytecode_sequence(bytecodes: &[Bytecode], expected_bc_sequence: &[Bytecode]) {
-    assert!(bytecodes.windows(expected_bc_sequence.len()).any(|window| window == expected_bc_sequence))
+    assert!(
+        bytecodes.windows(expected_bc_sequence.len()).any(|window| window == expected_bc_sequence),
+        "Wrong BC sequence: \n{:?}\nExpected:\n{:?}",
+        bytecodes,
+        expected_bc_sequence
+    )
 }
 
 #[test]
@@ -148,7 +153,7 @@ fn while_true_false_inlining_ok() {
         &[
             PushLocal(0),
             PushConstant(1),
-            Send2(Interned(71)),
+            Send2(Interned(72)),
             JumpOnFalsePop(5),
             PushLocal(0),
             Inc,

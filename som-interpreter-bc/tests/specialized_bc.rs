@@ -41,7 +41,12 @@ fn get_bytecodes_from_method(class_txt: &str, method_name: &str) -> Vec<Bytecode
 
 fn expect_bytecode_sequence(bytecodes: &[Bytecode], expected_bc_sequence: &[Bytecode]) {
     // could replace all the Interned with a "0" here to avoid hard coding their values in tests
-    assert!(bytecodes.windows(expected_bc_sequence.len()).any(|window| window == expected_bc_sequence))
+    assert!(
+        bytecodes.windows(expected_bc_sequence.len()).any(|window| window == expected_bc_sequence),
+        "Wrong BC sequence: \n{:?}\nExpected:\n{:?}",
+        bytecodes,
+        expected_bc_sequence
+    )
 }
 
 #[test]
@@ -113,14 +118,14 @@ fn send_bytecodes() {
 
     let bytecodes = get_bytecodes_from_method(class_txt, "run");
 
-    expect_bytecode_sequence(&bytecodes, &[Push1, Send1(Interned(94))]);
+    expect_bytecode_sequence(&bytecodes, &[Push1, Send1(Interned(95))]);
 
     // we do a "+ 2" to not have the bytecode INC replace a Send2.
     expect_bytecode_sequence(&bytecodes, &[Push1, PushConstant(0), Send2(Interned(12))]);
 
-    expect_bytecode_sequence(&bytecodes, &[PushSelf, Push1, Push1, Send3(Interned(190))]);
+    expect_bytecode_sequence(&bytecodes, &[PushSelf, Push1, Push1, Send3(Interned(191))]);
 
-    expect_bytecode_sequence(&bytecodes, &[PushSelf, Push1, Push1, Push1, SendN(Interned(191))]);
+    expect_bytecode_sequence(&bytecodes, &[PushSelf, Push1, Push1, Push1, SendN(Interned(192))]);
 }
 
 #[test]
@@ -137,13 +142,13 @@ fn super_send_bytecodes() {
 
     let bytecodes = get_bytecodes_from_method(class_txt, "run");
 
-    expect_bytecode_sequence(&bytecodes, &[PushSelf, SuperSend(Interned(190))]);
+    expect_bytecode_sequence(&bytecodes, &[PushSelf, SuperSend(Interned(191))]);
 
-    expect_bytecode_sequence(&bytecodes, &[PushSelf, Push1, SuperSend(Interned(191))]);
+    expect_bytecode_sequence(&bytecodes, &[PushSelf, Push1, SuperSend(Interned(192))]);
 
-    expect_bytecode_sequence(&bytecodes, &[PushSelf, Push1, Push1, SuperSend(Interned(192))]);
+    expect_bytecode_sequence(&bytecodes, &[PushSelf, Push1, Push1, SuperSend(Interned(193))]);
 
-    expect_bytecode_sequence(&bytecodes, &[PushSelf, Push1, Push1, Push1, SuperSend(Interned(193))]);
+    expect_bytecode_sequence(&bytecodes, &[PushSelf, Push1, Push1, Push1, SuperSend(Interned(194))]);
 }
 
 #[test]
