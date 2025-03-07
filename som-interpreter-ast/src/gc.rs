@@ -17,7 +17,7 @@ use som_gc::gcslice::GcSlice;
 use som_gc::object_model::VMObjectModel;
 use som_gc::slot::SOMSlot;
 use som_gc::SOMVM;
-use std::ops::Deref;
+use std::ops::{Deref, DerefMut};
 
 // Mine. to put in GC headers
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -34,13 +34,26 @@ pub enum AstObjMagicId {
     Instance = 107,
 }
 
-// TODO: HACK. this is to be able to define a magic id for it. what we REALLY need is a GCSlice<T> type.
-pub struct VecValue(pub Vec<Value>);
+// we have to wrap it in our own type to be able to implement traits on it
+#[derive(Clone, Copy)]
+pub struct VecValue(pub GcSlice<Value>);
 
 impl Deref for VecValue {
-    type Target = Vec<Value>;
+    type Target = GcSlice<Value>;
     fn deref(&self) -> &Self::Target {
         &self.0
+    }
+}
+
+impl DerefMut for VecValue {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl SupportedSliceType for Value {
+    fn get_magic_gc_slice_id() -> u8 {
+        AstObjMagicId::ArrayVal as u8
     }
 }
 
@@ -196,7 +209,7 @@ pub fn scan_object<'a>(object: ObjectReference, slot_visitor: &'a mut (dyn SlotV
                             visit_value(cached_entry, slot_visitor)
                         }
                     }
-                    MethodKind::Primitive(_) | MethodKind::TrivialGetter(_) | MethodKind::TrivialSetter(_) => {} // MethodKind::Specialized(_) => {} // for now, specialized methods don't contain data that needs to be traced.
+                    MethodKind::Primitive(_) | MethodKind::TrivialGetter(_) | MethodKind::TrivialSetter(_) => {}
                 }
             }
             AstObjMagicId::Instance => {
@@ -226,8 +239,8 @@ pub fn scan_object<'a>(object: ObjectReference, slot_visitor: &'a mut (dyn SlotV
                 }
             }
             AstObjMagicId::ArrayVal => {
-                let array_val: &Vec<Value> = object.to_raw_address().as_ref();
-                for val in array_val {
+                let array_val: GcSlice<Value> = GcSlice::from(object.to_raw_address());
+                for val in array_val.iter() {
                     visit_value(val, slot_visitor)
                 }
             }
@@ -375,7 +388,10 @@ fn get_object_size(object: ObjectReference) -> usize {
             let literals: GcSlice<AstLiteral> = GcSlice::from(object.to_raw_address());
             literals.get_true_size()
         }
-        AstObjMagicId::ArrayVal => size_of::<Vec<Value>>(),
+        AstObjMagicId::ArrayVal => {
+            let values: GcSlice<Value> = GcSlice::from(object.to_raw_address());
+            values.get_true_size()
+        }
         AstObjMagicId::Method => size_of::<Method>(),
         AstObjMagicId::Block => size_of::<Block>(),
         AstObjMagicId::Class => size_of::<Class>(),

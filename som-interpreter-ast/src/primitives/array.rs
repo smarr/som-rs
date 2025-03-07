@@ -3,11 +3,10 @@ use crate::gc::VecValue;
 use crate::primitives::PrimitiveFn;
 use crate::universe::{GlobalValueStack, Universe};
 use crate::value::convert::Primitive;
-use crate::value::HeapValPtr;
 use crate::value::Value;
 use anyhow::{bail, Error};
 use once_cell::sync::Lazy;
-use som_gc::gcref::Gc;
+use som_gc::gcslice::GcSlice;
 use std::convert::TryFrom;
 
 pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
@@ -21,35 +20,35 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
 
 pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([("new:", self::new.into_func(), true)]));
 
-fn at(_: &mut Universe, _value_stack: &mut GlobalValueStack, values: HeapValPtr<VecValue>, index: i32) -> Result<Value, Error> {
+fn at(_: &mut Universe, _value_stack: &mut GlobalValueStack, values: VecValue, index: i32) -> Result<Value, Error> {
     const SIGNATURE: &str = "Array>>#at:";
 
     let index = match usize::try_from(index - 1) {
         Ok(index) => index,
         Err(err) => bail!(format!("'{}': {}", SIGNATURE, err)),
     };
-    let value = values.deref().get(index).cloned().unwrap_or(Value::NIL);
+    let value = values.get_checked(index).cloned().unwrap_or(Value::NIL);
 
     Ok(value)
 }
 
-fn at_put(_: &mut Universe, _value_stack: &mut GlobalValueStack, values: HeapValPtr<VecValue>, index: i32, value: Value) -> Result<Value, Error> {
+fn at_put(_: &mut Universe, _value_stack: &mut GlobalValueStack, mut values: VecValue, index: i32, value: Value) -> Result<Value, Error> {
     const SIGNATURE: &str = "Array>>#at:put:";
 
     let index = match usize::try_from(index - 1) {
         Ok(index) => index,
         Err(err) => bail!(format!("'{}': {}", SIGNATURE, err)),
     };
-    if let Some(location) = values.deref().0.get_mut(index) {
+    if let Some(location) = values.get_checked_mut(index) {
         *location = value;
     }
-    Ok(Value::Array(values.deref()))
+    Ok(Value::Array(values))
 }
 
-fn length(_: &mut Universe, _value_stack: &mut GlobalValueStack, values: HeapValPtr<VecValue>) -> Result<Value, Error> {
+fn length(_: &mut Universe, _value_stack: &mut GlobalValueStack, values: VecValue) -> Result<Value, Error> {
     const SIGNATURE: &str = "Array>>#length";
 
-    let length = values.deref().len();
+    let length = values.len();
     match i32::try_from(length) {
         Ok(length) => Ok(Value::Integer(length)),
         Err(err) => bail!(format!("'{}': {}", SIGNATURE, err)),
@@ -60,15 +59,15 @@ fn new(universe: &mut Universe, _value_stack: &mut GlobalValueStack, _: Value, c
     const SIGNATURE: &str = "Array>>#new:";
 
     match usize::try_from(count) {
-        Ok(length) => Ok(Value::Array(universe.gc_interface.alloc(VecValue(vec![Value::NIL; length])))),
+        Ok(length) => Ok(Value::Array(VecValue(universe.gc_interface.alloc_slice(&vec![Value::NIL; length])))),
         Err(err) => bail!(format!("'{}': {}", SIGNATURE, err)),
     }
 }
 
-fn copy(universe: &mut Universe, _value_stack: &mut GlobalValueStack, arr: HeapValPtr<VecValue>) -> Result<Gc<VecValue>, Error> {
-    let copied_arr = VecValue((*arr.deref()).0.clone());
-    let allocated: Gc<VecValue> = universe.gc_interface.alloc(copied_arr);
-    Ok(allocated)
+fn copy(universe: &mut Universe, _value_stack: &mut GlobalValueStack, arr: VecValue) -> Result<VecValue, Error> {
+    let copied_arr: Vec<Value> = arr.iter().copied().collect();
+    let allocated: GcSlice<Value> = universe.gc_interface.alloc_slice(&copied_arr);
+    Ok(VecValue(allocated))
 }
 
 /// Search for an instance primitive matching the given signature.

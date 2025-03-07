@@ -1,6 +1,7 @@
 use std::convert::TryFrom;
 
 use anyhow::{bail, Context, Error};
+use som_gc::gcslice::GcSlice;
 use som_value::interned::Interned;
 use som_value::value::BaseValue;
 use som_value::value_ptr::HasPointerTag;
@@ -122,6 +123,12 @@ impl FromArgs for Interned {
     }
 }
 
+impl FromArgs for VecValue {
+    fn from_args(arg: &Value) -> Result<Self, Error> {
+        Ok(VecValue(GcSlice::from(arg.extract_pointer_bits())))
+    }
+}
+
 impl<T> FromArgs for HeapValPtr<T>
 where
     T: HasPointerTag,
@@ -179,7 +186,7 @@ impl IntoValue for Gc<BigInt> {
     }
 }
 
-impl IntoValue for Gc<VecValue> {
+impl IntoValue for VecValue {
     fn into_value(&self) -> Value {
         Value::Array(*self)
     }

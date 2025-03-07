@@ -44,7 +44,7 @@ fn invoke_on_with(
     value_stack: &mut GlobalValueStack,
     mut invokable: HeapValPtr<Method>,
     receiver: Value,
-    arguments: HeapValPtr<VecValue>,
+    arguments: VecValue,
 ) -> Result<Return, Error> {
     todo!()
     // let args = std::iter::once(receiver).chain(arguments.iter().cloned()).collect();

@@ -59,6 +59,13 @@ where
         unsafe { self.nth_addr(idx).as_mut_ref() }
     }
 
+    pub fn get_checked_mut(&mut self, idx: usize) -> Option<&mut T> {
+        if idx >= self.len() {
+            return None;
+        }
+        Some(self.get_mut(idx))
+    }
+
     pub fn set(&mut self, idx: usize, val: T) {
         debug_assert!(idx < self.len());
         *self.get_mut(idx) = val
@@ -74,6 +81,18 @@ impl<T> PartialEq for GcSlice<T> {
 impl<T> From<&GcSlice<T>> for Address {
     fn from(ptr: &GcSlice<T>) -> Self {
         Address::from_ref(ptr)
+    }
+}
+
+impl<T> From<GcSlice<T>> for u64 {
+    fn from(val: GcSlice<T>) -> Self {
+        val.0.into()
+    }
+}
+
+impl<T> From<u64> for GcSlice<T> {
+    fn from(value: u64) -> Self {
+        Self(Gc::from(value))
     }
 }
 

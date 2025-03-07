@@ -42,20 +42,20 @@ fn name(universe: &mut Universe, _value_stack: &mut GlobalValueStack, receiver: 
 }
 
 fn methods(universe: &mut Universe, _value_stack: &mut GlobalValueStack, receiver: HeapValPtr<Class>) -> Result<Value, Error> {
-    let methods = receiver.deref().methods.values().map(|invokable| Value::Invokable(*invokable)).collect();
+    let methods: Vec<Value> = receiver.deref().methods.values().map(|invokable| Value::Invokable(*invokable)).collect();
 
-    Ok(Value::Array(universe.gc_interface.alloc(VecValue(methods))))
+    Ok(Value::Array(VecValue(universe.gc_interface.alloc_slice(&methods))))
 }
 
 fn fields(universe: &mut Universe, _value_stack: &mut GlobalValueStack, receiver: HeapValPtr<Class>) -> Result<Value, Error> {
-    let fields = receiver
+    let fields: Vec<Value> = receiver
         .deref()
         .get_all_field_names()
         .iter()
         .map(|field_name| Value::String(universe.gc_interface.alloc(field_name.clone())))
         .collect();
 
-    Ok(Value::Array(universe.gc_interface.alloc(VecValue(fields))))
+    Ok(Value::Array(VecValue(universe.gc_interface.alloc_slice(&fields))))
 }
 
 /// Search for an instance primitive matching the given signature.

@@ -350,7 +350,7 @@ impl Universe {
         let method_name = self.intern_symbol("doesNotUnderstand:arguments:");
         let mut initialize = value.lookup_method(self, method_name)?;
         let sym = Value::Symbol(sym);
-        let args = Value::Array(self.gc_interface.alloc(VecValue(args)));
+        let args = Value::Array(VecValue(self.gc_interface.alloc_slice(&args)));
 
         // eprintln!("Couldn't invoke {}; exiting.", symbol.as_ref()); std::process::exit(1);
 
@@ -382,7 +382,7 @@ impl Universe {
     pub fn initialize(&mut self, args: Vec<Value>, value_stack: &mut GlobalValueStack) -> Option<Return> {
         let method_name = self.interner.intern("initialize:");
         let mut initialize = Value::SYSTEM.lookup_method(self, method_name)?;
-        let args = Value::Array(self.gc_interface.alloc(VecValue(args)));
+        let args = Value::Array(VecValue(self.gc_interface.alloc_slice(&args)));
         value_stack.push(Value::SYSTEM);
         value_stack.push(args);
         let program_result = initialize.invoke(self, value_stack, 2);

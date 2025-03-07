@@ -83,8 +83,9 @@ impl Value {
     // }
 
     #[allow(non_snake_case)]
-    pub fn Array(value: Gc<VecValue>) -> Self {
-        TypedPtrValue::new(value).into()
+    pub fn Array(value: VecValue) -> Self {
+        // TODO use TypedPtrValue somehow instead
+        Value(BaseValue::new(ARRAY_TAG, value.0.into()))
     }
     #[allow(non_snake_case)]
     #[inline(always)]

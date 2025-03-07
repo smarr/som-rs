@@ -89,7 +89,7 @@ fn perform_with_arguments(
     value_stack: &mut GlobalValueStack,
     object: Value,
     sym: Interned,
-    arr: HeapValPtr<VecValue>,
+    arr: VecValue,
 ) -> Result<Return, Error> {
     const SIGNATURE: &str = "Object>>#perform:withArguments:";
 
@@ -101,16 +101,17 @@ fn perform_with_arguments(
             //     .chain(arr.replace(Vec::default()))
             //     .collect();
             value_stack.push(object);
-            for val in arr.deref().0.iter() {
+            for val in arr.iter() {
                 value_stack.push(*val)
             }
-            Ok(invokable.invoke(universe, value_stack, arr.deref().0.len() + 1))
+            Ok(invokable.invoke(universe, value_stack, arr.len() + 1))
         }
         None => {
             // let args = std::iter::once(object.clone())
             //     .chain(arr.replace(Vec::default()))
             //     .collect();
-            let args = std::iter::once(object).chain((*arr.deref()).clone()).collect();
+            let arr2: Vec<Value> = arr.iter().copied().collect();
+            let args = std::iter::once(object).chain(arr2).collect();
 
             Ok(universe.does_not_understand(value_stack, object, sym, args).unwrap_or_else(|| {
                 panic!(
@@ -163,7 +164,7 @@ fn perform_with_arguments_in_super_class(
     value_stack: &mut GlobalValueStack,
     object: Value,
     sym: Interned,
-    arr: HeapValPtr<VecValue>,
+    arr: VecValue,
     class: HeapValPtr<Class>,
 ) -> Result<Return, Error> {
     const SIGNATURE: &str = "Object>>#perform:withArguments:inSuperclass:";
@@ -185,7 +186,8 @@ fn perform_with_arguments_in_super_class(
             // let args = std::iter::once(object.clone())
             //     .chain(arr.replace(Vec::default()))
             //     .collect();
-            let args = std::iter::once(object).chain((*arr.deref()).clone()).collect();
+            let arr2: Vec<Value> = arr.iter().copied().collect();
+            let args = std::iter::once(object).chain(arr2).collect();
 
             Ok(
                 universe.does_not_understand(value_stack, Value::Class(class.deref()), sym, args).unwrap_or_else(|| {

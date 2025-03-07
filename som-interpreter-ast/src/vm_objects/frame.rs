@@ -1,6 +1,7 @@
 use crate::universe::{GlobalValueStack, Universe};
 use crate::value::Value;
 use core::mem::size_of;
+#[cfg(debug_assertions)]
 use som_gc::debug_assert_valid_semispace_ptr;
 use som_gc::gc_interface::AllocSiteMarker;
 use som_gc::gcref::Gc;
