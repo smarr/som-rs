@@ -234,7 +234,7 @@ impl Universe {
 
         interpreter.push_method_frame_with_args(
             method,
-            vec![value, Value::Symbol(symbol), Value::Array(self.gc_interface.alloc(VecValue(args)))],
+            vec![value, Value::Symbol(symbol), Value::Array(VecValue(self.gc_interface.alloc_slice(&args)))],
             self.gc_interface,
         );
 
@@ -257,7 +257,7 @@ impl Universe {
         let method_name = self.interner.intern("initialize:");
         let method = Value::SYSTEM.lookup_method(self, method_name)?;
 
-        let args_vec = self.gc_interface.alloc(VecValue(args));
+        let args_vec = VecValue(self.gc_interface.alloc_slice(&args));
         let frame_ptr = Frame::alloc_initial_method(method, &[Value::SYSTEM, Value::Array(args_vec)], self.gc_interface);
         let interpreter = Interpreter::new(frame_ptr);
 

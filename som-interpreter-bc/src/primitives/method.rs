@@ -36,7 +36,7 @@ fn invoke_on_with(
     universe: &mut Universe,
     invokable: HeapValPtr<Method>,
     receiver: Value,
-    arguments: HeapValPtr<VecValue>,
+    arguments: VecValue,
 ) -> Result<(), Error> {
     const _: &str = "Method>>#invokeOn:with:";
 
@@ -44,7 +44,7 @@ fn invoke_on_with(
         interpreter,
         universe,
         receiver,
-        arguments.deref().0.clone(), // todo lame to clone tbh
+        arguments.iter().copied().collect(), // todo lame to clone tbh
     );
     Ok(())
 }

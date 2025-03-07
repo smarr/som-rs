@@ -91,7 +91,7 @@ fn perform_with_arguments(
     universe: &mut Universe,
     receiver: Value,
     signature: Interned,
-    arguments: HeapValPtr<VecValue>,
+    arguments: VecValue,
 ) -> Result<(), Error> {
     const SIGNATURE: &str = "Object>>#perform:withArguments:";
 
@@ -99,13 +99,13 @@ fn perform_with_arguments(
 
     let Some(invokable) = receiver.lookup_method(universe, signature) else {
         let signature_str = universe.lookup_symbol(signature).to_owned();
-        let args = std::iter::once(receiver).chain(arguments.deref().0.clone()).collect(); // lame clone
+        let args = std::iter::once(receiver).chain(arguments.iter().copied()).collect(); // lame clone
         return universe
             .does_not_understand(interpreter, receiver, signature, args)
             .with_context(|| format!("`{SIGNATURE}`: method `{signature_str}` not found for `{}`", receiver.to_string(universe)));
     };
 
-    invokable.invoke(interpreter, universe, receiver, arguments.deref().0.clone());
+    invokable.invoke(interpreter, universe, receiver, arguments.iter().copied().collect());
     Ok(())
 }
 
@@ -137,7 +137,7 @@ fn perform_with_arguments_in_super_class(
     universe: &mut Universe,
     receiver: Value,
     signature: Interned,
-    arguments: HeapValPtr<VecValue>,
+    arguments: VecValue,
     class: HeapValPtr<Class>,
 ) -> Result<(), Error> {
     const SIGNATURE: &str = "Object>>#perform:withArguments:inSuperclass:";
@@ -148,13 +148,13 @@ fn perform_with_arguments_in_super_class(
 
     let Some(invokable) = method else {
         let signature_str = universe.lookup_symbol(signature).to_owned();
-        let args = std::iter::once(receiver).chain(arguments.deref().0.clone()).collect(); // lame to clone args, right?
+        let args = std::iter::once(receiver).chain(arguments.iter().copied()).collect(); // lame to clone args, right?
         return universe
             .does_not_understand(interpreter, Value::Class(class.deref()), signature, args)
             .with_context(|| format!("`{SIGNATURE}`: method `{signature_str}` not found for `{}`", receiver.to_string(universe)));
     };
 
-    invokable.invoke(interpreter, universe, receiver, arguments.deref().0.clone());
+    invokable.invoke(interpreter, universe, receiver, arguments.iter().copied().collect());
     Ok(())
 }
 

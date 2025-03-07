@@ -9,6 +9,7 @@ use crate::vm_objects::method::Method;
 use num_bigint::BigInt;
 use som_gc::debug_assert_valid_semispace_ptr_value;
 use som_gc::gcref::Gc;
+use som_gc::gcslice::GcSlice;
 use som_value::delegate_to_base_value;
 use som_value::interned::Interned;
 use som_value::value::*;
@@ -86,8 +87,11 @@ impl Value {
 
     /// Returns this value as an array, if such is its type.
     #[inline(always)]
-    pub fn as_array(self) -> Option<Gc<VecValue>> {
-        self.as_value_ptr::<VecValue>()
+    pub fn as_array(self) -> Option<VecValue> {
+        match self.tag() == ARRAY_TAG {
+            true => Some(VecValue(GcSlice::from(self.extract_pointer_bits()))),
+            false => None,
+        }
     }
     /// Returns this value as a block, if such is its type.
     #[inline(always)]
@@ -196,8 +200,9 @@ impl Value {
 #[allow(non_snake_case)]
 impl Value {
     #[inline(always)]
-    pub fn Array(value: Gc<VecValue>) -> Self {
-        TypedPtrValue::new(value).into()
+    pub fn Array(value: VecValue) -> Self {
+        // TODO use TypedPtrValue somehow instead
+        Value(BaseValue::new(ARRAY_TAG, value.0.into()))
     }
 
     #[inline(always)]

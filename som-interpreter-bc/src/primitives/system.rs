@@ -163,14 +163,14 @@ fn full_gc(_: &mut Interpreter, universe: &mut Universe, _: Value) -> Result<boo
     Ok(universe.gc_interface.full_gc_request())
 }
 
-fn gc_stats(_: &mut Interpreter, universe: &mut Universe, _: Value) -> Result<Gc<VecValue>, Error> {
+fn gc_stats(_: &mut Interpreter, universe: &mut Universe, _: Value) -> Result<VecValue, Error> {
     let gc_interface = &mut universe.gc_interface;
 
     let total_gc = gc_interface.get_nbr_collections();
     let total_gc_time = gc_interface.alloc(BigInt::from(gc_interface.get_total_gc_time()));
     let total_bytes_bigint = gc_interface.alloc(BigInt::from(gc_interface.get_used_bytes()));
 
-    Ok(universe.gc_interface.alloc(VecValue(vec![
+    Ok(VecValue(universe.gc_interface.alloc_slice(&[
         Value::Integer(total_gc as i32),
         Value::BigInteger(total_gc_time),
         Value::BigInteger(total_bytes_bigint),

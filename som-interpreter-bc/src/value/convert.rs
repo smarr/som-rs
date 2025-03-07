@@ -1,4 +1,5 @@
 use anyhow::{bail, Context, Error};
+use som_gc::gcslice::GcSlice;
 use som_value::value_ptr::HasPointerTag;
 use std::convert::TryFrom;
 
@@ -117,11 +118,11 @@ impl FromArgs for Interned {
     }
 }
 
-// impl<T: HasPointerTag> FromArgs for Gc<T> {
-//     fn from_args(arg: &Value) -> Result<Self, Error> {
-//         arg.as_ptr().context("could not resolve `Value` as correct pointer")
-//     }
-// }
+impl FromArgs for VecValue {
+    fn from_args(arg: &Value) -> Result<Self, Error> {
+        Ok(VecValue(GcSlice::from(arg.extract_pointer_bits())))
+    }
+}
 
 impl<T: HasPointerTag> FromArgs for HeapValPtr<T> {
     fn from_args(arg: &'static Value) -> Result<Self, Error> {
@@ -171,7 +172,7 @@ impl IntoValue for Gc<BigInt> {
     }
 }
 
-impl IntoValue for Gc<VecValue> {
+impl IntoValue for VecValue {
     fn into_value(&self) -> Value {
         Value::Array(*self)
     }

@@ -6,11 +6,11 @@ use crate::interpreter::Interpreter;
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
 use crate::value::convert::{IntoValue, Primitive};
-use crate::value::{HeapValPtr, Value};
+use crate::value::Value;
 use anyhow::{Context, Error};
 use once_cell::sync::Lazy;
 use som_gc::gc_interface::AllocSiteMarker;
-use som_gc::gcref::Gc;
+use som_gc::gcslice::GcSlice;
 
 pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
     Box::new([
@@ -26,28 +26,28 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
 
 pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([("new:", self::new.into_func(), true)]));
 
-fn at(receiver: HeapValPtr<VecValue>, index: i32) -> Result<Value, Error> {
+fn at(receiver: VecValue, index: i32) -> Result<Value, Error> {
     const _: &str = "Array>>#at:";
 
     let index = usize::try_from(index - 1)?;
 
-    receiver.deref().0.get(index).cloned().context("index out of bounds")
+    receiver.get_checked(index).cloned().context("index out of bounds")
 }
 
-fn at_put(receiver: HeapValPtr<VecValue>, index: i32, value: Value) -> Result<Gc<VecValue>, Error> {
+fn at_put(mut receiver: VecValue, index: i32, value: Value) -> Result<VecValue, Error> {
     const _: &str = "Array>>#at:put:";
 
     let index = usize::try_from(index - 1)?;
 
-    if let Some(location) = receiver.deref().0.get_mut(index) {
+    if let Some(location) = receiver.get_checked_mut(index) {
         *location = value;
     }
 
-    Ok(receiver.deref())
+    Ok(receiver)
 }
 
-fn length(receiver: HeapValPtr<VecValue>) -> Result<i32, Error> {
-    receiver.deref().0.len().try_into().context("could not convert `usize` to `i32`")
+fn length(receiver: VecValue) -> Result<i32, Error> {
+    receiver.len().try_into().context("could not convert `usize` to `i32`")
 }
 
 fn new(interp: &mut Interpreter, universe: &mut Universe) -> Result<(), Error> {
@@ -59,17 +59,16 @@ fn new(interp: &mut Interpreter, universe: &mut Universe) -> Result<(), Error> {
     let count = usize::try_from(interp.get_current_frame().stack_pop().as_integer().unwrap())?;
     interp.get_current_frame().stack_pop(); // receiver is just an unneeded Array class
 
-    let mut arr_ptr: Gc<VecValue> = universe.gc_interface.request_memory_for_type(size_of::<VecValue>(), Some(AllocSiteMarker::Array));
-    *arr_ptr = VecValue(vec![Value::NIL; count]);
+    let arr_ptr: VecValue = VecValue(universe.gc_interface.alloc_slice_with_marker(&vec![Value::NIL; count], Some(AllocSiteMarker::Array)));
 
     interp.get_current_frame().stack_push(arr_ptr.into_value());
     Ok(())
 }
 
-fn copy(_: &mut Interpreter, universe: &mut Universe, arr: HeapValPtr<VecValue>) -> Result<Gc<VecValue>, Error> {
-    let copied_arr = VecValue((*arr.deref()).0.clone());
-    let allocated: Gc<VecValue> = universe.gc_interface.alloc(copied_arr);
-    Ok(allocated)
+fn copy(_: &mut Interpreter, universe: &mut Universe, arr: VecValue) -> Result<VecValue, Error> {
+    let copied_arr: Vec<Value> = arr.iter().copied().collect();
+    let allocated: GcSlice<Value> = universe.gc_interface.alloc_slice(&copied_arr);
+    Ok(VecValue(allocated))
 }
 
 /// Search for an instance primitive matching the given signature.

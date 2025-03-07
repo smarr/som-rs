@@ -11,6 +11,7 @@ use num_traits::{Signed, ToPrimitive};
 use once_cell::sync::Lazy;
 use rand::Rng;
 use som_gc::gcref::Gc;
+use som_gc::gcslice::GcSlice;
 use std::convert::{TryFrom, TryInto};
 
 pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
@@ -542,8 +543,8 @@ fn shift_right(_: &mut Interpreter, universe: &mut Universe, a: IntegerLike, b: 
 
 fn to(_: &mut Interpreter, universe: &mut Universe, a: i32, b: i32) -> Result<Value, Error> {
     let vec: Vec<Value> = (a..=b).map(Value::Integer).collect();
-    let alloc_vec: Gc<VecValue> = universe.gc_interface.alloc(VecValue(vec));
-    Ok(Value::Array(alloc_vec))
+    let alloc_vec: GcSlice<Value> = universe.gc_interface.alloc_slice(&vec);
+    Ok(Value::Array(VecValue(alloc_vec)))
 }
 
 /// Search for an instance primitive matching the given signature.

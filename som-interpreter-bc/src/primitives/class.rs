@@ -65,20 +65,20 @@ fn name(_: &mut Interpreter, universe: &mut Universe, receiver: HeapValPtr<Class
     Ok(universe.intern_symbol(receiver.deref().name()))
 }
 
-fn methods(_: &mut Interpreter, universe: &mut Universe, receiver: HeapValPtr<Class>) -> Result<Gc<VecValue>, Error> {
+fn methods(_: &mut Interpreter, universe: &mut Universe, receiver: HeapValPtr<Class>) -> Result<VecValue, Error> {
     const _: &str = "Class>>#methods";
 
-    let methods = receiver.deref().methods.values().copied().map(Value::Invokable).collect();
+    let methods: Vec<Value> = receiver.deref().methods.values().copied().map(Value::Invokable).collect();
 
-    Ok(universe.gc_interface.alloc(VecValue(methods)))
+    Ok(VecValue(universe.gc_interface.alloc_slice(&methods)))
 }
 
-fn fields(_: &mut Interpreter, universe: &mut Universe, receiver: HeapValPtr<Class>) -> Result<Gc<VecValue>, Error> {
+fn fields(_: &mut Interpreter, universe: &mut Universe, receiver: HeapValPtr<Class>) -> Result<VecValue, Error> {
     const _: &str = "Class>>#fields";
 
-    let fields = receiver.deref().field_names.iter().copied().map(Value::Symbol).collect();
+    let fields: Vec<Value> = receiver.deref().field_names.iter().copied().map(Value::Symbol).collect();
 
-    Ok(universe.gc_interface.alloc(VecValue(fields)))
+    Ok(VecValue(universe.gc_interface.alloc_slice(&fields)))
 }
 
 /// Search for an instance primitive matching the given signature.

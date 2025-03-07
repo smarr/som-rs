@@ -7,6 +7,7 @@ use crate::vm_objects::instance::Instance;
 use crate::vm_objects::method::Method;
 use num_bigint::BigInt;
 use som_gc::gcref::Gc;
+use som_gc::gcslice::GcSlice;
 use som_value::delegate_to_base_value;
 use som_value::interned::Interned;
 use som_value::value::*;
@@ -53,8 +54,11 @@ impl Value {
 
     /// Returns this value as an array, if such is its type.
     #[inline(always)]
-    pub fn as_array(self) -> Option<Gc<VecValue>> {
-        self.as_value_gc_ptr::<VecValue>()
+    pub fn as_array(self) -> Option<VecValue> {
+        match self.tag() == ARRAY_TAG {
+            true => Some(VecValue(GcSlice::from(self.extract_pointer_bits()))),
+            false => None,
+        }
     }
     /// Returns this value as a block, if such is its type.
     #[inline(always)]

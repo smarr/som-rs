@@ -18,6 +18,7 @@ use som_gc::gcslice::GcSlice;
 use som_gc::object_model::VMObjectModel;
 use som_gc::slot::SOMSlot;
 use som_gc::SOMVM;
+use std::ops::{Deref, DerefMut};
 
 // Mine. to put in GC headers
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -33,9 +34,28 @@ pub enum BCObjMagicId {
     ArrayVal = 106,
 }
 
-// TODO: HACK. this is to be able to define a magic id for it. what we REALLY need is a GCSlice<T> type.
-// TODO: which now exists - implement properly with vecvalue.
-pub struct VecValue(pub Vec<Value>);
+#[derive(Clone, Copy, Debug)]
+pub struct VecValue(pub GcSlice<Value>);
+
+impl Deref for VecValue {
+    type Target = GcSlice<Value>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for VecValue {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl SupportedSliceType for Value {
+    fn get_magic_gc_slice_id() -> u8 {
+        BCObjMagicId::ArrayVal as u8
+    }
+}
 
 pub const GCSLICE_LITERAL_MAGIC_ID: u8 = 101;
 impl SupportedSliceType for Literal {
@@ -204,8 +224,8 @@ pub fn scan_object<'a>(object: ObjectReference, slot_visitor: &'a mut (dyn SlotV
                 }
             }
             BCObjMagicId::ArrayVal => {
-                let arr: &Vec<Value> = object.to_raw_address().as_ref();
-                for val in arr {
+                let arr: GcSlice<Value> = GcSlice::from(object.to_raw_address());
+                for val in arr.iter() {
                     visit_value(val, slot_visitor)
                 }
             }
@@ -285,7 +305,10 @@ fn get_object_size(object: ObjectReference) -> usize {
                 let frame: &Frame = object.to_raw_address().as_ref();
                 Frame::get_true_size(frame.get_max_stack_size(), frame.get_nbr_args(), frame.get_nbr_locals())
             },
-            BCObjMagicId::ArrayVal => size_of::<Vec<Value>>(),
+            BCObjMagicId::ArrayVal => {
+                let values: GcSlice<Value> = GcSlice::from(object.to_raw_address());
+                values.get_true_size()
+            }
             BCObjMagicId::Method => size_of::<Method>(),
             BCObjMagicId::Block => size_of::<Block>(),
             BCObjMagicId::Class => size_of::<Class>(),

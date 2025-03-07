@@ -90,7 +90,7 @@ pub fn value_from_literal(literal: &Literal, gc_interface: &mut GCInterface) -> 
         Literal::BigInteger(val) => Value::BigInteger(*val),
         Literal::Array(val) => {
             let arr = &val.iter().map(|lit| value_from_literal(lit, gc_interface)).collect::<Vec<_>>();
-            Value::Array(gc_interface.alloc(VecValue(arr.to_vec())))
+            Value::Array(VecValue(gc_interface.alloc_slice(arr)))
         }
         Literal::Block(val) => Value::Block(*val),
     }
