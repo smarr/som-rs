@@ -186,7 +186,8 @@ impl Interpreter {
 
             self.bytecode_idx += 1;
 
-            // dbg!(self.current_frame);
+            // dbg!(&self.get_current_frame());
+            // dbg!(&bytecode);
 
             // for the optional profiler macros not to be reported as warnings
             #[allow(clippy::let_unit_value)]

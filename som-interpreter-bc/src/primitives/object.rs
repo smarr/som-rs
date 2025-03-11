@@ -20,6 +20,7 @@ use som_value::interned::Interned;
 pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
     Box::new([
         ("class", self::class.into_func(), true),
+        ("halt", self::halt.into_func(), true),
         ("objectSize", self::object_size.into_func(), true),
         ("hashcode", self::hashcode.into_func(), true),
         ("perform:", self::perform.into_func(), true),
@@ -39,6 +40,14 @@ pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([]));
 
 fn class(_: &mut Interpreter, universe: &mut Universe, receiver: Value) -> Result<Gc<Class>, Error> {
     Ok(receiver.class(universe))
+}
+
+fn halt(_interp: &mut Interpreter, _: &mut Universe, _: Value) -> Result<Value, Error> {
+    println!("HALT"); // so a breakpoint can be put
+
+    //dbg!(interp.get_current_frame());
+    //dbg!(interp.get_current_frame().lookup_argument(2).as_block().unwrap().blk_info.holder());
+    Ok(Value::NIL)
 }
 
 fn object_size(receiver: Value) -> Result<i32, Error> {

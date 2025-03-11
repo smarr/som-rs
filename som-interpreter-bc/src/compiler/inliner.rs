@@ -318,7 +318,10 @@ impl PrimMessageInliner for ast::Message {
     }
 
     fn inline_while(&self, ctxt: &mut dyn InnerGenCtxt, jump_type: JumpType, gc_interface: &mut GCInterface) -> Option<()> {
-        if self.values.len() != 1 || !matches!(self.values.first()?, ast::Expression::Block(_)) {
+        if self.values.len() != 1
+            || !matches!(ctxt.get_instructions().last(), Some(Bytecode::PushBlock(_)))
+            || !matches!(self.values.first()?, ast::Expression::Block(_))
+        {
             // I guess it doesn't have to be a block, but really, it is in all our benchmarks
             return None;
         }
