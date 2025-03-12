@@ -8,6 +8,7 @@ use som_core::interner::Interner;
 use som_gc::gcref::Gc;
 use som_gc::gcslice::GcSlice;
 use som_value::interned::Interned;
+use std::borrow::Cow;
 use std::cell::Cell;
 use std::str::FromStr;
 
@@ -460,6 +461,42 @@ impl MethodCodegen for ast::Expression {
             ast::Expression::Message(message) => {
                 let is_super_call = matches!(&message.receiver, _super if _super == &Expression::GlobalRead(String::from("super")));
 
+                // TODO: this is a HACK. ifNotNil: should be inlined instead, OR the inlining-related bug fixed.
+                // this hack is needed to fix a benchmark quickly after the latest core-lib changes, and i've got a deadline coming up..
+                let message: Cow<Box<ast::Message>> = if message.signature == "ifNotNil:" {
+                    Cow::Owned(Box::new(ast::Message {
+                        receiver: Expression::Message(Box::new(ast::Message {
+                            receiver: message.receiver.clone(),
+                            signature: "notNil".to_owned(),
+                            values: vec![],
+                        })),
+                        signature: String::from("ifTrue:"),
+                        values: message.values.clone(),
+                    }))
+                } else if message.signature == "ifNil:" {
+                    Cow::Owned(Box::new(ast::Message {
+                        receiver: Expression::Message(Box::new(ast::Message {
+                            receiver: message.receiver.clone(),
+                            signature: "notNil".to_owned(),
+                            values: vec![],
+                        })),
+                        signature: String::from("ifFalse:"),
+                        values: message.values.clone(),
+                    }))
+                } else if message.signature == "ifNil:ifNotNil:" {
+                    Cow::Owned(Box::new(ast::Message {
+                        receiver: Expression::Message(Box::new(ast::Message {
+                            receiver: message.receiver.clone(),
+                            signature: "isNil".to_owned(),
+                            values: vec![],
+                        })),
+                        signature: String::from("ifTrue:ifFalse:"),
+                        values: message.values.clone(),
+                    }))
+                } else {
+                    Cow::Borrowed(message)
+                };
+
                 message.receiver.codegen(ctxt, mutator)?;
 
                 #[cfg(not(feature = "inlining-disabled"))]
@@ -473,7 +510,7 @@ impl MethodCodegen for ast::Expression {
                     && message.values.first()? == &Expression::Literal(ast::Literal::Integer(1))
                 {
                     match message.signature.as_str() {
-                        "+" => ctxt.push_instr(Bytecode::Inc), // also i was considering handling the "+ X" arbitrary case, maybe.,
+                        "+" => ctxt.push_instr(Bytecode::Inc),
                         "-" => ctxt.push_instr(Bytecode::Dec),
                         _ => unreachable!(),
                     };

@@ -58,7 +58,6 @@ impl PrimMessageInliner for ast::Message {
             "or:" | "||" => self.inline_or_and(ctxt, Or, gc_interface),
             "and:" | "&&" => self.inline_or_and(ctxt, And, gc_interface),
             "to:do:" => self.inline_to_do(ctxt, gc_interface),
-            // to:by:do, downTo:do:, perhaps?
             _ => None,
         }
     }
