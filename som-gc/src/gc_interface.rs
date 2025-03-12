@@ -222,6 +222,7 @@ impl GCInterface {
     }
 
     // Allocates a type on the heap and returns a pointer to it.
+    // TODO: slices can get big, and need allocation with LOS. Need to implement.
     pub fn alloc_slice_with_marker<T: SupportedSliceType + std::fmt::Debug>(
         &mut self,
         obj: &[T],

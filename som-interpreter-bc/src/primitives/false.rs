@@ -30,17 +30,18 @@ fn and(_: &mut Interpreter, _universe: &mut Universe, _self: Value, _other: Valu
     Ok(false)
 }
 
-fn or_and_if_false(interpreter: &mut Interpreter, universe: &mut Universe, _self: Value, other: Value) -> Result<(), Error> {
-    // bit of a weird solution... We're in the "false" case, so we want to essentially return "other".
+fn or_and_if_false(interpreter: &mut Interpreter, universe: &mut Universe) -> Result<(), Error> {
+    let cond_val = *interpreter.get_current_frame().stack_last();
 
-    if other.as_block().is_some() {
+    if cond_val.as_block().is_some() {
         // if it's a block: we execute "other" by creating a new frame.
         interpreter.push_block_frame(1, universe.gc_interface);
+        interpreter.get_current_frame().prev_frame.remove_n_last_elements(1); // the "False". the "Block" was already consumed and put into the new frame
     } else {
         // if it's not a block... we remove the arguments off the stack, and add the result back to
         // it ourselves: that being the "other" value.
         interpreter.get_current_frame().remove_n_last_elements(2);
-        interpreter.get_current_frame().stack_push(other);
+        interpreter.get_current_frame().stack_push(cond_val);
     }
     Ok(())
 }
