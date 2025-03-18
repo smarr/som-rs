@@ -40,8 +40,6 @@ impl Collection<SOMVM> for VMCollection {
                 // Address::from_usize(unsafe { libc::gettid() as usize })
             })));
 
-            // let worker_tls = VMWorkerThread(VMThread(OpaquePointer::UNINITIALIZED));
-
             match ctx {
                 GCThreadContext::Worker(w) => mmtk::memory_manager::start_worker::<SOMVM>(mmtk(), worker_tls, w),
             }

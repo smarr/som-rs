@@ -1,6 +1,7 @@
 use mmtk::util::Address;
 use std::fmt::{Debug, Formatter};
 
+use crate::mmtk;
 use std::ops::{Deref, DerefMut};
 
 #[macro_export]
@@ -17,7 +18,13 @@ macro_rules! debug_assert_valid_semispace_ptr_value {
     ($value:expr) => {
         #[cfg(debug_assertions)]
         unsafe {
-            if let Some(ptr) = $value.0.as_something::<Gc<()>>() {
+            if let Some(slice) = $value.as_array() {
+                if slice.get_true_size() >= 65535 {
+                    // pass
+                } else {
+                    assert!(slice.0 .0.is_pointer_to_valid_space(), "Pointer to invalid space.");
+                }
+            } else if let Some(ptr) = $value.0.as_something::<Gc<()>>() {
                 assert!(ptr.is_pointer_to_valid_space(), "Pointer to invalid space.");
             }
         }
@@ -120,6 +127,8 @@ impl<T> Gc<T> {
     /// Because of our semispace GC, pointers can move from one space to the other, and the number one bug cause is pointers not having been moved.
     /// So this function is tremendously useful for debugging.
     pub fn is_pointer_to_valid_space(&self) -> bool {
+        //return true;
+
         fn leftmost_digit(mut number: usize) -> u8 {
             while number >= 10 {
                 number /= 10;

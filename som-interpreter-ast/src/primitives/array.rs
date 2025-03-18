@@ -6,6 +6,7 @@ use crate::value::convert::Primitive;
 use crate::value::Value;
 use anyhow::{bail, Error};
 use once_cell::sync::Lazy;
+use som_gc::gc_interface::AllocSiteMarker;
 use som_gc::gcslice::GcSlice;
 use std::convert::TryFrom;
 
@@ -59,7 +60,9 @@ fn new(universe: &mut Universe, _value_stack: &mut GlobalValueStack, _: Value, c
     const SIGNATURE: &str = "Array>>#new:";
 
     match usize::try_from(count) {
-        Ok(length) => Ok(Value::Array(VecValue(universe.gc_interface.alloc_slice(&vec![Value::NIL; length])))),
+        Ok(length) => Ok(Value::Array(VecValue(
+            universe.gc_interface.alloc_slice_with_marker(&vec![Value::NIL; length], Some(AllocSiteMarker::Array)),
+        ))),
         Err(err) => bail!(format!("'{}': {}", SIGNATURE, err)),
     }
 }

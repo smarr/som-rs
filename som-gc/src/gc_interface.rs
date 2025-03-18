@@ -237,7 +237,14 @@ impl GCInterface {
 
         size += std::mem::size_of::<usize>(); // size stored at the start
 
-        let header_addr: Address = self.request_bytes(size + OBJECT_REF_OFFSET, alloc_origin_marker);
+        // slices can be big enough to warrant using large object storage.
+        let header_addr = {
+            match size <= crate::mmtk().get_plan().constraints().max_non_los_default_alloc_bytes {
+                true => self.request_bytes(size + OBJECT_REF_OFFSET, alloc_origin_marker),
+                false => self.request_bytes_los(size + OBJECT_REF_OFFSET, alloc_origin_marker),
+            }
+        };
+
         let len_addr = SOMVM::object_start_to_ref(header_addr);
         let obj_addr = len_addr.to_raw_address().add(size_of::<usize>());
 
@@ -300,6 +307,14 @@ impl GCInterface {
         //     self.alloc_bump_ptr = default_allocator.bump_pointer;
         //     addr
         // }
+    }
+
+    pub fn request_bytes_los(&mut self, size: usize, _alloc_origin_marker: Option<AllocSiteMarker>) -> Address {
+        debug_assert!(
+            size >= crate::mmtk().get_plan().constraints().max_non_los_default_alloc_bytes,
+            "Requesting LOS for a non large object"
+        );
+        crate::api::mmtk_alloc(&mut self.mutator, size, GC_ALIGN, GC_OFFSET, AllocationSemantics::Los)
     }
 
     /// TODO doc + should likely deduce the size from the type

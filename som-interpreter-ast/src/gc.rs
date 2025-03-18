@@ -126,9 +126,7 @@ fn get_roots_in_mutator_thread(_mutator: &mut Mutator<SOMVM>) -> Vec<SOMSlot> {
         // walk globals (includes core classes, but we also need to move the refs in the CoreClasses class)
         debug!("scanning roots: globals");
         for (_name, val) in (**UNIVERSE_RAW_PTR_CONST.as_ptr()).globals.iter() {
-            if val.is_ptr_type() {
-                to_process.push(SOMSlot::from(val.as_mut_ptr()))
-            }
+            visit_value_maybe_process(val, &mut to_process)
         }
 
         debug!("scanning roots: core classes");
@@ -137,10 +135,8 @@ fn get_roots_in_mutator_thread(_mutator: &mut Mutator<SOMVM>) -> Vec<SOMSlot> {
         }
 
         debug!("scanning roots: global argument stack");
-        for stored_arg in (**STACK_ARGS_RAW_PTR_CONST.as_ptr()).iter() {
-            if stored_arg.is_ptr_type() {
-                to_process.push(SOMSlot::from(stored_arg.as_mut_ptr()))
-            }
+        for val in (**STACK_ARGS_RAW_PTR_CONST.as_ptr()).iter() {
+            visit_value_maybe_process(val, &mut to_process)
         }
 
         debug!("scanning roots: finished");
@@ -254,7 +250,34 @@ pub fn scan_object<'a>(object: ObjectReference, slot_visitor: &'a mut (dyn SlotV
 /// Values passed to this function MUST live on the GC heap, or the pointer generated from the reference will be invalid.
 unsafe fn visit_value<'a>(val: &Value, slot_visitor: &'a mut (dyn SlotVisitor<SOMSlot> + 'a)) {
     if val.is_ptr_type() {
+        if let Some(slice) = val.as_array() {
+            // large object storage means no copying needed, but we still check the values stored
+            if slice.get_true_size() >= 65535 {
+                for val in slice.iter() {
+                    visit_value(val, slot_visitor)
+                }
+                return;
+            }
+        }
         slot_visitor.visit_slot(SOMSlot::from(val.as_mut_ptr()))
+    }
+}
+
+/// Visits a value and potentially adds a slot made out of it to an array.
+/// # Safety
+/// Same as `visit_value`.
+unsafe fn visit_value_maybe_process(val: &Value, to_process: &mut Vec<SOMSlot>) {
+    if val.is_ptr_type() {
+        if let Some(slice) = val.as_array() {
+            // large object storage means no copying needed, but we still check the values stored
+            if slice.get_true_size() >= 65535 {
+                for val2 in slice.iter() {
+                    visit_value_maybe_process(val2, to_process);
+                }
+                return;
+            }
+        }
+        to_process.push(SOMSlot::from(val.as_mut_ptr()))
     }
 }
 

@@ -105,9 +105,36 @@ impl HasTypeInfoForGC for Frame {
 /// Visits a value, via a specialized `SOMSlot` for value types.
 /// # Safety
 /// Values passed to this function MUST live on the GC heap, or the pointer generated from the reference will be invalid.
-pub unsafe fn visit_value<'a>(val: &Value, slot_visitor: &'a mut (dyn SlotVisitor<SOMSlot> + 'a)) {
+unsafe fn visit_value<'a>(val: &Value, slot_visitor: &'a mut (dyn SlotVisitor<SOMSlot> + 'a)) {
     if val.is_ptr_type() {
+        if let Some(slice) = val.as_array() {
+            // large object storage means no copying needed, but we still check the values stored
+            if slice.get_true_size() >= 65535 {
+                for val in slice.iter() {
+                    visit_value(val, slot_visitor)
+                }
+                return;
+            }
+        }
         slot_visitor.visit_slot(SOMSlot::from(val.as_mut_ptr()))
+    }
+}
+
+/// Visits a value and potentially adds a slot made out of it to an array.
+/// # Safety
+/// Same as `visit_value`.
+unsafe fn visit_value_maybe_process(val: &Value, to_process: &mut Vec<SOMSlot>) {
+    if val.is_ptr_type() {
+        if let Some(slice) = val.as_array() {
+            // large object storage means no copying needed, but we still check the values stored
+            if slice.get_true_size() >= 65535 {
+                for val2 in slice.iter() {
+                    visit_value_maybe_process(val2, to_process);
+                }
+                return;
+            }
+        }
+        to_process.push(SOMSlot::from(val.as_mut_ptr()))
     }
 }
 
@@ -268,18 +295,14 @@ fn get_roots_in_mutator_thread(_mutator: &mut Mutator<SOMVM>) -> Vec<SOMSlot> {
         let frame_args_root = &(**INTERPRETER_RAW_PTR_CONST.as_ptr()).frame_args_root;
         if let Some(frame_args) = frame_args_root {
             for arg in frame_args {
-                if arg.is_ptr_type() {
-                    to_process.push(SOMSlot::from(arg.as_mut_ptr()));
-                }
+                visit_value_maybe_process(arg, &mut to_process);
             }
         }
 
         // walk globals (includes core classes)
         debug!("scanning roots: globals");
         for (_name, val) in (**UNIVERSE_RAW_PTR_CONST.as_ptr()).globals.iter_mut() {
-            if val.is_ptr_type() {
-                to_process.push(SOMSlot::from(val.as_mut_ptr()));
-            }
+            visit_value_maybe_process(val, &mut to_process);
         }
 
         // we update the core classes in their class also though, to properly move them
