@@ -1,6 +1,8 @@
 use crate::nodes::global_read::GlobalNode;
 use crate::nodes::inlined::and_inlined_node::AndInlinedNode;
 use crate::nodes::inlined::if_inlined_node::IfInlinedNode;
+use crate::nodes::inlined::if_nil_if_not_nil_inlined_node::IfNilIfNotNilInlinedNode;
+use crate::nodes::inlined::if_nil_inlined_node::IfNilInlinedNode;
 use crate::nodes::inlined::if_true_if_false_inlined_node::IfTrueIfFalseInlinedNode;
 use crate::nodes::inlined::or_inlined_node::OrInlinedNode;
 use crate::nodes::inlined::to_do_inlined_node::ToDoInlinedNode;
@@ -19,6 +21,8 @@ use std::fmt::{Debug, Display, Formatter};
 pub enum InlinedNode {
     IfInlined(IfInlinedNode),
     IfTrueIfFalseInlined(IfTrueIfFalseInlinedNode),
+    IfNilInlined(IfNilInlinedNode),
+    IfNilIfNotNilInlined(IfNilIfNotNilInlinedNode),
     WhileInlined(WhileInlinedNode),
     OrInlined(OrInlinedNode),
     AndInlined(AndInlinedNode),
@@ -249,10 +253,12 @@ impl Display for AstExpression {
             AstExpression::InlinedCall(inlined_node) => match inlined_node.as_ref() {
                 InlinedNode::IfInlined(node) => writeln!(f, "{}", node),
                 InlinedNode::IfTrueIfFalseInlined(node) => writeln!(f, "{}", node),
+                InlinedNode::IfNilInlined(node) => writeln!(f, "{}", node),
                 InlinedNode::WhileInlined(node) => writeln!(f, "{}", node),
                 InlinedNode::OrInlined(node) => writeln!(f, "{}", node),
                 InlinedNode::AndInlined(node) => writeln!(f, "{}", node),
                 InlinedNode::ToDoInlined(node) => writeln!(f, "{}", node),
+                InlinedNode::IfNilIfNotNilInlined(node) => writeln!(f, "{}", node),
             },
             AstExpression::IncLocal(idx) => writeln!(f, "Inc({})", idx),
             AstExpression::DecLocal(idx) => writeln!(f, "Dec({})", idx),

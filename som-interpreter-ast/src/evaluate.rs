@@ -142,6 +142,8 @@ impl Evaluate for AstExpression {
                 InlinedNode::OrInlined(or_inlined) => or_inlined.evaluate(universe, value_stack),
                 InlinedNode::AndInlined(and_inlined) => and_inlined.evaluate(universe, value_stack),
                 InlinedNode::ToDoInlined(to_do_inlined) => to_do_inlined.evaluate(universe, value_stack),
+                InlinedNode::IfNilInlined(if_nil_inlined_node) => if_nil_inlined_node.evaluate(universe, value_stack),
+                InlinedNode::IfNilIfNotNilInlined(if_nil_if_not_nil_inlined_node) => if_nil_if_not_nil_inlined_node.evaluate(universe, value_stack),
             },
         }
     }

@@ -2,6 +2,8 @@ use super::compile::{AstMethodCompilerCtxt, AstScopeCtxt};
 use crate::ast::{AstBlock, AstBody, AstExpression, InlinedNode};
 use crate::nodes::inlined::and_inlined_node::AndInlinedNode;
 use crate::nodes::inlined::if_inlined_node::IfInlinedNode;
+use crate::nodes::inlined::if_nil_if_not_nil_inlined_node::IfNilIfNotNilInlinedNode;
+use crate::nodes::inlined::if_nil_inlined_node::IfNilInlinedNode;
 use crate::nodes::inlined::if_true_if_false_inlined_node::IfTrueIfFalseInlinedNode;
 use crate::nodes::inlined::or_inlined_node::OrInlinedNode;
 use crate::nodes::inlined::to_do_inlined_node::ToDoInlinedNode;
@@ -25,6 +27,8 @@ pub(crate) trait PrimMessageInliner {
     fn adapt_arg_access_from_inlining(&mut self, input_expr: &Expression) -> AstExpression;
     fn inline_if_true_or_if_false(&mut self, msg: &ast::Message, expected_bool: bool) -> Option<InlinedNode>;
     fn inline_if_true_if_false(&mut self, msg: &ast::Message, expected_bool: bool) -> Option<InlinedNode>;
+    fn inline_if_nil_or_if_not_nil(&mut self, msg: &ast::Message, expected_bool: bool) -> Option<InlinedNode>;
+    fn inline_if_nil_if_not_nil(&mut self, msg: &ast::Message, expected_bool: bool) -> Option<InlinedNode>;
     fn inline_while(&mut self, msg: &ast::Message, expected_bool: bool) -> Option<InlinedNode>;
     fn inline_or(&mut self, msg: &ast::Message) -> Option<InlinedNode>;
     fn inline_and(&mut self, msg: &ast::Message) -> Option<InlinedNode>;
@@ -39,6 +43,10 @@ impl PrimMessageInliner for AstMethodCompilerCtxt<'_> {
             "ifFalse:" => self.inline_if_true_or_if_false(msg, false),
             "ifTrue:ifFalse:" => self.inline_if_true_if_false(msg, true),
             "ifFalse:ifTrue:" => self.inline_if_true_if_false(msg, false),
+            "ifNil:" => self.inline_if_nil_or_if_not_nil(msg, true),
+            "ifNotNil:" => self.inline_if_nil_or_if_not_nil(msg, false),
+            "ifNil:ifNotNil:" => self.inline_if_nil_if_not_nil(msg, true),
+            "ifNotNil:ifNil:" => self.inline_if_nil_if_not_nil(msg, false),
             "whileTrue:" => self.inline_while(msg, true),
             "whileFalse:" => self.inline_while(msg, false),
             "or:" | "||" => self.inline_or(msg),
@@ -397,6 +405,37 @@ impl PrimMessageInliner for AstMethodCompilerCtxt<'_> {
         // dbg!(&to_do_inlined_node); std::process::exit(1);
 
         Some(InlinedNode::ToDoInlined(to_do_inlined_node))
+    }
+
+    fn inline_if_nil_or_if_not_nil(&mut self, msg: &ast::Message, expects_nil: bool) -> Option<InlinedNode> {
+        let body_blk = match msg.values.first() {
+            Some(Expression::Block(blk)) => blk,
+            _ => return None,
+        };
+
+        let if_nil_inlined_node = IfNilInlinedNode {
+            expects_nil,
+            cond_expr: self.parse_expression_with_inlining(&msg.receiver),
+            body_instrs: self.inline_block(body_blk),
+        };
+
+        Some(InlinedNode::IfNilInlined(if_nil_inlined_node))
+    }
+
+    fn inline_if_nil_if_not_nil(&mut self, msg: &ast::Message, expects_nil: bool) -> Option<InlinedNode> {
+        let (body_blk_1, body_blk_2) = match (msg.values.first(), msg.values.get(1)) {
+            (Some(Expression::Block(blk)), Some(Expression::Block(blk2))) => (blk, blk2),
+            _ => return None,
+        };
+
+        let if_nil_if_not_nil_inlined_node = IfNilIfNotNilInlinedNode {
+            expects_nil,
+            cond_expr: self.parse_expression_with_inlining(&msg.receiver),
+            body_1_instrs: self.inline_block(body_blk_1),
+            body_2_instrs: self.inline_block(body_blk_2),
+        };
+
+        Some(InlinedNode::IfNilIfNotNilInlined(if_nil_if_not_nil_inlined_node))
     }
 }
 

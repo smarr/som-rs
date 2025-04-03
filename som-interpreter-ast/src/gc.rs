@@ -300,12 +300,27 @@ fn visit_expr(expr: &AstExpression, slot_visitor: &mut dyn SlotVisitor<SOMSlot>)
                     visit_expr(expr, slot_visitor)
                 }
             }
+            InlinedNode::IfNilInlined(if_nil_inlined) => {
+                visit_expr(&if_nil_inlined.cond_expr, slot_visitor);
+                for expr in &if_nil_inlined.body_instrs.exprs {
+                    visit_expr(expr, slot_visitor)
+                }
+            }
             InlinedNode::IfTrueIfFalseInlined(if_true_if_false_inlined) => {
                 visit_expr(&if_true_if_false_inlined.cond_expr, slot_visitor);
                 for expr in &if_true_if_false_inlined.body_1_instrs.exprs {
                     visit_expr(expr, slot_visitor)
                 }
                 for expr in &if_true_if_false_inlined.body_2_instrs.exprs {
+                    visit_expr(expr, slot_visitor)
+                }
+            }
+            InlinedNode::IfNilIfNotNilInlined(if_nil_if_not_nil_inlined) => {
+                visit_expr(&if_nil_if_not_nil_inlined.cond_expr, slot_visitor);
+                for expr in &if_nil_if_not_nil_inlined.body_1_instrs.exprs {
+                    visit_expr(expr, slot_visitor)
+                }
+                for expr in &if_nil_if_not_nil_inlined.body_2_instrs.exprs {
                     visit_expr(expr, slot_visitor)
                 }
             }
