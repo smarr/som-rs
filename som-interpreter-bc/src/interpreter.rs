@@ -571,6 +571,52 @@ impl Interpreter {
                         self.bytecode_idx += offset - 1;
                     }
                 }
+                Bytecode::JumpOnNilTopTop(offset) => {
+                    let _timing = profiler_maybe_start!("JUMP_ON_NIL_TOP_TOP");
+                    let current_frame = self.get_current_frame();
+                    let condition_result = current_frame.stack_last();
+
+                    if condition_result.is_nil() {
+                        self.bytecode_idx += offset - 1;
+                    } else {
+                        self.get_current_frame().stack_pop();
+                    }
+                    profiler_maybe_stop!(_timing);
+                }
+                Bytecode::JumpOnNotNilTopTop(offset) => {
+                    let _timing = profiler_maybe_start!("JUMP_ON_NOT_NIL_TOP_TOP");
+                    let current_frame = self.get_current_frame();
+                    let condition_result = current_frame.stack_last();
+
+                    if !condition_result.is_nil() {
+                        self.bytecode_idx += offset - 1;
+                    } else {
+                        self.get_current_frame().stack_pop();
+                    }
+                    profiler_maybe_stop!(_timing);
+                }
+                Bytecode::JumpOnNilPop(offset) => {
+                    let _timing = profiler_maybe_start!("JUMP_ON_NIL_POP");
+                    let condition_result = self.get_current_frame().stack_pop();
+
+                    if condition_result.is_nil() {
+                        self.bytecode_idx += offset - 1;
+                    } else {
+                        // pass
+                    }
+                    profiler_maybe_stop!(_timing);
+                }
+                Bytecode::JumpOnNotNilPop(offset) => {
+                    let _timing = profiler_maybe_start!("JUMP_ON_NOT_NIL_POP");
+                    let condition_result = self.get_current_frame().stack_pop();
+
+                    if !condition_result.is_nil() {
+                        self.bytecode_idx += offset - 1;
+                    } else {
+                        // pass
+                    }
+                    profiler_maybe_stop!(_timing);
+                }
             }
         }
 

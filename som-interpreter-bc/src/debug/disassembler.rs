@@ -124,6 +124,10 @@ fn disassemble_body(universe: &Universe, class: &Class, level: usize, env: &mut 
             | Bytecode::JumpOnTruePop(idx)
             | Bytecode::JumpOnFalseTopNil(idx)
             | Bytecode::JumpOnTrueTopNil(idx)
+            | Bytecode::JumpOnNilTopTop(idx)
+            | Bytecode::JumpOnNotNilTopTop(idx)
+            | Bytecode::JumpOnNilPop(idx)
+            | Bytecode::JumpOnNotNilPop(idx)
             | Bytecode::JumpIfGreater(idx) => {
                 println!(" {} (jump to bytecode index {})", idx, cur_idx + idx as usize);
             }

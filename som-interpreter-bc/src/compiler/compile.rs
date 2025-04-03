@@ -8,7 +8,6 @@ use som_core::interner::Interner;
 use som_gc::gcref::Gc;
 use som_gc::gcslice::GcSlice;
 use som_value::interned::Interned;
-use std::borrow::Cow;
 use std::cell::Cell;
 use std::str::FromStr;
 
@@ -110,6 +109,10 @@ pub(crate) fn get_max_stack_size(body: &[Bytecode], interner: &Interner) -> u8 {
             Bytecode::JumpBackward(_) => {}
             Bytecode::JumpOnTrueTopNil(_) => {}
             Bytecode::JumpOnFalseTopNil(_) => {}
+            Bytecode::JumpOnNilTopTop(_) => {}
+            Bytecode::JumpOnNotNilTopTop(_) => {}
+            Bytecode::JumpOnNilPop(_) => {}
+            Bytecode::JumpOnNotNilPop(_) => {}
             Bytecode::JumpIfGreater(_) => {}
         }
     }
@@ -194,6 +197,10 @@ impl InnerGenCtxt for BlockGenCtxt<'_> {
             | Bytecode::JumpOnFalseTopNil(jump_idx)
             | Bytecode::JumpOnTruePop(jump_idx)
             | Bytecode::JumpOnFalsePop(jump_idx)
+            | Bytecode::JumpOnNilTopTop(jump_idx)
+            | Bytecode::JumpOnNotNilTopTop(jump_idx)
+            | Bytecode::JumpOnNilPop(jump_idx)
+            | Bytecode::JumpOnNotNilPop(jump_idx)
             | Bytecode::JumpIfGreater(jump_idx) => *jump_idx = new_val,
             _ => panic!("Attempting to patch a bytecode non jump"),
         };
@@ -460,42 +467,6 @@ impl MethodCodegen for ast::Expression {
             }
             ast::Expression::Message(message) => {
                 let is_super_call = matches!(&message.receiver, _super if _super == &Expression::GlobalRead(String::from("super")));
-
-                // TODO: this is a HACK. ifNotNil: should be inlined instead, OR the inlining-related bug fixed.
-                // this hack is needed to fix a benchmark quickly after the latest core-lib changes, and i've got a deadline coming up..
-                let message: Cow<Box<ast::Message>> = if message.signature == "ifNotNil:" {
-                    Cow::Owned(Box::new(ast::Message {
-                        receiver: Expression::Message(Box::new(ast::Message {
-                            receiver: message.receiver.clone(),
-                            signature: "notNil".to_owned(),
-                            values: vec![],
-                        })),
-                        signature: String::from("ifTrue:"),
-                        values: message.values.clone(),
-                    }))
-                } else if message.signature == "ifNil:" {
-                    Cow::Owned(Box::new(ast::Message {
-                        receiver: Expression::Message(Box::new(ast::Message {
-                            receiver: message.receiver.clone(),
-                            signature: "notNil".to_owned(),
-                            values: vec![],
-                        })),
-                        signature: String::from("ifFalse:"),
-                        values: message.values.clone(),
-                    }))
-                } else if message.signature == "ifNil:ifNotNil:" {
-                    Cow::Owned(Box::new(ast::Message {
-                        receiver: Expression::Message(Box::new(ast::Message {
-                            receiver: message.receiver.clone(),
-                            signature: "isNil".to_owned(),
-                            values: vec![],
-                        })),
-                        signature: String::from("ifTrue:ifFalse:"),
-                        values: message.values.clone(),
-                    }))
-                } else {
-                    Cow::Borrowed(message)
-                };
 
                 message.receiver.codegen(ctxt, mutator)?;
 

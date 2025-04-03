@@ -44,6 +44,10 @@ pub(crate) trait PrimMessageInliner {
     fn inline_or_and(&self, ctxt: &mut dyn InnerGenCtxt, or_and_choice: OrAndChoice, gc_interface: &mut GCInterface) -> Option<()>;
     /// Inlines `to:do`.
     fn inline_to_do(&self, ctxt: &mut dyn InnerGenCtxt, gc_interface: &mut GCInterface) -> Option<()>;
+    /// Inlines `ifNil:` and `ifNotNil:`.
+    fn inline_if_nil_or_if_not_nil(&self, ctxt: &mut dyn InnerGenCtxt, jump_type: JumpType, gc_interface: &mut GCInterface) -> Option<()>;
+    /// Inlines `ifNil:ifNotNil` and `ifNotNil:ifNil:`.
+    fn inline_if_nil_if_not_nil(&self, ctxt: &mut dyn InnerGenCtxt, jump_type: JumpType, gc_interface: &mut GCInterface) -> Option<()>;
 }
 
 impl PrimMessageInliner for ast::Message {
@@ -58,6 +62,10 @@ impl PrimMessageInliner for ast::Message {
             "or:" | "||" => self.inline_or_and(ctxt, Or, gc_interface),
             "and:" | "&&" => self.inline_or_and(ctxt, And, gc_interface),
             "to:do:" => self.inline_to_do(ctxt, gc_interface),
+            "ifNil:" => self.inline_if_nil_or_if_not_nil(ctxt, JumpOnFalse, gc_interface),
+            "ifNotNil:" => self.inline_if_nil_or_if_not_nil(ctxt, JumpOnTrue, gc_interface),
+            "ifNil:ifNotNil:" => self.inline_if_nil_if_not_nil(ctxt, JumpOnFalse, gc_interface),
+            "ifNotNil:ifNil:" => self.inline_if_nil_if_not_nil(ctxt, JumpOnTrue, gc_interface),
             _ => None,
         }
     }
@@ -181,6 +189,10 @@ impl PrimMessageInliner for ast::Message {
                     Bytecode::JumpOnTrueTopNil(idx) => ctxt.push_instr(Bytecode::JumpOnTrueTopNil(*idx)),
                     Bytecode::JumpOnFalseTopNil(idx) => ctxt.push_instr(Bytecode::JumpOnFalseTopNil(*idx)),
                     Bytecode::JumpIfGreater(idx) => ctxt.push_instr(Bytecode::JumpIfGreater(*idx)),
+                    Bytecode::JumpOnNilTopTop(idx) => ctxt.push_instr(Bytecode::JumpOnNilTopTop(*idx)),
+                    Bytecode::JumpOnNotNilTopTop(idx) => ctxt.push_instr(Bytecode::JumpOnNotNilTopTop(*idx)),
+                    Bytecode::JumpOnNilPop(idx) => ctxt.push_instr(Bytecode::JumpOnNilPop(*idx)),
+                    Bytecode::JumpOnNotNilPop(idx) => ctxt.push_instr(Bytecode::JumpOnNotNilPop(*idx)),
                     Bytecode::Dup
                     | Bytecode::Dup2
                     | Bytecode::Inc
@@ -288,6 +300,24 @@ impl PrimMessageInliner for ast::Message {
         Some(())
     }
 
+    fn inline_if_nil_or_if_not_nil(&self, ctxt: &mut dyn InnerGenCtxt, jump_type: JumpType, gc_interface: &mut GCInterface) -> Option<()> {
+        if self.values.len() != 1 || !matches!(self.values.first()?, ast::Expression::Block(_)) {
+            return None;
+        }
+
+        let jump_idx = ctxt.get_cur_instr_idx();
+        match jump_type {
+            JumpOnFalse => ctxt.push_instr(Bytecode::JumpOnNotNilTopTop(0)),
+            JumpOnTrue => ctxt.push_instr(Bytecode::JumpOnNilTopTop(0)),
+        }
+
+        self.inline_expression(ctxt, self.values.first()?, gc_interface);
+
+        ctxt.backpatch_jump_to_current(jump_idx);
+
+        Some(())
+    }
+
     fn inline_if_true_if_false(&self, ctxt: &mut dyn InnerGenCtxt, jump_type: JumpType, gc_interface: &mut GCInterface) -> Option<()> {
         if self.values.len() != 2
             || !matches!(self.values.first()?, ast::Expression::Block(_))
@@ -300,6 +330,34 @@ impl PrimMessageInliner for ast::Message {
         match jump_type {
             JumpOnFalse => ctxt.push_instr(Bytecode::JumpOnFalsePop(0)),
             JumpOnTrue => ctxt.push_instr(Bytecode::JumpOnTruePop(0)),
+        }
+
+        self.inline_expression(ctxt, self.values.first()?, gc_interface);
+
+        let middle_jump_idx = ctxt.get_cur_instr_idx();
+        ctxt.push_instr(Bytecode::Jump(0));
+
+        ctxt.backpatch_jump_to_current(start_jump_idx);
+
+        self.inline_expression(ctxt, self.values.get(1)?, gc_interface);
+
+        ctxt.backpatch_jump_to_current(middle_jump_idx);
+
+        Some(())
+    }
+
+    fn inline_if_nil_if_not_nil(&self, ctxt: &mut dyn InnerGenCtxt, jump_type: JumpType, gc_interface: &mut GCInterface) -> Option<()> {
+        if self.values.len() != 2
+            || !matches!(self.values.first()?, ast::Expression::Block(_))
+            || !matches!(self.values.get(1)?, ast::Expression::Block(_))
+        {
+            return None;
+        }
+
+        let start_jump_idx = ctxt.get_cur_instr_idx();
+        match jump_type {
+            JumpOnFalse => ctxt.push_instr(Bytecode::JumpOnNotNilPop(0)),
+            JumpOnTrue => ctxt.push_instr(Bytecode::JumpOnNilPop(0)),
         }
 
         self.inline_expression(ctxt, self.values.first()?, gc_interface);

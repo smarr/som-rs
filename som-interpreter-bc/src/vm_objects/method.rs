@@ -260,6 +260,10 @@ impl fmt::Display for Method {
                         | Bytecode::JumpOnFalsePop(idx)
                         | Bytecode::JumpOnFalseTopNil(idx)
                         | Bytecode::JumpOnTrueTopNil(idx)
+                        | Bytecode::JumpOnNilTopTop(idx)
+                        | Bytecode::JumpOnNotNilTopTop(idx)
+                        | Bytecode::JumpOnNilPop(idx)
+                        | Bytecode::JumpOnNotNilPop(idx)
                         | Bytecode::JumpIfGreater(idx) => {
                             write!(f, "index: {}", idx)?;
                         }
