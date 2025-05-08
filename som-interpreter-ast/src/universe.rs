@@ -290,7 +290,7 @@ impl GlobalValueStack {
         self.0.push(value);
     }
 
-    /// Standard pop. Relatively uncommon, `pop_n_last` works better for our purposes most of the time.
+    /// Standard pop.
     pub fn pop(&mut self) -> Value {
         debug_assert!(!self.0.is_empty());
         // unsafe in the holy name of performance (preach) (I hope this is an OK speedup)

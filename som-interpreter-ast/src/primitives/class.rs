@@ -1,14 +1,16 @@
 use super::PrimInfo;
 use crate::gc::VecValue;
+use crate::get_args_from_stack;
 use crate::primitives::PrimitiveFn;
 use crate::universe::{GlobalValueStack, Universe};
+use crate::value::convert::FromArgs;
 use crate::value::convert::Primitive;
-use crate::value::HeapValPtr;
 use crate::value::Value;
 use crate::vm_objects::class::Class;
 use crate::vm_objects::instance::Instance;
 use anyhow::Error;
 use once_cell::sync::Lazy;
+use som_gc::gcref::Gc;
 
 pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
     Box::new({
@@ -23,33 +25,36 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
 });
 pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([]));
 
-fn superclass(_: &mut Universe, _value_stack: &mut GlobalValueStack, receiver: HeapValPtr<Class>) -> Result<Value, Error> {
-    let super_class = receiver.deref().super_class();
+fn superclass(receiver: Gc<Class>) -> Result<Value, Error> {
+    let super_class = receiver.super_class();
     Ok(super_class.map(Value::Class).unwrap_or(Value::NIL))
 }
 
-fn new(universe: &mut Universe, _value_stack: &mut GlobalValueStack, receiver: HeapValPtr<Class>) -> Result<Value, Error> {
+fn new(universe: &mut Universe, stack: &mut GlobalValueStack) -> Result<Value, Error> {
     let mut instance_ptr = universe
         .gc_interface
         .request_memory_for_type(size_of::<Instance>(), Some(som_gc::gc_interface::AllocSiteMarker::Instance));
-    *instance_ptr = Instance::from_class(receiver.deref());
+    get_args_from_stack!(stack, receiver => Gc<Class>);
+    *instance_ptr = Instance::from_class(receiver);
     Ok(Value::Instance(instance_ptr))
 }
 
-fn name(universe: &mut Universe, _value_stack: &mut GlobalValueStack, receiver: HeapValPtr<Class>) -> Result<Value, Error> {
-    let sym = universe.intern_symbol(receiver.deref().name());
+fn name(universe: &mut Universe, stack: &mut GlobalValueStack) -> Result<Value, Error> {
+    get_args_from_stack!(stack, receiver => Gc<Class>);
+    let sym = universe.intern_symbol(receiver.name());
     Ok(Value::Symbol(sym))
 }
 
-fn methods(universe: &mut Universe, _value_stack: &mut GlobalValueStack, receiver: HeapValPtr<Class>) -> Result<Value, Error> {
-    let methods: Vec<Value> = receiver.deref().methods.values().map(|invokable| Value::Invokable(*invokable)).collect();
+fn methods(universe: &mut Universe, stack: &mut GlobalValueStack) -> Result<Value, Error> {
+    get_args_from_stack!(stack, receiver => Gc<Class>);
+    let methods: Vec<Value> = receiver.methods.values().map(|invokable| Value::Invokable(*invokable)).collect();
 
     Ok(Value::Array(VecValue(universe.gc_interface.alloc_slice(&methods))))
 }
 
-fn fields(universe: &mut Universe, _value_stack: &mut GlobalValueStack, receiver: HeapValPtr<Class>) -> Result<Value, Error> {
+fn fields(universe: &mut Universe, stack: &mut GlobalValueStack) -> Result<Value, Error> {
+    get_args_from_stack!(stack, receiver => Gc<Class>);
     let fields: Vec<Value> = receiver
-        .deref()
         .get_all_field_names()
         .iter()
         .map(|field_name| Value::String(universe.gc_interface.alloc(field_name.clone())))

@@ -1,7 +1,9 @@
 use super::PrimInfo;
 use crate::gc::VecValue;
+use crate::get_args_from_stack;
 use crate::primitives::PrimitiveFn;
 use crate::universe::{GlobalValueStack, Universe};
+use crate::value::convert::FromArgs;
 use crate::value::convert::Primitive;
 use crate::value::Value;
 use anyhow::{bail, Error};
@@ -21,7 +23,7 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
 
 pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([("new:", self::new.into_func(), true)]));
 
-fn at(_: &mut Universe, _value_stack: &mut GlobalValueStack, values: VecValue, index: i32) -> Result<Value, Error> {
+fn at(values: VecValue, index: i32) -> Result<Value, Error> {
     const SIGNATURE: &str = "Array>>#at:";
 
     let index = match usize::try_from(index - 1) {
@@ -33,7 +35,7 @@ fn at(_: &mut Universe, _value_stack: &mut GlobalValueStack, values: VecValue, i
     Ok(value)
 }
 
-fn at_put(_: &mut Universe, _value_stack: &mut GlobalValueStack, mut values: VecValue, index: i32, value: Value) -> Result<Value, Error> {
+fn at_put(mut values: VecValue, index: i32, value: Value) -> Result<Value, Error> {
     const SIGNATURE: &str = "Array>>#at:put:";
 
     let index = match usize::try_from(index - 1) {
@@ -46,7 +48,7 @@ fn at_put(_: &mut Universe, _value_stack: &mut GlobalValueStack, mut values: Vec
     Ok(Value::Array(values))
 }
 
-fn length(_: &mut Universe, _value_stack: &mut GlobalValueStack, values: VecValue) -> Result<Value, Error> {
+fn length(values: VecValue) -> Result<Value, Error> {
     const SIGNATURE: &str = "Array>>#length";
 
     let length = values.len();
@@ -56,8 +58,13 @@ fn length(_: &mut Universe, _value_stack: &mut GlobalValueStack, values: VecValu
     }
 }
 
-fn new(universe: &mut Universe, _value_stack: &mut GlobalValueStack, _: Value, count: i32) -> Result<Value, Error> {
+fn new(universe: &mut Universe, stack: &mut GlobalValueStack) -> Result<Value, Error> {
     const SIGNATURE: &str = "Array>>#new:";
+
+    get_args_from_stack!(stack,
+        _a => Value,
+        count => i32
+    );
 
     match usize::try_from(count) {
         Ok(length) => Ok(Value::Array(VecValue(
@@ -67,7 +74,9 @@ fn new(universe: &mut Universe, _value_stack: &mut GlobalValueStack, _: Value, c
     }
 }
 
-fn copy(universe: &mut Universe, _value_stack: &mut GlobalValueStack, arr: VecValue) -> Result<VecValue, Error> {
+fn copy(universe: &mut Universe, stack: &mut GlobalValueStack) -> Result<VecValue, Error> {
+    get_args_from_stack! {stack, arr => VecValue};
+
     let copied_arr: Vec<Value> = arr.iter().copied().collect();
     let allocated: GcSlice<Value> = universe.gc_interface.alloc_slice(&copied_arr);
     Ok(VecValue(allocated))

@@ -1,6 +1,8 @@
 use crate::gc::VecValue;
+use crate::get_args_from_stack;
 use crate::primitives::{PrimInfo, PrimitiveFn};
 use crate::universe::{GlobalValueStack, Universe};
+use crate::value::convert::FromArgs;
 use crate::value::convert::{Primitive, StringLike};
 use crate::value::Value;
 use crate::vm_objects::class::Class;
@@ -33,7 +35,8 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
 });
 pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([]));
 
-fn load_file(universe: &mut Universe, _value_stack: &mut GlobalValueStack, _: Value, path: StringLike) -> Result<Value, Error> {
+fn load_file(universe: &mut Universe, stack: &mut GlobalValueStack) -> Result<Value, Error> {
+    get_args_from_stack!(stack, _a => Value, path => StringLike);
     let path = match path {
         StringLike::String(ref string) => string,
         StringLike::Char(char) => &*String::from(char),
@@ -46,7 +49,8 @@ fn load_file(universe: &mut Universe, _value_stack: &mut GlobalValueStack, _: Va
     }
 }
 
-fn print_string(universe: &mut Universe, _value_stack: &mut GlobalValueStack, _: Value, string: StringLike) -> Result<Value, Error> {
+fn print_string(universe: &mut Universe, stack: &mut GlobalValueStack) -> Result<Value, Error> {
+    get_args_from_stack!(stack, _a => Value, string => StringLike);
     let string = match string {
         StringLike::String(ref string) => string,
         StringLike::Char(char) => &*String::from(char),
@@ -57,12 +61,14 @@ fn print_string(universe: &mut Universe, _value_stack: &mut GlobalValueStack, _:
     Ok(Value::SYSTEM)
 }
 
-fn print_newline(_: &mut Universe, _value_stack: &mut GlobalValueStack, _: Value) -> Result<Value, Error> {
+fn print_newline(_: Value) -> Result<Value, Error> {
     println!();
     Ok(Value::NIL)
 }
 
-fn error_print(universe: &mut Universe, _value_stack: &mut GlobalValueStack, _: Value, string: StringLike) -> Result<Value, Error> {
+fn error_print(universe: &mut Universe, stack: &mut GlobalValueStack) -> Result<Value, Error> {
+    get_args_from_stack!(stack, _a => Value, string => StringLike);
+
     let string = match string {
         StringLike::String(ref string) => string,
         StringLike::Char(char) => &*String::from(char),
@@ -73,9 +79,10 @@ fn error_print(universe: &mut Universe, _value_stack: &mut GlobalValueStack, _: 
     Ok(Value::SYSTEM)
 }
 
-fn error_println(universe: &mut Universe, _value_stack: &mut GlobalValueStack, _: Value, string: StringLike) -> Result<Value, Error> {
+fn error_println(universe: &mut Universe, stack: &mut GlobalValueStack) -> Result<Value, Error> {
     const _: &str = "System>>#errorPrintln:";
 
+    get_args_from_stack!(stack, _a => Value, string => StringLike);
     let string = match string {
         StringLike::String(ref string) => string,
         StringLike::Char(char) => &*String::from(char),
@@ -86,9 +93,10 @@ fn error_println(universe: &mut Universe, _value_stack: &mut GlobalValueStack, _
     Ok(Value::SYSTEM)
 }
 
-fn load(universe: &mut Universe, _value_stack: &mut GlobalValueStack, _: Value, class_name: Interned) -> Result<Value, Error> {
+fn load(universe: &mut Universe, stack: &mut GlobalValueStack) -> Result<Value, Error> {
     const SIGNATURE: &str = "System>>#load:";
 
+    get_args_from_stack!(stack, _a => Value, class_name => Interned);
     if let Some(cached_class) = universe.lookup_global(class_name) {
         if cached_class.is_ptr::<Class, Gc<Class>>() {
             return Ok(cached_class);
@@ -102,25 +110,30 @@ fn load(universe: &mut Universe, _value_stack: &mut GlobalValueStack, _: Value, 
     }
 }
 
-fn has_global(universe: &mut Universe, _value_stack: &mut GlobalValueStack, _: Value, name: Interned) -> Result<Value, Error> {
+fn has_global(universe: &mut Universe, stack: &mut GlobalValueStack) -> Result<Value, Error> {
+    get_args_from_stack!(stack, _a => Value, name => Interned);
     Ok(Value::Boolean(universe.has_global(name)))
 }
 
-fn global(universe: &mut Universe, _value_stack: &mut GlobalValueStack, _: Value, sym: Interned) -> Result<Value, Error> {
+fn global(universe: &mut Universe, stack: &mut GlobalValueStack) -> Result<Value, Error> {
+    get_args_from_stack!(stack, _a => Value, sym => Interned);
     Ok(universe.lookup_global(sym).unwrap_or(Value::NIL))
 }
 
-fn global_put(universe: &mut Universe, _value_stack: &mut GlobalValueStack, _: Value, name: Interned, value: Value) -> Result<Value, Error> {
+fn global_put(universe: &mut Universe, stack: &mut GlobalValueStack) -> Result<Value, Error> {
+    get_args_from_stack!(stack, _a => Value, name => Interned, value => Value);
     universe.assign_global(name, &value);
     Ok(value)
 }
 
-fn exit(_: &mut Universe, _value_stack: &mut GlobalValueStack, _: Value, status: i32) -> Result<Value, Error> {
+fn exit(_: Value, status: i32) -> Result<Value, Error> {
     std::process::exit(status)
 }
 
-fn ticks(universe: &mut Universe, _value_stack: &mut GlobalValueStack, _: Value) -> Result<Value, Error> {
+fn ticks(universe: &mut Universe, stack: &mut GlobalValueStack) -> Result<Value, Error> {
     const SIGNATURE: &str = "System>>#ticks";
+
+    get_args_from_stack!(stack, _a => Value);
 
     let x = universe
         .start_time
@@ -133,9 +146,10 @@ fn ticks(universe: &mut Universe, _value_stack: &mut GlobalValueStack, _: Value)
     Ok(Value::Integer(x))
 }
 
-fn time(universe: &mut Universe, _value_stack: &mut GlobalValueStack, _: Value) -> Result<Value, Error> {
+fn time(universe: &mut Universe, stack: &mut GlobalValueStack) -> Result<Value, Error> {
     const SIGNATURE: &str = "System>>#time";
 
+    get_args_from_stack!(stack, _a => Value);
     match i32::try_from(universe.start_time.elapsed().as_millis()) {
         Ok(micros) => Ok(Value::Integer(micros)),
         Err(err) => bail!(format!("'{}': {}", SIGNATURE, err)),
@@ -143,7 +157,7 @@ fn time(universe: &mut Universe, _value_stack: &mut GlobalValueStack, _: Value) 
 }
 
 // this function is unusable after my recent changes to the frame. needs to be fixed when a compilation flag for frame debug info is enabled
-fn print_stack_trace(_: &mut Universe, _value_stack: &mut GlobalValueStack, _: Value) -> Result<bool, Error> {
+fn print_stack_trace(_: Value) -> Result<bool, Error> {
     // const SIGNATURE: &str = "System>>#printStackTrace";
 
     dbg!("printStackTrace is broken (on purpose). It can be fixed and reenabled with a debug flag, though.");
@@ -164,11 +178,13 @@ fn print_stack_trace(_: &mut Universe, _value_stack: &mut GlobalValueStack, _: V
     Ok(true)
 }
 
-fn full_gc(universe: &mut Universe, _value_stack: &mut GlobalValueStack, _: Value) -> Result<Value, Error> {
+fn full_gc(universe: &mut Universe, stack: &mut GlobalValueStack) -> Result<Value, Error> {
+    get_args_from_stack!(stack, _a => Value);
     Ok(Value::Boolean(universe.gc_interface.full_gc_request()))
 }
 
-fn gc_stats(universe: &mut Universe, _value_stack: &mut GlobalValueStack, _: Value) -> Result<VecValue, Error> {
+fn gc_stats(universe: &mut Universe, stack: &mut GlobalValueStack) -> Result<VecValue, Error> {
+    get_args_from_stack!(stack, _a => Value);
     let gc_interface = &mut universe.gc_interface;
 
     let total_gc = gc_interface.get_nbr_collections();

@@ -1,6 +1,7 @@
 use anyhow::Error;
 use once_cell::sync::Lazy;
 
+use crate::get_args_from_stack;
 use crate::invokable::Return;
 use crate::primitives::PrimInfo;
 use crate::primitives::PrimitiveFn;
@@ -8,6 +9,7 @@ use crate::universe::GlobalValueStack;
 use crate::universe::Universe;
 use crate::value::convert::Primitive;
 use crate::value::Value;
+use crate::value::convert::FromArgs;
 
 pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
     Box::new([
@@ -23,24 +25,25 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
 
 pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([]));
 
-fn not(_universe: &mut Universe, _value_stack: &mut GlobalValueStack, _: Value) -> Result<bool, Error> {
+fn not(_: Value) -> Result<bool, Error> {
     Ok(false)
 }
 
-fn or(_universe: &mut Universe, _value_stack: &mut GlobalValueStack, _self: Value, _other: Value) -> Result<bool, Error> {
+fn or(_self: Value, _other: Value) -> Result<bool, Error> {
     Ok(true)
 }
 
-fn and_if_true(universe: &mut Universe, value_stack: &mut GlobalValueStack, _self: Value, other: Value) -> Result<Return, Error> {
+fn and_if_true(universe: &mut Universe, stack: &mut GlobalValueStack) -> Result<Return, Error> {
+    get_args_from_stack!(stack, _self => Value, other => Value);
     if let Some(blk) = other.as_block() {
-        value_stack.push(other);
-        Ok(universe.eval_block_with_frame(value_stack, blk.block.nbr_locals, 1))
+        stack.push(other);
+        Ok(universe.eval_block_with_frame(stack, blk.block.nbr_locals, 1))
     } else {
         Ok(Return::Local(other))
     }
 }
 
-fn if_false(_universe: &mut Universe, _value_stack: &mut GlobalValueStack, _self: Value, _other: Value) -> Result<Return, Error> {
+fn if_false(_self: Value, _other: Value) -> Result<Return, Error> {
     Ok(Return::Local(Value::NIL))
 }
 

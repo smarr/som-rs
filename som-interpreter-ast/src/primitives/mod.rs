@@ -86,8 +86,18 @@ pub fn get_instance_primitives(class_name: &str) -> Option<&'static [PrimInfo]> 
 }
 
 /// Function called for an unimplemented primitive.
-fn unimplem_prim_fn(_: &mut Universe, _value_stack: &mut GlobalValueStack, _: i32) -> Result<i32, Error> {
+fn unimplem_prim_fn(_: i32) -> Result<i32, Error> {
     panic!("called an unimplemented primitive")
 }
 
 pub static UNIMPLEM_PRIMITIVE: Lazy<Box<&'static PrimitiveFn>> = Lazy::new(|| Box::new(unimplem_prim_fn.into_func()));
+
+#[macro_export]
+macro_rules! get_args_from_stack {
+    ($stack:ident,) => {}; // base case
+
+    ($stack:ident, $var:ident => $ty:ty $(, $rest:ident => $rest_ty:ty )* $(,)?) => {
+        get_args_from_stack!($stack, $( $rest => $rest_ty ),*);
+        let $var: $ty = <$ty>::from_args($stack.pop()).unwrap();
+    };
+}

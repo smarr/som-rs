@@ -1,6 +1,8 @@
 use super::PrimInfo;
+use crate::get_args_from_stack;
 use crate::primitives::PrimitiveFn;
 use crate::universe::{GlobalValueStack, Universe};
+use crate::value::convert::FromArgs;
 use crate::value::convert::{Primitive, StringLike};
 use crate::value::Value;
 use anyhow::Error;
@@ -26,7 +28,8 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
 });
 pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([]));
 
-fn length(universe: &mut Universe, _value_stack: &mut GlobalValueStack, value: StringLike) -> Result<Value, Error> {
+fn length(universe: &mut Universe, stack: &mut GlobalValueStack) -> Result<Value, Error> {
+    get_args_from_stack!(stack, value => StringLike);
     // tragically, we do not allow strings to have over 2 billion characters and just cast as i32
     // i apologize to everyone for that. i will strive to be better
     match value {
@@ -36,7 +39,8 @@ fn length(universe: &mut Universe, _value_stack: &mut GlobalValueStack, value: S
     }
 }
 
-fn hashcode(universe: &mut Universe, _value_stack: &mut GlobalValueStack, value: StringLike) -> Result<Value, Error> {
+fn hashcode(universe: &mut Universe, stack: &mut GlobalValueStack) -> Result<Value, Error> {
+    get_args_from_stack!(stack, value => StringLike);
     let value = match value {
         StringLike::String(ref value) => value.as_str(),
         StringLike::Char(char) => &*String::from(char),
@@ -55,7 +59,8 @@ fn hashcode(universe: &mut Universe, _value_stack: &mut GlobalValueStack, value:
     Ok(Value::Integer((hasher.finish() as i32).abs()))
 }
 
-fn is_letters(universe: &mut Universe, _value_stack: &mut GlobalValueStack, value: StringLike) -> Result<Value, Error> {
+fn is_letters(universe: &mut Universe, stack: &mut GlobalValueStack) -> Result<Value, Error> {
+    get_args_from_stack!(stack, value => StringLike);
     let value = match value {
         StringLike::String(ref value) => value.as_str(),
         StringLike::Char(char) => &*String::from(char),
@@ -67,7 +72,8 @@ fn is_letters(universe: &mut Universe, _value_stack: &mut GlobalValueStack, valu
     ))
 }
 
-fn is_digits(universe: &mut Universe, _value_stack: &mut GlobalValueStack, value: StringLike) -> Result<Value, Error> {
+fn is_digits(universe: &mut Universe, stack: &mut GlobalValueStack) -> Result<Value, Error> {
+    get_args_from_stack!(stack, value => StringLike);
     let value = match value {
         StringLike::String(ref value) => value.as_str(),
         StringLike::Char(char) => &*String::from(char),
@@ -77,7 +83,8 @@ fn is_digits(universe: &mut Universe, _value_stack: &mut GlobalValueStack, value
     Ok(Value::Boolean(!value.is_empty() && value.chars().all(char::is_numeric)))
 }
 
-fn is_whitespace(universe: &mut Universe, _value_stack: &mut GlobalValueStack, value: StringLike) -> Result<Value, Error> {
+fn is_whitespace(universe: &mut Universe, stack: &mut GlobalValueStack) -> Result<Value, Error> {
+    get_args_from_stack!(stack, value => StringLike);
     let value = match value {
         StringLike::String(ref value) => value.as_str(),
         StringLike::Char(char) => &*String::from(char),
@@ -87,7 +94,8 @@ fn is_whitespace(universe: &mut Universe, _value_stack: &mut GlobalValueStack, v
     Ok(Value::Boolean(!value.is_empty() && value.chars().all(char::is_whitespace)))
 }
 
-fn concatenate(universe: &mut Universe, _value_stack: &mut GlobalValueStack, receiver: StringLike, other: StringLike) -> Result<Value, Error> {
+fn concatenate(universe: &mut Universe, stack: &mut GlobalValueStack) -> Result<Value, Error> {
+    get_args_from_stack!(stack, receiver => StringLike, other => StringLike);
     let s1 = match receiver {
         StringLike::String(ref value) => value.as_str(),
         StringLike::Char(char) => &*String::from(char),
@@ -103,7 +111,8 @@ fn concatenate(universe: &mut Universe, _value_stack: &mut GlobalValueStack, rec
     Ok(Value::String(universe.gc_interface.alloc(format!("{}{}", s1, s2))))
 }
 
-fn as_symbol(universe: &mut Universe, _value_stack: &mut GlobalValueStack, value: StringLike) -> Result<Value, Error> {
+fn as_symbol(universe: &mut Universe, stack: &mut GlobalValueStack) -> Result<Value, Error> {
+    get_args_from_stack!(stack, value => StringLike);
     match value {
         StringLike::String(ref value) => Ok(Value::Symbol(universe.intern_symbol(value.as_str()))),
         StringLike::Char(char) => Ok(Value::Symbol(universe.intern_symbol(String::from(char).as_str()))),
@@ -111,7 +120,8 @@ fn as_symbol(universe: &mut Universe, _value_stack: &mut GlobalValueStack, value
     }
 }
 
-fn char_at(universe: &mut Universe, _value_stack: &mut GlobalValueStack, receiver: StringLike, idx: i32) -> Result<Value, Error> {
+fn char_at(universe: &mut Universe, stack: &mut GlobalValueStack) -> Result<Value, Error> {
+    get_args_from_stack!(stack, receiver => StringLike, idx => i32);
     let string = receiver.as_str(|sym| universe.lookup_symbol(sym));
 
     let char = *string.as_bytes().get((idx - 1) as usize).unwrap();
@@ -119,7 +129,8 @@ fn char_at(universe: &mut Universe, _value_stack: &mut GlobalValueStack, receive
     Ok(char_val)
 }
 
-fn eq(universe: &mut Universe, _value_stack: &mut GlobalValueStack, a: Value, b: Value) -> Result<bool, Error> {
+fn eq(universe: &mut Universe, stack: &mut GlobalValueStack) -> Result<bool, Error> {
+    get_args_from_stack!(stack, a => Value, b => Value);
     let Ok(a) = StringLike::try_from(a.0) else {
         return Ok(false);
     };
@@ -131,13 +142,8 @@ fn eq(universe: &mut Universe, _value_stack: &mut GlobalValueStack, a: Value, b:
     Ok(a.eq_stringlike(&b, |sym| universe.lookup_symbol(sym)))
 }
 
-fn prim_substring_from_to(
-    universe: &mut Universe,
-    _value_stack: &mut GlobalValueStack,
-    receiver: StringLike,
-    from: i32,
-    to: i32,
-) -> Result<Value, Error> {
+fn prim_substring_from_to(universe: &mut Universe, stack: &mut GlobalValueStack) -> Result<Value, Error> {
+    get_args_from_stack!(stack, receiver => StringLike, from => i32, to => i32);
     let from = usize::try_from(from - 1)?;
     let to = usize::try_from(to)?;
 

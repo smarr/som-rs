@@ -9,8 +9,7 @@ pub mod block1 {
     use super::*;
     use crate::universe::GlobalValueStack;
     use crate::value::convert::Primitive;
-    use crate::value::HeapValPtr;
-    use crate::vm_objects::block::Block;
+    use crate::value::Value;
     use anyhow::Error;
 
     pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> =
@@ -22,7 +21,7 @@ pub mod block1 {
         Ok(universe.eval_block_with_frame(value_stack, nbr_locals, 1))
     }
 
-    fn restart(_: &mut Universe, _value_stack: &mut GlobalValueStack, _: HeapValPtr<Block>) -> Result<Return, Error> {
+    fn restart(_: Value) -> Result<Return, Error> {
         #[cfg(feature = "inlining-disabled")]
         return Ok(Return::Restart);
         #[cfg(not(feature = "inlining-disabled"))]

@@ -1,8 +1,9 @@
 use super::PrimInfo;
 use crate::gc::VecValue;
+use crate::get_args_from_stack;
 use crate::primitives::PrimitiveFn;
 use crate::universe::{GlobalValueStack, Universe};
-use crate::value::convert::{DoubleLike, IntegerLike, IntoValue, Primitive, StringLike};
+use crate::value::convert::{DoubleLike, FromArgs, IntegerLike, IntoValue, Primitive, StringLike};
 use crate::value::Value;
 use anyhow::{bail, Error};
 use num_bigint::{BigInt, BigUint, Sign, ToBigInt};
@@ -59,7 +60,8 @@ macro_rules! demote {
     }};
 }
 
-fn from_string(universe: &mut Universe, _value_stack: &mut GlobalValueStack, _: Value, string: StringLike) -> Result<Value, Error> {
+fn from_string(universe: &mut Universe, stack: &mut GlobalValueStack) -> Result<Value, Error> {
+    get_args_from_stack!(stack, _a => Value, string => StringLike);
     let value = match string {
         StringLike::String(ref value) => value.as_str(),
         StringLike::Char(char) => &*String::from(char),
@@ -75,7 +77,8 @@ fn from_string(universe: &mut Universe, _value_stack: &mut GlobalValueStack, _: 
     }
 }
 
-fn as_string(universe: &mut Universe, _value_stack: &mut GlobalValueStack, receiver: IntegerLike) -> Result<Value, Error> {
+fn as_string(universe: &mut Universe, stack: &mut GlobalValueStack) -> Result<Value, Error> {
+    get_args_from_stack!(stack, receiver => IntegerLike);
     let value = match receiver {
         IntegerLike::Integer(value) => value.to_string(),
         IntegerLike::BigInteger(value) => value.to_string(),
@@ -84,7 +87,7 @@ fn as_string(universe: &mut Universe, _value_stack: &mut GlobalValueStack, recei
     Ok(Value::String(universe.gc_interface.alloc(value)))
 }
 
-fn as_double(_: &mut Universe, _value_stack: &mut GlobalValueStack, receiver: IntegerLike) -> Result<Value, Error> {
+fn as_double(receiver: IntegerLike) -> Result<Value, Error> {
     const SIGNATURE: &str = "Integer>>#asDouble";
 
     match receiver {
@@ -96,7 +99,7 @@ fn as_double(_: &mut Universe, _value_stack: &mut GlobalValueStack, receiver: In
     }
 }
 
-fn at_random(_: &mut Universe, _value_stack: &mut GlobalValueStack, receiver: IntegerLike) -> Result<Value, Error> {
+fn at_random(receiver: IntegerLike) -> Result<Value, Error> {
     const SIGNATURE: &str = "Integer>>#atRandom";
 
     let chosen = match receiver {
@@ -109,7 +112,7 @@ fn at_random(_: &mut Universe, _value_stack: &mut GlobalValueStack, receiver: In
     Ok(Value::Integer(chosen))
 }
 
-fn as_32bit_signed_value(_: &mut Universe, _value_stack: &mut GlobalValueStack, receiver: IntegerLike) -> Result<Value, Error> {
+fn as_32bit_signed_value(receiver: IntegerLike) -> Result<Value, Error> {
     let value = match receiver {
         IntegerLike::Integer(value) => value,
         IntegerLike::BigInteger(value) => match value.to_u32_digits() {
@@ -121,7 +124,8 @@ fn as_32bit_signed_value(_: &mut Universe, _value_stack: &mut GlobalValueStack, 
     Ok(Value::Integer(value))
 }
 
-fn as_32bit_unsigned_value(universe: &mut Universe, _value_stack: &mut GlobalValueStack, receiver: IntegerLike) -> Result<IntegerLike, Error> {
+fn as_32bit_unsigned_value(universe: &mut Universe, stack: &mut GlobalValueStack) -> Result<IntegerLike, Error> {
+    get_args_from_stack!(stack, receiver => IntegerLike);
     let value = match receiver {
         IntegerLike::Integer(value) => value as u32,
         IntegerLike::BigInteger(value) => {
@@ -140,8 +144,10 @@ fn as_32bit_unsigned_value(universe: &mut Universe, _value_stack: &mut GlobalVal
     Ok(value)
 }
 
-fn plus(universe: &mut Universe, _value_stack: &mut GlobalValueStack, a: DoubleLike, b: DoubleLike) -> Result<Value, Error> {
+fn plus(universe: &mut Universe, stack: &mut GlobalValueStack) -> Result<Value, Error> {
     const SIGNATURE: &str = "Integer>>#+";
+
+    get_args_from_stack!(stack, a => DoubleLike, b => DoubleLike);
 
     let heap = &mut universe.gc_interface;
     match (a, b) {
@@ -164,9 +170,10 @@ fn plus(universe: &mut Universe, _value_stack: &mut GlobalValueStack, a: DoubleL
     }
 }
 
-fn minus(universe: &mut Universe, _value_stack: &mut GlobalValueStack, a: DoubleLike, b: DoubleLike) -> Result<Value, Error> {
+fn minus(universe: &mut Universe, stack: &mut GlobalValueStack) -> Result<Value, Error> {
     const SIGNATURE: &str = "Integer>>#-";
 
+    get_args_from_stack!(stack, a => DoubleLike, b => DoubleLike);
     let heap = &mut universe.gc_interface;
 
     match (a, b) {
@@ -192,9 +199,10 @@ fn minus(universe: &mut Universe, _value_stack: &mut GlobalValueStack, a: Double
     }
 }
 
-fn times(universe: &mut Universe, _value_stack: &mut GlobalValueStack, a: DoubleLike, b: DoubleLike) -> Result<Value, Error> {
+fn times(universe: &mut Universe, stack: &mut GlobalValueStack) -> Result<Value, Error> {
     const SIGNATURE: &str = "Integer>>#*";
 
+    get_args_from_stack!(stack, a => DoubleLike, b => DoubleLike);
     let heap = &mut universe.gc_interface;
 
     match (a, b) {
@@ -214,8 +222,10 @@ fn times(universe: &mut Universe, _value_stack: &mut GlobalValueStack, a: Double
     }
 }
 
-fn divide(universe: &mut Universe, _value_stack: &mut GlobalValueStack, a: DoubleLike, b: DoubleLike) -> Result<Value, Error> {
+fn divide(universe: &mut Universe, stack: &mut GlobalValueStack) -> Result<Value, Error> {
     const SIGNATURE: &str = "Integer>>#/";
+
+    get_args_from_stack!(stack, a => DoubleLike, b => DoubleLike);
 
     let heap = &mut universe.gc_interface;
 
@@ -236,7 +246,7 @@ fn divide(universe: &mut Universe, _value_stack: &mut GlobalValueStack, a: Doubl
     }
 }
 
-fn divide_float(_: &mut Universe, _value_stack: &mut GlobalValueStack, a: DoubleLike, b: DoubleLike) -> Result<Value, Error> {
+fn divide_float(a: DoubleLike, b: DoubleLike) -> Result<Value, Error> {
     const SIGNATURE: &str = "Integer>>#//";
 
     match (a, b) {
@@ -247,7 +257,9 @@ fn divide_float(_: &mut Universe, _value_stack: &mut GlobalValueStack, a: Double
     }
 }
 
-fn modulo(universe: &mut Universe, _value_stack: &mut GlobalValueStack, a: IntegerLike, b: i32) -> Result<Value, Error> {
+fn modulo(universe: &mut Universe, stack: &mut GlobalValueStack) -> Result<Value, Error> {
+    get_args_from_stack!(stack, a => IntegerLike, b => i32);
+
     match a {
         IntegerLike::Integer(a) => {
             let result = a % b;
@@ -268,7 +280,7 @@ fn modulo(universe: &mut Universe, _value_stack: &mut GlobalValueStack, a: Integ
     }
 }
 
-fn remainder(_: &mut Universe, _value_stack: &mut GlobalValueStack, a: i32, b: i32) -> Result<Value, Error> {
+fn remainder(a: i32, b: i32) -> Result<Value, Error> {
     let result = a % b;
     if result.signum() != a.signum() {
         Ok(Value::Integer((result + a) % a))
@@ -277,7 +289,8 @@ fn remainder(_: &mut Universe, _value_stack: &mut GlobalValueStack, a: i32, b: i
     }
 }
 
-fn sqrt(universe: &mut Universe, _value_stack: &mut GlobalValueStack, a: DoubleLike) -> Result<Value, Error> {
+fn sqrt(universe: &mut Universe, stack: &mut GlobalValueStack) -> Result<Value, Error> {
+    get_args_from_stack!(stack, a => DoubleLike);
     match a {
         DoubleLike::Integer(a) => {
             let sqrt = (a as f64).sqrt();
@@ -293,21 +306,22 @@ fn sqrt(universe: &mut Universe, _value_stack: &mut GlobalValueStack, a: DoubleL
     }
 }
 
-fn max(_: &mut Universe, _value_stack: &mut GlobalValueStack, a: DoubleLike, b: DoubleLike) -> Result<Value, Error> {
+fn max(a: DoubleLike, b: DoubleLike) -> Result<Value, Error> {
     match DoubleLike::gt(&a, &b) {
         true => Ok(a.into_value()),
         false => Ok(b.into_value()),
     }
 }
 
-fn min(_: &mut Universe, _value_stack: &mut GlobalValueStack, a: DoubleLike, b: DoubleLike) -> Result<Value, Error> {
+fn min(a: DoubleLike, b: DoubleLike) -> Result<Value, Error> {
     match DoubleLike::gt(&a, &b) {
         true => Ok(b.into_value()),
         false => Ok(a.into_value()),
     }
 }
 
-fn abs(universe: &mut Universe, _value_stack: &mut GlobalValueStack, a: DoubleLike) -> Result<Value, Error> {
+fn abs(universe: &mut Universe, stack: &mut GlobalValueStack) -> Result<Value, Error> {
+    get_args_from_stack!(stack, a => DoubleLike);
     match a {
         DoubleLike::Double(f) => match f < 0.0 {
             true => Ok((-f).into_value()),
@@ -321,7 +335,8 @@ fn abs(universe: &mut Universe, _value_stack: &mut GlobalValueStack, a: DoubleLi
     }
 }
 
-fn bitand(universe: &mut Universe, _value_stack: &mut GlobalValueStack, a: IntegerLike, b: IntegerLike) -> Result<Value, Error> {
+fn bitand(universe: &mut Universe, stack: &mut GlobalValueStack) -> Result<Value, Error> {
+    get_args_from_stack!(stack, a => IntegerLike, b => IntegerLike);
     let heap = &mut universe.gc_interface;
     match (a, b) {
         (IntegerLike::Integer(a), IntegerLike::Integer(b)) => Ok(Value::Integer(a & b)),
@@ -334,7 +349,8 @@ fn bitand(universe: &mut Universe, _value_stack: &mut GlobalValueStack, a: Integ
     }
 }
 
-fn bitxor(universe: &mut Universe, _value_stack: &mut GlobalValueStack, a: IntegerLike, b: IntegerLike) -> Result<Value, Error> {
+fn bitxor(universe: &mut Universe, stack: &mut GlobalValueStack) -> Result<Value, Error> {
+    get_args_from_stack!(stack, a => IntegerLike, b => IntegerLike);
     let heap = &mut universe.gc_interface;
     match (a, b) {
         (IntegerLike::Integer(a), IntegerLike::Integer(b)) => Ok(Value::Integer(a ^ b)),
@@ -347,23 +363,23 @@ fn bitxor(universe: &mut Universe, _value_stack: &mut GlobalValueStack, a: Integ
     }
 }
 
-fn lt(_: &mut Universe, _value_stack: &mut GlobalValueStack, a: DoubleLike, b: DoubleLike) -> Result<bool, Error> {
+fn lt(a: DoubleLike, b: DoubleLike) -> Result<bool, Error> {
     Ok(DoubleLike::lt(&a, &b))
 }
 
-fn lt_or_eq(_: &mut Universe, _value_stack: &mut GlobalValueStack, a: DoubleLike, b: DoubleLike) -> Result<bool, Error> {
+fn lt_or_eq(a: DoubleLike, b: DoubleLike) -> Result<bool, Error> {
     Ok(DoubleLike::lt_or_eq(&a, &b))
 }
 
-fn gt(_: &mut Universe, _value_stack: &mut GlobalValueStack, a: DoubleLike, b: DoubleLike) -> Result<bool, Error> {
+fn gt(a: DoubleLike, b: DoubleLike) -> Result<bool, Error> {
     Ok(DoubleLike::gt(&a, &b))
 }
 
-fn gt_or_eq(_: &mut Universe, _value_stack: &mut GlobalValueStack, a: DoubleLike, b: DoubleLike) -> Result<bool, Error> {
+fn gt_or_eq(a: DoubleLike, b: DoubleLike) -> Result<bool, Error> {
     Ok(DoubleLike::gt_or_eq(&a, &b))
 }
 
-fn eq(_: &mut Universe, _value_stack: &mut GlobalValueStack, a: Value, b: Value) -> Result<bool, Error> {
+fn eq(a: Value, b: Value) -> Result<bool, Error> {
     let Ok(a) = DoubleLike::try_from(a.0) else {
         return Ok(false);
     };
@@ -375,7 +391,7 @@ fn eq(_: &mut Universe, _value_stack: &mut GlobalValueStack, a: Value, b: Value)
     Ok(DoubleLike::eq(&a, &b))
 }
 
-fn uneq(_: &mut Universe, _value_stack: &mut GlobalValueStack, a: Value, b: Value) -> Result<bool, Error> {
+fn uneq(a: Value, b: Value) -> Result<bool, Error> {
     let Ok(a) = DoubleLike::try_from(a.0) else {
         return Ok(false);
     };
@@ -387,7 +403,7 @@ fn uneq(_: &mut Universe, _value_stack: &mut GlobalValueStack, a: Value, b: Valu
     Ok(!DoubleLike::eq(&a, &b))
 }
 
-fn eq_eq(_: &mut Universe, _value_stack: &mut GlobalValueStack, a: Value, b: Value) -> Result<bool, Error> {
+fn eq_eq(a: Value, b: Value) -> Result<bool, Error> {
     let Ok(a) = DoubleLike::try_from(a.0) else {
         return Ok(false);
     };
@@ -403,7 +419,7 @@ fn eq_eq(_: &mut Universe, _value_stack: &mut GlobalValueStack, a: Value, b: Val
     }
 }
 
-fn shift_left(universe: &mut Universe, _value_stack: &mut GlobalValueStack, a: IntegerLike, b: i32) -> Result<Value, Error> {
+fn shift_left(universe: &mut Universe, stack: &mut GlobalValueStack) -> Result<Value, Error> {
     // old code pre integers being i32 because of nan boxing:
 
     // match a {
@@ -414,6 +430,8 @@ fn shift_left(universe: &mut Universe, _value_stack: &mut GlobalValueStack, a: I
     //     Value::BigInteger(a) => demote!(a << (b as usize)),
     //     _ => bail!(format!("'{}': wrong types", SIGNATURE)),
     // }
+
+    get_args_from_stack!(stack, a => IntegerLike, b => i32);
 
     let heap = &mut universe.gc_interface;
 
@@ -429,7 +447,7 @@ fn shift_left(universe: &mut Universe, _value_stack: &mut GlobalValueStack, a: I
     }
 }
 
-fn shift_right(universe: &mut Universe, _value_stack: &mut GlobalValueStack, a: IntegerLike, b: i32) -> Result<Value, Error> {
+fn shift_right(universe: &mut Universe, stack: &mut GlobalValueStack) -> Result<Value, Error> {
     // match a {
     //     Value::Integer(a) => match a.checked_shr(b as u32) {
     //         Some(value) => Return::Local(Value::Integer(value)),
@@ -439,6 +457,7 @@ fn shift_right(universe: &mut Universe, _value_stack: &mut GlobalValueStack, a: 
     //     _ => bail!(format!("'{}': wrong types", SIGNATURE)),
     // }
 
+    get_args_from_stack!(stack, a => IntegerLike, b => i32);
     let gc_interface = &mut universe.gc_interface;
 
     match a {
@@ -461,7 +480,8 @@ fn shift_right(universe: &mut Universe, _value_stack: &mut GlobalValueStack, a: 
     }
 }
 
-fn to(universe: &mut Universe, _value_stack: &mut GlobalValueStack, a: i32, b: i32) -> Result<Value, Error> {
+fn to(universe: &mut Universe, stack: &mut GlobalValueStack) -> Result<Value, Error> {
+    get_args_from_stack!(stack, a => i32, b => i32);
     let vec: Vec<Value> = (a..=b).map(Value::Integer).collect();
     let alloc_vec: GcSlice<Value> = universe.gc_interface.alloc_slice(&vec);
     Ok(Value::Array(VecValue(alloc_vec)))

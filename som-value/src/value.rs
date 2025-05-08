@@ -259,6 +259,7 @@ impl BaseValue {
     pub fn is_nil(self) -> bool {
         self.tag() == NIL_TAG
     }
+
     /// Returns whether this value is `system`.
     #[inline(always)]
     pub fn is_system(self) -> bool {

@@ -18,8 +18,6 @@ use crate::vm_objects::method::Method;
 use num_bigint::BigInt;
 use som_gc::gcref::Gc;
 
-use super::HeapValPtr;
-
 pub type DoubleLike = som_value::convert::DoubleLike<Gc<BigInt>>;
 pub type IntegerLike = som_value::convert::IntegerLike<Gc<BigInt>>;
 pub type StringLike = som_value::convert::StringLike<Gc<String>>;
@@ -45,8 +43,8 @@ impl TryFrom<Value> for Nil {
 }
 
 impl FromArgs for Nil {
-    fn from_args(arg: &Value) -> Result<Self, Error> {
-        Self::try_from(*arg)
+    fn from_args(arg: Value) -> Result<Self, Error> {
+        Self::try_from(arg)
     }
 }
 
@@ -66,81 +64,81 @@ impl TryFrom<Value> for System {
 }
 
 impl FromArgs for System {
-    fn from_args(arg: &Value) -> Result<Self, Error> {
-        Self::try_from(*arg)
+    fn from_args(arg: Value) -> Result<Self, Error> {
+        Self::try_from(arg)
     }
 }
 
 impl FromArgs for StringLike {
-    fn from_args(arg: &Value) -> Result<Self, Error> {
+    fn from_args(arg: Value) -> Result<Self, Error> {
         Self::try_from(arg.0)
     }
 }
 
 impl FromArgs for DoubleLike {
-    fn from_args(arg: &Value) -> Result<Self, Error> {
+    fn from_args(arg: Value) -> Result<Self, Error> {
         Self::try_from(arg.0)
     }
 }
 
 impl FromArgs for IntegerLike {
-    fn from_args(arg: &Value) -> Result<Self, Error> {
+    fn from_args(arg: Value) -> Result<Self, Error> {
         Self::try_from(arg.0)
     }
 }
 
 pub trait FromArgs: Sized {
-    fn from_args(arg: &'static Value) -> Result<Self, Error>;
+    fn from_args(arg: Value) -> Result<Self, Error>;
 }
 
 impl FromArgs for Value {
-    fn from_args(arg: &Value) -> Result<Self, Error> {
-        Ok(*arg)
+    fn from_args(arg: Value) -> Result<Self, Error> {
+        Ok(arg)
     }
 }
 
 impl FromArgs for bool {
-    fn from_args(arg: &Value) -> Result<Self, Error> {
+    fn from_args(arg: Value) -> Result<Self, Error> {
         arg.as_boolean().context("could not resolve `Value` as `Boolean`")
     }
 }
 
 impl FromArgs for i32 {
-    fn from_args(arg: &Value) -> Result<Self, Error> {
+    fn from_args(arg: Value) -> Result<Self, Error> {
         i32::try_from(arg.0)
     }
 }
 
 impl FromArgs for f64 {
-    fn from_args(arg: &Value) -> Result<Self, Error> {
+    fn from_args(arg: Value) -> Result<Self, Error> {
         f64::try_from(arg.0)
     }
 }
 
 impl FromArgs for Interned {
-    fn from_args(arg: &Value) -> Result<Self, Error> {
+    fn from_args(arg: Value) -> Result<Self, Error> {
         arg.as_symbol().context("could not resolve `Value` as `Symbol`")
     }
 }
 
 impl FromArgs for VecValue {
-    fn from_args(arg: &Value) -> Result<Self, Error> {
+    fn from_args(arg: Value) -> Result<Self, Error> {
         Ok(VecValue(GcSlice::from(arg.extract_pointer_bits())))
     }
 }
 
-impl<T> FromArgs for HeapValPtr<T>
-where
-    T: HasPointerTag,
-{
-    fn from_args(arg: &'static Value) -> Result<Self, Error> {
-        Ok(HeapValPtr::new_static(arg))
+impl FromArgs for Return {
+    fn from_args(arg: Value) -> Result<Self, Error> {
+        Ok(Return::Local(arg))
     }
 }
 
-impl FromArgs for Return {
-    fn from_args(arg: &Value) -> Result<Self, Error> {
-        Ok(Return::Local(*arg))
+impl<T> FromArgs for Gc<T>
+where
+    T: HasPointerTag,
+{
+    fn from_args(arg: Value) -> Result<Self, Error> {
+        Ok(arg.as_value_gc_ptr::<T>().unwrap())
     }
 }
 
@@ -296,31 +294,33 @@ impl IntoValue for DoubleLike {
     }
 }
 
+pub struct NoInterp {}
+
+/// Automatically derive primitive definitions, for functions that do not need the universe or
+/// direct access to the value stack.
+///
+/// The reason is that a function can trigger GC if it has access to the universe (and therefore
+/// the allocator), and that any function that can trigger GC MUST manage the value stack directly
+/// to be wary of the possibility of a collection happening.
+///
+/// A few functions may need the universe but never trigger GC, thus could take the universe as a
+/// parameter safely. But to be safe, we make no exceptions.
 macro_rules! derive_stuff {
     ($($ty:ident),* $(,)?) => {
-        impl <F, R, $($ty),*> $crate::value::convert::Primitive<($($ty),*,)> for F
+        impl <F, R, $($ty),*> $crate::value::convert::Primitive<(NoInterp, $($ty),*,)> for F
         where
-            F: Fn(&mut $crate::universe::Universe, &mut GlobalValueStack, $($ty),*) -> Result<R, Error> + Send + Sync + 'static,
+            F: Fn($($ty),*) -> Result<R, Error> + Send + Sync + 'static,
             R: $crate::value::convert::IntoReturn,
             $(for<'a> $ty: $crate::value::convert::FromArgs),*,
         {
-            fn invoke(&self, universe: &mut $crate::universe::Universe, value_stack: &mut GlobalValueStack, nbr_args: usize) -> Return {
-                // let args = Universe::stack_n_last_elems(value_stack, nbr_args);
-
-                // We need to keep the elements on the stack to have them be reachable still when GC happens.
-                // But borrowing them means borrowing the universe immutably, so we duplicate the reference.
-                // # Safety
-                // AFAIK this is safe since the stack isn't going to move in the meantime.
-                // HOWEVER, if it gets resized/reallocated by Rust... Maybe? I'm not sure...
-                let args: &[Value] = unsafe { &* (value_stack.borrow_n_last(nbr_args) as *const _) };
-                let mut args_iter = args.iter();
+            fn invoke(&self, _: &mut Universe, value_stack: &mut GlobalValueStack, nbr_args: usize) -> Return {
+                let mut args_iter = value_stack.drain_n_last(nbr_args);
                 $(
                     #[allow(non_snake_case)]
                     let $ty = $ty::from_args(args_iter.next().unwrap()).unwrap();
                 )*
 
-                let result = (self)(universe, value_stack, $($ty),*,).unwrap();
-                value_stack.remove_n_last(nbr_args);
+                let result = (self)($($ty),*,).unwrap();
                 result.into_return()
             }
         }
@@ -331,10 +331,9 @@ derive_stuff!(_A);
 derive_stuff!(_A, _B);
 derive_stuff!(_A, _B, _C);
 derive_stuff!(_A, _B, _C, _D);
-derive_stuff!(_A, _B, _C, _D, _E);
-derive_stuff!(_A, _B, _C, _D, _E, _F);
 
-// for blocks. TODO: from a macro instead.
+// For functions that need the universe (likely for GC) and therefore know what they're doing.
+// Have access to the universe and all values, but manage them yourself.
 impl<F, R> Primitive<()> for F
 where
     F: Fn(&mut Universe, &mut GlobalValueStack) -> Result<R, Error> + Send + Sync + 'static,

@@ -1,6 +1,8 @@
 use super::PrimInfo;
+use crate::get_args_from_stack;
 use crate::primitives::PrimitiveFn;
 use crate::universe::{GlobalValueStack, Universe};
+use crate::value::convert::FromArgs;
 use crate::value::convert::{DoubleLike, IntoValue, Primitive, StringLike};
 use crate::value::Value;
 use anyhow::{bail, Error};
@@ -55,8 +57,13 @@ macro_rules! promote {
     };
 }
 
-fn from_string(universe: &mut Universe, _value_stack: &mut GlobalValueStack, _: Value, string: StringLike) -> Result<Value, Error> {
+fn from_string(universe: &mut Universe, stack: &mut GlobalValueStack) -> Result<Value, Error> {
     const SIGNATURE: &str = "Double>>#fromString:";
+
+    get_args_from_stack!(stack, 
+        _a => Value, 
+        string => StringLike
+    );
 
     let string = match string {
         StringLike::String(ref value) => value.as_str(),
@@ -70,19 +77,21 @@ fn from_string(universe: &mut Universe, _value_stack: &mut GlobalValueStack, _: 
     }
 }
 
-fn as_string(universe: &mut Universe, _value_stack: &mut GlobalValueStack, receiver: DoubleLike) -> Result<Value, Error> {
+fn as_string(universe: &mut Universe, stack: &mut GlobalValueStack) -> Result<Value, Error> {
     const SIGNATURE: &str = "Double>>#asString";
+
+    get_args_from_stack!(stack, receiver => DoubleLike);
 
     let value = promote!(SIGNATURE, receiver);
 
     Ok(Value::String(universe.gc_interface.alloc(value.to_string())))
 }
 
-fn as_integer(_: &mut Universe, _value_stack: &mut GlobalValueStack, receiver: f64) -> Result<Value, Error> {
+fn as_integer(receiver: f64) -> Result<Value, Error> {
     Ok(Value::Integer(receiver.trunc() as i32))
 }
 
-fn sqrt(_: &mut Universe, _value_stack: &mut GlobalValueStack, receiver: DoubleLike) -> Result<Value, Error> {
+fn sqrt(receiver: DoubleLike) -> Result<Value, Error> {
     const SIGNATURE: &str = "Double>>#sqrt";
 
     let value = promote!(SIGNATURE, receiver);
@@ -90,7 +99,7 @@ fn sqrt(_: &mut Universe, _value_stack: &mut GlobalValueStack, receiver: DoubleL
     Ok(Value::Double(value.sqrt()))
 }
 
-fn max(_: &mut Universe, _value_stack: &mut GlobalValueStack, receiver: f64, other: DoubleLike) -> Result<Value, Error> {
+fn max(receiver: f64, other: DoubleLike) -> Result<Value, Error> {
     const SIGNATURE: &str = "Double>>#max";
 
     let other_val = promote!(SIGNATURE, other);
@@ -100,7 +109,7 @@ fn max(_: &mut Universe, _value_stack: &mut GlobalValueStack, receiver: f64, oth
     }
 }
 
-fn min(_: &mut Universe, _value_stack: &mut GlobalValueStack, receiver: f64, other: DoubleLike) -> Result<Value, Error> {
+fn min(receiver: f64, other: DoubleLike) -> Result<Value, Error> {
     const SIGNATURE: &str = "Double>>#min";
 
     let other_val = promote!(SIGNATURE, other);
@@ -110,7 +119,7 @@ fn min(_: &mut Universe, _value_stack: &mut GlobalValueStack, receiver: f64, oth
     }
 }
 
-fn round(_: &mut Universe, _value_stack: &mut GlobalValueStack, receiver: DoubleLike) -> Result<Value, Error> {
+fn round(receiver: DoubleLike) -> Result<Value, Error> {
     const SIGNATURE: &str = "Double>>#round";
 
     let value = promote!(SIGNATURE, receiver);
@@ -118,7 +127,7 @@ fn round(_: &mut Universe, _value_stack: &mut GlobalValueStack, receiver: Double
     Ok(Value::Double(value.round()))
 }
 
-fn cos(_: &mut Universe, _value_stack: &mut GlobalValueStack, value: DoubleLike) -> Result<Value, Error> {
+fn cos(value: DoubleLike) -> Result<Value, Error> {
     const SIGNATURE: &str = "Double>>#cos";
 
     let value = promote!(SIGNATURE, value);
@@ -126,7 +135,7 @@ fn cos(_: &mut Universe, _value_stack: &mut GlobalValueStack, value: DoubleLike)
     Ok(Value::Double(value.cos()))
 }
 
-fn sin(_: &mut Universe, _value_stack: &mut GlobalValueStack, receiver: DoubleLike) -> Result<Value, Error> {
+fn sin(receiver: DoubleLike) -> Result<Value, Error> {
     const SIGNATURE: &str = "Double>>#sin";
 
     let value = promote!(SIGNATURE, receiver);
@@ -136,11 +145,11 @@ fn sin(_: &mut Universe, _value_stack: &mut GlobalValueStack, receiver: DoubleLi
 
 // TODO: I'm not sure it's the fastest way to go about it. Maybe take in a f64 directly - not sure.
 // Ditto for several primitives that are very frequently invoked: is it best to rely on `DoubleLike`, on `Value`, on `f64` directly? A mix of all?
-fn eq(_: &mut Universe, _value_stack: &mut GlobalValueStack, a: Value, b: Value) -> Result<Value, Error> {
+fn eq(a: Value, b: Value) -> Result<Value, Error> {
     Ok(Value::Boolean(a == b))
 }
 
-fn eq_eq(_: &mut Universe, _value_stack: &mut GlobalValueStack, a: Value, b: Value) -> Result<bool, Error> {
+fn eq_eq(a: Value, b: Value) -> Result<bool, Error> {
     let Ok(a) = DoubleLike::try_from(a.0) else {
         return Ok(false);
     };
@@ -155,31 +164,31 @@ fn eq_eq(_: &mut Universe, _value_stack: &mut GlobalValueStack, a: Value, b: Val
     }
 }
 
-fn uneq(_: &mut Universe, _value_stack: &mut GlobalValueStack, a: DoubleLike, b: DoubleLike) -> Result<bool, Error> {
+fn uneq(a: DoubleLike, b: DoubleLike) -> Result<bool, Error> {
     Ok(!DoubleLike::eq(&a, &b))
 }
 
-fn lt(_: &mut Universe, _value_stack: &mut GlobalValueStack, a: f64, b: DoubleLike) -> Result<bool, Error> {
+fn lt(a: f64, b: DoubleLike) -> Result<bool, Error> {
     const SIGNATURE: &str = "Double>>#<";
     Ok(a < promote!(SIGNATURE, b))
 }
 
-fn lt_or_eq(_: &mut Universe, _value_stack: &mut GlobalValueStack, a: f64, b: DoubleLike) -> Result<bool, Error> {
+fn lt_or_eq(a: f64, b: DoubleLike) -> Result<bool, Error> {
     const SIGNATURE: &str = "Double>>#<=";
     Ok(a <= promote!(SIGNATURE, b))
 }
 
-fn gt(_: &mut Universe, _value_stack: &mut GlobalValueStack, a: f64, b: DoubleLike) -> Result<bool, Error> {
+fn gt(a: f64, b: DoubleLike) -> Result<bool, Error> {
     const SIGNATURE: &str = "Double>>#>";
     Ok(a > promote!(SIGNATURE, b))
 }
 
-fn gt_or_eq(_: &mut Universe, _value_stack: &mut GlobalValueStack, a: f64, b: DoubleLike) -> Result<bool, Error> {
+fn gt_or_eq(a: f64, b: DoubleLike) -> Result<bool, Error> {
     const SIGNATURE: &str = "Double>>#>=";
     Ok(a >= promote!(SIGNATURE, b))
 }
 
-fn plus(_: &mut Universe, _value_stack: &mut GlobalValueStack, a: DoubleLike, b: DoubleLike) -> Result<Value, Error> {
+fn plus(a: DoubleLike, b: DoubleLike) -> Result<Value, Error> {
     const SIGNATURE: &str = "Double>>#+";
 
     let a = promote!(SIGNATURE, a);
@@ -188,7 +197,7 @@ fn plus(_: &mut Universe, _value_stack: &mut GlobalValueStack, a: DoubleLike, b:
     Ok(Value::Double(a + b))
 }
 
-fn minus(_: &mut Universe, _value_stack: &mut GlobalValueStack, a: DoubleLike, b: DoubleLike) -> Result<Value, Error> {
+fn minus(a: DoubleLike, b: DoubleLike) -> Result<Value, Error> {
     const SIGNATURE: &str = "Double>>#-";
 
     let a = promote!(SIGNATURE, a);
@@ -197,7 +206,7 @@ fn minus(_: &mut Universe, _value_stack: &mut GlobalValueStack, a: DoubleLike, b
     Ok(Value::Double(a - b))
 }
 
-fn times(_: &mut Universe, _value_stack: &mut GlobalValueStack, a: DoubleLike, b: DoubleLike) -> Result<Value, Error> {
+fn times(a: DoubleLike, b: DoubleLike) -> Result<Value, Error> {
     const SIGNATURE: &str = "Double>>#*";
 
     let a = promote!(SIGNATURE, a);
@@ -206,7 +215,7 @@ fn times(_: &mut Universe, _value_stack: &mut GlobalValueStack, a: DoubleLike, b
     Ok(Value::Double(a * b))
 }
 
-fn divide(_: &mut Universe, _value_stack: &mut GlobalValueStack, a: DoubleLike, b: DoubleLike) -> Result<Value, Error> {
+fn divide(a: DoubleLike, b: DoubleLike) -> Result<Value, Error> {
     const SIGNATURE: &str = "Double>>#//";
 
     let a = promote!(SIGNATURE, a);
@@ -215,7 +224,7 @@ fn divide(_: &mut Universe, _value_stack: &mut GlobalValueStack, a: DoubleLike, 
     Ok(Value::Double(a / b))
 }
 
-fn modulo(_: &mut Universe, _value_stack: &mut GlobalValueStack, a: DoubleLike, b: DoubleLike) -> Result<Value, Error> {
+fn modulo(a: DoubleLike, b: DoubleLike) -> Result<Value, Error> {
     const SIGNATURE: &str = "Double>>#%";
 
     let a = promote!(SIGNATURE, a);
@@ -224,7 +233,7 @@ fn modulo(_: &mut Universe, _value_stack: &mut GlobalValueStack, a: DoubleLike, 
     Ok(Value::Double(a % b))
 }
 
-fn positive_infinity(_: &mut Universe, _value_stack: &mut GlobalValueStack, _: Value) -> Result<Value, Error> {
+fn positive_infinity(_: Value) -> Result<Value, Error> {
     const _: &str = "Double>>#positiveInfinity";
 
     Ok(Value::Double(f64::INFINITY))

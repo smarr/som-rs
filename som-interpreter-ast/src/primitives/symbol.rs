@@ -1,6 +1,8 @@
 use super::PrimInfo;
+use crate::get_args_from_stack;
 use crate::primitives::PrimitiveFn;
 use crate::universe::{GlobalValueStack, Universe};
+use crate::value::convert::FromArgs;
 use crate::value::convert::Primitive;
 use crate::value::Value;
 use anyhow::Error;
@@ -11,7 +13,8 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([(
 
 pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([]));
 
-fn as_string(universe: &mut Universe, _value_stack: &mut GlobalValueStack, sym: Interned) -> Result<Value, Error> {
+fn as_string(universe: &mut Universe, stack: &mut GlobalValueStack) -> Result<Value, Error> {
+    get_args_from_stack!(stack, sym => Interned);
     Ok(Value::String(universe.gc_interface.alloc(universe.lookup_symbol(sym).to_string())))
 }
 

@@ -1,14 +1,15 @@
 use super::PrimInfo;
-use crate::gc::VecValue;
+use crate::get_args_from_stack;
 use crate::invokable::Return;
 use crate::primitives::PrimitiveFn;
 use crate::universe::{GlobalValueStack, Universe};
+use crate::value::convert::FromArgs;
 use crate::value::convert::Primitive;
-use crate::value::HeapValPtr;
 use crate::value::Value;
 use crate::vm_objects::method::Method;
 use anyhow::Error;
 use once_cell::sync::Lazy;
+use som_gc::gcref::Gc;
 
 pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
     Box::new([
@@ -19,9 +20,8 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
 });
 pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([]));
 
-fn holder(_: &mut Universe, _value_stack: &mut GlobalValueStack, invokable: HeapValPtr<Method>) -> Result<Value, Error> {
-    let method = invokable.deref();
-    let holder = method.holder();
+fn holder(invokable: Gc<Method>) -> Result<Value, Error> {
+    let holder = invokable.holder();
     Ok(Value::Class(*holder))
 
     // match maybe_holder {
@@ -33,8 +33,9 @@ fn holder(_: &mut Universe, _value_stack: &mut GlobalValueStack, invokable: Heap
     // }
 }
 
-fn signature(universe: &mut Universe, _value_stack: &mut GlobalValueStack, invokable: HeapValPtr<Method>) -> Result<Value, Error> {
-    let sym = universe.intern_symbol(invokable.deref().signature());
+fn signature(universe: &mut Universe, stack: &mut GlobalValueStack) -> Result<Value, Error> {
+    get_args_from_stack!(stack, invokable => Gc<Method>);
+    let sym = universe.intern_symbol(invokable.signature());
     Ok(Value::Symbol(sym))
 }
 
@@ -42,9 +43,9 @@ fn signature(universe: &mut Universe, _value_stack: &mut GlobalValueStack, invok
 fn invoke_on_with(
     universe: &mut Universe,
     value_stack: &mut GlobalValueStack,
-    mut invokable: HeapValPtr<Method>,
-    receiver: Value,
-    arguments: VecValue,
+    //mut invokable: HeapValPtr<Method>,
+    //receiver: Value,
+    //arguments: VecValue,
 ) -> Result<Return, Error> {
     todo!()
     // let args = std::iter::once(receiver).chain(arguments.iter().cloned()).collect();
