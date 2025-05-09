@@ -4,6 +4,7 @@ use std::hash::{Hash, Hasher};
 
 use crate::gc::VecValue;
 use crate::interpreter::Interpreter;
+use crate::pop_args_from_stack;
 use crate::primitives::PrimInfo;
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
@@ -38,7 +39,8 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
 });
 pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([]));
 
-fn class(_: &mut Interpreter, universe: &mut Universe, receiver: Value) -> Result<Gc<Class>, Error> {
+fn class(interp: &mut Interpreter, universe: &mut Universe) -> Result<Gc<Class>, Error> {
+    pop_args_from_stack!(interp, receiver => Value);
     Ok(receiver.class(universe))
 }
 
@@ -68,12 +70,12 @@ fn eq(receiver: Value, other: Value) -> Result<bool, Error> {
     Ok(receiver == other)
 }
 
-fn perform(interpreter: &mut Interpreter, universe: &mut Universe, receiver: Value, signature: Interned) -> Result<(), Error> {
+fn perform(interpreter: &mut Interpreter, universe: &mut Universe) -> Result<(), Error> {
     const SIGNATURE: &str = "Object>>#perform:";
 
     // TODO: popping from the previous frame in this, and all the other perform family function should NOT happen
     // if GC happens, that makes those values (receiver, signature) orphaned, and might cause a crash. it's highly unlikely in practice but TODO fix
-    interpreter.get_current_frame().remove_n_last_elements(2);
+    pop_args_from_stack!(interpreter, receiver => Value, signature => Interned);
 
     let Some(invokable) = receiver.lookup_method(universe, signature) else {
         let signature_str = universe.lookup_symbol(signature).to_owned();
@@ -94,16 +96,10 @@ fn perform(interpreter: &mut Interpreter, universe: &mut Universe, receiver: Val
     Ok(())
 }
 
-fn perform_with_arguments(
-    interpreter: &mut Interpreter,
-    universe: &mut Universe,
-    receiver: Value,
-    signature: Interned,
-    arguments: VecValue,
-) -> Result<(), Error> {
+fn perform_with_arguments(interpreter: &mut Interpreter, universe: &mut Universe) -> Result<(), Error> {
     const SIGNATURE: &str = "Object>>#perform:withArguments:";
 
-    interpreter.get_current_frame().remove_n_last_elements(3);
+    pop_args_from_stack!(interpreter, receiver => Value, signature => Interned, arguments => VecValue);
 
     let Some(invokable) = receiver.lookup_method(universe, signature) else {
         let signature_str = universe.lookup_symbol(signature).to_owned();
@@ -117,16 +113,10 @@ fn perform_with_arguments(
     Ok(())
 }
 
-fn perform_in_super_class(
-    interpreter: &mut Interpreter,
-    universe: &mut Universe,
-    receiver: Value,
-    signature: Interned,
-    class: Gc<Class>,
-) -> Result<(), Error> {
+fn perform_in_super_class(interpreter: &mut Interpreter, universe: &mut Universe) -> Result<(), Error> {
     const SIGNATURE: &str = "Object>>#perform:inSuperclass:";
 
-    interpreter.get_current_frame().remove_n_last_elements(3);
+    pop_args_from_stack!(interpreter, receiver => Value, signature => Interned, class => Gc<Class>);
 
     let Some(invokable) = class.lookup_method(signature) else {
         let signature_str = universe.lookup_symbol(signature).to_owned();
@@ -140,17 +130,10 @@ fn perform_in_super_class(
     Ok(())
 }
 
-fn perform_with_arguments_in_super_class(
-    interpreter: &mut Interpreter,
-    universe: &mut Universe,
-    receiver: Value,
-    signature: Interned,
-    arguments: VecValue,
-    class: Gc<Class>,
-) -> Result<(), Error> {
+fn perform_with_arguments_in_super_class(interpreter: &mut Interpreter, universe: &mut Universe) -> Result<(), Error> {
     const SIGNATURE: &str = "Object>>#perform:withArguments:inSuperclass:";
 
-    interpreter.get_current_frame().remove_n_last_elements(4);
+    pop_args_from_stack!(interpreter, receiver => Value, signature => Interned, arguments => VecValue, class => Gc<Class>);
 
     let method = class.lookup_method(signature);
 

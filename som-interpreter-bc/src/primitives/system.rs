@@ -4,6 +4,7 @@ use std::io::Write;
 
 use crate::gc::VecValue;
 use crate::interpreter::Interpreter;
+use crate::pop_args_from_stack;
 use crate::primitives::PrimInfo;
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
@@ -37,9 +38,8 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
 });
 pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([]));
 
-fn load_file(_: &mut Interpreter, universe: &mut Universe, _: Value, path: StringLike) -> Result<Option<Gc<String>>, Error> {
-    const _: &str = "System>>#loadFie:";
-
+fn load_file(interpreter: &mut Interpreter, universe: &mut Universe) -> Result<Option<Gc<String>>, Error> {
+    pop_args_from_stack!(interpreter, _a => Value, path => StringLike);
     let path = path.as_str(|sym| universe.lookup_symbol(sym));
 
     let Ok(value) = fs::read_to_string(&*path) else {

@@ -42,7 +42,8 @@ fn length(interp: &mut Interpreter, universe: &mut Universe) -> Result<Value, Er
     }
 }
 
-fn hashcode(_: &mut Interpreter, universe: &mut Universe, receiver: StringLike) -> Result<i32, Error> {
+fn hashcode(interp: &mut Interpreter, universe: &mut Universe) -> Result<i32, Error> {
+    pop_args_from_stack!(interp, receiver => StringLike);
     let string = receiver.as_str(|sym| universe.lookup_symbol(sym));
     let mut hasher = DefaultHasher::new();
     hasher.write(string.as_bytes());
@@ -51,35 +52,37 @@ fn hashcode(_: &mut Interpreter, universe: &mut Universe, receiver: StringLike) 
     Ok(hash)
 }
 
-fn is_letters(_: &mut Interpreter, universe: &mut Universe, receiver: StringLike) -> Result<bool, Error> {
+fn is_letters(interp: &mut Interpreter, universe: &mut Universe) -> Result<bool, Error> {
+    pop_args_from_stack!(interp, receiver => StringLike);
     let string = receiver.as_str(|sym| universe.lookup_symbol(sym));
     Ok(!string.is_empty() && string.chars().all(char::is_alphabetic))
 }
 
-fn is_digits(_: &mut Interpreter, universe: &mut Universe, receiver: StringLike) -> Result<bool, Error> {
-    const _: &str = "String>>#isDigits";
-
+fn is_digits(interp: &mut Interpreter, universe: &mut Universe) -> Result<bool, Error> {
+    pop_args_from_stack!(interp, receiver => StringLike);
     let string = receiver.as_str(|sym| universe.lookup_symbol(sym));
-
     Ok(!string.is_empty() && string.chars().all(char::is_numeric))
 }
 
-fn is_whitespace(_: &mut Interpreter, universe: &mut Universe, receiver: StringLike) -> Result<bool, Error> {
-    const _: &str = "String>>#isWhiteSpace";
-
+fn is_whitespace(interp: &mut Interpreter, universe: &mut Universe) -> Result<bool, Error> {
+    pop_args_from_stack!(interp, receiver => StringLike);
     let string = receiver.as_str(|sym| universe.lookup_symbol(sym));
 
     Ok(!string.is_empty() && string.chars().all(char::is_whitespace))
 }
 
-fn concatenate(_: &mut Interpreter, universe: &mut Universe, receiver: StringLike, other: StringLike) -> Result<Gc<String>, Error> {
+fn concatenate(interp: &mut Interpreter, universe: &mut Universe) -> Result<Gc<String>, Error> {
+    pop_args_from_stack!(interp, receiver => StringLike, other => StringLike);
+
     let s1 = receiver.as_str(|sym| universe.lookup_symbol(sym));
     let s2 = other.as_str(|sym| universe.lookup_symbol(sym));
-    Ok(universe.gc_interface.alloc(format!("{s1}{s2}")))
+
+    let final_str = format!("{s1}{s2}");
+    Ok(universe.gc_interface.alloc(final_str))
 }
 
-fn as_symbol(_: &mut Interpreter, universe: &mut Universe, receiver: StringLike) -> Result<Interned, Error> {
-    const _: &str = "String>>#asSymbol";
+fn as_symbol(interp: &mut Interpreter, universe: &mut Universe) -> Result<Interned, Error> {
+    pop_args_from_stack!(interp, receiver => StringLike);
 
     let symbol = match receiver {
         StringLike::String(ref value) => universe.intern_symbol(value.as_str()),
@@ -90,7 +93,9 @@ fn as_symbol(_: &mut Interpreter, universe: &mut Universe, receiver: StringLike)
     Ok(symbol)
 }
 
-fn eq(_: &mut Interpreter, universe: &mut Universe, a: Value, b: Value) -> Result<bool, Error> {
+fn eq(interp: &mut Interpreter, universe: &mut Universe) -> Result<bool, Error> {
+    pop_args_from_stack!(interp, a => Value, b => Value);
+
     let Ok(a) = StringLike::try_from(a.0) else {
         return Ok(false);
     };
@@ -102,8 +107,8 @@ fn eq(_: &mut Interpreter, universe: &mut Universe, a: Value, b: Value) -> Resul
     Ok(a.eq_stringlike(&b, |sym| universe.lookup_symbol(sym)))
 }
 
-fn prim_substring_from_to(_: &mut Interpreter, universe: &mut Universe, receiver: StringLike, from: i32, to: i32) -> Result<Gc<String>, Error> {
-    const _: &str = "String>>#primSubstringFrom:to:";
+fn prim_substring_from_to(interp: &mut Interpreter, universe: &mut Universe) -> Result<Gc<String>, Error> {
+    pop_args_from_stack!(interp, receiver => StringLike, from => i32, to => i32);
 
     let from = usize::try_from(from - 1)?;
     let to = usize::try_from(to)?;
@@ -113,7 +118,9 @@ fn prim_substring_from_to(_: &mut Interpreter, universe: &mut Universe, receiver
     Ok(universe.gc_interface.alloc(string.chars().skip(from).take(to - from).collect()))
 }
 
-fn char_at(_: &mut Interpreter, universe: &mut Universe, receiver: StringLike, idx: i32) -> Result<Value, Error> {
+fn char_at(interp: &mut Interpreter, universe: &mut Universe) -> Result<Value, Error> {
+    pop_args_from_stack!(interp, receiver => StringLike, idx => i32);
+
     let string = receiver.as_str(|sym| universe.lookup_symbol(sym));
     let char = *string.as_bytes().get((idx - 1) as usize).unwrap();
     Ok(Value::Char(char.into()))

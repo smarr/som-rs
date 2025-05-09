@@ -1,5 +1,6 @@
 use crate::gc::VecValue;
 use crate::interpreter::Interpreter;
+use crate::pop_args_from_stack;
 use crate::primitives::PrimInfo;
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
@@ -57,9 +58,8 @@ fn new(interp: &mut Interpreter, universe: &mut Universe) -> Result<(), Error> {
     Ok(())
 }
 
-fn name(_: &mut Interpreter, universe: &mut Universe, receiver: Gc<Class>) -> Result<Interned, Error> {
-    const _: &str = "Class>>#name";
-
+fn name(interp: &mut Interpreter, universe: &mut Universe) -> Result<Interned, Error> {
+    pop_args_from_stack!(interp, receiver => Gc<Class>);
     Ok(universe.intern_symbol(receiver.name()))
 }
 
