@@ -84,3 +84,13 @@ fn unimplem_prim_fn(_: i32) -> Result<i32, Error> {
 }
 
 pub static UNIMPLEM_PRIMITIVE: Lazy<Box<&'static PrimitiveFn>> = Lazy::new(|| Box::new(unimplem_prim_fn.into_func()));
+
+#[macro_export]
+macro_rules! pop_args_from_stack {
+    ($interp:ident,) => {}; // base case
+
+    ($interp:ident, $var:ident => $ty:ty $(, $rest:ident => $rest_ty:ty )* $(,)?) => {
+        pop_args_from_stack!($interp, $( $rest => $rest_ty ),*);
+        let $var: $ty = $crate::value::convert::FromArgs::from_args($interp.get_current_frame().stack_pop()).unwrap();
+    };
+}

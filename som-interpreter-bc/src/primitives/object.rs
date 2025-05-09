@@ -8,7 +8,7 @@ use crate::primitives::PrimInfo;
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
 use crate::value::convert::Primitive;
-use crate::value::{HeapValPtr, Value};
+use crate::value::Value;
 use crate::vm_objects::class::Class;
 use crate::vm_objects::instance::Instance;
 use crate::vm_objects::method::Invoke;
@@ -42,11 +42,10 @@ fn class(_: &mut Interpreter, universe: &mut Universe, receiver: Value) -> Resul
     Ok(receiver.class(universe))
 }
 
-fn halt(_interp: &mut Interpreter, _: &mut Universe, _: Value) -> Result<Value, Error> {
+fn halt(_: Value) -> Result<Value, Error> {
     println!("HALT"); // so a breakpoint can be put
-
-    //dbg!(interp.get_current_frame());
-    //dbg!(interp.get_current_frame().lookup_argument(2).as_block().unwrap().blk_info.holder());
+                      //dbg!(interp.get_current_frame());
+                      //dbg!(interp.get_current_frame().lookup_argument(2).as_block().unwrap().blk_info.holder());
     Ok(Value::NIL)
 }
 
@@ -123,17 +122,17 @@ fn perform_in_super_class(
     universe: &mut Universe,
     receiver: Value,
     signature: Interned,
-    class: HeapValPtr<Class>,
+    class: Gc<Class>,
 ) -> Result<(), Error> {
     const SIGNATURE: &str = "Object>>#perform:inSuperclass:";
 
     interpreter.get_current_frame().remove_n_last_elements(3);
 
-    let Some(invokable) = class.deref().lookup_method(signature) else {
+    let Some(invokable) = class.lookup_method(signature) else {
         let signature_str = universe.lookup_symbol(signature).to_owned();
         let args = vec![receiver];
         return universe
-            .does_not_understand(interpreter, Value::Class(class.deref()), signature, args)
+            .does_not_understand(interpreter, Value::Class(class), signature, args)
             .with_context(|| format!("`{SIGNATURE}`: method `{signature_str}` not found for `{}`", receiver.to_string(universe)));
     };
 
@@ -147,19 +146,19 @@ fn perform_with_arguments_in_super_class(
     receiver: Value,
     signature: Interned,
     arguments: VecValue,
-    class: HeapValPtr<Class>,
+    class: Gc<Class>,
 ) -> Result<(), Error> {
     const SIGNATURE: &str = "Object>>#perform:withArguments:inSuperclass:";
 
     interpreter.get_current_frame().remove_n_last_elements(4);
 
-    let method = class.deref().lookup_method(signature);
+    let method = class.lookup_method(signature);
 
     let Some(invokable) = method else {
         let signature_str = universe.lookup_symbol(signature).to_owned();
         let args = std::iter::once(receiver).chain(arguments.iter().copied()).collect(); // lame to clone args, right?
         return universe
-            .does_not_understand(interpreter, Value::Class(class.deref()), signature, args)
+            .does_not_understand(interpreter, Value::Class(class), signature, args)
             .with_context(|| format!("`{SIGNATURE}`: method `{signature_str}` not found for `{}`", receiver.to_string(universe)));
     };
 

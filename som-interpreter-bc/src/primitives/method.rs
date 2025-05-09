@@ -4,7 +4,7 @@ use crate::primitives::PrimInfo;
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
 use crate::value::convert::Primitive;
-use crate::value::{HeapValPtr, Value};
+use crate::value::Value;
 use crate::vm_objects::class::Class;
 use crate::vm_objects::method::{Invoke, Method};
 use anyhow::Error;
@@ -21,26 +21,24 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
 });
 pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([]));
 
-fn holder(invokable: HeapValPtr<Method>) -> Result<Gc<Class>, Error> {
-    const _: &str = "Method>>#holder";
-
-    Ok(*invokable.deref().holder())
+fn holder(invokable: Gc<Method>) -> Result<Gc<Class>, Error> {
+    Ok(*invokable.holder())
 }
 
-fn signature(_: &mut Interpreter, universe: &mut Universe, invokable: HeapValPtr<Method>) -> Result<Interned, Error> {
-    Ok(universe.intern_symbol(invokable.deref().signature()))
+fn signature(_: &mut Interpreter, universe: &mut Universe, invokable: Gc<Method>) -> Result<Interned, Error> {
+    Ok(universe.intern_symbol(invokable.signature()))
 }
 
 fn invoke_on_with(
     interpreter: &mut Interpreter,
     universe: &mut Universe,
-    invokable: HeapValPtr<Method>,
+    invokable: Gc<Method>,
     receiver: Value,
     arguments: VecValue,
 ) -> Result<(), Error> {
     const _: &str = "Method>>#invokeOn:with:";
 
-    invokable.deref().invoke(
+    invokable.invoke(
         interpreter,
         universe,
         receiver,

@@ -3,6 +3,7 @@ use std::convert::TryFrom;
 use std::hash::Hasher;
 
 use crate::interpreter::Interpreter;
+use crate::pop_args_from_stack;
 use crate::primitives::PrimInfo;
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
@@ -29,7 +30,9 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
 });
 pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([]));
 
-fn length(_: &mut Interpreter, universe: &mut Universe, receiver: StringLike) -> Result<Value, Error> {
+fn length(interp: &mut Interpreter, universe: &mut Universe) -> Result<Value, Error> {
+    pop_args_from_stack!(interp, receiver => StringLike);
+
     // tragically, we do not allow strings to have over 2 billion characters and just cast as i32
     // i apologize to everyone for that. i will strive to be better
     match receiver {

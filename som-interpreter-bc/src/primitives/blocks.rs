@@ -5,14 +5,12 @@ use crate::interpreter::Interpreter;
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
 use crate::value::convert::Primitive;
-use crate::vm_objects::block::Block;
 
 use crate::primitives::PrimInfo;
 
 /// Primitives for the **Block** and **Block1** class.
 pub mod block1 {
     use super::*;
-    use crate::value::HeapValPtr;
 
     pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> =
         Lazy::new(|| Box::new([("value", self::value.into_func(), true), ("restart", self::restart.into_func(), false)]));
@@ -23,7 +21,7 @@ pub mod block1 {
         Ok(())
     }
 
-    fn restart(interpreter: &mut Interpreter, _: &mut Universe, _: HeapValPtr<Block>) -> Result<(), Error> {
+    fn restart(interpreter: &mut Interpreter, _: &mut Universe) -> Result<(), Error> {
         // interpreter.current_frame.bytecode_idx = 0;
         interpreter.bytecode_idx = 0;
         interpreter.get_current_frame().stack_ptr = 0; // not sure why that's necessary... I think there's some odd stack popping rules for primitives

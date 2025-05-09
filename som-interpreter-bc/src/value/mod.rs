@@ -1,4 +1,3 @@
-use som_gc::gcref::Gc;
 use som_value::value::BaseValue;
 
 /// Value type(s!), and value-related code.
@@ -18,5 +17,3 @@ mod value_ptr;
 pub struct Value(pub BaseValue);
 
 // TODO: we should be able to switch between Value (nanboxed) and ValueEnum at will. That used to be the case, but I broke those changes. TODO restore
-
-pub type HeapValPtr<T> = som_value::value_ptr::ValStaticPtr<T, Gc<T>>;

@@ -2,19 +2,18 @@ use anyhow::Error;
 use once_cell::sync::Lazy;
 use som_gc::gcref::Gc;
 
+use crate::cur_frame;
 use crate::interpreter::Interpreter;
 use crate::primitives::PrimInfo;
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
 use crate::value::convert::Primitive;
-use som_value::interned::Interned;
 
 pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([("asString", self::as_string.into_func(), true)]));
 pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([]));
 
-fn as_string(_: &mut Interpreter, universe: &mut Universe, symbol: Interned) -> Result<Gc<String>, Error> {
-    const _: &str = "Symbol>>#asString";
-
+fn as_string(interp: &mut Interpreter, universe: &mut Universe) -> Result<Gc<String>, Error> {
+    let symbol = cur_frame!(interp).stack_pop().as_symbol().unwrap();
     Ok(universe.gc_interface.alloc(universe.lookup_symbol(symbol).to_owned()))
 }
 

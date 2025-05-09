@@ -22,11 +22,11 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
 
 pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([]));
 
-fn not(_: &mut Interpreter, _universe: &mut Universe, _: bool) -> Result<bool, Error> {
+fn not(_: bool) -> Result<bool, Error> {
     Ok(false)
 }
 
-fn or(_: &mut Interpreter, _universe: &mut Universe, _self: Value, _other: Value) -> Result<bool, Error> {
+fn or(_self: Value, _other: Value) -> Result<bool, Error> {
     Ok(true)
 }
 
@@ -44,7 +44,7 @@ fn and_if_true(interpreter: &mut Interpreter, universe: &mut Universe) -> Result
     Ok(())
 }
 
-fn if_false(_: &mut Interpreter, _universe: &mut Universe, _self: Value, _other: Value) -> Result<Value, Error> {
+fn if_false(_self: Value, _other: Value) -> Result<Value, Error> {
     Ok(Value::NIL)
 }
 

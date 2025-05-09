@@ -4,7 +4,7 @@ use crate::primitives::PrimInfo;
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
 use crate::value::convert::Primitive;
-use crate::value::{HeapValPtr, Value};
+use crate::value::Value;
 use crate::vm_objects::class::Class;
 use crate::vm_objects::instance::Instance;
 use anyhow::Error;
@@ -27,10 +27,8 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
 });
 pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([]));
 
-fn superclass(receiver: HeapValPtr<Class>) -> Result<Value, Error> {
-    const _: &str = "Class>>#superclass";
-
-    let super_class = receiver.deref().super_class();
+fn superclass(receiver: Gc<Class>) -> Result<Value, Error> {
+    let super_class = receiver.super_class();
     let super_class_val = super_class.map_or(Value::NIL, Value::Class);
     // interpreter.current_frame.stack_push(super_class);
 
@@ -59,24 +57,19 @@ fn new(interp: &mut Interpreter, universe: &mut Universe) -> Result<(), Error> {
     Ok(())
 }
 
-fn name(_: &mut Interpreter, universe: &mut Universe, receiver: HeapValPtr<Class>) -> Result<Interned, Error> {
+fn name(_: &mut Interpreter, universe: &mut Universe, receiver: Gc<Class>) -> Result<Interned, Error> {
     const _: &str = "Class>>#name";
 
-    Ok(universe.intern_symbol(receiver.deref().name()))
+    Ok(universe.intern_symbol(receiver.name()))
 }
 
-fn methods(_: &mut Interpreter, universe: &mut Universe, receiver: HeapValPtr<Class>) -> Result<VecValue, Error> {
-    const _: &str = "Class>>#methods";
-
-    let methods: Vec<Value> = receiver.deref().methods.values().copied().map(Value::Invokable).collect();
-
+fn methods(_: &mut Interpreter, universe: &mut Universe, receiver: Gc<Class>) -> Result<VecValue, Error> {
+    let methods: Vec<Value> = receiver.methods.values().copied().map(Value::Invokable).collect();
     Ok(VecValue(universe.gc_interface.alloc_slice(&methods)))
 }
 
-fn fields(_: &mut Interpreter, universe: &mut Universe, receiver: HeapValPtr<Class>) -> Result<VecValue, Error> {
-    const _: &str = "Class>>#fields";
-
-    let fields: Vec<Value> = receiver.deref().field_names.iter().copied().map(Value::Symbol).collect();
+fn fields(_: &mut Interpreter, universe: &mut Universe, receiver: Gc<Class>) -> Result<VecValue, Error> {
+    let fields: Vec<Value> = receiver.field_names.iter().copied().map(Value::Symbol).collect();
 
     Ok(VecValue(universe.gc_interface.alloc_slice(&fields)))
 }

@@ -3,11 +3,12 @@ use som_gc::gcslice::GcSlice;
 use som_value::value_ptr::HasPointerTag;
 use std::convert::TryFrom;
 
+use crate::cur_frame;
 use crate::gc::VecValue;
 use crate::interpreter::Interpreter;
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
-use crate::value::{HeapValPtr, Value};
+use crate::value::Value;
 use crate::vm_objects::block::Block;
 use crate::vm_objects::class::Class;
 use crate::vm_objects::instance::Instance;
@@ -41,8 +42,8 @@ impl TryFrom<Value> for Nil {
 }
 
 impl FromArgs for Nil {
-    fn from_args(arg: &Value) -> Result<Self, Error> {
-        Self::try_from(*arg)
+    fn from_args(arg: Value) -> Result<Self, Error> {
+        Self::try_from(arg)
     }
 }
 
@@ -62,71 +63,71 @@ impl TryFrom<Value> for System {
 }
 
 impl FromArgs for System {
-    fn from_args(arg: &Value) -> Result<Self, Error> {
-        Self::try_from(*arg)
+    fn from_args(arg: Value) -> Result<Self, Error> {
+        Self::try_from(arg)
     }
 }
 
 impl FromArgs for StringLike {
-    fn from_args(arg: &Value) -> Result<Self, Error> {
+    fn from_args(arg: Value) -> Result<Self, Error> {
         Self::try_from(arg.0)
     }
 }
 
 impl FromArgs for DoubleLike {
-    fn from_args(arg: &Value) -> Result<Self, Error> {
+    fn from_args(arg: Value) -> Result<Self, Error> {
         Self::try_from(arg.0)
     }
 }
 impl FromArgs for IntegerLike {
-    fn from_args(arg: &Value) -> Result<Self, Error> {
+    fn from_args(arg: Value) -> Result<Self, Error> {
         Self::try_from(arg.0)
     }
 }
 
 pub trait FromArgs: Sized {
-    fn from_args(arg: &'static Value) -> Result<Self, Error>;
+    fn from_args(arg: Value) -> Result<Self, Error>;
 }
 
 impl FromArgs for Value {
-    fn from_args(arg: &Value) -> Result<Self, Error> {
-        Ok(*arg)
+    fn from_args(arg: Value) -> Result<Self, Error> {
+        Ok(arg)
     }
 }
 
 impl FromArgs for bool {
-    fn from_args(arg: &Value) -> Result<Self, Error> {
+    fn from_args(arg: Value) -> Result<Self, Error> {
         arg.as_boolean().context("could not resolve `Value` as `Boolean`")
     }
 }
 
 impl FromArgs for i32 {
-    fn from_args(arg: &Value) -> Result<Self, Error> {
+    fn from_args(arg: Value) -> Result<Self, Error> {
         arg.as_integer().context("could not resolve `Value` as `Integer`")
     }
 }
 
 impl FromArgs for f64 {
-    fn from_args(arg: &Value) -> Result<Self, Error> {
+    fn from_args(arg: Value) -> Result<Self, Error> {
         arg.as_double().context("could not resolve `Value` as `Double`")
     }
 }
 
 impl FromArgs for Interned {
-    fn from_args(arg: &Value) -> Result<Self, Error> {
+    fn from_args(arg: Value) -> Result<Self, Error> {
         arg.as_symbol().context("could not resolve `Value` as `Symbol`")
     }
 }
 
 impl FromArgs for VecValue {
-    fn from_args(arg: &Value) -> Result<Self, Error> {
+    fn from_args(arg: Value) -> Result<Self, Error> {
         Ok(VecValue(GcSlice::from(arg.extract_pointer_bits())))
     }
 }
 
-impl<T: HasPointerTag> FromArgs for HeapValPtr<T> {
-    fn from_args(arg: &'static Value) -> Result<Self, Error> {
-        Ok(HeapValPtr::new_static(arg))
+impl<T: HasPointerTag> FromArgs for Gc<T> {
+    fn from_args(arg: Value) -> Result<Self, Error> {
+        Ok(arg.as_value_ptr().unwrap())
     }
 }
 
@@ -300,7 +301,7 @@ macro_rules! derive_prims {
                 let mut args_iter = args.iter();
                 $(
                     #[allow(non_snake_case)]
-                    let $ty = $ty::from_args(args_iter.next().unwrap()).unwrap();
+                    let $ty = $ty::from_args(*args_iter.next().unwrap()).unwrap();
                 )*
 
                 let result = (self)(interpreter, universe, $($ty),*,)?;
@@ -329,7 +330,7 @@ macro_rules! derive_prims_no_interp {
                     let mut args_iter = args.iter();
                     $(
                         #[allow(non_snake_case)]
-                        let $ty = $ty::from_args(args_iter.next().unwrap()).unwrap();
+                        let $ty = $ty::from_args(*args_iter.next().unwrap()).unwrap();
                     )*
 
                    (self)($($ty),*,)?.into_value()
@@ -353,12 +354,23 @@ derive_prims_no_interp!(_A, _B);
 derive_prims_no_interp!(_A, _B, _C);
 derive_prims_no_interp!(_A, _B, _C, _D);
 
-// TODO: adapt macro instead
 impl<F> Primitive<()> for F
 where
     F: Fn(&mut Interpreter, &mut Universe) -> Result<(), Error> + Send + Sync + 'static,
 {
     fn invoke(&self, interpreter: &mut Interpreter, universe: &mut Universe, _: usize) -> Result<(), Error> {
         self(interpreter, universe)
+    }
+}
+
+impl<F, R> Primitive<R> for F
+where
+    F: Fn(&mut Interpreter, &mut Universe) -> Result<R, Error> + Send + Sync + 'static,
+    R: crate::value::convert::IntoValue,
+{
+    fn invoke(&self, interpreter: &mut Interpreter, universe: &mut Universe, _: usize) -> Result<(), Error> {
+        let result = self(interpreter, universe)?.into_value();
+        cur_frame!(interpreter).stack_push(result);
+        Ok(())
     }
 }

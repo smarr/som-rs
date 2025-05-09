@@ -65,9 +65,16 @@ fn new(interp: &mut Interpreter, universe: &mut Universe) -> Result<(), Error> {
     Ok(())
 }
 
-fn copy(_: &mut Interpreter, universe: &mut Universe, arr: VecValue) -> Result<VecValue, Error> {
+fn copy(_interp: &mut Interpreter, universe: &mut Universe, arr: VecValue) -> Result<VecValue, Error> {
+    //let arr: VecValue = interp.get_current_frame().stack_last().as_array().unwrap();
+
+    //todo!("ensure this is safe");
+
     let copied_arr: Vec<Value> = arr.iter().copied().collect();
     let allocated: GcSlice<Value> = universe.gc_interface.alloc_slice(&copied_arr);
+
+    //interp.get_current_frame().stack_pop();
+
     Ok(VecValue(allocated))
 }
 

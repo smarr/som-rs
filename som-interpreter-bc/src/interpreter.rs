@@ -19,6 +19,13 @@ use som_gc::gcref::Gc;
 use som_value::interned::Interned;
 use std::time::Instant;
 
+#[macro_export]
+macro_rules! cur_frame {
+    ($interp:expr) => {
+        $interp.get_current_frame()
+    };
+}
+
 macro_rules! resolve_method_and_send {
     ($self:expr, $universe:expr, $symbol:expr, $nbr_args:expr) => {{
         let current_frame = $self.get_current_frame();

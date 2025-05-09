@@ -3,7 +3,7 @@ use crate::primitives::PrimInfo;
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
 use crate::value::convert::{DoubleLike, IntoValue, Primitive};
-use crate::value::{HeapValPtr, Value};
+use crate::value::Value;
 use anyhow::{Context, Error};
 use num_traits::ToPrimitive;
 use once_cell::sync::Lazy;
@@ -57,10 +57,10 @@ macro_rules! promote {
     };
 }
 
-fn from_string(_: Value, string: HeapValPtr<String>) -> Result<f64, Error> {
+fn from_string(_: Value, string: Gc<String>) -> Result<f64, Error> {
     const SIGNATURE: &str = "Double>>#fromString:";
 
-    string.deref().parse().with_context(|| format!("`{SIGNATURE}`: could not parse `f64` from string"))
+    string.parse().with_context(|| format!("`{SIGNATURE}`: could not parse `f64` from string"))
 }
 
 fn as_string(_: &mut Interpreter, universe: &mut Universe, receiver: DoubleLike) -> Result<Gc<String>, Error> {
