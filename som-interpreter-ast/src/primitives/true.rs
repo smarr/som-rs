@@ -7,9 +7,9 @@ use crate::primitives::PrimInfo;
 use crate::primitives::PrimitiveFn;
 use crate::universe::GlobalValueStack;
 use crate::universe::Universe;
+use crate::value::convert::FromArgs;
 use crate::value::convert::Primitive;
 use crate::value::Value;
-use crate::value::convert::FromArgs;
 
 pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
     Box::new([

@@ -3,6 +3,7 @@ use std::convert::{TryFrom, TryInto};
 use super::PrimInfo;
 use crate::gc::VecValue;
 use crate::interpreter::Interpreter;
+use crate::pop_args_from_stack;
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
 use crate::value::convert::{IntoValue, Primitive};
@@ -65,15 +66,17 @@ fn new(interp: &mut Interpreter, universe: &mut Universe) -> Result<(), Error> {
     Ok(())
 }
 
-fn copy(_interp: &mut Interpreter, universe: &mut Universe, arr: VecValue) -> Result<VecValue, Error> {
-    //let arr: VecValue = interp.get_current_frame().stack_last().as_array().unwrap();
+fn copy(interp: &mut Interpreter, universe: &mut Universe) -> Result<VecValue, Error> {
+    let arr: VecValue = interp.get_current_frame().stack_last().as_array().unwrap();
+    std::hint::black_box(&arr); // paranoia, in case the compiler gets ideas about reusing that variable
+    let slice_size = arr.0.get_true_size();
+    let slice_addr = universe.gc_interface.request_bytes_for_slice(slice_size, None);
 
-    //todo!("ensure this is safe");
+    pop_args_from_stack!(interp, arr2 => VecValue);
+    std::hint::black_box(&arr2);
 
-    let copied_arr: Vec<Value> = arr.iter().copied().collect();
-    let allocated: GcSlice<Value> = universe.gc_interface.alloc_slice(&copied_arr);
-
-    //interp.get_current_frame().stack_pop();
+    let copied_arr: Vec<Value> = arr2.iter().copied().collect();
+    let allocated: GcSlice<Value> = universe.gc_interface.write_slice_to_addr(slice_addr, &copied_arr);
 
     Ok(VecValue(allocated))
 }

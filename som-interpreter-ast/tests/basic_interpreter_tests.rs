@@ -1,4 +1,5 @@
 use rstest::{fixture, rstest};
+use som_gc::gc_interface::SOMAllocator;
 use som_gc::gcref::Gc;
 use som_interpreter_ast::compiler::compile::AstMethodCompilerCtxt;
 use som_interpreter_ast::invokable::Return;

@@ -13,6 +13,7 @@ use once_cell::sync::Lazy;
 use som_gc::gc_interface::AllocSiteMarker;
 use som_gc::gc_interface::SOMAllocator;
 use som_gc::gcref::Gc;
+use som_gc::gcslice::GcSlice;
 use som_value::interned::Interned;
 use std::marker::PhantomData;
 
@@ -64,14 +65,22 @@ fn name(interp: &mut Interpreter, universe: &mut Universe) -> Result<Interned, E
     Ok(universe.intern_symbol(receiver.name()))
 }
 
-fn methods(_: &mut Interpreter, universe: &mut Universe, receiver: Gc<Class>) -> Result<VecValue, Error> {
+fn methods(interp: &mut Interpreter, universe: &mut Universe) -> Result<VecValue, Error> {
+    let cls: Gc<Class> = interp.get_current_frame().stack_last().as_class().unwrap();
+    std::hint::black_box(&cls); // paranoia, in case the compiler gets ideas about reusing that variable
+    let slice_size = cls.methods.len() * size_of::<Value>();
+    let slice_addr = universe.gc_interface.request_bytes_for_slice(slice_size, None);
+
+    pop_args_from_stack!(interp, receiver => Gc<Class>);
     let methods: Vec<Value> = receiver.methods.values().copied().map(Value::Invokable).collect();
-    Ok(VecValue(universe.gc_interface.alloc_slice(&methods)))
+    let allocated: GcSlice<Value> = universe.gc_interface.write_slice_to_addr(slice_addr, &methods);
+
+    Ok(VecValue(allocated))
 }
 
-fn fields(_: &mut Interpreter, universe: &mut Universe, receiver: Gc<Class>) -> Result<VecValue, Error> {
+fn fields(interp: &mut Interpreter, universe: &mut Universe) -> Result<VecValue, Error> {
+    pop_args_from_stack!(interp, receiver => Gc<Class>);
     let fields: Vec<Value> = receiver.field_names.iter().copied().map(Value::Symbol).collect();
-
     Ok(VecValue(universe.gc_interface.alloc_slice(&fields)))
 }
 

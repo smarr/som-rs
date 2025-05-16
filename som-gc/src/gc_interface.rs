@@ -279,9 +279,7 @@ pub trait SOMAllocator {
     fn write_slice_to_addr<T>(&mut self, slice_header_addr: Address, obj: &[T]) -> GcSlice<T>
     where
         T: SupportedSliceType + std::fmt::Debug;
-    fn request_bytes_for_slice<T>(&mut self, obj: &[T], alloc_origin_marker: Option<AllocSiteMarker>) -> Address
-    where
-        T: SupportedSliceType + std::fmt::Debug;
+    fn request_bytes_for_slice(&mut self, slice_size: usize, alloc_origin_marker: Option<AllocSiteMarker>) -> Address;
     #[deprecated]
     fn alloc_slice_with_marker<T>(&mut self, obj: &[T], alloc_origin_marker: Option<AllocSiteMarker>) -> GcSlice<T>
     where
@@ -350,33 +348,8 @@ impl SOMAllocator for GCInterface {
         obj: &[T],
         alloc_origin_marker: Option<AllocSiteMarker>,
     ) -> GcSlice<T> {
-        let header_addr = self.request_bytes_for_slice(obj, alloc_origin_marker);
+        let header_addr = self.request_bytes_for_slice(std::mem::size_of_val(obj), alloc_origin_marker);
         self.write_slice_to_addr(header_addr, obj)
-    }
-
-    fn request_bytes_for_slice<T: SupportedSliceType + std::fmt::Debug>(
-        &mut self,
-        obj: &[T],
-        alloc_origin_marker: Option<AllocSiteMarker>,
-    ) -> Address {
-        let mut size = {
-            match std::mem::size_of_val(obj) {
-                v if v < MIN_OBJECT_SIZE => MIN_OBJECT_SIZE,
-                v => v,
-            }
-        };
-
-        size += std::mem::size_of::<usize>(); // size stored at the start
-
-        // slices can be big enough to warrant using large object storage.
-        let header_addr = {
-            match size <= crate::mmtk().get_plan().constraints().max_non_los_default_alloc_bytes {
-                true => self.request_bytes(size + OBJECT_REF_OFFSET, alloc_origin_marker),
-                false => self.request_bytes_los(size + OBJECT_REF_OFFSET, alloc_origin_marker),
-            }
-        };
-
-        header_addr
     }
 
     fn write_slice_to_addr<T: SupportedSliceType + std::fmt::Debug>(&mut self, slice_header_addr: Address, obj: &[T]) -> GcSlice<T> {
@@ -460,6 +433,27 @@ impl SOMAllocator for GCInterface {
             bytes += OBJECT_REF_OFFSET;
             bytes.into()
         }
+    }
+
+    fn request_bytes_for_slice(&mut self, slice_size: usize, alloc_origin_marker: Option<AllocSiteMarker>) -> Address {
+        let mut size = {
+            match slice_size {
+                v if v < MIN_OBJECT_SIZE => MIN_OBJECT_SIZE,
+                v => v,
+            }
+        };
+
+        size += std::mem::size_of::<usize>(); // size stored at the start
+
+        // slices can be big enough to warrant using large object storage.
+        let header_addr = {
+            match size <= crate::mmtk().get_plan().constraints().max_non_los_default_alloc_bytes {
+                true => self.request_bytes(size + OBJECT_REF_OFFSET, alloc_origin_marker),
+                false => self.request_bytes_los(size + OBJECT_REF_OFFSET, alloc_origin_marker),
+            }
+        };
+
+        header_addr
     }
 }
 
