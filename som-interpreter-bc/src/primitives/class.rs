@@ -11,6 +11,7 @@ use crate::vm_objects::instance::Instance;
 use anyhow::Error;
 use once_cell::sync::Lazy;
 use som_gc::gc_interface::AllocSiteMarker;
+use som_gc::gc_interface::SOMAllocator;
 use som_gc::gcref::Gc;
 use som_value::interned::Interned;
 use std::marker::PhantomData;

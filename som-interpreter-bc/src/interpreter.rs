@@ -14,7 +14,7 @@ use crate::debug::profiler::Profiler;
 
 use num_bigint::BigInt;
 use som_core::bytecode::Bytecode;
-use som_gc::gc_interface::{AllocSiteMarker, GCInterface};
+use som_gc::gc_interface::{AllocSiteMarker, GCInterface, SOMAllocator};
 use som_gc::gcref::Gc;
 use som_value::interned::Interned;
 use std::time::Instant;

@@ -10,6 +10,7 @@ use num_bigint::{BigInt, BigUint, Sign, ToBigInt};
 use num_traits::{Signed, ToPrimitive};
 use once_cell::sync::Lazy;
 use rand::Rng;
+use som_gc::gc_interface::SOMAllocator;
 use som_gc::gcref::Gc;
 use som_gc::gcslice::GcSlice;
 

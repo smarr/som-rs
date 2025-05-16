@@ -5,6 +5,7 @@ use crate::vm_objects::frame::{Frame, FrameStackIter};
 use crate::vm_objects::method::Method;
 use crate::UNIVERSE_RAW_PTR_CONST;
 use rstest::{fixture, rstest};
+use som_gc::gc_interface::SOMAllocator;
 use som_gc::gcref::Gc;
 use som_lexer::{Lexer, Token};
 use som_parser::lang;

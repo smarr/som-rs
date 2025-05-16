@@ -8,7 +8,7 @@ use crate::value::convert::Primitive;
 use crate::value::Value;
 use anyhow::{bail, Error};
 use once_cell::sync::Lazy;
-use som_gc::gc_interface::AllocSiteMarker;
+use som_gc::gc_interface::{AllocSiteMarker, SOMAllocator};
 use som_gc::gcslice::GcSlice;
 use std::convert::TryFrom;
 

@@ -14,6 +14,7 @@ use crate::vm_objects::class::Class;
 use anyhow::{Context, Error};
 use num_bigint::BigInt;
 use once_cell::sync::Lazy;
+use som_gc::gc_interface::SOMAllocator;
 use som_gc::gcref::Gc;
 use som_value::interned::Interned;
 

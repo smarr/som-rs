@@ -9,6 +9,7 @@ use crate::value::Value;
 use crate::vm_objects::block::Block;
 use crate::vm_objects::frame::{Frame, FrameAccess};
 use num_bigint::BigInt;
+use som_gc::gc_interface::SOMAllocator;
 use som_gc::gcref::Gc;
 use som_gc::{debug_assert_valid_semispace_ptr, debug_assert_valid_semispace_ptr_value};
 

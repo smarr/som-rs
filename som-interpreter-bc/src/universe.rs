@@ -8,7 +8,7 @@ use crate::vm_objects::frame::Frame;
 use anyhow::{anyhow, Error};
 use som_core::core_classes::CoreClasses;
 use som_core::interner::Interner;
-use som_gc::gc_interface::GCInterface;
+use som_gc::gc_interface::{GCInterface, SOMAllocator};
 use som_gc::gcref::Gc;
 use som_value::interned::Interned;
 use std::fs;

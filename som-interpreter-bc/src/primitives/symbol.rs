@@ -1,5 +1,6 @@
 use anyhow::Error;
 use once_cell::sync::Lazy;
+use som_gc::gc_interface::SOMAllocator;
 use som_gc::gcref::Gc;
 
 use crate::cur_frame;

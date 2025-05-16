@@ -26,7 +26,7 @@ use som_core::ast;
 use som_core::ast::BlockDebugInfo;
 use som_core::ast::{Expression, MethodBody};
 use som_core::bytecode::Bytecode;
-use som_gc::gc_interface::{AllocSiteMarker, GCInterface};
+use som_gc::gc_interface::{AllocSiteMarker, GCInterface, SOMAllocator};
 
 pub(crate) trait GenCtxt {
     fn intern_symbol(&mut self, name: &str) -> Interned;

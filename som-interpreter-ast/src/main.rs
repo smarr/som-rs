@@ -12,6 +12,7 @@ use som_core::cli_parser::CLIOptions;
 
 mod shell;
 
+use som_gc::gc_interface::SOMAllocator;
 #[cfg(feature = "inlining-disabled")]
 use som_interpreter_ast::invokable::Return;
 

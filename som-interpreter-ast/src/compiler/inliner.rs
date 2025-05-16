@@ -10,6 +10,7 @@ use crate::nodes::inlined::to_do_inlined_node::ToDoInlinedNode;
 use crate::nodes::inlined::while_inlined_node::WhileInlinedNode;
 use som_core::ast;
 use som_core::ast::{Block, Expression, Literal};
+use som_gc::gc_interface::SOMAllocator;
 
 /// Helper enum for some variable-related logic when inlining.
 pub enum VarType<'a> {

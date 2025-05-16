@@ -9,7 +9,7 @@ use crate::value::convert::{IntoValue, Primitive};
 use crate::value::Value;
 use anyhow::{Context, Error};
 use once_cell::sync::Lazy;
-use som_gc::gc_interface::AllocSiteMarker;
+use som_gc::gc_interface::{AllocSiteMarker, SOMAllocator};
 use som_gc::gcslice::GcSlice;
 
 pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {

@@ -7,6 +7,7 @@ use crate::value::convert::{Primitive, StringLike};
 use crate::value::Value;
 use anyhow::Error;
 use once_cell::sync::Lazy;
+use som_gc::gc_interface::SOMAllocator;
 use som_value::value::BaseValue;
 use std::collections::hash_map::DefaultHasher;
 use std::convert::TryFrom;

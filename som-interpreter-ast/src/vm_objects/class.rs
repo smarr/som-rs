@@ -7,7 +7,7 @@ use crate::vm_objects::method::{Method, MethodKind};
 use indexmap::IndexMap;
 use som_core::ast::ClassDef;
 use som_core::interner::Interner;
-use som_gc::gc_interface::GCInterface;
+use som_gc::gc_interface::{GCInterface, SOMAllocator};
 use som_gc::gcref::Gc;
 use som_value::interned::Interned;
 

@@ -167,165 +167,6 @@ impl GCInterface {
 
         default_allocator
     }
-}
-
-/// Explicitly mentions what an allocation was requested for.
-/// The intent is to help debugging: we can track where GC was triggered, and what triggered it. This is all to find GC bugs.
-#[derive(Debug)]
-pub enum AllocSiteMarker {
-    AstFrame,
-    MethodFrame,
-    MethodFrameWithArgs,
-    InitMethodFrame,
-    Block,
-    BlockFrame,
-    Instance,
-    Method,
-    Class,
-    Array,
-}
-
-impl GCInterface {
-    pub fn alloc<T: HasTypeInfoForGC>(&mut self, obj: T) -> Gc<T> {
-        self.alloc_with_size(obj, size_of::<T>(), None)
-    }
-
-    /// Allocates a type on the heap and returns a pointer to it.
-    /// Considers that the provided object's size can be trivially inferred with a `size_of` call (which isn't the case for all of our objects, e.g. frames)
-    pub fn alloc_with_marker<T: HasTypeInfoForGC>(&mut self, obj: T, alloc_origin_marker: Option<AllocSiteMarker>) -> Gc<T> {
-        self.alloc_with_size(obj, size_of::<T>(), alloc_origin_marker)
-    }
-
-    /// Allocates a type, but with a given size.
-    pub fn alloc_with_size<T: HasTypeInfoForGC>(&mut self, obj: T, size: usize, alloc_origin_marker: Option<AllocSiteMarker>) -> Gc<T> {
-        debug_assert!(size >= MIN_OBJECT_SIZE);
-
-        // adding VM header size (type info) to amount we allocate
-        let header_addr = self.request_bytes(size + OBJECT_REF_OFFSET, alloc_origin_marker);
-
-        debug_assert!(!header_addr.is_zero());
-        let obj_addr = SOMVM::object_start_to_ref(header_addr);
-
-        // AFAIK, this is not needed.
-        // mmtk_post_alloc(mutator, SOMVM::object_start_to_ref(addr), size, GC_SEMANTICS);
-
-        unsafe {
-            *header_addr.as_mut_ref() = T::get_magic_gc_id();
-            *(obj_addr.to_raw_address().as_mut_ref()) = obj;
-        }
-
-        Gc::from(obj_addr.to_raw_address())
-    }
-
-    pub fn alloc_slice<T: SupportedSliceType + std::fmt::Debug>(&mut self, obj: &[T]) -> GcSlice<T> {
-        self.alloc_slice_with_marker(obj, None)
-    }
-
-    // Allocates a type on the heap and returns a pointer to it.
-    // TODO: slices can get big, and need allocation with LOS. Need to implement.
-    pub fn alloc_slice_with_marker<T: SupportedSliceType + std::fmt::Debug>(
-        &mut self,
-        obj: &[T],
-        alloc_origin_marker: Option<AllocSiteMarker>,
-    ) -> GcSlice<T> {
-        let mut size = {
-            match std::mem::size_of_val(obj) {
-                v if v < MIN_OBJECT_SIZE => MIN_OBJECT_SIZE,
-                v => v,
-            }
-        };
-
-        size += std::mem::size_of::<usize>(); // size stored at the start
-
-        // slices can be big enough to warrant using large object storage.
-        let header_addr = {
-            match size <= crate::mmtk().get_plan().constraints().max_non_los_default_alloc_bytes {
-                true => self.request_bytes(size + OBJECT_REF_OFFSET, alloc_origin_marker),
-                false => self.request_bytes_los(size + OBJECT_REF_OFFSET, alloc_origin_marker),
-            }
-        };
-
-        let len_addr = SOMVM::object_start_to_ref(header_addr);
-        let obj_addr = len_addr.to_raw_address().add(size_of::<usize>());
-
-        unsafe {
-            *header_addr.as_mut_ref() = T::get_magic_gc_slice_id();
-            *len_addr.to_raw_address().as_mut_ref() = obj.len();
-            std::ptr::copy_nonoverlapping(obj.as_ptr(), obj_addr.as_mut_ref(), obj.len());
-        }
-
-        GcSlice::new(len_addr.to_raw_address())
-    }
-
-    #[cfg(feature = "marksweep")]
-    /// Request `size` bytes from MMTk.
-    /// Importantly, this MAY TRIGGER A COLLECTION. Which means any function that relies on it must be mindful of this,
-    /// such as by making sure no arguments are dangling on the Rust stack away from the GC's reach.
-    pub fn request_bytes(&mut self, size: usize, _alloc_origin_marker: Option<AllocSiteMarker>) -> Address {
-        unsafe { &mut (*self.default_allocator) }.alloc(size, GC_ALIGN, GC_OFFSET)
-        // slow path, for debugging
-        // crate::api::mmtk_alloc(&mut self.mutator, size, GC_ALIGN, GC_OFFSET, AllocationSemantics::Default)
-    }
-
-    #[cfg(feature = "semispace")]
-    /// Request `size` bytes from MMTk.
-    /// Importantly, this MAY TRIGGER A COLLECTION. Which means any function that relies on it must be mindful of this,
-    /// such as by making sure no arguments are dangling on the Rust stack away from the GC's reach.
-    pub fn request_bytes(&mut self, size: usize, _alloc_origin_marker: Option<AllocSiteMarker>) -> Address {
-        //unsafe { &mut (*self.default_allocator) }.alloc(size, GC_ALIGN, GC_OFFSET)
-
-        let _gc_watcher = self.start_the_world_count;
-
-        // Release builds must not assume this value is unchanging: it can, that's the point of the check later on.
-        std::hint::black_box(&self.start_the_world_count);
-
-        let addr = unsafe { &mut (*self.default_allocator) }.alloc(size, GC_ALIGN, GC_OFFSET);
-        std::sync::atomic::fence(std::sync::atomic::Ordering::Release);
-
-        #[cfg(debug_assertions)]
-        if self.start_the_world_count > _gc_watcher {
-            match _alloc_origin_marker {
-                Some(alloc_type) => println!("GC was triggered after allocating a {:?}", alloc_type),
-                None => println!("GC triggered after allocating something (no marker)"),
-            };
-        }
-
-        addr
-
-        // TODO: this code should work, and -does-, but sometimes returns references to the old space, as far as i can tell.
-        // code taken from MMTk docs. https://docs.mmtk.io/portingguide/perf_tuning/alloc.html#option-3-embed-the-fast-path-struct
-        // let new_cursor = self.alloc_bump_ptr.cursor + size;
-        // if new_cursor < self.alloc_bump_ptr.limit {
-        //     let addr = self.alloc_bump_ptr.cursor;
-        //     self.alloc_bump_ptr.cursor = new_cursor;
-        //     addr
-        // } else {
-        //     let default_allocator = unsafe { &mut *self.default_allocator };
-        //     default_allocator.bump_pointer = self.alloc_bump_ptr;
-        //     let addr = default_allocator.alloc(size, GC_ALIGN, GC_OFFSET);
-        //     // Copy bump pointer values to the fastpath BumpPointer so we will have an allocation buffer.
-        //     self.alloc_bump_ptr = default_allocator.bump_pointer;
-        //     addr
-        // }
-    }
-
-    pub fn request_bytes_los(&mut self, size: usize, _alloc_origin_marker: Option<AllocSiteMarker>) -> Address {
-        debug_assert!(
-            size >= crate::mmtk().get_plan().constraints().max_non_los_default_alloc_bytes,
-            "Requesting LOS for a non large object"
-        );
-        crate::api::mmtk_alloc(&mut self.mutator, size, GC_ALIGN, GC_OFFSET, AllocationSemantics::Los)
-    }
-
-    /// TODO doc + should likely deduce the size from the type
-    pub fn request_memory_for_type<T: HasTypeInfoForGC>(&mut self, type_size: usize, alloc_origin_marker: Option<AllocSiteMarker>) -> Gc<T> {
-        let mut bytes = self.request_bytes(type_size + OBJECT_REF_OFFSET, alloc_origin_marker);
-        unsafe {
-            *bytes.as_mut_ref::<u8>() = T::get_magic_gc_id();
-            bytes += OBJECT_REF_OFFSET;
-            bytes.into()
-        }
-    }
 
     /// Dispatches a manual collection request to MMTk.
     pub fn full_gc_request(&self) -> bool {
@@ -406,6 +247,219 @@ impl GCInterface {
     pub(crate) fn get_all_mutators(&mut self) -> Box<dyn Iterator<Item = &mut Mutator<SOMVM>> + '_> {
         debug!("calling get_all_mutators");
         Box::new(std::iter::once(self.mutator.as_mut()))
+    }
+}
+
+/// Explicitly mentions what an allocation was requested for.
+/// The intent is to help debugging: we can track where GC was triggered, and what triggered it. This is all to find GC bugs.
+#[derive(Debug)]
+pub enum AllocSiteMarker {
+    AstFrame,
+    MethodFrame,
+    MethodFrameWithArgs,
+    InitMethodFrame,
+    Block,
+    BlockFrame,
+    Instance,
+    Method,
+    Class,
+    Array,
+}
+
+/// All functions necessary to allocate memory from within som-rs.
+pub trait SOMAllocator {
+    // TODO what's the syntax again? I am on a literal plane right now.
+    //type Slice = SupportedSliceType + std::fmt::Debug;
+
+    fn request_memory_for_type<T>(&mut self, type_size: usize, alloc_origin_marker: Option<AllocSiteMarker>) -> Gc<T>
+    where
+        T: HasTypeInfoForGC;
+    fn request_bytes_los(&mut self, size: usize, _alloc_origin_marker: Option<AllocSiteMarker>) -> Address;
+    fn request_bytes(&mut self, size: usize, _alloc_origin_marker: Option<AllocSiteMarker>) -> Address;
+    fn write_slice_to_addr<T>(&mut self, slice_header_addr: Address, obj: &[T]) -> GcSlice<T>
+    where
+        T: SupportedSliceType + std::fmt::Debug;
+    fn request_bytes_for_slice<T>(&mut self, obj: &[T], alloc_origin_marker: Option<AllocSiteMarker>) -> Address
+    where
+        T: SupportedSliceType + std::fmt::Debug;
+    #[deprecated]
+    fn alloc_slice_with_marker<T>(&mut self, obj: &[T], alloc_origin_marker: Option<AllocSiteMarker>) -> GcSlice<T>
+    where
+        T: SupportedSliceType + std::fmt::Debug;
+
+    #[deprecated]
+    fn alloc_slice<T>(&mut self, obj: &[T]) -> GcSlice<T>
+    where
+        T: SupportedSliceType + std::fmt::Debug;
+    fn alloc_with_size<T>(&mut self, obj: T, size: usize, alloc_origin_marker: Option<AllocSiteMarker>) -> Gc<T>
+    where
+        T: HasTypeInfoForGC;
+    fn alloc_with_marker<T>(&mut self, obj: T, alloc_origin_marker: Option<AllocSiteMarker>) -> Gc<T>
+    where
+        T: HasTypeInfoForGC;
+    fn alloc<T>(&mut self, obj: T) -> Gc<T>
+    where
+        T: HasTypeInfoForGC;
+}
+
+impl SOMAllocator for GCInterface {
+    fn alloc<T: HasTypeInfoForGC>(&mut self, obj: T) -> Gc<T> {
+        self.alloc_with_size(obj, size_of::<T>(), None)
+    }
+
+    /// Allocates a type on the heap and returns a pointer to it.
+    /// Considers that the provided object's size can be trivially inferred with a `size_of` call (which isn't the case for all of our objects, e.g. frames)
+    fn alloc_with_marker<T: HasTypeInfoForGC>(&mut self, obj: T, alloc_origin_marker: Option<AllocSiteMarker>) -> Gc<T> {
+        self.alloc_with_size(obj, size_of::<T>(), alloc_origin_marker)
+    }
+
+    /// Allocates a type, but with a given size.
+    fn alloc_with_size<T: HasTypeInfoForGC>(&mut self, obj: T, size: usize, alloc_origin_marker: Option<AllocSiteMarker>) -> Gc<T> {
+        debug_assert!(size >= MIN_OBJECT_SIZE);
+
+        // adding VM header size (type info) to amount we allocate
+        let header_addr = self.request_bytes(size + OBJECT_REF_OFFSET, alloc_origin_marker);
+
+        debug_assert!(!header_addr.is_zero());
+        let obj_addr = SOMVM::object_start_to_ref(header_addr);
+
+        // AFAIK, this is not needed.
+        // mmtk_post_alloc(mutator, SOMVM::object_start_to_ref(addr), size, GC_SEMANTICS);
+
+        unsafe {
+            *header_addr.as_mut_ref() = T::get_magic_gc_id();
+            *(obj_addr.to_raw_address().as_mut_ref()) = obj;
+        }
+
+        Gc::from(obj_addr.to_raw_address())
+    }
+
+    /// Deprecated because too likely to be unsafe: GC triggered when allocating a slice makes the
+    /// slice likely to be invalid.
+    /// I'm fine with keeping it and removing the deprecated warning, but I want to check all
+    /// usages first. Maybe rename it to make it explicit slice can't contain pointers.
+    fn alloc_slice<T: SupportedSliceType + std::fmt::Debug>(&mut self, obj: &[T]) -> GcSlice<T> {
+        self.alloc_slice_with_marker(obj, None)
+    }
+
+    // Allocates a type on the heap and returns a pointer to it.
+    /// See above for why it's deprecated.
+    // TODO: slices can get big, and need allocation with LOS. Need to implement.
+    fn alloc_slice_with_marker<T: SupportedSliceType + std::fmt::Debug>(
+        &mut self,
+        obj: &[T],
+        alloc_origin_marker: Option<AllocSiteMarker>,
+    ) -> GcSlice<T> {
+        let header_addr = self.request_bytes_for_slice(obj, alloc_origin_marker);
+        self.write_slice_to_addr(header_addr, obj)
+    }
+
+    fn request_bytes_for_slice<T: SupportedSliceType + std::fmt::Debug>(
+        &mut self,
+        obj: &[T],
+        alloc_origin_marker: Option<AllocSiteMarker>,
+    ) -> Address {
+        let mut size = {
+            match std::mem::size_of_val(obj) {
+                v if v < MIN_OBJECT_SIZE => MIN_OBJECT_SIZE,
+                v => v,
+            }
+        };
+
+        size += std::mem::size_of::<usize>(); // size stored at the start
+
+        // slices can be big enough to warrant using large object storage.
+        let header_addr = {
+            match size <= crate::mmtk().get_plan().constraints().max_non_los_default_alloc_bytes {
+                true => self.request_bytes(size + OBJECT_REF_OFFSET, alloc_origin_marker),
+                false => self.request_bytes_los(size + OBJECT_REF_OFFSET, alloc_origin_marker),
+            }
+        };
+
+        header_addr
+    }
+
+    fn write_slice_to_addr<T: SupportedSliceType + std::fmt::Debug>(&mut self, slice_header_addr: Address, obj: &[T]) -> GcSlice<T> {
+        let len_addr = SOMVM::object_start_to_ref(slice_header_addr);
+        let obj_addr = len_addr.to_raw_address().add(size_of::<usize>());
+
+        unsafe {
+            *slice_header_addr.as_mut_ref() = T::get_magic_gc_slice_id();
+            *len_addr.to_raw_address().as_mut_ref() = obj.len();
+            std::ptr::copy_nonoverlapping(obj.as_ptr(), obj_addr.as_mut_ref(), obj.len());
+        }
+
+        GcSlice::new(len_addr.to_raw_address())
+    }
+
+    #[cfg(feature = "marksweep")]
+    /// Request `size` bytes from MMTk.
+    /// Importantly, this MAY TRIGGER A COLLECTION. Which means any function that relies on it must be mindful of this,
+    /// such as by making sure no arguments are dangling on the Rust stack away from the GC's reach.
+    fn request_bytes(&mut self, size: usize, _alloc_origin_marker: Option<AllocSiteMarker>) -> Address {
+        unsafe { &mut (*self.default_allocator) }.alloc(size, GC_ALIGN, GC_OFFSET)
+        // slow path, for debugging
+        // crate::api::mmtk_alloc(&mut self.mutator, size, GC_ALIGN, GC_OFFSET, AllocationSemantics::Default)
+    }
+
+    #[cfg(feature = "semispace")]
+    /// Request `size` bytes from MMTk.
+    /// Importantly, this MAY TRIGGER A COLLECTION. Which means any function that relies on it must be mindful of this,
+    /// such as by making sure no arguments are dangling on the Rust stack away from the GC's reach.
+    fn request_bytes(&mut self, size: usize, _alloc_origin_marker: Option<AllocSiteMarker>) -> Address {
+        //unsafe { &mut (*self.default_allocator) }.alloc(size, GC_ALIGN, GC_OFFSET)
+
+        let _gc_watcher = self.start_the_world_count;
+
+        // Release builds must not assume this value is unchanging: it can, that's the point of the check later on.
+        std::hint::black_box(&self.start_the_world_count);
+
+        let addr = unsafe { &mut (*self.default_allocator) }.alloc(size, GC_ALIGN, GC_OFFSET);
+        std::sync::atomic::fence(std::sync::atomic::Ordering::Release);
+
+        #[cfg(debug_assertions)]
+        if self.start_the_world_count > _gc_watcher {
+            match _alloc_origin_marker {
+                Some(alloc_type) => println!("GC was triggered after allocating a {:?}", alloc_type),
+                None => println!("GC triggered after allocating something (no marker)"),
+            };
+        }
+
+        addr
+
+        // TODO: this code should work, and -does-, but sometimes returns references to the old space, as far as i can tell.
+        // code taken from MMTk docs. https://docs.mmtk.io/portingguide/perf_tuning/alloc.html#option-3-embed-the-fast-path-struct
+        // let new_cursor = self.alloc_bump_ptr.cursor + size;
+        // if new_cursor < self.alloc_bump_ptr.limit {
+        //     let addr = self.alloc_bump_ptr.cursor;
+        //     self.alloc_bump_ptr.cursor = new_cursor;
+        //     addr
+        // } else {
+        //     let default_allocator = unsafe { &mut *self.default_allocator };
+        //     default_allocator.bump_pointer = self.alloc_bump_ptr;
+        //     let addr = default_allocator.alloc(size, GC_ALIGN, GC_OFFSET);
+        //     // Copy bump pointer values to the fastpath BumpPointer so we will have an allocation buffer.
+        //     self.alloc_bump_ptr = default_allocator.bump_pointer;
+        //     addr
+        // }
+    }
+
+    fn request_bytes_los(&mut self, size: usize, _alloc_origin_marker: Option<AllocSiteMarker>) -> Address {
+        debug_assert!(
+            size >= crate::mmtk().get_plan().constraints().max_non_los_default_alloc_bytes,
+            "Requesting LOS for a non large object"
+        );
+        crate::api::mmtk_alloc(&mut self.mutator, size, GC_ALIGN, GC_OFFSET, AllocationSemantics::Los)
+    }
+
+    /// TODO doc + should likely deduce the size from the type
+    fn request_memory_for_type<T: HasTypeInfoForGC>(&mut self, type_size: usize, alloc_origin_marker: Option<AllocSiteMarker>) -> Gc<T> {
+        let mut bytes = self.request_bytes(type_size + OBJECT_REF_OFFSET, alloc_origin_marker);
+        unsafe {
+            *bytes.as_mut_ref::<u8>() = T::get_magic_gc_id();
+            bytes += OBJECT_REF_OFFSET;
+            bytes.into()
+        }
     }
 }
 

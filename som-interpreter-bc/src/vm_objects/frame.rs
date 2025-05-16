@@ -5,7 +5,7 @@ use crate::vm_objects::class::Class;
 use crate::vm_objects::method::Method;
 use core::mem::size_of;
 use som_core::bytecode::Bytecode;
-use som_gc::gc_interface::{AllocSiteMarker, GCInterface};
+use som_gc::gc_interface::{AllocSiteMarker, GCInterface, SOMAllocator};
 use som_gc::gcref::Gc;
 use std::fmt::{Debug, Formatter};
 use std::marker::PhantomData;

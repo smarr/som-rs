@@ -11,7 +11,7 @@ use crate::vm_objects::method::MethodKind;
 use som_core::ast;
 use som_core::ast::{Expression, Literal, MethodBody};
 use som_core::interner::Interner;
-use som_gc::gc_interface::GCInterface;
+use som_gc::gc_interface::{GCInterface, SOMAllocator};
 use som_gc::gcref::Gc;
 
 pub struct AstMethodCompilerCtxt<'a> {

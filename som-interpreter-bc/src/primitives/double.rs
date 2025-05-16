@@ -8,6 +8,7 @@ use crate::value::Value;
 use anyhow::{Context, Error};
 use num_traits::ToPrimitive;
 use once_cell::sync::Lazy;
+use som_gc::gc_interface::SOMAllocator;
 use som_gc::gcref::Gc;
 
 pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {

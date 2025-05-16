@@ -8,6 +8,7 @@ use crate::value::Value;
 use anyhow::{bail, Error};
 use num_traits::ToPrimitive;
 use once_cell::sync::Lazy;
+use som_gc::gc_interface::SOMAllocator;
 
 pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
     Box::new([
@@ -60,8 +61,8 @@ macro_rules! promote {
 fn from_string(universe: &mut Universe, stack: &mut GlobalValueStack) -> Result<Value, Error> {
     const SIGNATURE: &str = "Double>>#fromString:";
 
-    get_args_from_stack!(stack, 
-        _a => Value, 
+    get_args_from_stack!(stack,
+        _a => Value,
         string => StringLike
     );
 

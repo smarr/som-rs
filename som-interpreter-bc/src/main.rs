@@ -12,6 +12,7 @@ use som_core::cli_parser::CLIOptions;
 
 mod shell;
 
+use som_gc::gc_interface::SOMAllocator;
 use som_gc::gcref::Gc;
 use som_interpreter_bc::debug::disassembler::disassemble_method_body;
 #[cfg(feature = "profiler")]

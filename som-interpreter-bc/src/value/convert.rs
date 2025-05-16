@@ -344,10 +344,10 @@ macro_rules! derive_prims_no_interp {
     };
 }
 
-//derive_prims!(_A);
-//derive_prims!(_A, _B);
-//derive_prims!(_A, _B, _C);
-//derive_prims!(_A, _B, _C, _D);
+derive_prims!(_A);
+derive_prims!(_A, _B);
+derive_prims!(_A, _B, _C);
+derive_prims!(_A, _B, _C, _D);
 
 derive_prims_no_interp!(_A);
 derive_prims_no_interp!(_A, _B);
