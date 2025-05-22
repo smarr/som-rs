@@ -1,4 +1,5 @@
 use rstest::{fixture, rstest};
+use som_gc::gc_interface::SOMAllocator;
 use som_interpreter_bc::compiler::compile::compile_class;
 use som_interpreter_bc::interpreter::Interpreter;
 use som_interpreter_bc::universe::Universe;

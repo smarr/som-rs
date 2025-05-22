@@ -289,35 +289,6 @@ macro_rules! derive_prims {
 
         impl <F, R, $($ty),*> $crate::value::convert::Primitive<($($ty),*,)> for F
         where
-            F: Fn(&mut $crate::interpreter::Interpreter, &mut $crate::universe::Universe, $($ty),*) -> Result<R, Error> + Send + Sync + 'static,
-            R: $crate::value::convert::IntoReturn,
-            $($ty: $crate::value::convert::FromArgs),*,
-        {
-            fn invoke(&self, interpreter: &mut $crate::interpreter::Interpreter, universe: &mut $crate::universe::Universe, nbr_args: usize) -> Result<(), Error> {
-                // To match the AST doing the same.
-                // # Safety
-                // Not -positive- this is safe with moving GC, actually. We want to pass moving-GC-proof refs to the values directly, does this really achieve that? TODO check.
-                let args: &[Value] = unsafe { &* (interpreter.get_current_frame().stack_n_last_elements(nbr_args) as *const _) };
-                let mut args_iter = args.iter();
-                $(
-                    #[allow(non_snake_case)]
-                    let $ty = $ty::from_args(*args_iter.next().unwrap()).unwrap();
-                )*
-
-                let result = (self)(interpreter, universe, $($ty),*,)?;
-                result.into_return(interpreter, nbr_args)
-            }
-        }
-    };
-}
-
-pub struct NoInterp {}
-
-macro_rules! derive_prims_no_interp {
-    ($($ty:ident),* $(,)?) => {
-
-        impl <F, R, $($ty),*> $crate::value::convert::Primitive<(NoInterp, $($ty),*,)> for F
-        where
             F: Fn($($ty),*) -> Result<R, Error> + Send + Sync + 'static,
             R: $crate::value::convert::IntoValue,
             $($ty: $crate::value::convert::FromArgs),*,
@@ -349,20 +320,9 @@ derive_prims!(_A, _B);
 derive_prims!(_A, _B, _C);
 derive_prims!(_A, _B, _C, _D);
 
-derive_prims_no_interp!(_A);
-derive_prims_no_interp!(_A, _B);
-derive_prims_no_interp!(_A, _B, _C);
-derive_prims_no_interp!(_A, _B, _C, _D);
-
-impl<F> Primitive<()> for F
-where
-    F: Fn(&mut Interpreter, &mut Universe) -> Result<(), Error> + Send + Sync + 'static,
-{
-    fn invoke(&self, interpreter: &mut Interpreter, universe: &mut Universe, _: usize) -> Result<(), Error> {
-        self(interpreter, universe)
-    }
-}
-
+/// Primitives that need access to the universe may trigger GC, which can move variables.
+/// Therefore, they take arguments from the stack (previous frame) themselves, and are responsible
+/// for ensuring possible GC triggers can't invalidate their arguments, or the primitive's behavior.
 impl<F, R> Primitive<R> for F
 where
     F: Fn(&mut Interpreter, &mut Universe) -> Result<R, Error> + Send + Sync + 'static,
@@ -372,5 +332,15 @@ where
         let result = self(interpreter, universe)?.into_value();
         cur_frame!(interpreter).stack_push(result);
         Ok(())
+    }
+}
+
+/// For primitives who have no return values... or want complete control over their arguments and return value.
+impl<F> Primitive<()> for F
+where
+    F: Fn(&mut Interpreter, &mut Universe) -> Result<(), Error> + Send + Sync + 'static,
+{
+    fn invoke(&self, interpreter: &mut Interpreter, universe: &mut Universe, _: usize) -> Result<(), Error> {
+        self(interpreter, universe)
     }
 }

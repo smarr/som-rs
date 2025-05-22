@@ -1,5 +1,6 @@
 use crate::gc::VecValue;
 use crate::interpreter::Interpreter;
+use crate::pop_args_from_stack;
 use crate::primitives::PrimInfo;
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
@@ -51,6 +52,9 @@ pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
 });
 pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([("fromString:", self::from_string.into_func(), true)]));
 
+// NB: allocating a big int can trigger GC, and that can move references.
+// This means that this macro should ideally only be called as the last thing in a function.
+// In practice, the only dangerous use is invalidating pointers to BigIntegers used in calculations.
 macro_rules! demote {
     ($heap:expr, $expr:expr) => {{
         let value = $expr;
@@ -61,8 +65,10 @@ macro_rules! demote {
     }};
 }
 
-fn from_string(_: &mut Interpreter, universe: &mut Universe, _: Value, string: StringLike) -> Result<Value, Error> {
+fn from_string(interp: &mut Interpreter, universe: &mut Universe) -> Result<Value, Error> {
     const _: &str = "Integer>>#fromString:";
+
+    pop_args_from_stack!(interp, _a => Value, string => StringLike);
 
     let string = string.as_str(|sym| universe.lookup_symbol(sym));
 
@@ -76,8 +82,8 @@ fn from_string(_: &mut Interpreter, universe: &mut Universe, _: Value, string: S
     }
 }
 
-fn as_string(_: &mut Interpreter, universe: &mut Universe, receiver: IntegerLike) -> Result<Gc<String>, Error> {
-    const _: &str = "Integer>>#asString";
+fn as_string(interp: &mut Interpreter, universe: &mut Universe) -> Result<Gc<String>, Error> {
+    pop_args_from_stack!(interp, receiver => IntegerLike);
 
     let receiver = match receiver {
         IntegerLike::Integer(value) => value.to_string(),
@@ -127,7 +133,9 @@ fn as_32bit_signed_value(receiver: IntegerLike) -> Result<i32, Error> {
     Ok(value)
 }
 
-fn as_32bit_unsigned_value(_: &mut Interpreter, universe: &mut Universe, receiver: IntegerLike) -> Result<IntegerLike, Error> {
+fn as_32bit_unsigned_value(interp: &mut Interpreter, universe: &mut Universe) -> Result<IntegerLike, Error> {
+    pop_args_from_stack!(interp, receiver => IntegerLike);
+
     let value = match receiver {
         IntegerLike::Integer(value) => value as u32,
         IntegerLike::BigInteger(value) => {
@@ -146,8 +154,10 @@ fn as_32bit_unsigned_value(_: &mut Interpreter, universe: &mut Universe, receive
     Ok(value)
 }
 
-fn plus(_: &mut Interpreter, universe: &mut Universe, a: DoubleLike, b: DoubleLike) -> Result<Value, Error> {
+fn plus(interp: &mut Interpreter, universe: &mut Universe) -> Result<Value, Error> {
     const SIGNATURE: &str = "Integer>>#+";
+
+    pop_args_from_stack!(interp, a => DoubleLike, b => DoubleLike);
 
     let heap = &mut universe.gc_interface;
 
@@ -173,8 +183,10 @@ fn plus(_: &mut Interpreter, universe: &mut Universe, a: DoubleLike, b: DoubleLi
     Ok(value)
 }
 
-fn minus(_: &mut Interpreter, universe: &mut Universe, a: DoubleLike, b: DoubleLike) -> Result<Value, Error> {
+fn minus(interp: &mut Interpreter, universe: &mut Universe) -> Result<Value, Error> {
     const SIGNATURE: &str = "Integer>>#-";
+
+    pop_args_from_stack!(interp, a => DoubleLike, b => DoubleLike);
 
     let heap = &mut universe.gc_interface;
     let value = match (a, b) {
@@ -210,8 +222,10 @@ fn minus(_: &mut Interpreter, universe: &mut Universe, a: DoubleLike, b: DoubleL
     Ok(value)
 }
 
-fn times(_: &mut Interpreter, universe: &mut Universe, a: DoubleLike, b: DoubleLike) -> Result<Value, Error> {
+fn times(interp: &mut Interpreter, universe: &mut Universe) -> Result<Value, Error> {
     const SIGNATURE: &str = "Integer>>#*";
+
+    pop_args_from_stack!(interp, a => DoubleLike, b => DoubleLike);
 
     let heap = &mut universe.gc_interface;
 
@@ -239,10 +253,12 @@ fn times(_: &mut Interpreter, universe: &mut Universe, a: DoubleLike, b: DoubleL
     Ok(value)
 }
 
-fn divide(_: &mut Interpreter, universe: &mut Universe, a: DoubleLike, b: DoubleLike) -> Result<Value, Error> {
+fn divide(interp: &mut Interpreter, universe: &mut Universe) -> Result<Value, Error> {
     const SIGNATURE: &str = "Integer>>#/";
 
     let heap = &mut universe.gc_interface;
+
+    pop_args_from_stack!(interp, a => DoubleLike, b => DoubleLike);
 
     let value = match (a, b) {
         (DoubleLike::Integer(a), DoubleLike::Integer(b)) => match a.checked_div(b) {
@@ -305,8 +321,8 @@ fn divide_float(a: DoubleLike, b: DoubleLike) -> Result<f64, Error> {
     Ok(a / b)
 }
 
-fn modulo(_: &mut Interpreter, universe: &mut Universe, a: IntegerLike, b: i32) -> Result<Value, Error> {
-    const _: &str = "Integer>>#%";
+fn modulo(interp: &mut Interpreter, universe: &mut Universe) -> Result<Value, Error> {
+    pop_args_from_stack!(interp, a => IntegerLike, b => i32);
 
     let result = match a {
         IntegerLike::Integer(a) => {
@@ -341,8 +357,8 @@ fn remainder(a: i32, b: i32) -> Result<i32, Error> {
     }
 }
 
-fn sqrt(_: &mut Interpreter, universe: &mut Universe, a: DoubleLike) -> Result<Value, Error> {
-    const _: &str = "Integer>>#sqrt";
+fn sqrt(interp: &mut Interpreter, universe: &mut Universe) -> Result<Value, Error> {
+    pop_args_from_stack!(interp, a => DoubleLike);
 
     let value = match a {
         DoubleLike::Double(a) => Value::Double(a.sqrt()),
@@ -375,7 +391,9 @@ fn min(a: DoubleLike, b: DoubleLike) -> Result<Value, Error> {
     }
 }
 
-fn abs(_: &mut Interpreter, universe: &mut Universe, a: DoubleLike) -> Result<Value, Error> {
+fn abs(interp: &mut Interpreter, universe: &mut Universe) -> Result<Value, Error> {
+    pop_args_from_stack!(interp, a => DoubleLike);
+
     match a {
         DoubleLike::Double(f) => match f < 0.0 {
             true => Ok((-f).into_value()),
@@ -389,8 +407,8 @@ fn abs(_: &mut Interpreter, universe: &mut Universe, a: DoubleLike) -> Result<Va
     }
 }
 
-fn bitand(_: &mut Interpreter, universe: &mut Universe, a: IntegerLike, b: IntegerLike) -> Result<Value, Error> {
-    const _: &str = "Integer>>#&";
+fn bitand(interp: &mut Interpreter, universe: &mut Universe) -> Result<Value, Error> {
+    pop_args_from_stack!(interp, a => IntegerLike, b => IntegerLike);
 
     let value = match (a, b) {
         (IntegerLike::Integer(a), IntegerLike::Integer(b)) => Value::Integer(a & b),
@@ -405,8 +423,8 @@ fn bitand(_: &mut Interpreter, universe: &mut Universe, a: IntegerLike, b: Integ
     Ok(value)
 }
 
-fn bitxor(_: &mut Interpreter, universe: &mut Universe, a: IntegerLike, b: IntegerLike) -> Result<Value, Error> {
-    const _: &str = "Integer>>#bitXor:";
+fn bitxor(interp: &mut Interpreter, universe: &mut Universe) -> Result<Value, Error> {
+    pop_args_from_stack!(interp, a => IntegerLike, b => IntegerLike);
 
     let value = match (a, b) {
         (IntegerLike::Integer(a), IntegerLike::Integer(b)) => Value::Integer(a ^ b),
@@ -477,8 +495,8 @@ fn uneq(a: Value, b: Value) -> Result<bool, Error> {
     Ok(!DoubleLike::eq(&a, &b))
 }
 
-fn shift_left(_: &mut Interpreter, universe: &mut Universe, a: IntegerLike, b: i32) -> Result<Value, Error> {
-    const _: &str = "Integer>>#<<";
+fn shift_left(interp: &mut Interpreter, universe: &mut Universe) -> Result<Value, Error> {
+    pop_args_from_stack!(interp, a => IntegerLike, b => i32);
 
     // SOM's test suite are (loosely) checking that bit-shifting operations are:
     // - logical shifts rather than arithmetic shifts
@@ -503,8 +521,8 @@ fn shift_left(_: &mut Interpreter, universe: &mut Universe, a: IntegerLike, b: i
     }
 }
 
-fn shift_right(_: &mut Interpreter, universe: &mut Universe, a: IntegerLike, b: i32) -> Result<Value, Error> {
-    const _: &str = "Integer>>#>>";
+fn shift_right(interp: &mut Interpreter, universe: &mut Universe) -> Result<Value, Error> {
+    pop_args_from_stack!(interp, a => IntegerLike, b => i32);
 
     // SOM's test suite are (loosely) checking that bit-shifting operations are:
     // - logical shifts rather than arithmetic shifts
@@ -542,9 +560,10 @@ fn shift_right(_: &mut Interpreter, universe: &mut Universe, a: IntegerLike, b: 
     Ok(value)
 }
 
-fn to(_: &mut Interpreter, universe: &mut Universe, a: i32, b: i32) -> Result<Value, Error> {
+fn to(interp: &mut Interpreter, universe: &mut Universe) -> Result<Value, Error> {
+    pop_args_from_stack!(interp, a => i32, b => i32);
     let vec: Vec<Value> = (a..=b).map(Value::Integer).collect();
-    let alloc_vec: GcSlice<Value> = universe.gc_interface.alloc_slice(&vec);
+    let alloc_vec: GcSlice<Value> = universe.gc_interface.alloc_safe_slice(&vec);
     Ok(Value::Array(VecValue(alloc_vec)))
 }
 

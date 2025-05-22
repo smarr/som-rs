@@ -266,20 +266,39 @@ pub enum AllocSiteMarker {
     Array,
 }
 
+/// To save on some space in the trait itself. Bit overkill, probably
+pub trait SliceConstraint: SupportedSliceType + std::fmt::Debug {}
+impl<T> SliceConstraint for T where T: SupportedSliceType + std::fmt::Debug {}
+
 /// All functions necessary to allocate memory from within som-rs.
 pub trait SOMAllocator {
-    // TODO what's the syntax again? I am on a literal plane right now.
-    //type Slice = SupportedSliceType + std::fmt::Debug;
-
     fn request_memory_for_type<T>(&mut self, type_size: usize, alloc_origin_marker: Option<AllocSiteMarker>) -> Gc<T>
     where
         T: HasTypeInfoForGC;
-    fn request_bytes_los(&mut self, size: usize, _alloc_origin_marker: Option<AllocSiteMarker>) -> Address;
     fn request_bytes(&mut self, size: usize, _alloc_origin_marker: Option<AllocSiteMarker>) -> Address;
+    fn request_bytes_for_slice(&mut self, slice_size: usize, alloc_origin_marker: Option<AllocSiteMarker>) -> Address;
+    fn request_bytes_los(&mut self, size: usize, _alloc_origin_marker: Option<AllocSiteMarker>) -> Address;
+
+    fn alloc<T>(&mut self, obj: T) -> Gc<T>
+    where
+        T: HasTypeInfoForGC;
+    fn alloc_with_size<T>(&mut self, obj: T, size: usize, alloc_origin_marker: Option<AllocSiteMarker>) -> Gc<T>
+    where
+        T: HasTypeInfoForGC;
+    fn alloc_with_marker<T>(&mut self, obj: T, alloc_origin_marker: Option<AllocSiteMarker>) -> Gc<T>
+    where
+        T: HasTypeInfoForGC;
+
+    // Methods for allocating slices.
+    fn alloc_safe_slice<T>(&mut self, obj: &[T]) -> GcSlice<T>
+    where
+        T: SliceConstraint;
+    fn alloc_safe_slice_with_marker<T>(&mut self, obj: &[T], alloc_origin_marker: Option<AllocSiteMarker>) -> GcSlice<T>
+    where
+        T: SliceConstraint;
     fn write_slice_to_addr<T>(&mut self, slice_header_addr: Address, obj: &[T]) -> GcSlice<T>
     where
         T: SupportedSliceType + std::fmt::Debug;
-    fn request_bytes_for_slice(&mut self, slice_size: usize, alloc_origin_marker: Option<AllocSiteMarker>) -> Address;
     #[deprecated]
     fn alloc_slice_with_marker<T>(&mut self, obj: &[T], alloc_origin_marker: Option<AllocSiteMarker>) -> GcSlice<T>
     where
@@ -289,15 +308,6 @@ pub trait SOMAllocator {
     fn alloc_slice<T>(&mut self, obj: &[T]) -> GcSlice<T>
     where
         T: SupportedSliceType + std::fmt::Debug;
-    fn alloc_with_size<T>(&mut self, obj: T, size: usize, alloc_origin_marker: Option<AllocSiteMarker>) -> Gc<T>
-    where
-        T: HasTypeInfoForGC;
-    fn alloc_with_marker<T>(&mut self, obj: T, alloc_origin_marker: Option<AllocSiteMarker>) -> Gc<T>
-    where
-        T: HasTypeInfoForGC;
-    fn alloc<T>(&mut self, obj: T) -> Gc<T>
-    where
-        T: HasTypeInfoForGC;
 }
 
 impl SOMAllocator for GCInterface {
@@ -332,10 +342,25 @@ impl SOMAllocator for GCInterface {
         Gc::from(obj_addr.to_raw_address())
     }
 
+    /// Allocates a slice that only contains values that ARE NOT pointers.
+    /// Allocating a Vec<i32> is fine, allocating a Vec<Value> is fine if they're all Integer values.
+    /// Not unforced by the Rust type system atm, but we could make some nice traits for this. Just afraid that this would add unnecessary complexity.
+    fn alloc_safe_slice<T: SupportedSliceType + std::fmt::Debug>(&mut self, obj: &[T]) -> GcSlice<T> {
+        self.alloc_safe_slice_with_marker(obj, None)
+    }
+
+    fn alloc_safe_slice_with_marker<T: SupportedSliceType + std::fmt::Debug>(
+        &mut self,
+        obj: &[T],
+        alloc_origin_marker: Option<AllocSiteMarker>,
+    ) -> GcSlice<T> {
+        let header_addr = self.request_bytes_for_slice(std::mem::size_of_val(obj), alloc_origin_marker);
+        self.write_slice_to_addr(header_addr, obj)
+    }
+
     /// Deprecated because too likely to be unsafe: GC triggered when allocating a slice makes the
     /// slice likely to be invalid.
-    /// I'm fine with keeping it and removing the deprecated warning, but I want to check all
-    /// usages first. Maybe rename it to make it explicit slice can't contain pointers.
+    /// Now every uses should be replaced with alloc_safe_slice, or with `request_mem_for_slice` + `write_slice_to_addr`
     fn alloc_slice<T: SupportedSliceType + std::fmt::Debug>(&mut self, obj: &[T]) -> GcSlice<T> {
         self.alloc_slice_with_marker(obj, None)
     }
