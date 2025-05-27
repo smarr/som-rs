@@ -299,12 +299,12 @@ pub trait SOMAllocator {
     fn write_slice_to_addr<T>(&mut self, slice_header_addr: Address, obj: &[T]) -> GcSlice<T>
     where
         T: SupportedSliceType + std::fmt::Debug;
-    #[deprecated]
+    //#[deprecated]
     fn alloc_slice_with_marker<T>(&mut self, obj: &[T], alloc_origin_marker: Option<AllocSiteMarker>) -> GcSlice<T>
     where
         T: SupportedSliceType + std::fmt::Debug;
 
-    #[deprecated]
+    //#[deprecated]
     fn alloc_slice<T>(&mut self, obj: &[T]) -> GcSlice<T>
     where
         T: SupportedSliceType + std::fmt::Debug;
