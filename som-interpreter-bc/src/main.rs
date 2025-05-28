@@ -44,9 +44,8 @@ fn run() -> anyhow::Result<()> {
     }
 
     let Some(file) = opts.file else {
-        panic!("I deactivated the shell out of laziness. Can be re-enabled");
-        // let mut universe = Universe::with_classpath(opts.classpath)?;
-        // return shell::interactive(&mut interpreter, &mut universe, opts.verbose);
+        let mut universe = Universe::with_classpath(opts.classpath)?;
+        return shell::interactive(&mut universe, opts.verbose);
     };
 
     let file_stem = file
