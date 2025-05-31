@@ -234,7 +234,11 @@ impl InnerGenCtxt for BlockGenCtxt<'_> {
                     | Bytecode::JumpOnFalseTopNil(jump_offset)
                     | Bytecode::JumpOnTruePop(jump_offset)
                     | Bytecode::JumpOnFalsePop(jump_offset)
-                    | Bytecode::JumpIfGreater(jump_offset) => {
+                    | Bytecode::JumpIfGreater(jump_offset) 
+                    | Bytecode::JumpOnNilPop(jump_offset)
+                    | Bytecode::JumpOnNotNilPop(jump_offset)
+                    | Bytecode::JumpOnNilTopTop(jump_offset) 
+                    | Bytecode::JumpOnNotNilTopTop(jump_offset) => {
                         let bc_target_idx = maybe_jump_idx + *jump_offset as usize;
                         bc_target_idx == idx || bc_target_idx == idx + 2
                     }
