@@ -1,3 +1,5 @@
+use std::marker::PhantomPinned;
+
 use crate::gcref::Gc;
 use mmtk::util::Address;
 
@@ -5,7 +7,10 @@ use mmtk::util::Address;
 /// It's really just a `Vec<T>` replacement (though immutable), where Rust manages none of the memory itself.
 /// Used because finalization might be a slowdown if we stored references to `Vec`s on the heap?
 #[derive(Clone, Copy)]
-pub struct GcSlice<T>(pub Gc<T>);
+pub struct GcSlice<T> {
+    pub ptr: Gc<T>,
+    _phantom: PhantomPinned,
+}
 
 impl<T> GcSlice<T>
 where
@@ -13,7 +18,10 @@ where
 {
     pub fn new(ptr: Address) -> GcSlice<T> {
         debug_assert!(!ptr.is_zero());
-        GcSlice(Gc::from(ptr))
+        GcSlice {
+            ptr: Gc::from(ptr),
+            _phantom: PhantomPinned,
+        }
     }
 
     pub fn iter(&self) -> GCSliceIter<T> {
@@ -21,7 +29,7 @@ where
     }
 
     pub fn len(&self) -> usize {
-        let len: &usize = unsafe { &*(self.0.as_ptr() as *const usize) };
+        let len: &usize = unsafe { &*(self.ptr.as_ptr() as *const usize) };
         *len
     }
 
@@ -38,7 +46,7 @@ where
     /// # Safety
     /// Check ahead of time that n is within the slice's bounds.
     pub unsafe fn nth_addr(&self, n: usize) -> Address {
-        Address::from_usize(self.0.as_ptr().byte_add(size_of::<usize>() + (n * std::mem::size_of::<T>())) as usize)
+        Address::from_usize(self.ptr.as_ptr().byte_add(size_of::<usize>() + (n * std::mem::size_of::<T>())) as usize)
     }
 
     #[inline(always)]
@@ -74,7 +82,7 @@ where
 
 impl<T> PartialEq for GcSlice<T> {
     fn eq(&self, other: &Self) -> bool {
-        self.0 == other.0 // not correct i think? should compare each element individually instead.
+        self.ptr == other.ptr // not correct i think? should compare each element individually instead.
     }
 }
 
@@ -86,13 +94,16 @@ impl<T> From<&GcSlice<T>> for Address {
 
 impl<T> From<GcSlice<T>> for u64 {
     fn from(val: GcSlice<T>) -> Self {
-        val.0.into()
+        val.ptr.into()
     }
 }
 
 impl<T> From<u64> for GcSlice<T> {
     fn from(value: u64) -> Self {
-        Self(Gc::from(value))
+        Self {
+            ptr: Gc::from(value),
+            _phantom: PhantomPinned,
+        }
     }
 }
 
