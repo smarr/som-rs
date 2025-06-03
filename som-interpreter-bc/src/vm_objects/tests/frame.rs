@@ -101,12 +101,12 @@ fn frame_basic_arg_access(universe: &mut Universe) {
 fn frame_mixed_local_and_arg_access(universe: &mut Universe) {
     let method_ref = get_method("foo: a and: b = ( | a b c | ^ false )", "foo:and:", universe);
 
-    let mut frame = Frame::alloc_initial_method(method_ref, &[Value::NIL, Value::Double(1000.0), Value::SYSTEM], universe.gc_interface);
+    let mut frame = Frame::alloc_initial_method(method_ref, &[Value::NIL, Value::Double(1000.0), Value::Integer(42)], universe.gc_interface);
 
     assert_eq!(frame.get_nbr_args(), 3); // 2 + self
 
     assert_eq!(frame.lookup_argument(1), &Value::Double(1000.0));
-    assert_eq!(frame.lookup_argument(2), &Value::SYSTEM);
+    assert_eq!(frame.lookup_argument(2), &Value::Integer(42));
     assert_eq!(frame.lookup_local(0), &Value::NIL);
     assert_eq!(frame.lookup_local(1), &Value::NIL);
     assert_eq!(frame.lookup_local(2), &Value::NIL);
@@ -128,7 +128,7 @@ fn frame_mixed_local_and_arg_access(universe: &mut Universe) {
 fn frame_stack_accesses(universe: &mut Universe) {
     let method_ref = get_method("foo: a and: b = ( | a b c | ^ self call: a with: b args: c )", "foo:and:", universe);
 
-    let frame_ptr = Frame::alloc_initial_method(method_ref, &[Value::Double(1000.0), Value::SYSTEM], universe.gc_interface);
+    let frame_ptr = Frame::alloc_initial_method(method_ref, &[Value::Double(1000.0), Value::NIL], universe.gc_interface);
     let mut frame = frame_ptr;
 
     assert_eq!(frame.stack_len(), 0);
@@ -158,7 +158,7 @@ fn frame_stack_split_off(universe: &mut Universe) {
         _ => unreachable!(),
     }
 
-    let frame_ptr = Frame::alloc_initial_method(method_ref, &[Value::Double(1000.0), Value::SYSTEM], universe.gc_interface);
+    let frame_ptr = Frame::alloc_initial_method(method_ref, &[Value::Double(1000.0), Value::NIL], universe.gc_interface);
     let mut frame = frame_ptr;
 
     frame.stack_push(Value::Integer(10000));
@@ -183,7 +183,7 @@ fn frame_stack_split_off(universe: &mut Universe) {
 fn frame_stack_iter(universe: &mut Universe) {
     let method_ref = get_method("foo: a and: b = ( | a b c | ^ self call: a with: b args: c )", "foo:and:", universe);
 
-    let mut frame_ptr = Frame::alloc_initial_method(method_ref, &[Value::Double(1000.0), Value::SYSTEM], universe.gc_interface);
+    let mut frame_ptr = Frame::alloc_initial_method(method_ref, &[Value::Double(1000.0), Value::NIL], universe.gc_interface);
     frame_ptr.stack_push(Value::Boolean(true));
     frame_ptr.stack_push(Value::Boolean(false));
     frame_ptr.stack_push(Value::Integer(10000));

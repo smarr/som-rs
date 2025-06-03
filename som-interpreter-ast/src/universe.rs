@@ -5,6 +5,7 @@ use crate::value::Value;
 use crate::vm_objects::block::Block;
 use crate::vm_objects::class::Class;
 use crate::vm_objects::frame::{Frame, FrameAccess};
+use crate::vm_objects::instance::Instance;
 use anyhow::{anyhow, Error};
 use som_core::core_classes::CoreClasses;
 use som_core::interner::Interner;
@@ -109,7 +110,9 @@ impl Universe {
         globals.insert(interner.intern("true"), Value::Boolean(true));
         globals.insert(interner.intern("false"), Value::Boolean(false));
         globals.insert(interner.intern("nil"), Value::NIL);
-        globals.insert(interner.intern("system"), Value::SYSTEM);
+
+        let system_instance = Value::Instance(gc_interface.alloc(Instance::from_class(core.system_class())));
+        globals.insert(interner.intern("system"), system_instance);
 
         Ok(Self {
             globals,
@@ -346,13 +349,20 @@ impl Universe {
     }
 
     /// Call `doesNotUnderstand:` on the given value, if it is defined.
-    pub fn does_not_understand(&mut self, value_stack: &mut GlobalValueStack, value: Value, sym: Interned, args: Vec<Value>) -> Option<Return> {
+    pub fn does_not_understand(
+        &mut self,
+        value_stack: &mut GlobalValueStack,
+        value: Value,
+        interned_sym: Interned,
+        args: Vec<Value>,
+    ) -> Option<Return> {
         let method_name = self.intern_symbol("doesNotUnderstand:arguments:");
         let mut initialize = value.lookup_method(self, method_name)?;
-        let sym = Value::Symbol(sym);
+        let sym = Value::Symbol(interned_sym);
         let args = Value::Array(VecValue(self.gc_interface.alloc_slice(&args)));
 
-        // eprintln!("Couldn't invoke {}; exiting.", symbol.as_ref()); std::process::exit(1);
+        //eprintln!("Couldn't invoke {}; exiting.", self.interner.lookup(interned_sym));
+        //std::process::exit(1);
 
         value_stack.push(value);
         value_stack.push(sym);
@@ -381,9 +391,12 @@ impl Universe {
     /// Call `System>>#initialize:` with the given name, if it is defined.
     pub fn initialize(&mut self, args: Vec<Value>, value_stack: &mut GlobalValueStack) -> Option<Return> {
         let method_name = self.interner.intern("initialize:");
-        let mut initialize = Value::SYSTEM.lookup_method(self, method_name)?;
+        let mut initialize = self.core.system_class().lookup_method(method_name)?;
         let args = Value::Array(VecValue(self.gc_interface.alloc_slice(&args)));
-        value_stack.push(Value::SYSTEM);
+
+        let system_value = self.lookup_global(self.interner.reverse_lookup("system")?)?;
+        value_stack.push(system_value);
+
         value_stack.push(args);
         let program_result = initialize.invoke(self, value_stack, 2);
         Some(program_result)

@@ -191,7 +191,6 @@ impl Interpreter {
             // Actually safe, there's always a reference to the current bytecodes. Need unsafe because we want to store a ref for quick access in perf-critical code
             let bytecode = *(unsafe { (*self.current_bytecodes).get_unchecked(self.bytecode_idx as usize) });
 
-
             // unsafe {
             //     dbg!(&(*self.current_frame.get()).current_context.class(universe).name);
             // }

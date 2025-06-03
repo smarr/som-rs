@@ -47,27 +47,6 @@ impl FromArgs for Nil {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct System;
-
-impl TryFrom<Value> for System {
-    type Error = Error;
-
-    fn try_from(value: Value) -> Result<Self, Self::Error> {
-        if value.is_system() {
-            Ok(Self)
-        } else {
-            bail!("could not resolve `Value` as `System`");
-        }
-    }
-}
-
-impl FromArgs for System {
-    fn from_args(arg: Value) -> Result<Self, Error> {
-        Self::try_from(arg)
-    }
-}
-
 impl FromArgs for StringLike {
     fn from_args(arg: Value) -> Result<Self, Error> {
         Self::try_from(arg.0)
@@ -234,12 +213,6 @@ impl IntoValue for Value {
 impl IntoValue for Nil {
     fn into_value(&self) -> Value {
         Value::NIL
-    }
-}
-
-impl IntoValue for System {
-    fn into_value(&self) -> Value {
-        Value::SYSTEM
     }
 }
 

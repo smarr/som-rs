@@ -122,6 +122,8 @@ fn basic_interpreter_tests(universe: &mut Universe) {
         ("NumberOfTests numberOfTests", Value::Integer(65)),
     ];
 
+    let system_value = universe.lookup_global(universe.interner.reverse_lookup("system").unwrap()).unwrap();
+
     for (counter, (expr, expected)) in tests.iter().enumerate() {
         println!("testing: '{}'", expr);
 
@@ -145,7 +147,7 @@ fn basic_interpreter_tests(universe: &mut Universe) {
 
         let method = class.lookup_method(method_name).expect("method not found ??");
 
-        let frame = Frame::alloc_initial_method(method, &[Value::SYSTEM], universe.gc_interface);
+        let frame = Frame::alloc_initial_method(method, &[system_value], universe.gc_interface);
         let mut interpreter = Interpreter::new(frame);
         if let Some(output) = interpreter.run(universe) {
             assert_eq!(&output, expected, "unexpected test output value");
