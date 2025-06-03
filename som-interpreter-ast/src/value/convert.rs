@@ -165,7 +165,7 @@ impl IntoValue for Gc<BigInt> {
 
 impl IntoValue for VecValue {
     fn into_value(&self) -> Value {
-        Value::Array(*self)
+        Value::Array(self.clone())
     }
 }
 

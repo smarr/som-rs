@@ -34,7 +34,7 @@ pub enum BCObjMagicId {
     ArrayVal = 106,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub struct VecValue(pub GcSlice<Value>);
 
 impl Deref for VecValue {
