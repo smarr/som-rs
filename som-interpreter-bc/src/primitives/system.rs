@@ -145,8 +145,8 @@ fn print_stack_trace(interpreter: &mut Interpreter, _: &mut Universe) -> Result<
         let mut frame_stack = vec![];
         let mut current_frame = interpreter.get_current_frame();
         while !current_frame.is_empty() {
-            frame_stack.push(current_frame);
-            current_frame = current_frame.prev_frame;
+            frame_stack.push(current_frame.clone());
+            current_frame = current_frame.prev_frame.clone();
         }
         frame_stack
     };

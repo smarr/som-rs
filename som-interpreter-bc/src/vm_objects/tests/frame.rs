@@ -74,7 +74,7 @@ fn frame_basic_local_access(universe: &mut Universe) {
     frame.assign_local(1, Value::NIL);
 
     let str_ptr = universe.gc_interface.alloc(String::from("abcd"));
-    frame.assign_local(2, Value::String(str_ptr));
+    frame.assign_local(2, Value::String(str_ptr.clone()));
 
     assert_eq!(frame.lookup_local(0).as_double(), Some(400.004));
     assert_eq!(frame.lookup_local(1), &Value::NIL);

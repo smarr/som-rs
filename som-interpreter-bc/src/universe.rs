@@ -52,7 +52,7 @@ impl Universe {
         let gc_interface = GCInterface::init(heap_size, get_callbacks_for_gc());
 
         // TODO: really, we should take and set the superclass, like the AST does.
-        let mut core: CoreClasses<Gc<Class>> = CoreClasses::from_load_cls_fn(|name: &str, _super_cls: Option<Gc<Class>>| {
+        let mut core: CoreClasses<Gc<Class>> = CoreClasses::from_load_cls_fn(|name: &str, _super_cls: Option<&Gc<Class>>| {
             Self::load_system_class(&mut interner, classpath.as_slice(), name, gc_interface).unwrap()
         });
 
@@ -78,7 +78,7 @@ impl Universe {
         set_super_class(&mut core.false_class, &core.boolean_class, &core.metaclass_class);
 
         for (cls_name, global_cls) in core.iter() {
-            globals.push((interner.intern(cls_name), Value::Class(*global_cls)));
+            globals.push((interner.intern(cls_name), Value::Class(global_cls.clone())));
         }
 
         globals.push((interner.intern("true"), Value::Boolean(true)));
@@ -134,7 +134,7 @@ impl Universe {
                     _ => self.load_class(super_class)?,
                 }
             } else {
-                self.core.object_class
+                self.core.object_class.clone()
             };
 
             let mut class =
@@ -142,7 +142,7 @@ impl Universe {
             set_super_class(&mut class, &super_class, &self.core.metaclass_class);
 
             let symbol = self.intern_symbol(class.name());
-            self.globals.push((symbol, Value::Class(class)));
+            self.globals.push((symbol, Value::Class(class.clone())));
 
             return Ok(class);
         }

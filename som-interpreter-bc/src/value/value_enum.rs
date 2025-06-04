@@ -124,7 +124,7 @@ impl ValueEnum {
     #[inline(always)]
     pub fn lookup_local(&self, idx: usize) -> Self {
         match self {
-            Self::Instance(instance_ptr) => (*Instance::lookup_field(*instance_ptr, idx)).into(),
+            Self::Instance(instance_ptr) => (*Instance::lookup_field(instance_ptr, idx)).into(),
             Self::Class(class) => class.lookup_field(idx).into(),
             v => unreachable!("Attempting to look up a local in {:?}", v),
         }
@@ -133,7 +133,7 @@ impl ValueEnum {
     /// Assign a value to a local binding within this value.
     pub fn assign_local(&mut self, idx: usize, value: Self) {
         match self {
-            Self::Instance(instance_ptr) => Instance::assign_field(*instance_ptr, idx, value.into()),
+            Self::Instance(instance_ptr) => Instance::assign_field(instance_ptr, idx, value.into()),
             Self::Class(class) => class.assign_field(idx, value.into()),
             v => unreachable!("Attempting to assign a local in {:?}", v),
         }
@@ -306,7 +306,7 @@ impl ValueEnum {
     #[inline(always)]
     pub fn as_big_integer(&self) -> Option<Gc<BigInt>> {
         if let ValueEnum::BigInteger(v) = self {
-            Some(*v)
+            Some(v.clone())
         } else {
             None
         }
@@ -315,7 +315,7 @@ impl ValueEnum {
     #[inline(always)]
     pub fn as_string(&self) -> Option<Gc<String>> {
         if let ValueEnum::String(v) = self {
-            Some(*v)
+            Some(v.clone())
         } else {
             None
         }
@@ -324,7 +324,7 @@ impl ValueEnum {
     #[inline(always)]
     pub fn as_array(&self) -> Option<Gc<Vec<ValueEnum>>> {
         if let ValueEnum::Array(v) = self {
-            Some(*v)
+            Some(v.clone())
         } else {
             None
         }
@@ -333,7 +333,7 @@ impl ValueEnum {
     #[inline(always)]
     pub fn as_block(&self) -> Option<Gc<Block>> {
         if let ValueEnum::Block(blk) = self {
-            Some(*blk)
+            Some(blk.clone())
         } else {
             None
         }
@@ -343,7 +343,7 @@ impl ValueEnum {
     #[inline(always)]
     pub fn as_class(&self) -> Option<Gc<Class>> {
         if let ValueEnum::Class(v) = self {
-            Some(*v)
+            Some(v.clone())
         } else {
             None
         }
@@ -352,7 +352,7 @@ impl ValueEnum {
     #[inline(always)]
     pub fn as_instance(&self) -> Option<Gc<Instance>> {
         if let Self::Instance(v) = self {
-            Some(*v)
+            Some(v.clone())
         } else {
             None
         }
@@ -361,7 +361,7 @@ impl ValueEnum {
     #[inline(always)]
     pub fn as_invokable(&self) -> Option<Gc<Method>> {
         if let Self::Invokable(v) = self {
-            Some(*v)
+            Some(v.clone())
         } else {
             None
         }
