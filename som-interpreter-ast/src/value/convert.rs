@@ -147,7 +147,7 @@ impl IntoValue for Interned {
 
 impl IntoValue for Gc<String> {
     fn into_value(&self) -> Value {
-        Value::String(*self)
+        Value::String(self.clone())
     }
 }
 
@@ -159,7 +159,7 @@ impl IntoValue for char {
 
 impl IntoValue for Gc<BigInt> {
     fn into_value(&self) -> Value {
-        Value::BigInteger(*self)
+        Value::BigInteger(self.clone())
     }
 }
 
@@ -171,25 +171,25 @@ impl IntoValue for VecValue {
 
 impl IntoValue for Gc<Class> {
     fn into_value(&self) -> Value {
-        Value::Class(*self)
+        Value::Class(self.clone())
     }
 }
 
 impl IntoValue for Gc<Instance> {
     fn into_value(&self) -> Value {
-        Value::Instance(*self)
+        Value::Instance(self.clone())
     }
 }
 
 impl IntoValue for Gc<Block> {
     fn into_value(&self) -> Value {
-        Value::Block(*self)
+        Value::Block(self.clone())
     }
 }
 
 impl IntoValue for Gc<Method> {
     fn into_value(&self) -> Value {
-        Value::Invokable(*self)
+        Value::Invokable(self.clone())
     }
 }
 

@@ -17,7 +17,7 @@ pub struct GcSlice<T> {
 impl<T> Clone for GcSlice<T> {
     fn clone(&self) -> Self {
         Self {
-            ptr: self.ptr,
+            ptr: self.ptr.clone(),
             _phantom: PhantomPinned,
         }
     }

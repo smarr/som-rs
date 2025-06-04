@@ -101,7 +101,11 @@ fn frame_basic_arg_access(universe: &mut Universe) {
 fn frame_mixed_local_and_arg_access(universe: &mut Universe) {
     let method_ref = get_method("foo: a and: b = ( | a b c | ^ false )", "foo:and:", universe);
 
-    let mut frame = Frame::alloc_initial_method(method_ref, &[Value::NIL, Value::Double(1000.0), Value::Integer(42)], universe.gc_interface);
+    let mut frame = Frame::alloc_initial_method(
+        method_ref,
+        &[Value::NIL, Value::Double(1000.0), Value::Integer(42)],
+        universe.gc_interface,
+    );
 
     assert_eq!(frame.get_nbr_args(), 3); // 2 + self
 

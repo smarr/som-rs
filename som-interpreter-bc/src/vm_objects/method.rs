@@ -87,7 +87,7 @@ impl Method {
     pub fn set_holder(&mut self, holder_ptr: Gc<Class>) {
         match self {
             Method::Defined(env) => {
-                env.base_method_info.holder = holder_ptr;
+                env.base_method_info.holder = holder_ptr.clone();
                 for lit in &mut env.literals {
                     if let Literal::Block(blk) = lit {
                         blk.blk_info.set_holder(holder_ptr);
@@ -128,9 +128,9 @@ impl Method {
 impl Method {
     pub fn class(&self, universe: &Universe) -> Gc<Class> {
         if self.is_primitive() {
-            universe.core.primitive_class()
+            universe.core.primitive_class().clone()
         } else {
-            universe.core.method_class()
+            universe.core.method_class().clone()
         }
     }
 

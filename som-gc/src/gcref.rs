@@ -25,8 +25,7 @@ macro_rules! debug_assert_valid_semispace_ptr_value {
                 if slice.get_true_size() >= 65535 {
                     // pass
                 } else {
-                    assert_eq!(1, 1); // TODO reenable
-                                      //assert!(slice.ptr.is_pointer_to_valid_space(), "Pointer to invalid space.");
+                    assert!(slice.ptr.is_pointer_to_valid_space(), "Pointer to invalid space.");
                 }
             } else if let Some(ptr) = $value.0.as_something::<Gc<()>>() {
                 assert!(ptr.is_pointer_to_valid_space(), "Pointer to invalid space.");
@@ -46,11 +45,9 @@ pub struct Gc<T> {
 
 impl<T> Clone for Gc<T> {
     fn clone(&self) -> Self {
-        *self
+        Gc::new(self.ptr)
     }
 }
-
-impl<T> Copy for Gc<T> {}
 
 impl<T: Debug> Debug for Gc<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -123,6 +120,13 @@ impl<T> From<Address> for Gc<T> {
 }
 
 impl<T> Gc<T> {
+    pub fn new(ptr: *mut T) -> Self {
+        Gc {
+            ptr,
+            _phantom: PhantomPinned,
+        }
+    }
+
     /// Checks if a frame is "empty", i.e. contains the default value
     #[inline(always)]
     pub fn is_empty(&self) -> bool {

@@ -65,8 +65,8 @@ impl Universe {
 
         let gc_interface = GCInterface::init(heap_size, get_callbacks_for_gc());
 
-        let mut core: CoreClasses<Gc<Class>> = CoreClasses::from_load_cls_fn(|name: &str, super_cls: Option<Gc<Class>>| {
-            Self::load_system_class(classpath.as_slice(), name, super_cls, gc_interface, &mut interner).unwrap()
+        let mut core: CoreClasses<Gc<Class>> = CoreClasses::from_load_cls_fn(|name: &str, super_cls: Option<&Gc<Class>>| {
+            Self::load_system_class(classpath.as_slice(), name, super_cls.cloned(), gc_interface, &mut interner).unwrap()
         });
 
         // TODO: these can be removed for the most part - in the AST at least, we set a lot of super class relationships when loading system classes directly.
@@ -104,7 +104,7 @@ impl Universe {
         set_super_class(&mut core.false_class, &core.boolean_class, &core.metaclass_class);
 
         for (cls_name, core_cls) in core.iter() {
-            globals.insert(interner.intern(cls_name), Value::Class(*core_cls));
+            globals.insert(interner.intern(cls_name), Value::Class(core_cls.clone()));
         }
 
         globals.insert(interner.intern("true"), Value::Boolean(true));
@@ -156,14 +156,14 @@ impl Universe {
                 let symbol = self.intern_symbol(super_class.as_str());
                 self.lookup_global(symbol).and_then(Value::as_class).unwrap_or_else(|| self.load_class(super_class).unwrap())
             } else {
-                self.core.object_class
+                self.core.object_class.clone()
             };
 
-            let mut class = Class::from_class_def(defn, Some(super_class), self.gc_interface, &mut self.interner).map_err(Error::msg)?;
+            let mut class = Class::from_class_def(defn, Some(super_class.clone()), self.gc_interface, &mut self.interner).map_err(Error::msg)?;
             set_super_class(&mut class, &super_class, &self.core.metaclass_class);
 
             let symbol = self.intern_symbol(class.name());
-            self.globals.insert(symbol, Value::Class(class));
+            self.globals.insert(symbol, Value::Class(class.clone()));
 
             return Ok(class);
         }
@@ -218,20 +218,20 @@ impl Universe {
         let frame = Frame::alloc_new_frame(nbr_locals, nbr_args, self, value_stack);
         self.current_frame = frame;
         let ret = invokable.evaluate(self, value_stack);
-        self.current_frame = self.current_frame.prev_frame;
+        self.current_frame = self.current_frame.prev_frame.clone();
         ret
     }
 
     /// Evaluates a block after pushing a new block frame.
     pub fn eval_block_with_frame(&mut self, value_stack: &mut GlobalValueStack, nbr_locals: u8, nbr_args: usize) -> Return {
         let frame = Frame::alloc_new_frame(nbr_locals, nbr_args, self, value_stack);
-        self.current_frame = frame;
+        self.current_frame = frame.clone();
         debug_assert_valid_semispace_ptr!(self.current_frame);
         let mut invokable = frame.lookup_argument(0).as_block().unwrap();
         debug_assert_valid_semispace_ptr!(invokable);
         debug_assert_valid_semispace_ptr!(invokable.block);
         let ret = invokable.evaluate(self, value_stack);
-        self.current_frame = self.current_frame.prev_frame;
+        self.current_frame = self.current_frame.prev_frame.clone();
         ret
     }
 
@@ -240,13 +240,13 @@ impl Universe {
     /// This variable was popped off the stack and pushed back. Thanks to this function, it's just copied from the previous one to the new one. Which may also be a speedup
     pub fn eval_block_with_frame_no_pop(&mut self, value_stack: &mut GlobalValueStack, nbr_locals: u8, nbr_args: usize) -> Return {
         let frame = Frame::alloc_new_frame_no_pop(nbr_locals, nbr_args, self, value_stack);
-        self.current_frame = frame;
+        self.current_frame = frame.clone();
         debug_assert_valid_semispace_ptr!(self.current_frame);
         let mut invokable = frame.lookup_argument(0).as_block().unwrap();
         debug_assert_valid_semispace_ptr!(invokable);
         debug_assert_valid_semispace_ptr!(invokable.block);
         let ret = invokable.evaluate(self, value_stack);
-        self.current_frame = self.current_frame.prev_frame;
+        self.current_frame = self.current_frame.prev_frame.clone();
         ret
     }
 

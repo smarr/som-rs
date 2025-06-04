@@ -74,8 +74,8 @@ impl Interpreter {
         Self {
             start_time: Instant::now(),
             bytecode_idx: 0,
-            current_frame: UnsafeCell::from(base_frame),
             current_bytecodes: base_frame.get_bytecode_ptr(),
+            current_frame: UnsafeCell::from(base_frame),
             frame_method_root: Gc::default(),
             frame_args_root: None,
         }
@@ -85,7 +85,7 @@ impl Interpreter {
     /// It's in an `UnsafeCell` for moving GC reasons: you get many bugs by using Gc<Frame> by
     /// itself, since Rust assumes that it hasn't moved when it in fact very much has
     pub fn get_current_frame(&self) -> Gc<Frame> {
-        unsafe { *self.current_frame.get() }
+        unsafe { (*self.current_frame.get()).clone() }
     }
 
     pub fn get_current_frame_mut(&mut self) -> &mut Gc<Frame> {
