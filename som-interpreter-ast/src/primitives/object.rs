@@ -1,280 +1,243 @@
+use super::PrimInfo;
+use crate::gc::VecValue;
+use crate::get_args_from_stack;
+use crate::invokable::{Invoke, Return};
+use crate::primitives::PrimitiveFn;
+use crate::universe::{GlobalValueStack, Universe};
+use crate::value::convert::FromArgs;
+use crate::value::convert::Primitive;
+use crate::value::Value;
+use crate::vm_objects::class::Class;
+use anyhow::{bail, Error};
+use once_cell::sync::Lazy;
+use som_gc::gcref::Gc;
+use som_value::interned::Interned;
 use std::collections::hash_map::DefaultHasher;
 use std::convert::TryFrom;
 use std::hash::{Hash, Hasher};
 
-use crate::class::Class;
-use crate::invokable::{Invoke, Return};
-use crate::primitives::PrimitiveFn;
-use crate::universe::Universe;
-use crate::value::Value;
-use crate::{expect_args, SOMRef};
+pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
+    Box::new([
+        ("halt", self::halt.into_func(), true),
+        ("class", self::class.into_func(), true),
+        ("objectSize", self::object_size.into_func(), true),
+        ("hashcode", self::hashcode.into_func(), true),
+        ("perform:", self::perform.into_func(), true),
+        ("perform:withArguments:", self::perform_with_arguments.into_func(), true),
+        ("perform:inSuperclass:", self::perform_in_super_class.into_func(), true),
+        (
+            "perform:withArguments:inSuperclass:",
+            self::perform_with_arguments_in_super_class.into_func(),
+            true,
+        ),
+        ("instVarAt:", self::inst_var_at.into_func(), true),
+        ("instVarAt:put:", self::inst_var_at_put.into_func(), true),
+        ("==", self::eq.into_func(), true),
+    ])
+});
+pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([]));
 
-pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[
-    ("class", self::class, true),
-    ("objectSize", self::object_size, true),
-    ("hashcode", self::hashcode, true),
-    ("perform:", self::perform, true),
-    ("perform:withArguments:", self::perform_with_arguments, true),
-    ("perform:inSuperclass:", self::perform_in_super_class, true),
-    (
-        "perform:withArguments:inSuperclass:",
-        self::perform_with_arguments_in_super_class,
-        true,
-    ),
-    ("instVarAt:", self::inst_var_at, true),
-    ("instVarAt:put:", self::inst_var_at_put, true),
-    ("==", self::eq, true),
-];
-pub static CLASS_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[];
-
-fn class(universe: &mut Universe, args: Vec<Value>) -> Return {
-    const SIGNATURE: &'static str = "Object>>#class";
-
-    expect_args!(SIGNATURE, args, [
-        object => object,
-    ]);
-
-    Return::Local(Value::Class(object.class(universe)))
+fn halt(_: Value) -> Result<Value, Error> {
+    println!("HALT"); // so a breakpoint can be put
+    Ok(Value::NIL)
 }
 
-fn object_size(_: &mut Universe, _: Vec<Value>) -> Return {
-    const _: &'static str = "Object>>#objectSize";
-
-    Return::Local(Value::Integer(std::mem::size_of::<Value>() as i64))
+fn class(universe: &mut Universe, stack: &mut GlobalValueStack) -> Result<Value, Error> {
+    get_args_from_stack!(stack, object => Value);
+    Ok(Value::Class(object.class(universe)))
 }
 
-fn hashcode(_: &mut Universe, args: Vec<Value>) -> Return {
-    const SIGNATURE: &'static str = "Object>>#hashcode";
+fn object_size(_: Value) -> Result<Value, Error> {
+    Ok(Value::Integer(core::mem::size_of::<Value>() as i32))
+}
 
-    expect_args!(SIGNATURE, args, [
-        value => value,
-    ]);
-
+fn hashcode(receiver: Value) -> Result<Value, Error> {
     let mut hasher = DefaultHasher::new();
-    value.hash(&mut hasher);
-    let hash = (hasher.finish() as i64).abs();
+    receiver.hash(&mut hasher);
+    let hash = (hasher.finish() as i32).abs();
 
-    Return::Local(Value::Integer(hash))
+    Ok(Value::Integer(hash))
 }
 
-fn eq(_: &mut Universe, args: Vec<Value>) -> Return {
-    const SIGNATURE: &'static str = "Object>>#==";
-
-    expect_args!(SIGNATURE, args, [
-        a => a,
-        b => b,
-    ]);
-
-    Return::Local(Value::Boolean(a == b))
+fn eq(receiver: Value, other: Value) -> Result<Value, Error> {
+    Ok(Value::Boolean(receiver == other))
 }
 
-fn perform(universe: &mut Universe, args: Vec<Value>) -> Return {
-    const SIGNATURE: &'static str = "Object>>#perform:";
+fn perform(universe: &mut Universe, stack: &mut GlobalValueStack) -> Result<Return, Error> {
+    const SIGNATURE: &str = "Object>>#perform:";
 
-    expect_args!(SIGNATURE, args, [
-        object => object,
-        Value::Symbol(sym) => sym,
-    ]);
-
-    let signature = universe.lookup_symbol(sym);
-    let method = object.lookup_method(universe, signature);
+    get_args_from_stack!(stack, object => Value, sym => Interned);
+    let method = object.lookup_method(universe, sym);
 
     match method {
-        Some(invokable) => invokable.invoke(universe, vec![object]),
+        Some(mut invokable) => {
+            stack.push(object);
+            Ok(invokable.invoke(universe, stack, 1))
+        }
         None => {
-            let signature = signature.to_string();
-            universe
-                .does_not_understand(object.clone(), signature.as_str(), vec![object.clone()])
-                .unwrap_or_else(|| {
-                    Return::Exception(format!(
-                        "'{}': method '{}' not found for '{}'",
-                        SIGNATURE,
-                        signature,
-                        object.to_string(universe)
-                    ))
-                    // Return::Local(Value::Nil)
-                })
+            Ok(universe.does_not_understand(stack, object, sym, vec![object]).unwrap_or_else(|| {
+                panic!(
+                    "'{}': method '{}' not found for '{}'",
+                    SIGNATURE,
+                    universe.lookup_symbol(sym),
+                    object.to_string(universe)
+                )
+                // Ok(Value::Nil)
+            }))
         }
     }
 }
 
-fn perform_with_arguments(universe: &mut Universe, args: Vec<Value>) -> Return {
-    const SIGNATURE: &'static str = "Object>>#perform:withArguments:";
+fn perform_with_arguments(universe: &mut Universe, stack: &mut GlobalValueStack) -> Result<Return, Error> {
+    const SIGNATURE: &str = "Object>>#perform:withArguments:";
 
-    expect_args!(SIGNATURE, args, [
-        object => object,
-        Value::Symbol(sym) => sym,
-        Value::Array(arr) => arr,
-    ]);
-
-    let signature = universe.lookup_symbol(sym);
-    let method = object.lookup_method(universe, signature);
+    get_args_from_stack!(stack, object => Value, sym => Interned, arr => VecValue);
+    let method = object.lookup_method(universe, sym);
 
     match method {
-        Some(invokable) => {
-            let args = std::iter::once(object)
-                .chain(arr.replace(Vec::default()).into_iter())
-                .collect();
-            invokable.invoke(universe, args)
+        Some(mut invokable) => {
+            // let args = std::iter::once(object)
+            //     .chain(arr.replace(Vec::default()))
+            //     .collect();
+            stack.push(object);
+            for val in arr.iter() {
+                stack.push(*val)
+            }
+            Ok(invokable.invoke(universe, stack, arr.len() + 1))
         }
         None => {
-            let signature = signature.to_string();
-            let args = std::iter::once(object.clone())
-                .chain(arr.replace(Vec::default()).into_iter())
-                .collect();
-            universe
-                .does_not_understand(object.clone(), signature.as_str(), args)
-                .unwrap_or_else(|| {
-                    Return::Exception(format!(
-                        "'{}': method '{}' not found for '{}'",
-                        SIGNATURE,
-                        signature,
-                        object.to_string(universe)
-                    ))
-                    // Return::Local(Value::Nil)
-                })
+            // let args = std::iter::once(object.clone())
+            //     .chain(arr.replace(Vec::default()))
+            //     .collect();
+            let arr2: Vec<Value> = arr.iter().copied().collect();
+            let args = std::iter::once(object).chain(arr2).collect();
+
+            Ok(universe.does_not_understand(stack, object, sym, args).unwrap_or_else(|| {
+                panic!(
+                    "'{}': method '{}' not found for '{}'",
+                    SIGNATURE,
+                    universe.lookup_symbol(sym),
+                    object.to_string(universe)
+                )
+                // Ok(Value::Nil)
+            }))
         }
     }
 }
 
-fn perform_in_super_class(universe: &mut Universe, args: Vec<Value>) -> Return {
-    const SIGNATURE: &'static str = "Object>>#perform:inSuperclass:";
+fn perform_in_super_class(universe: &mut Universe, stack: &mut GlobalValueStack) -> Result<Return, Error> {
+    const SIGNATURE: &str = "Object>>#perform:inSuperclass:";
 
-    expect_args!(SIGNATURE, args, [
-        object => object,
-        Value::Symbol(sym) => sym,
-        Value::Class(class) => class,
-    ]);
-
-    let signature = universe.lookup_symbol(sym);
-    let method = class.borrow().lookup_method(signature);
+    get_args_from_stack!(stack, object => Value, sym => Interned, class => Gc<Class>);
+    let method = class.lookup_method(sym);
 
     match method {
-        Some(invokable) => invokable.invoke(universe, vec![object]),
+        Some(mut invokable) => {
+            stack.push(object);
+            Ok(invokable.invoke(universe, stack, 1))
+        }
         None => {
-            let signature = signature.to_string();
-            let args = vec![object.clone()];
-            universe
-                .does_not_understand(Value::Class(class), signature.as_str(), args)
-                .unwrap_or_else(|| {
-                    Return::Exception(format!(
-                        "'{}': method '{}' not found for '{}'",
-                        SIGNATURE,
-                        signature,
-                        object.to_string(universe)
-                    ))
-                    // Return::Local(Value::Nil)
-                })
+            let args = vec![object];
+            Ok(universe.does_not_understand(stack, Value::Class(class), sym, args).unwrap_or_else(|| {
+                panic!(
+                    "'{}': method '{}' not found for '{}'",
+                    SIGNATURE,
+                    universe.lookup_symbol(sym),
+                    object.to_string(universe)
+                )
+                // Ok(Value::Nil)
+            }))
         }
     }
 }
 
-fn perform_with_arguments_in_super_class(universe: &mut Universe, args: Vec<Value>) -> Return {
-    const SIGNATURE: &'static str = "Object>>#perform:withArguments:inSuperclass:";
+fn perform_with_arguments_in_super_class(universe: &mut Universe, stack: &mut GlobalValueStack) -> Result<Return, Error> {
+    const SIGNATURE: &str = "Object>>#perform:withArguments:inSuperclass:";
 
-    expect_args!(SIGNATURE, args, [
-        object => object,
-        Value::Symbol(sym) => sym,
-        Value::Array(arr) => arr,
-        Value::Class(class) => class,
-    ]);
-
-    let signature = universe.lookup_symbol(sym);
-    let method = class.borrow().lookup_method(signature);
+    get_args_from_stack!(stack, object => Value, sym => Interned, arr => VecValue, class => Gc<Class>);
+    let method = class.lookup_method(sym);
 
     match method {
-        Some(invokable) => {
-            let args = std::iter::once(object)
-                .chain(arr.replace(Vec::default()).into_iter())
-                .collect();
-            invokable.invoke(universe, args)
+        // Some(mut invokable) => {
+        Some(_invokable) => {
+            todo!();
+            // let args = std::iter::once(object)
+            //     .chain(arr.replace(Vec::default()))
+            //     .collect();
+            // let args = std::iter::once(object).chain((*arr).clone()).collect();
+
+            // Ok(invokable.invoke(universe, args))
         }
         None => {
-            let args = std::iter::once(object.clone())
-                .chain(arr.replace(Vec::default()).into_iter())
-                .collect();
-            let signature = signature.to_string();
-            universe
-                .does_not_understand(Value::Class(class), signature.as_str(), args)
-                .unwrap_or_else(|| {
-                    Return::Exception(format!(
-                        "'{}': method '{}' not found for '{}'",
-                        SIGNATURE,
-                        signature,
-                        object.to_string(universe)
-                    ))
-                    // Return::Local(Value::Nil)
-                })
+            // let args = std::iter::once(object.clone())
+            //     .chain(arr.replace(Vec::default()))
+            //     .collect();
+            let arr2: Vec<Value> = arr.iter().copied().collect();
+            let args = std::iter::once(object).chain(arr2).collect();
+
+            Ok(universe.does_not_understand(stack, Value::Class(class), sym, args).unwrap_or_else(|| {
+                panic!(
+                    "'{}': method '{}' not found for '{}'",
+                    SIGNATURE,
+                    universe.lookup_symbol(sym),
+                    object.to_string(universe)
+                )
+                // Ok(Value::Nil)
+            }))
         }
     }
 }
 
-fn inst_var_at(universe: &mut Universe, args: Vec<Value>) -> Return {
-    const SIGNATURE: &'static str = "Object>>#instVarAt:";
-
-    expect_args!(SIGNATURE, args, [
-        object => object,
-        Value::Integer(index) => index,
-    ]);
+fn inst_var_at(object: Value, index: i32) -> Result<Value, Error> {
+    const SIGNATURE: &str = "Object>>#instVarAt:";
 
     let index = match usize::try_from(index - 1) {
         Ok(index) => index,
-        Err(err) => return Return::Exception(format!("'{}': {}", SIGNATURE, err)),
+        Err(err) => bail!(format!("'{}': {}", SIGNATURE, err)),
     };
 
-    let locals = gather_locals(universe, object.class(universe));
-    let local = locals
-        .get(index)
-        .and_then(|local| object.lookup_local(local))
-        .unwrap_or(Value::Nil);
+    let local = {
+        if let Some(instance) = object.as_instance() {
+            instance.fields.get(index).cloned().unwrap_or(Value::NIL)
+        } else if let Some(cls) = object.as_class() {
+            cls.fields.get(index).cloned().unwrap_or(Value::NIL)
+        } else {
+            unreachable!("instVarAt called not on an instance or a class")
+        }
+    };
 
-    Return::Local(local)
+    Ok(local)
 }
 
-fn inst_var_at_put(universe: &mut Universe, args: Vec<Value>) -> Return {
-    const SIGNATURE: &'static str = "Object>>#instVarAt:put:";
+fn inst_var_at_put(object: Value, index: i32, value: Value) -> Result<Value, Error> {
+    const SIGNATURE: &str = "Object>>#instVarAt:put:";
 
-    expect_args!(SIGNATURE, args, [
-        object => object,
-        Value::Integer(index) => index,
-        value => value,
-    ]);
-
-    let index = match usize::try_from(index - 1) {
+    let index = match u8::try_from(index - 1) {
         Ok(index) => index,
-        Err(err) => return Return::Exception(format!("'{}': {}", SIGNATURE, err)),
+        Err(err) => bail!(format!("'{}': {}", SIGNATURE, err)),
     };
 
-    let locals = gather_locals(universe, object.class(universe));
-    let local = locals
-        .get(index)
-        .and_then(|local| object.assign_local(local, value.clone()).map(|_| value))
-        .unwrap_or(Value::Nil);
+    if let Some(mut instance) = object.as_instance() {
+        if instance.fields.len() as u8 > index {
+            instance.assign_field(index, value)
+        }
+    } else if let Some(mut cls) = object.as_class() {
+        if cls.fields.len() as u8 > index {
+            cls.assign_field(index, value)
+        }
+    } else {
+        unreachable!("instVarAtPut called not on an instance or a class")
+    }
 
-    Return::Local(local)
-}
-
-fn gather_locals(universe: &mut Universe, class: SOMRef<Class>) -> Vec<String> {
-    let mut fields = match class.borrow().super_class() {
-        Some(super_class) => gather_locals(universe, super_class),
-        None => Vec::new(),
-    };
-    fields.extend(class.borrow().locals.keys().cloned());
-    fields
+    Ok(value)
 }
 
 /// Search for an instance primitive matching the given signature.
-pub fn get_instance_primitive(signature: &str) -> Option<PrimitiveFn> {
-    INSTANCE_PRIMITIVES
-        .iter()
-        .find(|it| it.0 == signature)
-        .map(|it| it.1)
+pub fn get_instance_primitive(signature: &str) -> Option<&'static PrimitiveFn> {
+    INSTANCE_PRIMITIVES.iter().find(|it| it.0 == signature).map(|it| it.1)
 }
 
 /// Search for a class primitive matching the given signature.
-pub fn get_class_primitive(signature: &str) -> Option<PrimitiveFn> {
-    CLASS_PRIMITIVES
-        .iter()
-        .find(|it| it.0 == signature)
-        .map(|it| it.1)
+pub fn get_class_primitive(signature: &str) -> Option<&'static PrimitiveFn> {
+    CLASS_PRIMITIVES.iter().find(|it| it.0 == signature).map(|it| it.1)
 }

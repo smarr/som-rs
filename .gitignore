@@ -14,3 +14,21 @@
 
 # Folder to put files not intended to be pushed (like temporary files)
 /ignored
+
+# Rebench stuff
+payload.json
+rebench.data
+
+# perf stuff + interps i keep around for perf stuff
+*.data
+som-interp-ast
+som-interp-bc
+
+# AWFY benchmarks
+are-we-fast-yet/
+
+# used when building mmtk from source to do better debugging
+mmtk-core/
+
+# profiler data
+*.mm_profdata

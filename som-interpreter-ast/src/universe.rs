@@ -1,70 +1,28 @@
-use std::cell::RefCell;
-use std::collections::hash_map::Entry;
+use crate::evaluate::Evaluate;
+use crate::gc::{get_callbacks_for_gc, VecValue};
+use crate::invokable::{Invoke, Return};
+use crate::value::Value;
+use crate::vm_objects::block::Block;
+use crate::vm_objects::class::Class;
+use crate::vm_objects::frame::{Frame, FrameAccess};
+use crate::vm_objects::instance::Instance;
+use anyhow::{anyhow, Error};
+use som_core::core_classes::CoreClasses;
+use som_core::interner::Interner;
+use som_gc::gc_interface::{GCInterface, SOMAllocator};
+use som_gc::gcref::Gc;
+use som_gc::{debug_assert_valid_semispace_ptr, debug_assert_valid_semispace_ptr_value};
+use som_value::interned::Interned;
 use std::collections::HashMap;
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
-use std::rc::Rc;
+use std::slice::Iter;
 use std::time::Instant;
+use std::vec::Drain;
 
-use anyhow::{anyhow, Error};
-
-use crate::block::Block;
-use crate::class::Class;
-use crate::frame::{Frame, FrameKind};
-use crate::interner::{Interned, Interner};
-use crate::invokable::{Invoke, Return};
-use crate::value::Value;
-use crate::SOMRef;
-
-/// The core classes of the SOM interpreter.
-///
-/// This struct allows to always keep a reference to important classes,
-/// even in case of modifications to global bindings by user-defined code.
-#[derive(Debug)]
-pub struct CoreClasses {
-    /// The **Object** class.
-    pub object_class: SOMRef<Class>,
-    /// The **Class** class.
-    pub class_class: SOMRef<Class>,
-    /// The **Class** class.
-    pub metaclass_class: SOMRef<Class>,
-
-    /// The **Nil** class.
-    pub nil_class: SOMRef<Class>,
-    /// The **Integer** class.
-    pub integer_class: SOMRef<Class>,
-    /// The **Double** class.
-    pub double_class: SOMRef<Class>,
-    /// The **Array** class.
-    pub array_class: SOMRef<Class>,
-    /// The **Method** class.
-    pub method_class: SOMRef<Class>,
-    /// The **Primitive** class.
-    pub primitive_class: SOMRef<Class>,
-    /// The **Symbol** class.
-    pub symbol_class: SOMRef<Class>,
-    /// The **String** class.
-    pub string_class: SOMRef<Class>,
-    /// The **System** class.
-    pub system_class: SOMRef<Class>,
-
-    /// The **Block** class.
-    pub block_class: SOMRef<Class>,
-    /// The **Block1** class.
-    pub block1_class: SOMRef<Class>,
-    /// The **Block2** class.
-    pub block2_class: SOMRef<Class>,
-    /// The **Block3** class.
-    pub block3_class: SOMRef<Class>,
-
-    /// The **Boolean** class.
-    pub boolean_class: SOMRef<Class>,
-    /// The **True** class.
-    pub true_class: SOMRef<Class>,
-    /// The **False** class.
-    pub false_class: SOMRef<Class>,
-}
+/// GC default heap size
+pub const DEFAULT_HEAP_SIZE: usize = 1024 * 1024 * 256;
 
 /// The central data structure for the interpreter.
 ///
@@ -74,150 +32,153 @@ pub struct Universe {
     /// The string interner for symbols.
     pub interner: Interner,
     /// The known global bindings.
-    pub globals: HashMap<String, Value>,
+    pub globals: HashMap<Interned, Value>,
     /// The path to search in for new classes.
     pub classpath: Vec<PathBuf>,
+    /// The current frame for the operation
+    pub current_frame: Gc<Frame>,
     /// The interpreter's core classes.
-    pub core: CoreClasses,
+    pub core: CoreClasses<Gc<Class>>,
     /// The time record of the universe's creation.
     pub start_time: Instant,
-    /// The interpreter's stack frames.
-    pub frames: Vec<SOMRef<Frame>>,
+    /// GC interface
+    pub gc_interface: &'static mut GCInterface,
+}
+
+impl Drop for Universe {
+    fn drop(&mut self) {
+        let _box: Box<GCInterface> = unsafe { Box::from_raw(self.gc_interface) };
+        drop(_box)
+    }
 }
 
 impl Universe {
     /// Initialize the universe from the given classpath.
     pub fn with_classpath(classpath: Vec<PathBuf>) -> Result<Self, Error> {
-        let interner = Interner::with_capacity(100);
-        let mut globals = HashMap::new();
+        Self::with_classpath_and_heap_size(classpath, DEFAULT_HEAP_SIZE)
+    }
 
-        let object_class = Self::load_system_class(classpath.as_slice(), "Object")?;
-        let class_class = Self::load_system_class(classpath.as_slice(), "Class")?;
-        let metaclass_class = Self::load_system_class(classpath.as_slice(), "Metaclass")?;
+    /// Initialize the universe from the given classpath, and given a heap size
+    pub fn with_classpath_and_heap_size(classpath: Vec<PathBuf>, heap_size: usize) -> Result<Self, Error> {
+        let mut interner = Interner::with_capacity(200);
+        let mut globals: HashMap<Interned, Value> = HashMap::new();
 
-        let nil_class = Self::load_system_class(classpath.as_slice(), "Nil")?;
-        let integer_class = Self::load_system_class(classpath.as_slice(), "Integer")?;
-        let array_class = Self::load_system_class(classpath.as_slice(), "Array")?;
-        let method_class = Self::load_system_class(classpath.as_slice(), "Method")?;
-        let symbol_class = Self::load_system_class(classpath.as_slice(), "Symbol")?;
-        let primitive_class = Self::load_system_class(classpath.as_slice(), "Primitive")?;
-        let string_class = Self::load_system_class(classpath.as_slice(), "String")?;
-        let system_class = Self::load_system_class(classpath.as_slice(), "System")?;
-        let double_class = Self::load_system_class(classpath.as_slice(), "Double")?;
+        let gc_interface = GCInterface::init(heap_size, get_callbacks_for_gc());
 
-        let block_class = Self::load_system_class(classpath.as_slice(), "Block")?;
-        let block1_class = Self::load_system_class(classpath.as_slice(), "Block1")?;
-        let block2_class = Self::load_system_class(classpath.as_slice(), "Block2")?;
-        let block3_class = Self::load_system_class(classpath.as_slice(), "Block3")?;
+        let mut core: CoreClasses<Gc<Class>> = CoreClasses::from_load_cls_fn(|name: &str, super_cls: Option<&Gc<Class>>| {
+            Self::load_system_class(classpath.as_slice(), name, super_cls.cloned(), gc_interface, &mut interner).unwrap()
+        });
 
-        let boolean_class = Self::load_system_class(classpath.as_slice(), "Boolean")?;
-        let true_class = Self::load_system_class(classpath.as_slice(), "True")?;
-        let false_class = Self::load_system_class(classpath.as_slice(), "False")?;
+        // TODO: these can be removed for the most part - in the AST at least, we set a lot of super class relationships when loading system classes directly.
+        core.object_class.class().set_class(&core.metaclass_class);
+        core.object_class.class().set_super_class(&core.class_class);
 
-        // initializeSystemClass(objectClass, null, "Object");
-        // set_super_class(&object_class, &nil_class, &metaclass_class);
-        object_class
-            .borrow()
-            .class()
-            .borrow_mut()
-            .set_class(&metaclass_class);
-        object_class
-            .borrow()
-            .class()
-            .borrow_mut()
-            .set_super_class(&class_class);
-        // initializeSystemClass(classClass, objectClass, "Class");
-        set_super_class(&class_class, &object_class, &metaclass_class);
-        // initializeSystemClass(metaclassClass, classClass, "Metaclass");
-        set_super_class(&metaclass_class, &class_class, &metaclass_class);
+        set_super_class(&mut core.class_class, &core.object_class, &core.metaclass_class);
+        set_super_class(&mut core.metaclass_class.clone(), &core.class_class, &core.metaclass_class);
         // initializeSystemClass(nilClass, objectClass, "Nil");
-        set_super_class(&nil_class, &object_class, &metaclass_class);
+        set_super_class(&mut core.nil_class, &core.object_class, &core.metaclass_class);
         // initializeSystemClass(arrayClass, objectClass, "Array");
-        set_super_class(&array_class, &object_class, &metaclass_class);
+        set_super_class(&mut core.array_class, &core.object_class, &core.metaclass_class);
         // initializeSystemClass(methodClass, arrayClass, "Method");
-        set_super_class(&method_class, &array_class, &metaclass_class);
+        set_super_class(&mut core.method_class, &core.array_class, &core.metaclass_class);
         // initializeSystemClass(stringClass, objectClass, "String");
-        set_super_class(&string_class, &object_class, &metaclass_class);
+        set_super_class(&mut core.string_class, &core.object_class, &core.metaclass_class);
         // initializeSystemClass(symbolClass, stringClass, "Symbol");
-        set_super_class(&symbol_class, &string_class, &metaclass_class);
+        set_super_class(&mut core.symbol_class, &core.string_class, &core.metaclass_class);
         // initializeSystemClass(integerClass, objectClass, "Integer");
-        set_super_class(&integer_class, &object_class, &metaclass_class);
+        set_super_class(&mut core.integer_class, &core.object_class, &core.metaclass_class);
         // initializeSystemClass(primitiveClass, objectClass, "Primitive");
-        set_super_class(&primitive_class, &object_class, &metaclass_class);
+        set_super_class(&mut core.primitive_class, &core.object_class, &core.metaclass_class);
         // initializeSystemClass(doubleClass, objectClass, "Double");
-        set_super_class(&double_class, &object_class, &metaclass_class);
+        set_super_class(&mut core.double_class, &core.object_class, &core.metaclass_class);
 
-        set_super_class(&system_class, &object_class, &metaclass_class);
+        set_super_class(&mut core.system_class, &core.object_class, &core.metaclass_class);
 
-        set_super_class(&block_class, &object_class, &metaclass_class);
-        set_super_class(&block1_class, &block_class, &metaclass_class);
-        set_super_class(&block2_class, &block_class, &metaclass_class);
-        set_super_class(&block3_class, &block_class, &metaclass_class);
+        set_super_class(&mut core.block_class, &core.object_class, &core.metaclass_class);
+        set_super_class(&mut core.block1_class, &core.block_class, &core.metaclass_class);
+        set_super_class(&mut core.block2_class, &core.block_class, &core.metaclass_class);
+        set_super_class(&mut core.block3_class, &core.block_class, &core.metaclass_class);
 
-        set_super_class(&boolean_class, &object_class, &metaclass_class);
-        set_super_class(&true_class, &boolean_class, &metaclass_class);
-        set_super_class(&false_class, &boolean_class, &metaclass_class);
+        set_super_class(&mut core.boolean_class, &core.object_class, &core.metaclass_class);
+        set_super_class(&mut core.true_class, &core.boolean_class, &core.metaclass_class);
+        set_super_class(&mut core.false_class, &core.boolean_class, &core.metaclass_class);
 
-        globals.insert("Object".into(), Value::Class(object_class.clone()));
-        globals.insert("Class".into(), Value::Class(class_class.clone()));
-        globals.insert("Metaclass".into(), Value::Class(metaclass_class.clone()));
-        globals.insert("Nil".into(), Value::Class(nil_class.clone()));
-        globals.insert("Integer".into(), Value::Class(integer_class.clone()));
-        globals.insert("Array".into(), Value::Class(array_class.clone()));
-        globals.insert("Method".into(), Value::Class(method_class.clone()));
-        globals.insert("Symbol".into(), Value::Class(symbol_class.clone()));
-        globals.insert("Primitive".into(), Value::Class(primitive_class.clone()));
-        globals.insert("String".into(), Value::Class(string_class.clone()));
-        globals.insert("System".into(), Value::Class(system_class.clone()));
-        globals.insert("Double".into(), Value::Class(double_class.clone()));
-        globals.insert("Boolean".into(), Value::Class(boolean_class.clone()));
-        globals.insert("True".into(), Value::Class(true_class.clone()));
-        globals.insert("False".into(), Value::Class(false_class.clone()));
-        globals.insert("Block".into(), Value::Class(block_class.clone()));
-        globals.insert("Block1".into(), Value::Class(block1_class.clone()));
-        globals.insert("Block2".into(), Value::Class(block2_class.clone()));
-        globals.insert("Block3".into(), Value::Class(block3_class.clone()));
+        for (cls_name, core_cls) in core.iter() {
+            globals.insert(interner.intern(cls_name), Value::Class(core_cls.clone()));
+        }
 
-        globals.insert("true".into(), Value::Boolean(true));
-        globals.insert("false".into(), Value::Boolean(false));
-        globals.insert("nil".into(), Value::Nil);
-        globals.insert("system".into(), Value::System);
+        globals.insert(interner.intern("true"), Value::Boolean(true));
+        globals.insert(interner.intern("false"), Value::Boolean(false));
+        globals.insert(interner.intern("nil"), Value::NIL);
+
+        let system_instance = Value::Instance(gc_interface.alloc(Instance::from_class(core.system_class())));
+        globals.insert(interner.intern("system"), system_instance);
 
         Ok(Self {
             globals,
             interner,
             classpath,
-            frames: Vec::new(),
+            current_frame: Gc::default(),
             start_time: Instant::now(),
-            core: CoreClasses {
-                object_class,
-                class_class,
-                metaclass_class,
-                nil_class,
-                integer_class,
-                array_class,
-                method_class,
-                symbol_class,
-                primitive_class,
-                string_class,
-                system_class,
-                double_class,
-                block_class,
-                block1_class,
-                block2_class,
-                block3_class,
-                boolean_class,
-                true_class,
-                false_class,
-            },
+            core,
+            gc_interface,
         })
+    }
+
+    /// Load a class from its name into this universe.
+    pub fn load_class(&mut self, class_name: impl Into<String>) -> Result<Gc<Class>, Error> {
+        let class_name = class_name.into();
+
+        for path in &self.classpath {
+            let mut path = path.join(class_name.as_str());
+            path.set_extension("som");
+
+            // Read file contents.
+            let contents = match fs::read_to_string(path.as_path()) {
+                Ok(contents) => contents,
+                Err(_) => continue,
+            };
+
+            // Collect all tokens from the file.
+            let tokens: Vec<_> = som_lexer::Lexer::new(contents.as_str()).skip_comments(true).skip_whitespace(true).collect();
+
+            // Parse class definition from the tokens.
+            let defn = match som_parser::parse_file(tokens.as_slice()) {
+                Some(defn) => defn,
+                None => continue,
+            };
+
+            if defn.name != class_name {
+                return Err(anyhow!("{}: class name is different from file name.", path.display(),));
+            }
+
+            let super_class = if let Some(ref super_class) = defn.super_class {
+                let symbol = self.intern_symbol(super_class.as_str());
+                self.lookup_global(symbol).and_then(Value::as_class).unwrap_or_else(|| self.load_class(super_class).unwrap())
+            } else {
+                self.core.object_class.clone()
+            };
+
+            let mut class = Class::from_class_def(defn, Some(super_class.clone()), self.gc_interface, &mut self.interner).map_err(Error::msg)?;
+            set_super_class(&mut class, &super_class, &self.core.metaclass_class);
+
+            let symbol = self.intern_symbol(class.name());
+            self.globals.insert(symbol, Value::Class(class.clone()));
+
+            return Ok(class);
+        }
+
+        Err(anyhow!("could not find the '{}' class", class_name))
     }
 
     /// Load a system class (with an incomplete hierarchy).
     pub fn load_system_class(
         classpath: &[impl AsRef<Path>],
         class_name: impl Into<String>,
-    ) -> Result<SOMRef<Class>, Error> {
+        super_class: Option<Gc<Class>>,
+        gc_interface: &mut GCInterface,
+        interner: &mut Interner,
+    ) -> Result<Gc<Class>, Error> {
         let class_name = class_name.into();
         for path in classpath {
             let mut path = path.as_ref().join(class_name.as_str());
@@ -231,258 +192,62 @@ impl Universe {
             };
 
             // Collect all tokens from the file.
-            let tokens: Vec<_> = som_lexer::Lexer::new(contents.as_str())
-                .skip_comments(true)
-                .skip_whitespace(true)
-                .collect();
+            let tokens: Vec<_> = som_lexer::Lexer::new(contents.as_str()).skip_comments(true).skip_whitespace(true).collect();
 
             // Parse class definition from the tokens.
-            let defn = match som_parser::parse_file(tokens.as_slice()) {
+            let defn = match som_parser::parse_file_no_universe(tokens.as_slice()) {
                 Some(defn) => defn,
                 None => return Err(anyhow!("could not parse the '{}' system class", class_name)),
             };
 
             if defn.name != class_name {
-                return Err(anyhow!(
-                    "{}: class name is different from file name.",
-                    path.display(),
-                ));
+                return Err(anyhow!("{}: class name is different from file name.", path.display(),));
             }
 
-            return Class::from_class_def(defn).map_err(Error::msg);
+            return Class::from_class_def(defn, super_class, gc_interface, interner).map_err(Error::msg);
         }
 
         Err(anyhow!("could not find the '{}' system class", class_name))
     }
-
-    /// Load a class from its name into this universe.
-    pub fn load_class(&mut self, class_name: impl Into<String>) -> Result<SOMRef<Class>, Error> {
-        let class_name = class_name.into();
-        for path in self.classpath.iter() {
-            let mut path = path.join(class_name.as_str());
-            path.set_extension("som");
-
-            // Read file contents.
-            let contents = match fs::read_to_string(path.as_path()) {
-                Ok(contents) => contents,
-                Err(_) => continue,
-            };
-
-            // Collect all tokens from the file.
-            let tokens: Vec<_> = som_lexer::Lexer::new(contents.as_str())
-                .skip_comments(true)
-                .skip_whitespace(true)
-                .collect();
-
-            // Parse class definition from the tokens.
-            let defn = match som_parser::parse_file(tokens.as_slice()) {
-                Some(defn) => defn,
-                None => continue,
-            };
-
-            if defn.name != class_name {
-                return Err(anyhow!(
-                    "{}: class name is different from file name.",
-                    path.display(),
-                ));
-            }
-
-            let super_class = if let Some(ref super_class) = defn.super_class {
-                match self.lookup_global(super_class) {
-                    Some(Value::Class(super_class)) => super_class,
-                    _ => self.load_class(super_class)?,
-                }
-            } else {
-                self.core.object_class.clone()
-            };
-
-            let class = Class::from_class_def(defn).map_err(Error::msg)?;
-            set_super_class(&class, &super_class, &self.core.metaclass_class);
-
-            fn has_duplicated_field(class: &SOMRef<Class>) -> Option<(String, (String, String))> {
-                let super_class_iterator = std::iter::successors(Some(class.clone()), |class| {
-                    class.borrow().super_class()
-                });
-                let mut map = HashMap::<String, String>::new();
-                for class in super_class_iterator {
-                    let class_name = class.borrow().name().to_string();
-                    for (field, _) in class.borrow().locals.iter() {
-                        let field_name = field.clone();
-                        match map.entry(field_name.clone()) {
-                            Entry::Occupied(entry) => {
-                                return Some((field_name, (class_name, entry.get().clone())))
-                            }
-                            Entry::Vacant(v) => {
-                                v.insert(class_name.clone());
-                            }
-                        }
-                    }
-                }
-                return None;
-            }
-
-            if let Some((field, (c1, c2))) = has_duplicated_field(&class) {
-                return Err(anyhow!(
-                    "the field named '{}' is defined more than once (by '{}' and '{}', where the latter inherits from the former)",
-                    field, c1, c2,
-                ));
-            }
-
-            if let Some((field, (c1, c2))) = has_duplicated_field(&class.borrow().class()) {
-                return Err(anyhow!(
-                    "the field named '{}' is defined more than once (by '{}' and '{}', where the latter inherits from the former)",
-                    field, c1, c2,
-                ));
-            }
-
-            self.globals.insert(
-                class.borrow().name().to_string(),
-                Value::Class(class.clone()),
-            );
-
-            return Ok(class);
-        }
-
-        Err(anyhow!("could not find the '{}' class", class_name))
-    }
-
-    /// Load a class from its path into this universe.
-    pub fn load_class_from_path(&mut self, path: impl AsRef<Path>) -> Result<SOMRef<Class>, Error> {
-        let path = path.as_ref();
-        let file_stem = path
-            .file_stem()
-            .ok_or_else(|| anyhow!("The given path has no file stem"))?;
-
-        // Read file contents.
-        let contents = match fs::read_to_string(path) {
-            Ok(contents) => contents,
-            Err(err) => return Err(Error::from(err)),
-        };
-
-        // Collect all tokens from the file.
-        let tokens: Vec<_> = som_lexer::Lexer::new(contents.as_str())
-            .skip_comments(true)
-            .skip_whitespace(true)
-            .collect();
-
-        // Parse class definition from the tokens.
-        let defn = match som_parser::parse_file(tokens.as_slice()) {
-            Some(defn) => defn,
-            None => return Err(Error::msg("could not parse file")),
-        };
-
-        if defn.name.as_str() != file_stem {
-            return Err(anyhow!(
-                "{}: class name is different from file name.",
-                path.display(),
-            ));
-        }
-
-        let super_class = if let Some(ref super_class) = defn.super_class {
-            match self.lookup_global(super_class) {
-                Some(Value::Class(class)) => class,
-                _ => self.load_class(super_class)?,
-            }
-        } else {
-            self.core.object_class.clone()
-        };
-
-        let class = Class::from_class_def(defn).map_err(Error::msg)?;
-        set_super_class(&class, &super_class, &self.core.metaclass_class);
-
-        Ok(class)
-    }
-
-    /// Get the **Nil** class.
-    pub fn nil_class(&self) -> SOMRef<Class> {
-        self.core.nil_class.clone()
-    }
-    /// Get the **System** class.
-    pub fn system_class(&self) -> SOMRef<Class> {
-        self.core.system_class.clone()
-    }
-
-    /// Get the **Symbol** class.
-    pub fn symbol_class(&self) -> SOMRef<Class> {
-        self.core.symbol_class.clone()
-    }
-    /// Get the **String** class.
-    pub fn string_class(&self) -> SOMRef<Class> {
-        self.core.string_class.clone()
-    }
-    /// Get the **Array** class.
-    pub fn array_class(&self) -> SOMRef<Class> {
-        self.core.array_class.clone()
-    }
-
-    /// Get the **Integer** class.
-    pub fn integer_class(&self) -> SOMRef<Class> {
-        self.core.integer_class.clone()
-    }
-    /// Get the **Double** class.
-    pub fn double_class(&self) -> SOMRef<Class> {
-        self.core.double_class.clone()
-    }
-
-    /// Get the **Block** class.
-    pub fn block_class(&self) -> SOMRef<Class> {
-        self.core.block_class.clone()
-    }
-    /// Get the **Block1** class.
-    pub fn block1_class(&self) -> SOMRef<Class> {
-        self.core.block1_class.clone()
-    }
-    /// Get the **Block2** class.
-    pub fn block2_class(&self) -> SOMRef<Class> {
-        self.core.block2_class.clone()
-    }
-    /// Get the **Block3** class.
-    pub fn block3_class(&self) -> SOMRef<Class> {
-        self.core.block3_class.clone()
-    }
-
-    /// Get the **True** class.
-    pub fn true_class(&self) -> SOMRef<Class> {
-        self.core.true_class.clone()
-    }
-    /// Get the **False** class.
-    pub fn false_class(&self) -> SOMRef<Class> {
-        self.core.false_class.clone()
-    }
-
-    /// Get the **Metaclass** class.
-    pub fn metaclass_class(&self) -> SOMRef<Class> {
-        self.core.metaclass_class.clone()
-    }
-
-    /// Get the **Method** class.
-    pub fn method_class(&self) -> SOMRef<Class> {
-        self.core.method_class.clone()
-    }
-    /// Get the **Primitive** class.
-    pub fn primitive_class(&self) -> SOMRef<Class> {
-        self.core.primitive_class.clone()
-    }
 }
 
 impl Universe {
-    /// Execute a piece of code within a new stack frame.
-    pub fn with_frame<T>(&mut self, kind: FrameKind, func: impl FnOnce(&mut Self) -> T) -> T {
-        let frame = Rc::new(RefCell::new(Frame::from_kind(kind)));
-        self.frames.push(frame);
-        let ret = func(self);
-        self.frames.pop();
+    /// Evaluates a method or other after pushing a new frame onto the stack.
+    /// The frame assumes the arguments it needs are on the global argument stack.
+    pub fn eval_with_frame<T: Evaluate>(&mut self, value_stack: &mut GlobalValueStack, nbr_locals: u8, nbr_args: usize, invokable: &mut T) -> Return {
+        let frame = Frame::alloc_new_frame(nbr_locals, nbr_args, self, value_stack);
+        self.current_frame = frame;
+        let ret = invokable.evaluate(self, value_stack);
+        self.current_frame = self.current_frame.prev_frame.clone();
         ret
     }
 
-    /// Get the current frame.
-    pub fn current_frame(&self) -> &SOMRef<Frame> {
-        self.frames.last().expect("no frames left")
+    /// Evaluates a block after pushing a new block frame.
+    pub fn eval_block_with_frame(&mut self, value_stack: &mut GlobalValueStack, nbr_locals: u8, nbr_args: usize) -> Return {
+        let frame = Frame::alloc_new_frame(nbr_locals, nbr_args, self, value_stack);
+        self.current_frame = frame.clone();
+        debug_assert_valid_semispace_ptr!(self.current_frame);
+        let mut invokable = frame.lookup_argument(0).as_block().unwrap();
+        debug_assert_valid_semispace_ptr!(invokable);
+        debug_assert_valid_semispace_ptr!(invokable.block);
+        let ret = invokable.evaluate(self, value_stack);
+        self.current_frame = self.current_frame.prev_frame.clone();
+        ret
     }
 
-    /// Get the method invocation frame for the current frame.
-    pub fn current_method_frame(&self) -> SOMRef<Frame> {
-        Frame::method_frame(self.current_frame())
+    /// Evaluates a block after pushing a new block frame, and the new frame doesn't get created by popping arguments - just copying them.
+    /// Implemented to help avoid an odd GC bug in the `to:by:do` node where a ref to a pointer, kept as a variable, ended up dangling after GC for some reason.
+    /// This variable was popped off the stack and pushed back. Thanks to this function, it's just copied from the previous one to the new one. Which may also be a speedup
+    pub fn eval_block_with_frame_no_pop(&mut self, value_stack: &mut GlobalValueStack, nbr_locals: u8, nbr_args: usize) -> Return {
+        let frame = Frame::alloc_new_frame_no_pop(nbr_locals, nbr_args, self, value_stack);
+        self.current_frame = frame.clone();
+        debug_assert_valid_semispace_ptr!(self.current_frame);
+        let mut invokable = frame.lookup_argument(0).as_block().unwrap();
+        debug_assert_valid_semispace_ptr!(invokable);
+        debug_assert_valid_semispace_ptr!(invokable.block);
+        let ret = invokable.evaluate(self, value_stack);
+        self.current_frame = self.current_frame.prev_frame.clone();
+        ret
     }
 
     /// Intern a symbol.
@@ -495,107 +260,152 @@ impl Universe {
         self.interner.lookup(symbol)
     }
 
-    /// Search for a local binding.
-    pub fn lookup_local(&self, name: impl AsRef<str>) -> Option<Value> {
-        let name = name.as_ref();
-        match name {
-            "self" | "super" => {
-                let frame = self.current_frame();
-                let self_value = frame.borrow().get_self();
-                Some(self_value)
-            }
-            name => self.current_frame().borrow().lookup_local(name),
-        }
-    }
-
     /// Returns whether a global binding of the specified name exists.
-    pub fn has_global(&self, name: impl AsRef<str>) -> bool {
-        let name = name.as_ref();
-        self.globals.contains_key(name)
+    pub fn has_global(&self, name: Interned) -> bool {
+        self.globals.contains_key(&name)
     }
 
     /// Search for a global binding.
-    pub fn lookup_global(&self, name: impl AsRef<str>) -> Option<Value> {
-        let name = name.as_ref();
-        self.globals.get(name).cloned()
-    }
-
-    /// Assign a value to a local binding.
-    pub fn assign_local(&mut self, name: impl AsRef<str>, value: Value) -> Option<()> {
-        self.current_frame().borrow_mut().assign_local(name, value)
+    pub fn lookup_global(&self, name: Interned) -> Option<Value> {
+        self.globals.get(&name).cloned()
     }
 
     /// Assign a value to a global binding.
-    pub fn assign_global(&mut self, name: impl AsRef<str>, value: Value) -> Option<()> {
-        self.globals
-            .insert(name.as_ref().to_string(), value)
-            .map(|_| ())
+    pub fn assign_global(&mut self, name: Interned, value: &Value) -> Option<()> {
+        self.globals.insert(name, *value).map(|_| ())
+    }
+}
+
+#[repr(transparent)] // probably not needed but might as well make it explicit to the compiler
+#[derive(Debug)]
+pub struct GlobalValueStack(Vec<Value>);
+
+impl From<Vec<Value>> for GlobalValueStack {
+    fn from(value: Vec<Value>) -> Self {
+        Self(value)
+    }
+}
+
+impl GlobalValueStack {
+    /// Standard push-to-stack operation. Exists so we can check pointers in debug mode, really
+    pub fn push(&mut self, value: Value) {
+        debug_assert_valid_semispace_ptr_value!(value);
+        self.0.push(value);
+    }
+
+    /// Standard pop.
+    pub fn pop(&mut self) -> Value {
+        debug_assert!(!self.0.is_empty());
+        // unsafe in the holy name of performance (preach) (I hope this is an OK speedup)
+        unsafe { self.0.pop().unwrap_unchecked() }
+    }
+
+    pub fn last(&mut self) -> &Value {
+        self.0.last().unwrap()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    /// Remove N elements off the argument stack and return them as their own vector.
+    pub fn split_off_n(&mut self, n: usize) -> Vec<Value> {
+        let idx_split_off = self.0.len() - n;
+        self.0.split_off(idx_split_off)
+    }
+
+    /// Return the last `n` elements as a `Drain` iterator.
+    /// Faster than splitting off, at least for our code.
+    pub fn drain_n_last(&mut self, n: usize) -> Drain<'_, Value> {
+        let idx_split_off = self.0.len() - n;
+        self.0.drain(idx_split_off..)
+    }
+
+    pub fn borrow_n_last(&self, n: usize) -> &[Value] {
+        let idx_split_off = self.0.len() - n;
+        &self.0.as_slice()[idx_split_off..]
+    }
+
+    pub fn remove_n_last(&mut self, n: usize) {
+        let new_len = self.0.len() - n;
+        self.0.truncate(new_len)
+    }
+
+    pub fn iter(&self) -> Iter<'_, Value> {
+        self.0.iter()
     }
 }
 
 impl Universe {
     /// Call `escapedBlock:` on the given value, if it is defined.
-    pub fn escaped_block(&mut self, value: Value, block: Rc<Block>) -> Option<Return> {
-        let initialize = value.lookup_method(self, "escapedBlock:")?;
+    pub fn escaped_block(&mut self, value_stack: &mut GlobalValueStack, value: Value, block: Gc<Block>) -> Option<Return> {
+        let method_name = self.intern_symbol("escapedBlock:");
+        let mut initialize = value.lookup_method(self, method_name)?;
 
-        Some(initialize.invoke(self, vec![value, Value::Block(block)]))
+        value_stack.push(value);
+        value_stack.push(Value::Block(block));
+        let escaped_block_result = initialize.invoke(self, value_stack, 2);
+        Some(escaped_block_result)
     }
 
     /// Call `doesNotUnderstand:` on the given value, if it is defined.
     pub fn does_not_understand(
         &mut self,
+        value_stack: &mut GlobalValueStack,
         value: Value,
-        symbol: impl AsRef<str>,
+        interned_sym: Interned,
         args: Vec<Value>,
     ) -> Option<Return> {
-        let initialize = value.lookup_method(self, "doesNotUnderstand:arguments:")?;
-        let sym = self.intern_symbol(symbol.as_ref());
-        let sym = Value::Symbol(sym);
-        let args = Value::Array(Rc::new(RefCell::new(args)));
+        let method_name = self.intern_symbol("doesNotUnderstand:arguments:");
+        let mut initialize = value.lookup_method(self, method_name)?;
+        let sym = Value::Symbol(interned_sym);
+        let args = Value::Array(VecValue(self.gc_interface.alloc_slice(&args)));
 
-        Some(initialize.invoke(self, vec![value, sym, args]))
+        //eprintln!("Couldn't invoke {}; exiting.", self.interner.lookup(interned_sym));
+        //std::process::exit(1);
+
+        value_stack.push(value);
+        value_stack.push(sym);
+        value_stack.push(args);
+
+        let dnu_result = initialize.invoke(self, value_stack, 3);
+        Some(dnu_result)
     }
 
     /// Call `unknownGlobal:` on the given value, if it is defined.
-    pub fn unknown_global(&mut self, value: Value, name: impl AsRef<str>) -> Option<Return> {
-        let sym = self.intern_symbol(name.as_ref());
-        let method = value.lookup_method(self, "unknownGlobal:")?;
+    pub fn unknown_global(&mut self, value_stack: &mut GlobalValueStack, value: Value, sym: Interned) -> Option<Return> {
+        let method_name = self.intern_symbol("unknownGlobal:");
+        let mut method = value.lookup_method(self, method_name)?;
 
-        match method.invoke(self, vec![value, Value::Symbol(sym)]) {
+        value_stack.push(value);
+        value_stack.push(Value::Symbol(sym));
+
+        let unknown_global_result = method.invoke(self, value_stack, 2);
+        match unknown_global_result {
             Return::Local(value) | Return::NonLocal(value, _) => Some(Return::Local(value)),
-            Return::Exception(err) => Some(Return::Exception(format!(
-                "(from 'System>>#unknownGlobal:') {}",
-                err,
-            ))),
-            Return::Restart => Some(Return::Exception(
-                "(from 'System>>#unknownGlobal:') incorrectly asked for a restart".to_string(),
-            )),
+            #[cfg(feature = "inlining-disabled")]
+            Return::Restart => panic!("(from 'System>>#unknownGlobal:') incorrectly asked for a restart"),
         }
     }
 
     /// Call `System>>#initialize:` with the given name, if it is defined.
-    pub fn initialize(&mut self, args: Vec<Value>) -> Option<Return> {
-        let initialize = Value::System.lookup_method(self, "initialize:")?;
-        let args = Value::Array(Rc::new(RefCell::new(args)));
+    pub fn initialize(&mut self, args: Vec<Value>, value_stack: &mut GlobalValueStack) -> Option<Return> {
+        let method_name = self.interner.intern("initialize:");
+        let mut initialize = self.core.system_class().lookup_method(method_name)?;
+        let args = Value::Array(VecValue(self.gc_interface.alloc_slice(&args)));
 
-        Some(initialize.invoke(self, vec![Value::System, args]))
+        let system_value = self.lookup_global(self.interner.reverse_lookup("system")?)?;
+        value_stack.push(system_value);
+
+        value_stack.push(args);
+        let program_result = initialize.invoke(self, value_stack, 2);
+        Some(program_result)
     }
 }
 
-fn set_super_class(
-    class: &SOMRef<Class>,
-    super_class: &SOMRef<Class>,
-    metaclass_class: &SOMRef<Class>,
-) {
-    class.borrow_mut().set_super_class(super_class);
-    class
-        .borrow()
-        .class()
-        .borrow_mut()
-        .set_super_class(&super_class.borrow().class());
-    class
-        .borrow()
-        .class()
-        .borrow_mut()
-        .set_class(metaclass_class);
+fn set_super_class(class: &mut Gc<Class>, super_class: &Gc<Class>, metaclass_class: &Gc<Class>) {
+    class.set_super_class(super_class);
+
+    class.class().set_super_class(&super_class.class());
+    class.class().set_class(metaclass_class);
 }

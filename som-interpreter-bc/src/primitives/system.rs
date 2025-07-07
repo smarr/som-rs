@@ -1,255 +1,199 @@
-use std::convert::TryFrom;
+use std::convert::TryInto;
 use std::fs;
-use std::rc::Rc;
+use std::io::Write;
 
-use crate::frame::FrameKind;
+use crate::gc::VecValue;
 use crate::interpreter::Interpreter;
+use crate::pop_args_from_stack;
+use crate::primitives::PrimInfo;
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
+use crate::value::convert::{Nil, Primitive, StringLike};
 use crate::value::Value;
-use crate::{expect_args, reverse};
+use crate::vm_objects::class::Class;
+use anyhow::{Context, Error};
+use num_bigint::BigInt;
+use once_cell::sync::Lazy;
+use som_gc::gc_interface::SOMAllocator;
+use som_gc::gcref::Gc;
+use som_value::interned::Interned;
 
-pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[
-    ("loadFile:", self::load_file, true),
-    ("printString:", self::print_string, true),
-    ("printNewline", self::print_newline, true),
-    ("errorPrint:", self::error_print, true),
-    ("errorPrintln:", self::error_println, true),
-    ("load:", self::load, true),
-    ("ticks", self::ticks, true),
-    ("time", self::time, true),
-    ("fullGC", self::full_gc, true),
-    ("exit:", self::exit, true),
-    ("global:", self::global, true),
-    ("global:put:", self::global_put, true),
-    ("hasGlobal:", self::has_global, true),
-    ("printStackTrace", self::print_stack_trace, true),
-];
-pub static CLASS_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[];
+pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
+    Box::new([
+        ("loadFile:", self::load_file.into_func(), true),
+        ("printString:", self::print_string.into_func(), true),
+        ("printNewline", self::print_newline.into_func(), true),
+        ("errorPrint:", self::error_print.into_func(), true),
+        ("errorPrintln:", self::error_println.into_func(), true),
+        ("load:", self::load.into_func(), true),
+        ("ticks", self::ticks.into_func(), true),
+        ("time", self::time.into_func(), true),
+        ("fullGC", self::full_gc.into_func(), true),
+        ("gcStats", self::gc_stats.into_func(), true),
+        ("exit:", self::exit.into_func(), true),
+        ("global:", self::global.into_func(), true),
+        ("global:put:", self::global_put.into_func(), true),
+        ("hasGlobal:", self::has_global.into_func(), true),
+        ("printStackTrace", self::print_stack_trace.into_func(), true),
+    ])
+});
+pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([]));
 
-fn load_file(interpreter: &mut Interpreter, universe: &mut Universe) {
-    const SIGNATURE: &str = "System>>#loadFile:";
+fn load_file(interpreter: &mut Interpreter, universe: &mut Universe) -> Result<Option<Gc<String>>, Error> {
+    pop_args_from_stack!(interpreter, _a => Value, path => StringLike);
+    let path = path.as_str(|sym| universe.lookup_symbol(sym));
 
-    expect_args!(SIGNATURE, interpreter, [
-        Value::System,
-        value => value,
-    ]);
-
-    let path = match value {
-        Value::String(ref string) => string,
-        Value::Symbol(sym) => universe.lookup_symbol(sym),
-        _ => panic!("'{}': wrong type", SIGNATURE),
+    let Ok(value) = fs::read_to_string(&*path) else {
+        return Ok(None);
     };
 
-    let value = match fs::read_to_string(path) {
-        Ok(value) => Value::String(Rc::new(value)),
-        Err(_) => Value::Nil,
-    };
-
-    interpreter.stack.push(value);
+    Ok(Some(universe.gc_interface.alloc(value)))
 }
 
-fn print_string(interpreter: &mut Interpreter, universe: &mut Universe) {
-    const SIGNATURE: &str = "System>>#printString:";
+fn print_string(interp: &mut Interpreter, universe: &mut Universe) -> Result<Value, Error> {
+    pop_args_from_stack!(interp, system => Value, string => StringLike);
 
-    expect_args!(SIGNATURE, interpreter, [
-        Value::System,
-        value => value,
-    ]);
+    let string = string.as_str(|sym| universe.lookup_symbol(sym));
+    print!("{string}");
+    std::io::stdout().flush()?;
 
-    let string = match value {
-        Value::String(ref string) => string,
-        Value::Symbol(sym) => universe.lookup_symbol(sym),
-        _ => panic!("'{}': wrong type", SIGNATURE),
-    };
-
-    print!("{}", string);
-    use std::io::Write;
-    std::io::stdout().flush().unwrap();
-    interpreter.stack.push(Value::System)
+    Ok(system)
 }
 
-fn print_newline(interpreter: &mut Interpreter, _: &mut Universe) {
-    const SIGNATURE: &'static str = "System>>#printNewline";
-
-    expect_args!(SIGNATURE, interpreter, [Value::System]);
-
+fn print_newline(_: Value) -> Result<Nil, Error> {
     println!();
-    interpreter.stack.push(Value::Nil);
+    Ok(Nil)
 }
 
-fn error_print(interpreter: &mut Interpreter, universe: &mut Universe) {
-    const SIGNATURE: &str = "System>>#errorPrint:";
+fn error_print(interp: &mut Interpreter, universe: &mut Universe) -> Result<Value, Error> {
+    pop_args_from_stack!(interp, system => Value, string => StringLike);
 
-    expect_args!(SIGNATURE, interpreter, [
-        Value::System,
-        value => value,
-    ]);
+    let string = string.as_str(|sym| universe.lookup_symbol(sym));
 
-    let string = match value {
-        Value::String(ref string) => string,
-        Value::Symbol(sym) => universe.lookup_symbol(sym),
-        _ => panic!("'{}': wrong type", SIGNATURE),
-    };
+    eprint!("{string}");
+    std::io::stderr().flush()?;
 
-    eprint!("{}", string);
-    interpreter.stack.push(Value::System);
+    Ok(system)
 }
 
-fn error_println(interpreter: &mut Interpreter, universe: &mut Universe) {
-    const SIGNATURE: &str = "System>>#errorPrintln:";
-
-    expect_args!(SIGNATURE, interpreter, [
-        Value::System,
-        value => value,
-    ]);
-
-    let string = match value {
-        Value::String(ref string) => string,
-        Value::Symbol(sym) => universe.lookup_symbol(sym),
-        _ => panic!("'{}': wrong type", SIGNATURE),
-    };
-
-    eprintln!("{}", string);
-    interpreter.stack.push(Value::System);
+fn error_println(interp: &mut Interpreter, universe: &mut Universe) -> Result<Value, Error> {
+    pop_args_from_stack!(interp, system => Value, string => StringLike);
+    let string = string.as_str(|sym| universe.lookup_symbol(sym));
+    eprintln!("{string}");
+    Ok(system)
 }
 
-fn load(interpreter: &mut Interpreter, universe: &mut Universe) {
-    const SIGNATURE: &str = "System>>#load:";
+fn load(interp: &mut Interpreter, universe: &mut Universe) -> Result<Gc<Class>, Error> {
+    pop_args_from_stack!(interp, _a => Value, class_name => Interned);
+    let class_name = universe.lookup_symbol(class_name).to_string();
+    let class = universe.load_class(class_name)?;
 
-    expect_args!(SIGNATURE, interpreter, [
-        Value::System,
-        Value::Symbol(sym) => sym,
-    ]);
-
-    let name = universe.lookup_symbol(sym).to_string();
-    match universe.load_class(name) {
-        Ok(class) => interpreter.stack.push(Value::Class(class)),
-        Err(err) => panic!("'{}': {}", SIGNATURE, err),
-    }
+    Ok(class)
 }
 
-fn has_global(interpreter: &mut Interpreter, universe: &mut Universe) {
-    const SIGNATURE: &str = "System>>#hasGlobal:";
-
-    expect_args!(SIGNATURE, interpreter, [
-        Value::System,
-        Value::Symbol(sym) => sym,
-    ]);
-
-    let value = Value::Boolean(universe.has_global(sym));
-
-    interpreter.stack.push(value);
+fn has_global(interp: &mut Interpreter, universe: &mut Universe) -> Result<bool, Error> {
+    pop_args_from_stack!(interp, _a => Value, name => Interned);
+    Ok(universe.has_global(name))
 }
 
-fn global(interpreter: &mut Interpreter, universe: &mut Universe) {
-    const SIGNATURE: &str = "System>>#global:";
+fn global(interp: &mut Interpreter, universe: &mut Universe) -> Result<Option<Value>, Error> {
+    pop_args_from_stack!(interp, _a => Value, name => Interned);
 
-    expect_args!(SIGNATURE, interpreter, [
-        Value::System,
-        Value::Symbol(sym) => sym,
-    ]);
-
-    let value = universe.lookup_global(sym).unwrap_or(Value::Nil);
-
-    interpreter.stack.push(value);
+    Ok(universe.lookup_global(name))
 }
 
-fn global_put(interpreter: &mut Interpreter, universe: &mut Universe) {
-    const SIGNATURE: &str = "System>>#global:put:";
-
-    expect_args!(SIGNATURE, interpreter, [
-        Value::System,
-        Value::Symbol(sym) => sym,
-        value => value,
-    ]);
-
-    universe.assign_global(sym, value.clone());
-    interpreter.stack.push(value);
+fn global_put(interp: &mut Interpreter, universe: &mut Universe) -> Result<Option<Value>, Error> {
+    pop_args_from_stack!(interp, _a => Value, name => Interned, value => Value);
+    universe.assign_global(name, value);
+    Ok(Some(value))
 }
 
-fn exit(interpreter: &mut Interpreter, _: &mut Universe) {
-    const SIGNATURE: &str = "System>>#exit:";
-
-    expect_args!(SIGNATURE, interpreter, [
-        Value::System,
-        Value::Integer(code) => code,
-    ]);
-
-    match i32::try_from(code) {
-        Ok(code) => std::process::exit(code),
-        Err(err) => panic!("'{}': {}", SIGNATURE, err),
-    }
+fn exit(interp: &mut Interpreter, _: &mut Universe) -> Result<(), Error> {
+    pop_args_from_stack!(interp, _a => Value, status => i32);
+    std::process::exit(status);
 }
 
-fn ticks(interpreter: &mut Interpreter, _: &mut Universe) {
+fn ticks(interpreter: &mut Interpreter, _: &mut Universe) -> Result<i32, Error> {
+    pop_args_from_stack!(interpreter, _a => Value);
+
     const SIGNATURE: &str = "System>>#ticks";
 
-    expect_args!(SIGNATURE, interpreter, [Value::System]);
-
-    match i64::try_from(interpreter.start_time.elapsed().as_micros()) {
-        Ok(micros) => interpreter.stack.push(Value::Integer(micros)),
-        Err(err) => panic!("'{}': {}", SIGNATURE, err),
-    }
+    interpreter
+        .start_time
+        .elapsed()
+        .as_micros()
+        .try_into()
+        .with_context(|| format!("`{SIGNATURE}`: could not convert `i128` to `i32`"))
 }
 
-fn time(interpreter: &mut Interpreter, _: &mut Universe) {
+fn time(interpreter: &mut Interpreter, _: &mut Universe) -> Result<i32, Error> {
     const SIGNATURE: &str = "System>>#time";
+    pop_args_from_stack!(interpreter, _a => Value);
 
-    expect_args!(SIGNATURE, interpreter, [Value::System]);
-
-    match i64::try_from(interpreter.start_time.elapsed().as_millis()) {
-        Ok(micros) => interpreter.stack.push(Value::Integer(micros)),
-        Err(err) => panic!("'{}': {}", SIGNATURE, err),
-    }
+    interpreter
+        .start_time
+        .elapsed()
+        .as_millis()
+        .try_into()
+        .with_context(|| format!("`{SIGNATURE}`: could not convert `i128` to `i32`"))
 }
 
-fn print_stack_trace(interpreter: &mut Interpreter, _: &mut Universe) {
-    const SIGNATURE: &str = "System>>#printStackTrace";
+fn print_stack_trace(interpreter: &mut Interpreter, _: &mut Universe) -> Result<bool, Error> {
+    pop_args_from_stack!(interpreter, _a => Value);
 
-    expect_args!(SIGNATURE, interpreter, [Value::System]);
+    let frame_stack = {
+        let mut frame_stack = vec![];
+        let mut current_frame = interpreter.get_current_frame();
+        while !current_frame.is_empty() {
+            frame_stack.push(current_frame.clone());
+            current_frame = current_frame.prev_frame.clone();
+        }
+        frame_stack
+    };
 
-    for frame in &interpreter.frames {
-        let class = frame.borrow().get_method_holder();
-        let method = frame.borrow().get_method();
-        let bytecode_idx = frame.borrow().bytecode_idx;
-        let block = match frame.borrow().kind() {
-            FrameKind::Block { .. } => "$block",
-            _ => "",
-        };
+    println!("Stack trace:");
+    for (frame_idx, frame) in frame_stack.iter().enumerate() {
+        let class = frame.get_method_holder();
         println!(
-            "{}>>#{}{} @bi: {}",
-            class.borrow().name(),
-            method.signature(),
-            block,
-            bytecode_idx
+            "\t{}: {}>>#{} @bi: {}",
+            frame_idx,
+            class.name(),
+            frame.current_context.signature(),
+            frame.bytecode_idx
         );
     }
+    println!("----------------");
 
-    interpreter.stack.push(Value::Boolean(true));
+    Ok(true)
 }
 
-fn full_gc(interpreter: &mut Interpreter, _: &mut Universe) {
-    const SIGNATURE: &str = "System>>#fullGC";
+fn full_gc(interp: &mut Interpreter, universe: &mut Universe) -> Result<bool, Error> {
+    pop_args_from_stack!(interp, _a => Value);
+    Ok(universe.gc_interface.full_gc_request())
+}
 
-    expect_args!(SIGNATURE, interpreter, [Value::System]);
+fn gc_stats(interp: &mut Interpreter, universe: &mut Universe) -> Result<VecValue, Error> {
+    pop_args_from_stack!(interp, _a => Value);
 
-    // We don't do any garbage collection at all, so we return false.
-    interpreter.stack.push(Value::Boolean(false));
+    let gc_interface = &mut universe.gc_interface;
+
+    let total_gc = gc_interface.get_nbr_collections();
+    let total_gc_time = gc_interface.alloc(BigInt::from(gc_interface.get_total_gc_time()));
+    let total_bytes_bigint = gc_interface.alloc(BigInt::from(gc_interface.get_used_bytes()));
+
+    Ok(VecValue(universe.gc_interface.alloc_slice(&[
+        Value::Integer(total_gc as i32),
+        Value::BigInteger(total_gc_time),
+        Value::BigInteger(total_bytes_bigint),
+    ])))
 }
 
 /// Search for an instance primitive matching the given signature.
-pub fn get_instance_primitive(signature: &str) -> Option<PrimitiveFn> {
-    INSTANCE_PRIMITIVES
-        .iter()
-        .find(|it| it.0 == signature)
-        .map(|it| it.1)
+pub fn get_instance_primitive(signature: &str) -> Option<&'static PrimitiveFn> {
+    INSTANCE_PRIMITIVES.iter().find(|it| it.0 == signature).map(|it| it.1)
 }
 
 /// Search for a class primitive matching the given signature.
-pub fn get_class_primitive(signature: &str) -> Option<PrimitiveFn> {
-    CLASS_PRIMITIVES
-        .iter()
-        .find(|it| it.0 == signature)
-        .map(|it| it.1)
+pub fn get_class_primitive(signature: &str) -> Option<&'static PrimitiveFn> {
+    CLASS_PRIMITIVES.iter().find(|it| it.0 == signature).map(|it| it.1)
 }

@@ -1,99 +1,93 @@
-use std::cell::RefCell;
-use std::convert::TryFrom;
-use std::rc::Rc;
-
-use crate::expect_args;
-use crate::invokable::Return;
+use super::PrimInfo;
+use crate::gc::VecValue;
+use crate::get_args_from_stack;
 use crate::primitives::PrimitiveFn;
-use crate::universe::Universe;
+use crate::universe::{GlobalValueStack, Universe};
+use crate::value::convert::FromArgs;
+use crate::value::convert::Primitive;
 use crate::value::Value;
+use anyhow::{bail, Error};
+use once_cell::sync::Lazy;
+use som_gc::gc_interface::{AllocSiteMarker, SOMAllocator};
+use som_gc::gcslice::GcSlice;
+use std::convert::TryFrom;
 
-pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[
-    ("at:", self::at, true),
-    ("at:put:", self::at_put, true),
-    ("length", self::length, true),
-];
+pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
+    Box::new([
+        ("at:", self::at.into_func(), true),
+        ("at:put:", self::at_put.into_func(), true),
+        ("length", self::length.into_func(), true),
+        ("copy:", self::copy.into_func(), true),
+    ])
+});
 
-pub static CLASS_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[("new:", self::new, true)];
+pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([("new:", self::new.into_func(), true)]));
 
-fn at(_: &mut Universe, args: Vec<Value>) -> Return {
+fn at(values: VecValue, index: i32) -> Result<Value, Error> {
     const SIGNATURE: &str = "Array>>#at:";
 
-    expect_args!(SIGNATURE, args, [
-        Value::Array(values) => values,
-        Value::Integer(index) => index,
-    ]);
-
     let index = match usize::try_from(index - 1) {
         Ok(index) => index,
-        Err(err) => return Return::Exception(format!("'{}': {}", SIGNATURE, err)),
+        Err(err) => bail!(format!("'{}': {}", SIGNATURE, err)),
     };
-    let value = values.borrow().get(index).cloned().unwrap_or(Value::Nil);
-    Return::Local(value)
+    let value = values.get_checked(index).cloned().unwrap_or(Value::NIL);
+
+    Ok(value)
 }
 
-fn at_put(_: &mut Universe, args: Vec<Value>) -> Return {
+fn at_put(mut values: VecValue, index: i32, value: Value) -> Result<Value, Error> {
     const SIGNATURE: &str = "Array>>#at:put:";
 
-    expect_args!(SIGNATURE, args, [
-        Value::Array(values) => values,
-        Value::Integer(index) => index,
-        value => value,
-    ]);
-
     let index = match usize::try_from(index - 1) {
         Ok(index) => index,
-        Err(err) => return Return::Exception(format!("'{}': {}", SIGNATURE, err)),
+        Err(err) => bail!(format!("'{}': {}", SIGNATURE, err)),
     };
-    if let Some(location) = values.borrow_mut().get_mut(index) {
+    if let Some(location) = values.get_checked_mut(index) {
         *location = value;
     }
-    Return::Local(Value::Array(values))
+    Ok(Value::Array(values))
 }
 
-fn length(_: &mut Universe, args: Vec<Value>) -> Return {
+fn length(values: VecValue) -> Result<Value, Error> {
     const SIGNATURE: &str = "Array>>#length";
 
-    expect_args!(SIGNATURE, args, [
-        Value::Array(values) => values,
-    ]);
-
-    let length = values.borrow().len();
-    match i64::try_from(length) {
-        Ok(length) => Return::Local(Value::Integer(length)),
-        Err(err) => Return::Exception(format!("'{}': {}", SIGNATURE, err)),
+    let length = values.len();
+    match i32::try_from(length) {
+        Ok(length) => Ok(Value::Integer(length)),
+        Err(err) => bail!(format!("'{}': {}", SIGNATURE, err)),
     }
 }
 
-fn new(_: &mut Universe, args: Vec<Value>) -> Return {
+fn new(universe: &mut Universe, stack: &mut GlobalValueStack) -> Result<Value, Error> {
     const SIGNATURE: &str = "Array>>#new:";
 
-    expect_args!(SIGNATURE, args, [
-        _,
-        Value::Integer(count) => count,
-    ]);
+    get_args_from_stack!(stack,
+        _a => Value,
+        count => i32
+    );
 
     match usize::try_from(count) {
-        Ok(length) => Return::Local(Value::Array(Rc::new(RefCell::new(vec![
-            Value::Nil;
-            length
-        ])))),
-        Err(err) => Return::Exception(format!("'{}': {}", SIGNATURE, err)),
+        Ok(length) => Ok(Value::Array(VecValue(
+            universe.gc_interface.alloc_slice_with_marker(&vec![Value::NIL; length], Some(AllocSiteMarker::Array)),
+        ))),
+        Err(err) => bail!(format!("'{}': {}", SIGNATURE, err)),
     }
+}
+
+fn copy(universe: &mut Universe, stack: &mut GlobalValueStack) -> Result<VecValue, Error> {
+    get_args_from_stack! {stack, arr => VecValue};
+
+    let copied_arr: Vec<Value> = arr.iter().copied().collect();
+    let allocated: GcSlice<Value> = universe.gc_interface.alloc_slice(&copied_arr);
+    Ok(VecValue(allocated))
 }
 
 /// Search for an instance primitive matching the given signature.
-pub fn get_instance_primitive(signature: &str) -> Option<PrimitiveFn> {
-    INSTANCE_PRIMITIVES
-        .iter()
-        .find(|it| it.0 == signature)
-        .map(|it| it.1)
+pub fn get_instance_primitive(signature: &str) -> Option<&'static PrimitiveFn> {
+    INSTANCE_PRIMITIVES.iter().find(|it| it.0 == signature).map(|it| it.1)
 }
 
 /// Search for a class primitive matching the given signature.
-pub fn get_class_primitive(signature: &str) -> Option<PrimitiveFn> {
-    CLASS_PRIMITIVES
-        .iter()
-        .find(|it| it.0 == signature)
-        .map(|it| it.1)
+pub fn get_class_primitive(signature: &str) -> Option<&'static PrimitiveFn> {
+    CLASS_PRIMITIVES.iter().find(|it| it.0 == signature).map(|it| it.1)
 }

@@ -1,39 +1,30 @@
-use std::rc::Rc;
-
-use crate::expect_args;
-use crate::invokable::Return;
+use super::PrimInfo;
+use crate::get_args_from_stack;
 use crate::primitives::PrimitiveFn;
-use crate::universe::Universe;
+use crate::universe::{GlobalValueStack, Universe};
+use crate::value::convert::FromArgs;
+use crate::value::convert::Primitive;
 use crate::value::Value;
+use anyhow::Error;
+use once_cell::sync::Lazy;
+use som_gc::gc_interface::SOMAllocator;
+use som_value::interned::Interned;
 
-pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] =
-    &[("asString", self::as_string, true)];
-pub static CLASS_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[];
+pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([("asString", self::as_string.into_func(), true)]));
 
-fn as_string(universe: &mut Universe, args: Vec<Value>) -> Return {
-    const SIGNATURE: &str = "Symbol>>#asString";
+pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([]));
 
-    expect_args!(SIGNATURE, args, [
-        Value::Symbol(sym) => sym,
-    ]);
-
-    Return::Local(Value::String(Rc::new(
-        universe.lookup_symbol(sym).to_string(),
-    )))
+fn as_string(universe: &mut Universe, stack: &mut GlobalValueStack) -> Result<Value, Error> {
+    get_args_from_stack!(stack, sym => Interned);
+    Ok(Value::String(universe.gc_interface.alloc(universe.lookup_symbol(sym).to_string())))
 }
 
 /// Search for an instance primitive matching the given signature.
-pub fn get_instance_primitive(signature: &str) -> Option<PrimitiveFn> {
-    INSTANCE_PRIMITIVES
-        .iter()
-        .find(|it| it.0 == signature)
-        .map(|it| it.1)
+pub fn get_instance_primitive(signature: &str) -> Option<&'static PrimitiveFn> {
+    INSTANCE_PRIMITIVES.iter().find(|it| it.0 == signature).map(|it| it.1)
 }
 
 /// Search for a class primitive matching the given signature.
-pub fn get_class_primitive(signature: &str) -> Option<PrimitiveFn> {
-    CLASS_PRIMITIVES
-        .iter()
-        .find(|it| it.0 == signature)
-        .map(|it| it.1)
+pub fn get_class_primitive(signature: &str) -> Option<&'static PrimitiveFn> {
+    CLASS_PRIMITIVES.iter().find(|it| it.0 == signature).map(|it| it.1)
 }

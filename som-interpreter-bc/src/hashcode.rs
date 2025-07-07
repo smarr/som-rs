@@ -1,72 +1,56 @@
-use std::hash::{Hash, Hasher};
-
-use crate::block::Block;
-use crate::class::Class;
-use crate::instance::Instance;
-use crate::method::Method;
 use crate::value::Value;
+use crate::vm_objects::block::Block;
+use crate::vm_objects::class::Class;
+use crate::vm_objects::instance::Instance;
+use crate::vm_objects::method::Method;
+use num_bigint::BigInt;
+use som_gc::gcref::Gc;
+use std::hash::{Hash, Hasher};
+use std::ops::Deref;
 
 impl Hash for Value {
     fn hash<H: Hasher>(&self, hasher: &mut H) {
-        match self {
-            Value::Nil => {
-                hasher.write(b"#nil#");
+        if self.is_nil() {
+            hasher.write(b"#nil#");
+        } else if let Some(value) = self.as_boolean() {
+            hasher.write(b"#bool#");
+            value.hash(hasher);
+        } else if let Some(value) = self.as_integer() {
+            hasher.write(b"#int#");
+            value.hash(hasher);
+        } else if let Some(value) = self.as_big_integer::<Gc<BigInt>>() {
+            hasher.write(b"#bigint#");
+            value.hash(hasher);
+        } else if let Some(value) = self.as_double() {
+            hasher.write(b"#double#");
+            let raw_bytes: &[u8] = unsafe { std::slice::from_raw_parts((&value as *const f64) as *const u8, std::mem::size_of::<f64>()) };
+            hasher.write(raw_bytes);
+        } else if let Some(value) = self.as_symbol() {
+            hasher.write(b"#sym#");
+            value.hash(hasher);
+        } else if let Some(value) = self.as_string::<Gc<String>>() {
+            hasher.write(b"#string#");
+            value.hash(hasher);
+        } else if let Some(value) = self.as_array() {
+            hasher.write(b"#arr#");
+            value.0.iter().for_each(|elem| elem.hash(hasher));
+        } else if let Some(value) = self.as_block() {
+            hasher.write(b"#blk#");
+            value.hash(hasher);
+        } else if let Some(value) = self.as_class() {
+            hasher.write(b"#cls#");
+            value.deref().hash(hasher);
+        } else if let Some(instance) = self.as_instance() {
+            hasher.write(b"#inst#");
+            instance.class.hash(hasher);
+            for i in 0..instance.class.fields.len() {
+                Instance::lookup_field(&instance, i).hash(hasher)
             }
-            Value::System => {
-                hasher.write(b"#system#");
-            }
-            Value::Boolean(value) => {
-                hasher.write(b"#bool#");
-                value.hash(hasher);
-            }
-            Value::Integer(value) => {
-                hasher.write(b"#int#");
-                value.hash(hasher);
-            }
-            Value::BigInteger(value) => {
-                hasher.write(b"#bigint#");
-                value.hash(hasher);
-            }
-            Value::Double(value) => {
-                hasher.write(b"#double#");
-                let raw_bytes: &[u8] = unsafe {
-                    std::slice::from_raw_parts(
-                        (value as *const f64) as *const u8,
-                        std::mem::size_of::<f64>(),
-                    )
-                };
-                hasher.write(raw_bytes);
-            }
-            Value::Symbol(value) => {
-                hasher.write(b"#sym#");
-                value.hash(hasher);
-            }
-            Value::String(value) => {
-                hasher.write(b"#string#");
-                value.hash(hasher);
-            }
-            Value::Array(value) => {
-                hasher.write(b"#arr#");
-                for value in value.borrow().iter() {
-                    value.hash(hasher);
-                }
-            }
-            Value::Block(value) => {
-                hasher.write(b"#blk#");
-                value.hash(hasher);
-            }
-            Value::Class(value) => {
-                hasher.write(b"#cls#");
-                value.borrow().hash(hasher);
-            }
-            Value::Instance(value) => {
-                hasher.write(b"#inst#");
-                value.borrow().hash(hasher);
-            }
-            Value::Invokable(value) => {
-                hasher.write(b"#mthd#");
-                value.hash(hasher);
-            }
+        } else if let Some(value) = self.as_invokable() {
+            hasher.write(b"#mthd#");
+            value.hash(hasher);
+        } else {
+            panic!("Unexpected Value variant encountered!");
         }
     }
 }
@@ -74,16 +58,7 @@ impl Hash for Value {
 impl Hash for Class {
     fn hash<H: Hasher>(&self, hasher: &mut H) {
         self.name.hash(hasher);
-        self.locals.iter().for_each(|value| {
-            value.hash(hasher);
-        });
-    }
-}
-
-impl Hash for Instance {
-    fn hash<H: Hasher>(&self, hasher: &mut H) {
-        self.class.borrow().hash(hasher);
-        self.locals.iter().for_each(|value| {
+        self.fields.iter().for_each(|value| {
             value.hash(hasher);
         });
     }
@@ -91,21 +66,19 @@ impl Hash for Instance {
 
 impl Hash for Block {
     fn hash<H: Hasher>(&self, hasher: &mut H) {
-        self.blk_info.literals.iter().for_each(|it| it.hash(hasher));
-        self.blk_info.locals.iter().for_each(|it| it.hash(hasher));
-        self.blk_info.nb_params.hash(hasher);
-        self.blk_info.body.iter().for_each(|it| it.hash(hasher));
+        let blk_info = &self.blk_info;
+        blk_info.get_env().literals.iter().for_each(|it| it.hash(hasher));
+        blk_info.get_env().nbr_locals.hash(hasher);
+        // self.blk_info.locals.iter().for_each(|it| it.hash(hasher));
+        blk_info.get_env().nbr_params.hash(hasher);
+        blk_info.get_env().body.iter().for_each(|it| it.hash(hasher));
     }
 }
 
 impl Hash for Method {
     fn hash<H: Hasher>(&self, hasher: &mut H) {
-        if let Some(holder) = self.holder().upgrade() {
-            holder.borrow().hash(hasher);
-        } else {
-            hasher.write(b"??");
-        }
+        self.holder().hash(hasher);
         hasher.write(b">>");
-        self.signature.hash(hasher);
+        self.signature().hash(hasher);
     }
 }

@@ -3,8 +3,12 @@ name = "som-core"
 version = "0.1.0"
 description = "Common types about the Simple Object Machine"
 authors = ["Nicolas Polomack <nmp21@kent.ac.uk>"]
-edition = "2018"
+edition = "2021"
 publish = false
 license = "MIT OR Apache-2.0"
 
 [dependencies]
+som-value = { path = "../som-value", version = "0.0.3" }
+
+[features]
+block-debug-info = []

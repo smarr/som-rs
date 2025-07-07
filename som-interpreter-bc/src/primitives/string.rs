@@ -1,228 +1,138 @@
 use std::collections::hash_map::DefaultHasher;
 use std::convert::TryFrom;
 use std::hash::Hasher;
-use std::rc::Rc;
 
 use crate::interpreter::Interpreter;
+use crate::pop_args_from_stack;
+use crate::primitives::PrimInfo;
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
+use crate::value::convert::{Primitive, StringLike};
 use crate::value::Value;
-use crate::{expect_args, reverse};
+use anyhow::Error;
+use once_cell::sync::Lazy;
+use som_gc::gc_interface::SOMAllocator;
+use som_gc::gcref::Gc;
+use som_value::interned::Interned;
 
-pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[
-    ("length", self::length, true),
-    ("hashcode", self::hashcode, true),
-    ("isLetters", self::is_letters, true),
-    ("isDigits", self::is_digits, true),
-    ("isWhiteSpace", self::is_whitespace, true),
-    ("asSymbol", self::as_symbol, true),
-    ("concatenate:", self::concatenate, true),
-    ("primSubstringFrom:to:", self::prim_substring_from_to, true),
-    ("=", self::eq, true),
-];
-pub static CLASS_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[];
+pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
+    Box::new([
+        ("length", self::length.into_func(), true),
+        ("hashcode", self::hashcode.into_func(), true),
+        ("isLetters", self::is_letters.into_func(), true),
+        ("isDigits", self::is_digits.into_func(), true),
+        ("isWhiteSpace", self::is_whitespace.into_func(), true),
+        ("asSymbol", self::as_symbol.into_func(), true),
+        ("concatenate:", self::concatenate.into_func(), true),
+        ("primSubstringFrom:to:", self::prim_substring_from_to.into_func(), true),
+        ("=", self::eq.into_func(), true),
+        ("charAt:", self::char_at.into_func(), true),
+    ])
+});
+pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([]));
 
-fn length(interpreter: &mut Interpreter, universe: &mut Universe) {
-    const SIGNATURE: &str = "String>>#length";
+fn length(interp: &mut Interpreter, universe: &mut Universe) -> Result<Value, Error> {
+    pop_args_from_stack!(interp, receiver => StringLike);
 
-    expect_args!(SIGNATURE, interpreter, [
-        value => value,
-    ]);
-
-    let value = match value {
-        Value::String(ref value) => value.as_str(),
-        Value::Symbol(sym) => universe.lookup_symbol(sym),
-        _ => panic!("'{}': invalid self type", SIGNATURE),
-    };
-
-    match i64::try_from(value.chars().count()) {
-        Ok(idx) => interpreter.stack.push(Value::Integer(idx)),
-        Err(err) => panic!("'{}': {}", SIGNATURE, err),
+    // tragically, we do not allow strings to have over 2 billion characters and just cast as i32
+    // i apologize to everyone for that. i will strive to be better
+    match receiver {
+        StringLike::String(ref value) => Ok(Value::Integer(value.len() as i32)),
+        StringLike::Symbol(sym) => Ok(Value::Integer(universe.lookup_symbol(sym).len() as i32)),
+        StringLike::Char(_) => Ok(Value::Integer(1)),
     }
 }
 
-fn hashcode(interpreter: &mut Interpreter, universe: &mut Universe) {
-    const SIGNATURE: &str = "String>>#hashcode";
-
-    expect_args!(SIGNATURE, interpreter, [
-        value => value,
-    ]);
-
-    let value = match value {
-        Value::String(ref value) => value.as_str(),
-        Value::Symbol(sym) => universe.lookup_symbol(sym),
-        _ => panic!("'{}': invalid self type", SIGNATURE),
-    };
-
+fn hashcode(interp: &mut Interpreter, universe: &mut Universe) -> Result<i32, Error> {
+    pop_args_from_stack!(interp, receiver => StringLike);
+    let string = receiver.as_str(|sym| universe.lookup_symbol(sym));
     let mut hasher = DefaultHasher::new();
+    hasher.write(string.as_bytes());
+    let hash = (hasher.finish() as i32).abs();
 
-    hasher.write(value.as_bytes());
-
-    // match i64::try_from(hasher.finish()) {
-    //     Ok(hash) => interpreter.stack.push(Value::Integer(hash)),
-    //     Err(err) => panic!("'{}': {}", SIGNATURE, err),
-    // }
-
-    interpreter
-        .stack
-        .push(Value::Integer((hasher.finish() as i64).abs()))
+    Ok(hash)
 }
 
-fn is_letters(interpreter: &mut Interpreter, universe: &mut Universe) {
-    const SIGNATURE: &str = "String>>#isLetters";
-
-    expect_args!(SIGNATURE, interpreter, [
-        value => value,
-    ]);
-
-    let value = match value {
-        Value::String(ref value) => value.as_str(),
-        Value::Symbol(sym) => universe.lookup_symbol(sym),
-        _ => panic!("'{}': invalid self type", SIGNATURE),
-    };
-
-    interpreter.stack.push(Value::Boolean(
-        !value.is_empty() && !value.is_empty() && value.chars().all(char::is_alphabetic),
-    ))
+fn is_letters(interp: &mut Interpreter, universe: &mut Universe) -> Result<bool, Error> {
+    pop_args_from_stack!(interp, receiver => StringLike);
+    let string = receiver.as_str(|sym| universe.lookup_symbol(sym));
+    Ok(!string.is_empty() && string.chars().all(char::is_alphabetic))
 }
 
-fn is_digits(interpreter: &mut Interpreter, universe: &mut Universe) {
-    const SIGNATURE: &str = "String>>#isDigits";
-
-    expect_args!(SIGNATURE, interpreter, [
-        value => value,
-    ]);
-
-    let value = match value {
-        Value::String(ref value) => value.as_str(),
-        Value::Symbol(sym) => universe.lookup_symbol(sym),
-        _ => panic!("'{}': invalid self type", SIGNATURE),
-    };
-
-    interpreter.stack.push(Value::Boolean(
-        !value.is_empty() && value.chars().all(char::is_numeric),
-    ))
+fn is_digits(interp: &mut Interpreter, universe: &mut Universe) -> Result<bool, Error> {
+    pop_args_from_stack!(interp, receiver => StringLike);
+    let string = receiver.as_str(|sym| universe.lookup_symbol(sym));
+    Ok(!string.is_empty() && string.chars().all(char::is_numeric))
 }
 
-fn is_whitespace(interpreter: &mut Interpreter, universe: &mut Universe) {
-    const SIGNATURE: &str = "String>>#isWhiteSpace";
+fn is_whitespace(interp: &mut Interpreter, universe: &mut Universe) -> Result<bool, Error> {
+    pop_args_from_stack!(interp, receiver => StringLike);
+    let string = receiver.as_str(|sym| universe.lookup_symbol(sym));
 
-    expect_args!(SIGNATURE, interpreter, [
-        value => value,
-    ]);
-
-    let value = match value {
-        Value::String(ref value) => value.as_str(),
-        Value::Symbol(sym) => universe.lookup_symbol(sym),
-        _ => panic!("'{}': invalid self type", SIGNATURE),
-    };
-
-    interpreter.stack.push(Value::Boolean(
-        !value.is_empty() && value.chars().all(char::is_whitespace),
-    ))
+    Ok(!string.is_empty() && string.chars().all(char::is_whitespace))
 }
 
-fn concatenate(interpreter: &mut Interpreter, universe: &mut Universe) {
-    const SIGNATURE: &str = "String>>#concatenate:";
+fn concatenate(interp: &mut Interpreter, universe: &mut Universe) -> Result<Gc<String>, Error> {
+    pop_args_from_stack!(interp, receiver => StringLike, other => StringLike);
 
-    expect_args!(SIGNATURE, interpreter, [
-        s1 => s1,
-        s2 => s2,
-    ]);
+    let s1 = receiver.as_str(|sym| universe.lookup_symbol(sym));
+    let s2 = other.as_str(|sym| universe.lookup_symbol(sym));
 
-    let s1 = match s1 {
-        Value::String(ref value) => value.as_str(),
-        Value::Symbol(sym) => universe.lookup_symbol(sym),
-        _ => panic!("'{}': wrong types", SIGNATURE),
-    };
-    let s2 = match s2 {
-        Value::String(ref value) => value.as_str(),
-        Value::Symbol(sym) => universe.lookup_symbol(sym),
-        _ => panic!("'{}': wrong types", SIGNATURE),
-    };
-
-    interpreter
-        .stack
-        .push(Value::String(Rc::new(format!("{}{}", s1, s2))))
+    let final_str = format!("{s1}{s2}");
+    Ok(universe.gc_interface.alloc(final_str))
 }
 
-fn as_symbol(interpreter: &mut Interpreter, universe: &mut Universe) {
-    const SIGNATURE: &str = "String>>#asSymbol";
+fn as_symbol(interp: &mut Interpreter, universe: &mut Universe) -> Result<Interned, Error> {
+    pop_args_from_stack!(interp, receiver => StringLike);
 
-    expect_args!(SIGNATURE, interpreter, [
-        value => value,
-    ]);
+    let symbol = match receiver {
+        StringLike::String(ref value) => universe.intern_symbol(value.as_str()),
+        StringLike::Char(char) => universe.intern_symbol(&String::from(char)),
+        StringLike::Symbol(symbol) => symbol,
+    };
 
-    match value {
-        Value::String(ref value) => interpreter
-            .stack
-            .push(Value::Symbol(universe.intern_symbol(value.as_str()))),
-        Value::Symbol(sym) => interpreter.stack.push(Value::Symbol(sym)),
-        _ => panic!("'{}': invalid self type", SIGNATURE),
-    }
+    Ok(symbol)
 }
 
-fn eq(interpreter: &mut Interpreter, universe: &mut Universe) {
-    const SIGNATURE: &str = "String>>#=";
+fn eq(interp: &mut Interpreter, universe: &mut Universe) -> Result<bool, Error> {
+    pop_args_from_stack!(interp, a => Value, b => Value);
 
-    expect_args!(SIGNATURE, interpreter, [
-        s1 => s1,
-        s2 => s2,
-    ]);
-
-    let s1 = match s1 {
-        Value::String(ref s1) => s1.as_str(),
-        Value::Symbol(s1) => universe.lookup_symbol(s1),
-        _ => {
-            interpreter.stack.push(Value::Boolean(false));
-            return;
-        }
+    let Ok(a) = StringLike::try_from(a.0) else {
+        return Ok(false);
     };
 
-    let s2 = match s2 {
-        Value::String(ref s2) => s2.as_str(),
-        Value::Symbol(s2) => universe.lookup_symbol(s2),
-        _ => {
-            interpreter.stack.push(Value::Boolean(false));
-            return;
-        }
+    let Ok(b) = StringLike::try_from(b.0) else {
+        return Ok(false);
     };
 
-    interpreter.stack.push(Value::Boolean(s1 == s2))
+    Ok(a.eq_stringlike(&b, |sym| universe.lookup_symbol(sym)))
 }
 
-fn prim_substring_from_to(interpreter: &mut Interpreter, universe: &mut Universe) {
-    const SIGNATURE: &str = "String>>#primSubstringFrom:to:";
+fn prim_substring_from_to(interp: &mut Interpreter, universe: &mut Universe) -> Result<Gc<String>, Error> {
+    pop_args_from_stack!(interp, receiver => StringLike, from => i32, to => i32);
 
-    expect_args!(SIGNATURE, interpreter, [
-        value => value,
-        Value::Integer(from) => from,
-        Value::Integer(to) => to,
-    ]);
+    let from = usize::try_from(from - 1)?;
+    let to = usize::try_from(to)?;
 
-    let (value, from, to) = match (&value, usize::try_from(from - 1), usize::try_from(to)) {
-        (Value::String(ref value), Ok(from), Ok(to)) => (value.as_str(), from, to),
-        (Value::Symbol(sym), Ok(from), Ok(to)) => (universe.lookup_symbol(*sym), from, to),
-        (_, _, _) => panic!("'{}': wrong types", SIGNATURE),
-    };
+    let string = receiver.as_str(|sym| universe.lookup_symbol(sym));
 
-    let string = Rc::new(value.chars().skip(from).take(to - from).collect());
+    Ok(universe.gc_interface.alloc(string.chars().skip(from).take(to - from).collect()))
+}
 
-    interpreter.stack.push(Value::String(string))
+fn char_at(interp: &mut Interpreter, universe: &mut Universe) -> Result<Value, Error> {
+    pop_args_from_stack!(interp, receiver => StringLike, idx => i32);
+
+    let string = receiver.as_str(|sym| universe.lookup_symbol(sym));
+    let char = *string.as_bytes().get((idx - 1) as usize).unwrap();
+    Ok(Value::Char(char.into()))
 }
 
 /// Search for an instance primitive matching the given signature.
-pub fn get_instance_primitive(signature: &str) -> Option<PrimitiveFn> {
-    INSTANCE_PRIMITIVES
-        .iter()
-        .find(|it| it.0 == signature)
-        .map(|it| it.1)
+pub fn get_instance_primitive(signature: &str) -> Option<&'static PrimitiveFn> {
+    INSTANCE_PRIMITIVES.iter().find(|it| it.0 == signature).map(|it| it.1)
 }
 
 /// Search for a class primitive matching the given signature.
-pub fn get_class_primitive(signature: &str) -> Option<PrimitiveFn> {
-    CLASS_PRIMITIVES
-        .iter()
-        .find(|it| it.0 == signature)
-        .map(|it| it.1)
+pub fn get_class_primitive(signature: &str) -> Option<&'static PrimitiveFn> {
+    CLASS_PRIMITIVES.iter().find(|it| it.0 == signature).map(|it| it.1)
 }

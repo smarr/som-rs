@@ -1,57 +1,41 @@
-use crate::frame::FrameKind;
+use anyhow::Error;
+use once_cell::sync::Lazy;
+
 use crate::interpreter::Interpreter;
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
-use crate::value::Value;
-use crate::{expect_args, reverse};
+use crate::value::convert::Primitive;
+
+use crate::primitives::PrimInfo;
 
 /// Primitives for the **Block** and **Block1** class.
 pub mod block1 {
     use super::*;
 
-    pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[
-        ("value", self::value, true),
-        ("restart", self::restart, false),
-    ];
-    pub static CLASS_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[];
+    pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> =
+        Lazy::new(|| Box::new([("value", self::value.into_func(), true), ("restart", self::restart.into_func(), false)]));
+    pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([]));
 
-    fn value(interpreter: &mut Interpreter, _: &mut Universe) {
-        const SIGNATURE: &str = "Block1>>#value";
-
-        expect_args!(SIGNATURE, interpreter, [
-            Value::Block(block) => block,
-        ]);
-
-        let kind = FrameKind::Block {
-            block: block.clone(),
-        };
-
-        interpreter.push_frame(kind);
+    fn value(interpreter: &mut Interpreter, universe: &mut Universe) -> Result<(), Error> {
+        interpreter.push_block_frame(1, universe.gc_interface);
+        Ok(())
     }
 
-    fn restart(interpreter: &mut Interpreter, _: &mut Universe) {
-        const SIGNATURE: &str = "Block>>#restart";
-
-        expect_args!(SIGNATURE, interpreter, [Value::Block(_)]);
-
-        let frame = interpreter.current_frame().expect("no current frame");
-        frame.borrow_mut().bytecode_idx = 0;
+    fn restart(interpreter: &mut Interpreter, _: &mut Universe) -> Result<(), Error> {
+        // interpreter.current_frame.bytecode_idx = 0;
+        interpreter.bytecode_idx = 0;
+        interpreter.get_current_frame().stack_ptr = 0; // not sure why that's necessary... I think there's some odd stack popping rules for primitives
+        Ok(())
     }
 
     /// Search for an instance primitive matching the given signature.
-    pub fn get_instance_primitive(signature: &str) -> Option<PrimitiveFn> {
-        INSTANCE_PRIMITIVES
-            .iter()
-            .find(|it| it.0 == signature)
-            .map(|it| it.1)
+    pub fn get_instance_primitive(signature: &str) -> Option<&'static PrimitiveFn> {
+        INSTANCE_PRIMITIVES.iter().find(|it| it.0 == signature).map(|it| it.1)
     }
 
     /// Search for a class primitive matching the given signature.
-    pub fn get_class_primitive(signature: &str) -> Option<PrimitiveFn> {
-        CLASS_PRIMITIVES
-            .iter()
-            .find(|it| it.0 == signature)
-            .map(|it| it.1)
+    pub fn get_class_primitive(signature: &str) -> Option<&'static PrimitiveFn> {
+        CLASS_PRIMITIVES.iter().find(|it| it.0 == signature).map(|it| it.1)
     }
 }
 
@@ -59,39 +43,22 @@ pub mod block1 {
 pub mod block2 {
     use super::*;
 
-    pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[("value:", self::value, true)];
-    pub static CLASS_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[];
+    pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([("value:", self::value.into_func(), true)]));
+    pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([]));
 
-    fn value(interpreter: &mut Interpreter, _: &mut Universe) {
-        const SIGNATURE: &str = "Block2>>#value:";
-
-        expect_args!(SIGNATURE, interpreter, [
-            Value::Block(block) => block,
-            argument => argument,
-        ]);
-
-        let kind = FrameKind::Block {
-            block: block.clone(),
-        };
-
-        let frame = interpreter.push_frame(kind);
-        frame.borrow_mut().args.push(argument);
+    fn value(interpreter: &mut Interpreter, universe: &mut Universe) -> Result<(), Error> {
+        interpreter.push_block_frame(2, universe.gc_interface);
+        Ok(())
     }
 
     /// Search for an instance primitive matching the given signature.
-    pub fn get_instance_primitive(signature: &str) -> Option<PrimitiveFn> {
-        INSTANCE_PRIMITIVES
-            .iter()
-            .find(|it| it.0 == signature)
-            .map(|it| it.1)
+    pub fn get_instance_primitive(signature: &str) -> Option<&'static PrimitiveFn> {
+        INSTANCE_PRIMITIVES.iter().find(|it| it.0 == signature).map(|it| it.1)
     }
 
     /// Search for a class primitive matching the given signature.
-    pub fn get_class_primitive(signature: &str) -> Option<PrimitiveFn> {
-        CLASS_PRIMITIVES
-            .iter()
-            .find(|it| it.0 == signature)
-            .map(|it| it.1)
+    pub fn get_class_primitive(signature: &str) -> Option<&'static PrimitiveFn> {
+        CLASS_PRIMITIVES.iter().find(|it| it.0 == signature).map(|it| it.1)
     }
 }
 
@@ -99,41 +66,21 @@ pub mod block2 {
 pub mod block3 {
     use super::*;
 
-    pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] =
-        &[("value:with:", self::value_with, true)];
-    pub static CLASS_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[];
+    pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([("value:with:", self::value_with.into_func(), true)]));
+    pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([]));
 
-    fn value_with(interpreter: &mut Interpreter, _: &mut Universe) {
-        const SIGNATURE: &str = "Block3>>#value:with:";
-
-        expect_args!(SIGNATURE, interpreter, [
-            Value::Block(block) => block,
-            argument1 => argument1,
-            argument2 => argument2,
-        ]);
-
-        let kind = FrameKind::Block {
-            block: block.clone(),
-        };
-
-        let frame = interpreter.push_frame(kind);
-        frame.borrow_mut().args.push(argument1);
-        frame.borrow_mut().args.push(argument2);
+    fn value_with(interpreter: &mut Interpreter, universe: &mut Universe) -> Result<(), Error> {
+        interpreter.push_block_frame(3, universe.gc_interface);
+        Ok(())
     }
 
     /// Search for an instance primitive matching the given signature.
-    pub fn get_instance_primitive(signature: &str) -> Option<PrimitiveFn> {
-        INSTANCE_PRIMITIVES
-            .iter()
-            .find(|it| it.0 == signature)
-            .map(|it| it.1)
+    pub fn get_instance_primitive(signature: &str) -> Option<&'static PrimitiveFn> {
+        INSTANCE_PRIMITIVES.iter().find(|it| it.0 == signature).map(|it| it.1)
     }
 
     /// Search for a class primitive matching the given signature.
-    pub fn get_class_primitive(signature: &str) -> Option<PrimitiveFn> {
-        CLASS_PRIMITIVES
-            .iter()
-            .find(|it| it.0 == signature)
-            .map(|it| it.1)
+    pub fn get_class_primitive(signature: &str) -> Option<&'static PrimitiveFn> {
+        CLASS_PRIMITIVES.iter().find(|it| it.0 == signature).map(|it| it.1)
     }
 }

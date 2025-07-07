@@ -3,35 +3,52 @@ name = "som-interpreter-bc"
 version = "0.1.0"
 description = "A bytecode compiler for the Simple Object Machine"
 authors = ["Nicolas Polomack <nmp21@kent.ac.uk>"]
-edition = "2018"
+edition = "2021"
 publish = false
 license = "MIT OR Apache-2.0"
 
 [dependencies]
 # internal
 som-core = { path = "../som-core", version = "0.1.0" }
+som-value = { path = "../som-value", version = "0.0.3" }
 som-lexer = { path = "../som-lexer", version = "0.1.0" }
 som-parser = { package = "som-parser-symbols", path = "../som-parser-symbols", version = "0.1.0" }
-# som-parser = { package = "som-parser-text", path = "../som-parser-text", version = "0.1.0" }
+som-gc = { path = "../som-gc", version = "0.1.0" }
 
-# CLI interface
-structopt = "0.3.25"
+#mmtk = { path = "../mmtk-core", version = "0.29.0" }
+mmtk = "0.30.0"
 
 # error handling
 anyhow = "1.0.51"
 
 # consistently-ordered hashmaps
-indexmap = "1.7.0"
+indexmap = "2.6.0"
 
 # big integers
-num-bigint = "0.4.3"
+num-bigint = "0.4.6"
 num-traits = "0.2.14"
 
 # random numbers
-rand = "0.8.4"
+rand = "0.9.0"
 
 # global allocator
 jemallocator = { version = "0.5.0", optional = true }
 
+once_cell = "1.18.0"
+measureme = { version = "12.0.0", optional = true }
+
+log = "0.4.21"
+
+[dev-dependencies]
+rstest = "0.24.0"
+
 [features]
 jemalloc = ["jemallocator"]
+frame-debug-info = []
+inlining-disabled = []
+profiler = ["measureme"]
+
+## mmtk stuff
+#default = ["mmtk/extreme_assertions"]
+is_mmtk_object = ["mmtk/is_mmtk_object"]
+malloc_counted_size = ["mmtk/malloc_counted_size"]

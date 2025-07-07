@@ -1,65 +1,56 @@
+use crate::gc::VecValue;
 use crate::interpreter::Interpreter;
+use crate::pop_args_from_stack;
+use crate::primitives::PrimInfo;
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
+use crate::value::convert::Primitive;
 use crate::value::Value;
-use crate::{expect_args, reverse};
+use crate::vm_objects::class::Class;
+use crate::vm_objects::method::{Invoke, Method};
+use anyhow::Error;
+use once_cell::sync::Lazy;
+use som_gc::gcref::Gc;
+use som_value::interned::Interned;
 
-pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[
-    ("holder", self::holder, true),
-    ("signature", self::signature, true),
-    ("invokeOn:with:", self::invoke_on_with, true),
-];
-pub static CLASS_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[];
+pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
+    Box::new([
+        ("holder", self::holder.into_func(), true),
+        ("signature", self::signature.into_func(), true),
+        ("invokeOn:with:", self::invoke_on_with.into_func(), true),
+    ])
+});
+pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([]));
 
-fn holder(interpreter: &mut Interpreter, _: &mut Universe) {
-    const SIGNATURE: &str = "Method>>#holder";
-
-    expect_args!(SIGNATURE, interpreter, [
-        Value::Invokable(invokable) => invokable,
-    ]);
-
-    match invokable.holder().upgrade() {
-        Some(holder) => interpreter.stack.push(Value::Class(holder)),
-        None => panic!("'{}': method sholder has been collected", SIGNATURE),
-    }
+fn holder(invokable: Gc<Method>) -> Result<Gc<Class>, Error> {
+    Ok(invokable.holder().clone())
 }
 
-fn signature(interpreter: &mut Interpreter, universe: &mut Universe) {
-    const SIGNATURE: &str = "Method>>#signature";
-
-    expect_args!(SIGNATURE, interpreter, [
-        Value::Invokable(invokable) => invokable,
-    ]);
-
-    let sym = universe.intern_symbol(invokable.signature());
-    interpreter.stack.push(Value::Symbol(sym))
+fn signature(interp: &mut Interpreter, universe: &mut Universe) -> Result<Interned, Error> {
+    pop_args_from_stack!(interp, invokable => Gc<Method>);
+    Ok(universe.intern_symbol(invokable.signature()))
 }
 
-fn invoke_on_with(interpreter: &mut Interpreter, universe: &mut Universe) {
-    const SIGNATURE: &str = "Method>>#invokeOn:with:";
+fn invoke_on_with(interpreter: &mut Interpreter, universe: &mut Universe) -> Result<(), Error> {
+    pop_args_from_stack!(interpreter, invokable => Gc<Method>, receiver => Value, arguments => VecValue);
 
-    expect_args!(SIGNATURE, interpreter, [
-        Value::Invokable(invokable) => invokable,
-        receiver => receiver,
-        Value::Array(args) => args,
-    ]);
+    // TODO: this should NOT pop. a frame allocation causes a GC bug here, as far as I know.
 
-    let args = args.borrow().iter().cloned().collect();
-    invokable.invoke(interpreter, universe, receiver, args);
+    invokable.invoke(
+        interpreter,
+        universe,
+        receiver,
+        arguments.iter().copied().collect(), // todo lame to clone tbh
+    );
+    Ok(())
 }
 
 /// Search for an instance primitive matching the given signature.
-pub fn get_instance_primitive(signature: &str) -> Option<PrimitiveFn> {
-    INSTANCE_PRIMITIVES
-        .iter()
-        .find(|it| it.0 == signature)
-        .map(|it| it.1)
+pub fn get_instance_primitive(signature: &str) -> Option<&'static PrimitiveFn> {
+    INSTANCE_PRIMITIVES.iter().find(|it| it.0 == signature).map(|it| it.1)
 }
 
 /// Search for a class primitive matching the given signature.
-pub fn get_class_primitive(signature: &str) -> Option<PrimitiveFn> {
-    CLASS_PRIMITIVES
-        .iter()
-        .find(|it| it.0 == signature)
-        .map(|it| it.1)
+pub fn get_class_primitive(signature: &str) -> Option<&'static PrimitiveFn> {
+    CLASS_PRIMITIVES.iter().find(|it| it.0 == signature).map(|it| it.1)
 }

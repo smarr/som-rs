@@ -1,101 +1,92 @@
-use std::cell::RefCell;
-use std::convert::TryFrom;
-use std::rc::Rc;
+use std::convert::{TryFrom, TryInto};
 
+use super::PrimInfo;
+use crate::gc::VecValue;
 use crate::interpreter::Interpreter;
+use crate::pop_args_from_stack;
 use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
+use crate::value::convert::{IntoValue, Primitive};
 use crate::value::Value;
-use crate::{expect_args, reverse};
+use anyhow::{Context, Error};
+use once_cell::sync::Lazy;
+use som_gc::gc_interface::{AllocSiteMarker, SOMAllocator};
+use som_gc::gcslice::GcSlice;
 
-pub static INSTANCE_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[
-    ("at:", self::at, true),
-    ("at:put:", self::at_put, true),
-    ("length", self::length, true),
-];
+pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
+    Box::new([
+        ("at:", self::at.into_func(), true),
+        ("at:put:", self::at_put.into_func(), true),
+        ("length", self::length.into_func(), true),
+        ("copy:", self::copy.into_func(), true),
+        //("putAll:", self::put_all.into_func(), true),
+        //("do:", self::do.into_func(), true),
+        //("doIndexes:", self::do_indexes.into_func(), true),
+    ])
+});
 
-pub static CLASS_PRIMITIVES: &[(&str, PrimitiveFn, bool)] = &[("new:", self::new, true)];
+pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([("new:", self::new.into_func(), true)]));
 
-fn at(interpreter: &mut Interpreter, _: &mut Universe) {
-    const SIGNATURE: &str = "Array>>#at:";
+fn at(receiver: VecValue, index: i32) -> Result<Value, Error> {
+    const _: &str = "Array>>#at:";
 
-    expect_args!(SIGNATURE, interpreter, [
-        Value::Array(values) => values,
-        Value::Integer(index) => index,
-    ]);
+    let index = usize::try_from(index - 1)?;
 
-    let index = match usize::try_from(index - 1) {
-        Ok(index) => index,
-        Err(err) => panic!("'{}': {}", SIGNATURE, err),
-    };
-    let value = values.borrow().get(index).cloned().unwrap_or(Value::Nil);
-    interpreter.stack.push(value)
+    receiver.get_checked(index).cloned().context("index out of bounds")
 }
 
-fn at_put(interpreter: &mut Interpreter, _: &mut Universe) {
-    const SIGNATURE: &str = "Array>>#at:put:";
+fn at_put(mut receiver: VecValue, index: i32, value: Value) -> Result<VecValue, Error> {
+    const _: &str = "Array>>#at:put:";
 
-    expect_args!(SIGNATURE, interpreter, [
-        Value::Array(values) => values,
-        Value::Integer(index) => index,
-        value => value,
-    ]);
+    let index = usize::try_from(index - 1)?;
 
-    let index = match usize::try_from(index - 1) {
-        Ok(index) => index,
-        Err(err) => panic!("'{}': {}", SIGNATURE, err),
-    };
-    if let Some(location) = values.borrow_mut().get_mut(index) {
+    if let Some(location) = receiver.get_checked_mut(index) {
         *location = value;
     }
-    interpreter.stack.push(Value::Array(values))
+
+    Ok(receiver)
 }
 
-fn length(interpreter: &mut Interpreter, _: &mut Universe) {
-    const SIGNATURE: &str = "Array>>#length";
-
-    expect_args!(SIGNATURE, interpreter, [
-        Value::Array(values) => values,
-    ]);
-
-    let length = values.borrow().len();
-    match i64::try_from(length) {
-        Ok(length) => interpreter.stack.push(Value::Integer(length)),
-        Err(err) => panic!("'{}': {}", SIGNATURE, err),
-    }
+fn length(receiver: VecValue) -> Result<i32, Error> {
+    receiver.len().try_into().context("could not convert `usize` to `i32`")
 }
 
-fn new(interpreter: &mut Interpreter, _: &mut Universe) {
-    const SIGNATURE: &str = "Array>>#new:";
+fn new(interp: &mut Interpreter, universe: &mut Universe) -> Result<(), Error> {
+    // this whole thing is an attempt at fixing a GC related bug when allocating an Array
+    // I think it did work, to be fair... but TODO clean up.
 
-    expect_args!(SIGNATURE, interpreter, [
-        _,
-        Value::Integer(count) => count,
-    ]);
+    std::hint::black_box(&interp.current_frame);
 
-    match usize::try_from(count) {
-        Ok(length) => interpreter
-            .stack
-            .push(Value::Array(Rc::new(RefCell::new(vec![
-                Value::Nil;
-                length
-            ])))),
-        Err(err) => panic!("'{}': {}", SIGNATURE, err),
-    }
+    let count = usize::try_from(interp.get_current_frame().stack_pop().as_integer().unwrap())?;
+    interp.get_current_frame().stack_pop(); // receiver is just an unneeded Array class
+
+    let arr_ptr: VecValue = VecValue(universe.gc_interface.alloc_slice_with_marker(&vec![Value::NIL; count], Some(AllocSiteMarker::Array)));
+
+    interp.get_current_frame().stack_push(arr_ptr.into_value());
+    Ok(())
+}
+
+fn copy(interp: &mut Interpreter, universe: &mut Universe) -> Result<VecValue, Error> {
+    let arr: VecValue = interp.get_current_frame().stack_last().as_array().unwrap();
+    std::hint::black_box(&arr); // paranoia, in case the compiler gets ideas about reusing that variable
+    let slice_size = arr.0.get_true_size();
+    let slice_addr = universe.gc_interface.request_bytes_for_slice(slice_size, None);
+
+    pop_args_from_stack!(interp, arr2 => VecValue);
+    std::hint::black_box(&arr2);
+
+    let copied_arr: Vec<Value> = arr2.iter().copied().collect();
+    let allocated: GcSlice<Value> = universe.gc_interface.write_slice_to_addr(slice_addr, &copied_arr);
+
+    Ok(VecValue(allocated))
 }
 
 /// Search for an instance primitive matching the given signature.
-pub fn get_instance_primitive(signature: &str) -> Option<PrimitiveFn> {
-    INSTANCE_PRIMITIVES
-        .iter()
-        .find(|it| it.0 == signature)
-        .map(|it| it.1)
+pub fn get_instance_primitive(signature: &str) -> Option<&'static PrimitiveFn> {
+    INSTANCE_PRIMITIVES.iter().find(|it| it.0 == signature).map(|it| it.1)
 }
 
 /// Search for a class primitive matching the given signature.
-pub fn get_class_primitive(signature: &str) -> Option<PrimitiveFn> {
-    CLASS_PRIMITIVES
-        .iter()
-        .find(|it| it.0 == signature)
-        .map(|it| it.1)
+pub fn get_class_primitive(signature: &str) -> Option<&'static PrimitiveFn> {
+    CLASS_PRIMITIVES.iter().find(|it| it.0 == signature).map(|it| it.1)
 }

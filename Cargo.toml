@@ -1,15 +1,24 @@
 [workspace]
 members = [
     "som-core",
+    "som-value",
     "som-interpreter-bc",
     "som-interpreter-ast",
     "som-lexer",
     "som-parser-core",
     "som-parser-symbols",
-    "som-parser-text",
+    "som-gc", "som-value",
+#    "som-parser-text",
 ]
+resolver = "2"
+
+### very minor speedup from this (which could even be noise..).
+#[build.release]
+#rustflags = ["-C", "target-cpu=native"]
 
 [profile.release]
+panic = 'abort' # supposedly a minor speedup from hanging on to less stack info that way
+
 # Enable link-time optimization, eliminates more code and inlines across crate boundaries.
 # Default: false
 lto = "fat"
@@ -26,3 +35,5 @@ opt-level = 3
 inherits = "release"
 # Includes debug information in release builds. Necessary for profiling.
 debug = true
+
+# debug-assertions = true
