@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["AstGenCtxtType","AstMethodGenCtxtType"],"fn":["apply","parse_file","parse_file_no_universe"],"mod":["lang"],"struct":["AstGenCtxtData"],"type":["AstGenCtxt"]};

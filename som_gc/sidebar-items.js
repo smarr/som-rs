@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"macro":["debug_assert_valid_semispace_ptr","debug_assert_valid_semispace_ptr_value"],"mod":["active_plan","api","collection","gc_interface","gcref","gcslice","object_model","reference_glue","scanning","slot"],"static":["MMTK_SINGLETON","MMTK_TO_VM_INTERFACE"],"struct":["SOMVM"]};
