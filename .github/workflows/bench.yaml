@@ -15,11 +15,11 @@ jobs:
         uses: actions/checkout@v2
         with:
           submodules: true
-      - name: Install stable toolchain
+      - name: Install toolchain
         uses: actions-rs/toolchain@v1
         with:
           profile: default
-          toolchain: stable
+          toolchain: 1.87.0
       - name: Compile SOM interpreter
         uses: actions-rs/cargo@v1
         with:
