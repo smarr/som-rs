@@ -12,14 +12,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout master branch
-        uses: actions/checkout@v2
-      - name: Install toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: default
-          toolchain: 1.87.0
+        uses: actions/checkout@v5
+
+      - name: Temporarily modify the rust toolchain version
+        run: rustup override set 1.87.0
+
       - name: Check formatting
-        uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all -- --check
+        run: cargo fmt --all -- --check

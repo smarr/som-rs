@@ -13,7 +13,7 @@ jobs:
           - som-interpreter-bc
     steps:
       - name: Checkout master branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           submodules: true
 
@@ -25,24 +25,21 @@ jobs:
 
       - name: Run test suite
         run: |
-          ./target/release/${{ matrix.interpreter }} -c core-lib/Smalltalk core-lib/TestSuite -- TestHarness
+          ./target/release/${{ matrix.interpreter }} -cp core-lib/Smalltalk:core-lib/TestSuite core-lib/TestSuite/TestHarness.som
 
   run_own_tests:
     name: Run own tests
     runs-on: ubuntu-latest
     steps:
       - name: Checkout master branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           submodules: true
-      - name: Install toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: default
-          toolchain: 1.87.0
+
+      - name: Temporarily modify the rust toolchain version
+        run: rustup override set 1.87.0
+
       - name: Run all tests
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
+        run: cargo test
         env:
           RUST_TEST_THREADS: 1
