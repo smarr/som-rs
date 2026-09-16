@@ -84,14 +84,18 @@ impl Frame {
 
     /// Initializes a frame with all its expected values for its arguments and locals.
     /// Takes a reference to the global stack to invoke `drain` to efficiently remove and copy its last `nbr_args` values.
-    pub(crate) fn init_frame_args_locals_from_stack(frame: &mut Gc<Frame>, stack: &mut Vec<Value>, nbr_args: usize) {
+    pub(crate) fn init_frame_args_locals_from_stack(frame: &mut Gc<Frame>, sp: &mut *mut Value, nbr_args: usize) {
         unsafe {
-            let args = stack.drain(stack.len() - nbr_args..);
-            let args_ptr = frame.as_ptr().byte_add(OFFSET_TO_VALUES) as *mut Value;
-            std::slice::from_raw_parts_mut(args_ptr, nbr_args).copy_from_slice(args.as_slice());
+            let args_ptr = (*sp).sub(nbr_args);
+
+            let frame_args = (frame.as_ptr() as *mut u8).add(OFFSET_TO_VALUES) as *mut Value;
+
+            std::ptr::copy_nonoverlapping(args_ptr, frame_args, nbr_args);
+
+            *sp = args_ptr;
 
             // setting all locals to NIL.
-            let locals_ptr = args_ptr.byte_add(size_of::<Value>() * nbr_args);
+            let locals_ptr = frame_args.add(nbr_args);
             for idx in 0..frame.get_nbr_locals() {
                 *locals_ptr.add(idx as usize) = Value::NIL;
             }

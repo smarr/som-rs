@@ -7,6 +7,7 @@ use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
 use crate::value::convert::Primitive;
 use crate::value::Value;
+use crate::{stack_drop, stack_last, stack_pop, stack_push};
 
 pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
     Box::new([
@@ -32,16 +33,16 @@ fn or(_self: Value, _other: Value) -> Result<bool, Error> {
 
 /// See equivalent function for the false primitive.
 fn and_if_true(interpreter: &mut Interpreter, universe: &mut Universe) -> Result<(), Error> {
-    let cond_val = *interpreter.stack.last().unwrap();
+    let cond_val = stack_last!(interpreter.sp);
 
     if cond_val.as_block().is_some() {
         interpreter.push_block_frame(1, &mut universe.gc_interface);
-        let stack_marker = interpreter.stack.pop().unwrap();
-        *interpreter.stack.last_mut().unwrap() = stack_marker; // the "True". the "Block" was already consumed and put into the new frame
+        let stack_marker = stack_pop!(interpreter.sp);
+        *stack_last!(interpreter.sp) = stack_marker; // the "True". the "Block" was already consumed and put into the new frame
     } else {
-        interpreter.stack.pop();
-        interpreter.stack.pop();
-        interpreter.stack.push(cond_val);
+        stack_drop!(interpreter.sp);
+        stack_drop!(interpreter.sp);
+        stack_push!(interpreter.sp, *cond_val);
     }
     Ok(())
 }

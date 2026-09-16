@@ -11,10 +11,10 @@ use som_gc::slot::SOMSlot;
 use std::fmt;
 use std::fmt::{Debug, Formatter};
 
-use som_gc::gcref::Gc;
-
+use crate::stack_push;
 use crate::vm_objects::block::BodyInlineCache;
 use crate::vm_objects::trivial_methods::{TrivialGetterMethod, TrivialGlobalMethod, TrivialLiteralMethod, TrivialSetterMethod};
+use som_gc::gcref::Gc;
 
 use super::block::CacheEntry;
 
@@ -155,9 +155,9 @@ impl Invoke for Gc<Method> {
             }
             Method::Primitive(func, ..) => {
                 let nbr_args = args.len() + 1;
-                interpreter.stack.push(receiver);
+                stack_push!(interpreter.sp, receiver);
                 for arg in args {
-                    interpreter.stack.push(arg)
+                    stack_push!(interpreter.sp, arg);
                 }
                 func(interpreter, universe, nbr_args).unwrap_or_else(|_| panic!("invoking func {} failed", &self.signature()));
             }

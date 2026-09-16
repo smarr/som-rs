@@ -1,3 +1,4 @@
+use crate::stack_pop;
 use std::convert::TryInto;
 use std::fs;
 use std::io::Write;

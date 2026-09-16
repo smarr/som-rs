@@ -3,6 +3,7 @@ use crate::interpreter::Interpreter;
 use crate::universe::Universe;
 use crate::value::Value;
 use crate::vm_objects::instance::Instance;
+use crate::{stack_drop, stack_last, stack_pop, stack_push};
 use som_value::interned::Interned;
 use std::cell::Cell;
 
@@ -14,7 +15,7 @@ pub struct TrivialLiteralMethod {
 impl TrivialLiteralMethod {
     pub fn invoke(&self, universe: &mut Universe, interpreter: &mut Interpreter) {
         let value_from_literal = value_from_literal(&self.literal, &mut universe.gc_interface);
-        interpreter.stack.push(value_from_literal);
+        stack_push!(interpreter.sp, value_from_literal);
     }
 }
 
@@ -26,17 +27,17 @@ pub struct TrivialGlobalMethod {
 
 impl TrivialGlobalMethod {
     pub fn invoke(&self, universe: &mut Universe, interpreter: &mut Interpreter) {
-        interpreter.stack.pop(); // receiver off the stack.
+        stack_drop!(interpreter.sp); // receiver off the stack.
 
         if let Some(cached_entry) = self.cached_entry.get() {
-            interpreter.stack.push(cached_entry);
+            stack_push!(interpreter.sp, cached_entry);
             return;
         }
 
         universe
             .lookup_global(self.global_name)
             .map(|v| {
-                interpreter.stack.push(v);
+                stack_push!(interpreter.sp, v);
                 self.cached_entry.replace(Some(v));
             })
             .or_else(|| {
@@ -55,12 +56,12 @@ pub struct TrivialGetterMethod {
 
 impl TrivialGetterMethod {
     pub fn invoke(&self, _universe: &mut Universe, interpreter: &mut Interpreter) {
-        let arg = interpreter.stack.pop().unwrap();
+        let arg = stack_pop!(interpreter.sp);
 
         if let Some(cls) = arg.as_class() {
-            interpreter.stack.push(cls.class().lookup_field(self.field_idx as usize))
+            stack_push!(interpreter.sp, cls.class().lookup_field(self.field_idx as usize));
         } else if let Some(instance) = arg.as_instance() {
-            interpreter.stack.push(*Instance::lookup_field(&instance, self.field_idx as usize))
+            stack_push!(interpreter.sp, *Instance::lookup_field(&instance, self.field_idx as usize));
         } else {
             panic!("trivial getter not called on a class/instance?")
         }
@@ -74,8 +75,8 @@ pub struct TrivialSetterMethod {
 
 impl TrivialSetterMethod {
     pub fn invoke(&self, _universe: &mut Universe, interpreter: &mut Interpreter) {
-        let val = interpreter.stack.pop().unwrap();
-        let rcvr = interpreter.stack.last().unwrap();
+        let val = stack_pop!(interpreter.sp);
+        let rcvr = stack_last!(interpreter.sp);
 
         if let Some(cls) = rcvr.as_class() {
             cls.class().assign_field(self.field_idx as usize, val);

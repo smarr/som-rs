@@ -181,8 +181,10 @@ fn get_roots_in_mutator_thread(_mutator: &mut Mutator<SOMVM>) -> Vec<SOMSlot> {
         }
 
         debug!("scanning roots: stack");
-        for val in (**INTERPRETER_RAW_PTR_CONST.as_ptr()).stack.iter() {
-            visit_value(val, &mut to_process_fn);
+        let mut sp = (**INTERPRETER_RAW_PTR_CONST.as_ptr()).sp.sub(1);
+        while sp > (**INTERPRETER_RAW_PTR_CONST.as_ptr()).base_sp {
+            visit_value(&*sp, &mut to_process_fn);
+            sp = sp.sub(1);
         }
 
         // walk globals (includes core classes)

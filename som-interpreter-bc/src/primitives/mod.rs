@@ -89,6 +89,6 @@ macro_rules! pop_args_from_stack {
 
     ($interp:ident, $var:ident => $ty:ty $(, $rest:ident => $rest_ty:ty )* $(,)?) => {
         pop_args_from_stack!($interp, $( $rest => $rest_ty ),*);
-        let $var: $ty = $crate::value::convert::FromArgs::from_args($interp.stack.pop().unwrap()).unwrap();
+        let $var: $ty = $crate::value::convert::FromArgs::from_args(stack_pop!($interp.sp)).unwrap();
     };
 }

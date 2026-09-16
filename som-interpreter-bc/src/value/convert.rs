@@ -12,6 +12,7 @@ use crate::vm_objects::block::Block;
 use crate::vm_objects::class::Class;
 use crate::vm_objects::instance::Instance;
 use crate::vm_objects::method::Method;
+use crate::{stack_n_last_elements, stack_push, stack_truncate};
 use num_bigint::BigInt;
 use som_gc::gcref::Gc;
 use som_value::interned::Interned;
@@ -21,7 +22,7 @@ pub type IntegerLike = som_value::convert::IntegerLike<Gc<BigInt>>;
 pub type StringLike = som_value::convert::StringLike<Gc<String>>;
 
 pub trait IntoValue {
-    #[allow(clippy::wrong_self_convention)] // though i guess we could/should rename it
+    #[allow(clippy::wrong_self_convention)] // FIXME: though i guess we could/should rename it
     fn into_value(&self) -> Value;
 }
 
@@ -197,8 +198,8 @@ pub trait IntoReturn {
 
 impl<T: IntoValue> IntoReturn for T {
     fn into_return(self, interpreter: &mut Interpreter, nbr_args: usize) -> Result<(), Error> {
-        interpreter.stack.truncate(interpreter.stack.len() - nbr_args);
-        interpreter.stack.push(self.into_value());
+        stack_truncate!(interpreter.sp, nbr_args);
+        stack_push!(interpreter.sp, self.into_value());
         Ok(())
     }
 }
@@ -267,7 +268,7 @@ macro_rules! derive_prims {
         {
             fn invoke(&self, interpreter: &mut $crate::interpreter::Interpreter, _: &mut $crate::universe::Universe, nbr_args: usize) -> Result<(), Error> {
                 let result = {
-                    let args: &[Value] = interpreter.stack_n_last_elements(nbr_args);
+                    let args: &[Value] = stack_n_last_elements!(interpreter.sp, nbr_args);
                     let mut args_iter = args.iter();
                     $(
                         #[allow(non_snake_case)]
@@ -277,8 +278,8 @@ macro_rules! derive_prims {
                    (self)($($ty),*,)?.into_value()
                 };
 
-                interpreter.stack.truncate(interpreter.stack.len() - nbr_args);
-                interpreter.stack.push(result);
+                stack_truncate!(interpreter.sp, nbr_args);
+                stack_push!(interpreter.sp, result);
                 Ok(())
             }
         }
@@ -300,7 +301,7 @@ where
 {
     fn invoke(&self, interpreter: &mut Interpreter, universe: &mut Universe, _: usize) -> Result<(), Error> {
         let result = self(interpreter, universe)?.into_value();
-        interpreter.stack.push(result);
+        stack_push!(interpreter.sp, result);
         Ok(())
     }
 }

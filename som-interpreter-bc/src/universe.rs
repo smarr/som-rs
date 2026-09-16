@@ -227,7 +227,7 @@ impl Universe {
 
     /// Call `doesNotUnderstand:` on the given value, if it is defined.
     #[allow(unreachable_code, unused_variables)]
-    pub fn does_not_understand(&mut self, interpreter: &mut Interpreter, value: Value, symbol: Interned, args: Vec<Value>) -> Option<()> {
+    pub fn does_not_understand(&mut self, interpreter: &mut Interpreter, value: Value, symbol: Interned, args: &[Value]) -> Option<()> {
         // panic!("does not understand: {:?}, called on {:?}", self.interner.lookup(symbol), &value);
 
         let method_name = self.intern_symbol("doesNotUnderstand:arguments:");
@@ -240,12 +240,13 @@ impl Universe {
         //     std::process::exit(1);
         // }
 
+        // TODO: GC bug here: alloc_slice triggering a collection would introduce UB.
         interpreter.push_method_frame_with_args(
             method.as_method_info(),
             vec![
                 value,
                 Value::Symbol(symbol),
-                Value::Array(VecValue(self.gc_interface.alloc_slice(&args, AllocSiteMarker::VecValue))),
+                Value::Array(VecValue(self.gc_interface.alloc_slice(args, AllocSiteMarker::VecValue))),
             ],
             &mut self.gc_interface,
         );

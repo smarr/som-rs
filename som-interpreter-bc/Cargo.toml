@@ -38,6 +38,7 @@ once_cell = "1.18.0"
 measureme = { version = "12.0.0", optional = true }
 
 log = "0.4.21"
+libc = "0.2.189"
 
 [dev-dependencies]
 rstest = "0.24.0"

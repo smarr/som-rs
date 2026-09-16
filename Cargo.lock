@@ -995,6 +995,7 @@ dependencies = [
  "anyhow",
  "indexmap",
  "jemallocator",
+ "libc",
  "log",
  "measureme",
  "mmtk",
