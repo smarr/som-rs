@@ -614,15 +614,14 @@ impl Interpreter {
                     read_u16_fast!(offset, bytecodes, self.bytecode_idx as usize + 1);
                     let condition_result = stack_last!(&mut self.sp);
 
+                    debug_assert!(condition_result.is_boolean());
                     if condition_result.is_boolean_true() {
                         self.bytecode_idx += offset;
                         *condition_result = Value::NIL;
-                    } else if condition_result.is_boolean_false() {
+                    } else {
                         stack_drop!(self.sp);
                         self.bytecode_idx += BC_SIZE_U16_ARG;
-                    } else {
-                        panic!("JumpOnTrueTopNil condition did not evaluate to boolean (was {:?})", condition_result)
-                    };
+                    }
                     profiler_maybe_stop!(_timing);
                 }
                 Bytecode::JUMP_ON_FALSE_TOP_NIL => {
@@ -630,15 +629,14 @@ impl Interpreter {
                     read_u16_fast!(offset, bytecodes, self.bytecode_idx as usize + 1);
                     let condition_result = stack_last!(&mut self.sp);
 
+                    debug_assert!(condition_result.is_boolean());
                     if condition_result.is_boolean_true() {
                         stack_drop!(self.sp);
                         self.bytecode_idx += BC_SIZE_U16_ARG;
-                    } else if condition_result.is_boolean_false() {
+                    } else {
                         self.bytecode_idx += offset;
                         *condition_result = Value::NIL;
-                    } else {
-                        panic!("JumpOnFalseTopNil condition did not evaluate to boolean (was {:?})", condition_result)
-                    };
+                    }
                     profiler_maybe_stop!(_timing);
                 }
                 Bytecode::JUMP_ON_TRUE_POP => {
@@ -646,14 +644,13 @@ impl Interpreter {
                     read_u16_fast!(offset, bytecodes, self.bytecode_idx as usize + 1);
                     let condition_result = stack_pop!(self.sp);
 
+                    debug_assert!(condition_result.is_boolean());
                     if condition_result.is_boolean_true() {
                         self.bytecode_idx += offset;
-                    } else if condition_result.is_boolean_false() {
+                    } else {
                         self.bytecode_idx += BC_SIZE_U16_ARG;
                         // pass
-                    } else {
-                        panic!("JumpOnTruePop condition did not evaluate to boolean (was {:?})", condition_result)
-                    };
+                    }
                     profiler_maybe_stop!(_timing);
                 }
                 Bytecode::JUMP_ON_FALSE_POP => {
@@ -661,14 +658,13 @@ impl Interpreter {
                     read_u16_fast!(offset, bytecodes, self.bytecode_idx as usize + 1);
                     let condition_result = stack_pop!(self.sp);
 
+                    debug_assert!(condition_result.is_boolean());
                     if condition_result.is_boolean_false() {
                         self.bytecode_idx += offset;
-                    } else if condition_result.is_boolean_true() {
+                    } else {
                         self.bytecode_idx += BC_SIZE_U16_ARG;
                         // pass
-                    } else {
-                        panic!("JumpOnFalsePop condition did not evaluate to boolean (was {:?})", condition_result)
-                    };
+                    }
                     profiler_maybe_stop!(_timing);
                 }
                 Bytecode::JUMP_IF_GREATER => {
