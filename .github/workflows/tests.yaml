@@ -13,19 +13,13 @@ jobs:
           - som-interpreter-bc
     steps:
       - name: Checkout master branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: true
       - name: Install stable toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: default
-          toolchain: stable
+        run: rustup default stable
       - name: Compile SOM interpreter
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --release -p ${{ matrix.interpreter }}
+        run: cargo build --release -p ${{ matrix.interpreter }}
       - name: Run test suite
         run: |
           ./target/release/${{ matrix.interpreter }} -c core-lib/Smalltalk core-lib/TestSuite -- TestHarness
@@ -35,17 +29,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout master branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: true
       - name: Install stable toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: default
-          toolchain: stable
+        run: rustup default stable
       - name: Run all tests
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
+        run: cargo test
         env:
           RUST_TEST_THREADS: 1
