@@ -5,7 +5,7 @@ on: [push, pull_request]
 jobs:
   run_test_suite:
     name: Run SOM Test Suite
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     strategy:
       matrix:
         interpreter:
@@ -26,7 +26,7 @@ jobs:
 
   run_own_tests:
     name: Run own tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - name: Checkout master branch
         uses: actions/checkout@v7
