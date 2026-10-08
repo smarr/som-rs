@@ -12,11 +12,12 @@ use som_core::cli_parser::CLIOptions;
 
 mod shell;
 
-use som_gc::gc_interface::SOMAllocator;
+use som_gc::gc_interface::{AllocSiteMarker, SOMAllocator};
 use som_gc::gcref::Gc;
 use som_interpreter_bc::debug::disassembler::disassemble_method_body;
 #[cfg(feature = "profiler")]
 use som_interpreter_bc::debug::profiler::Profiler;
+use som_interpreter_bc::gc::get_callbacks_for_gc;
 use som_interpreter_bc::universe::Universe;
 use som_interpreter_bc::value::Value;
 use som_interpreter_bc::vm_objects::class::Class;
@@ -36,8 +37,6 @@ fn main() -> anyhow::Result<()> {
 
 fn run() -> anyhow::Result<()> {
     let opts: CLIOptions = CLIOptions::parse();
-
-    // dbg!(size_of::<Bytecode>()); std::process::exit(0);
 
     if opts.disassemble {
         return disassemble_class(opts);
@@ -68,15 +67,39 @@ fn run() -> anyhow::Result<()> {
 
     let args = std::iter::once(String::from(file_stem))
         .chain(opts.args.iter().cloned())
-        .map(|arg| Value::String(universe.gc_interface.alloc(arg)))
+        .map(|arg| Value::String(universe.gc_interface.alloc(arg, AllocSiteMarker::String)))
         .collect();
 
     let mut interpreter = universe.initialize(args).expect("issue running program");
 
+    som_gc::handshake_with_vm(&mut universe.gc_interface, get_callbacks_for_gc());
     INTERPRETER_RAW_PTR_CONST.store(&mut interpreter, Ordering::SeqCst);
     UNIVERSE_RAW_PTR_CONST.store(&mut universe, Ordering::SeqCst);
 
     interpreter.run(&mut universe);
+
+    //let _total_nbr_frames = &universe
+    //    .gc_interface
+    //    .alloc_map
+    //    .iter()
+    //    .map(|(k, v)| {
+    //        if [
+    //            &AllocSiteMarker::AstFrame,
+    //            &AllocSiteMarker::BlockFrame,
+    //            &AllocSiteMarker::MethodFrame,
+    //            &AllocSiteMarker::MethodFrameWithArgs,
+    //            &AllocSiteMarker::InitMethodFrame,
+    //        ]
+    //        .contains(&k)
+    //        {
+    //            *v
+    //        } else {
+    //            0
+    //        }
+    //    })
+    //    .sum::<usize>();
+    //dbg!(&_total_nbr_frames);
+    //dbg!(&universe.gc_interface.alloc_map[&AllocSiteMarker::Instance]);
 
     Ok(())
 }
@@ -101,7 +124,7 @@ fn disassemble_class(opts: CLIOptions) -> anyhow::Result<()> {
 
     // "Object" special casing needed since `load_class` assumes the class has a superclass and Object doesn't, and I didn't want to change the class loading logic just for the disassembler (tho it's probably fine)
     let class = match file_stem {
-        "Object" => Universe::load_system_class(&mut universe.interner, classpath.as_slice(), "Object", universe.gc_interface)?,
+        "Object" => Universe::load_system_class(&mut universe.interner, classpath.as_slice(), "Object", &mut universe.gc_interface)?,
         _ => universe.load_class(file_stem)?,
     };
 
@@ -135,12 +158,11 @@ fn dump_class_methods(class: Gc<Class>, opts: &CLIOptions, file_stem: &str, univ
         match &*method {
             Method::Defined(env) => {
                 println!(
-                    "{class}>>#{signature} ({num_locals} locals, {num_literals} literals) (max stack size: {max_stack_size})",
+                    "{class}>>#{signature} ({num_locals} locals, {num_literals} literals)",
                     class = file_stem,
                     signature = method.signature(),
                     num_locals = env.nbr_locals,
                     num_literals = env.literals.len(),
-                    max_stack_size = env.max_stack_size,
                 );
 
                 disassemble_method_body(universe, &class, env);

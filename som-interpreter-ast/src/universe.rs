@@ -1,5 +1,5 @@
 use crate::evaluate::Evaluate;
-use crate::gc::{get_callbacks_for_gc, VecValue};
+use crate::gc::VecValue;
 use crate::invokable::{Invoke, Return};
 use crate::value::Value;
 use crate::vm_objects::block::Block;
@@ -9,13 +9,14 @@ use crate::vm_objects::instance::Instance;
 use anyhow::{anyhow, Error};
 use som_core::core_classes::CoreClasses;
 use som_core::interner::Interner;
-use som_gc::gc_interface::{GCInterface, SOMAllocator};
+use som_gc::gc_interface::{AllocSiteMarker, GCInterface, SOMAllocator};
 use som_gc::gcref::Gc;
 use som_gc::{debug_assert_valid_semispace_ptr, debug_assert_valid_semispace_ptr_value};
 use som_value::interned::Interned;
 use std::collections::HashMap;
 use std::fs;
 use std::io;
+use std::marker::PhantomPinned;
 use std::path::{Path, PathBuf};
 use std::slice::Iter;
 use std::time::Instant;
@@ -42,15 +43,19 @@ pub struct Universe {
     /// The time record of the universe's creation.
     pub start_time: Instant,
     /// GC interface
-    pub gc_interface: &'static mut GCInterface,
+    pub gc_interface: Box<GCInterface>,
+    /// Universe must be `Pin`, since the GC must assume the field `gc_interface` will never move,
+    /// since it holds a duplicated reference to it that it needs to interact with the VM
+    _pin: PhantomPinned,
 }
 
-impl Drop for Universe {
-    fn drop(&mut self) {
-        let _box: Box<GCInterface> = unsafe { Box::from_raw(self.gc_interface) };
-        drop(_box)
-    }
-}
+// Back when gc_interface was a &'static mut, we had a `Drop` impl
+//impl Drop for Universe {
+//    fn drop(&mut self) {
+//        let _box: Box<GCInterface> = unsafe { Box::from_raw(self.gc_interface) };
+//        drop(_box)
+//    }
+//}
 
 impl Universe {
     /// Initialize the universe from the given classpath.
@@ -63,10 +68,10 @@ impl Universe {
         let mut interner = Interner::with_capacity(200);
         let mut globals: HashMap<Interned, Value> = HashMap::new();
 
-        let gc_interface = GCInterface::init(heap_size, get_callbacks_for_gc());
+        let mut gc_interface = Box::new(GCInterface::init(heap_size));
 
         let mut core: CoreClasses<Gc<Class>> = CoreClasses::from_load_cls_fn(|name: &str, super_cls: Option<&Gc<Class>>| {
-            Self::load_system_class(classpath.as_slice(), name, super_cls.cloned(), gc_interface, &mut interner).unwrap()
+            Self::load_system_class(classpath.as_slice(), name, super_cls.cloned(), &mut gc_interface, &mut interner).unwrap()
         });
 
         // TODO: these can be removed for the most part - in the AST at least, we set a lot of super class relationships when loading system classes directly.
@@ -75,21 +80,13 @@ impl Universe {
 
         set_super_class(&mut core.class_class, &core.object_class, &core.metaclass_class);
         set_super_class(&mut core.metaclass_class.clone(), &core.class_class, &core.metaclass_class);
-        // initializeSystemClass(nilClass, objectClass, "Nil");
         set_super_class(&mut core.nil_class, &core.object_class, &core.metaclass_class);
-        // initializeSystemClass(arrayClass, objectClass, "Array");
         set_super_class(&mut core.array_class, &core.object_class, &core.metaclass_class);
-        // initializeSystemClass(methodClass, arrayClass, "Method");
         set_super_class(&mut core.method_class, &core.array_class, &core.metaclass_class);
-        // initializeSystemClass(stringClass, objectClass, "String");
         set_super_class(&mut core.string_class, &core.object_class, &core.metaclass_class);
-        // initializeSystemClass(symbolClass, stringClass, "Symbol");
         set_super_class(&mut core.symbol_class, &core.string_class, &core.metaclass_class);
-        // initializeSystemClass(integerClass, objectClass, "Integer");
         set_super_class(&mut core.integer_class, &core.object_class, &core.metaclass_class);
-        // initializeSystemClass(primitiveClass, objectClass, "Primitive");
         set_super_class(&mut core.primitive_class, &core.object_class, &core.metaclass_class);
-        // initializeSystemClass(doubleClass, objectClass, "Double");
         set_super_class(&mut core.double_class, &core.object_class, &core.metaclass_class);
 
         set_super_class(&mut core.system_class, &core.object_class, &core.metaclass_class);
@@ -111,7 +108,11 @@ impl Universe {
         globals.insert(interner.intern("false"), Value::Boolean(false));
         globals.insert(interner.intern("nil"), Value::NIL);
 
-        let system_instance = Value::Instance(gc_interface.alloc(Instance::from_class(core.system_class())));
+        let instance = gc_interface.alloc(Instance::from_class(core.system_class()), AllocSiteMarker::Instance);
+        for idx in 0..instance.class.get_nbr_fields() {
+            Instance::assign_field(&instance, idx as u8, Value::NIL)
+        }
+        let system_instance = Value::Instance(instance);
         globals.insert(interner.intern("system"), system_instance);
 
         Ok(Self {
@@ -122,6 +123,7 @@ impl Universe {
             start_time: Instant::now(),
             core,
             gc_interface,
+            _pin: PhantomPinned,
         })
     }
 
@@ -159,7 +161,7 @@ impl Universe {
                 self.core.object_class.clone()
             };
 
-            let mut class = Class::from_class_def(defn, Some(super_class.clone()), self.gc_interface, &mut self.interner).map_err(Error::msg)?;
+            let mut class = Class::from_class_def(defn, Some(super_class.clone()), &mut self.gc_interface, &mut self.interner).map_err(Error::msg)?;
             set_super_class(&mut class, &super_class, &self.core.metaclass_class);
 
             let symbol = self.intern_symbol(class.name());
@@ -195,7 +197,7 @@ impl Universe {
             let tokens: Vec<_> = som_lexer::Lexer::new(contents.as_str()).skip_comments(true).skip_whitespace(true).collect();
 
             // Parse class definition from the tokens.
-            let defn = match som_parser::parse_file_no_universe(tokens.as_slice()) {
+            let defn = match som_parser::parse_file(tokens.as_slice()) {
                 Some(defn) => defn,
                 None => return Err(anyhow!("could not parse the '{}' system class", class_name)),
             };
@@ -217,8 +219,12 @@ impl Universe {
     pub fn eval_with_frame<T: Evaluate>(&mut self, value_stack: &mut GlobalValueStack, nbr_locals: u8, nbr_args: usize, invokable: &mut T) -> Return {
         let frame = Frame::alloc_new_frame(nbr_locals, nbr_args, self, value_stack);
         self.current_frame = frame;
+        value_stack.push(Value::STACK_MARKER);
         let ret = invokable.evaluate(self, value_stack);
         self.current_frame = self.current_frame.prev_frame.clone();
+
+        while value_stack.pop() != Value::STACK_MARKER {}
+
         ret
     }
 
@@ -226,12 +232,18 @@ impl Universe {
     pub fn eval_block_with_frame(&mut self, value_stack: &mut GlobalValueStack, nbr_locals: u8, nbr_args: usize) -> Return {
         let frame = Frame::alloc_new_frame(nbr_locals, nbr_args, self, value_stack);
         self.current_frame = frame.clone();
+        value_stack.push(Value::STACK_MARKER);
         debug_assert_valid_semispace_ptr!(self.current_frame);
+
         let mut invokable = frame.lookup_argument(0).as_block().unwrap();
         debug_assert_valid_semispace_ptr!(invokable);
         debug_assert_valid_semispace_ptr!(invokable.block);
+
         let ret = invokable.evaluate(self, value_stack);
         self.current_frame = self.current_frame.prev_frame.clone();
+
+        while value_stack.pop() != Value::STACK_MARKER {}
+
         ret
     }
 
@@ -241,12 +253,16 @@ impl Universe {
     pub fn eval_block_with_frame_no_pop(&mut self, value_stack: &mut GlobalValueStack, nbr_locals: u8, nbr_args: usize) -> Return {
         let frame = Frame::alloc_new_frame_no_pop(nbr_locals, nbr_args, self, value_stack);
         self.current_frame = frame.clone();
+        value_stack.push(Value::STACK_MARKER);
         debug_assert_valid_semispace_ptr!(self.current_frame);
         let mut invokable = frame.lookup_argument(0).as_block().unwrap();
         debug_assert_valid_semispace_ptr!(invokable);
         debug_assert_valid_semispace_ptr!(invokable.block);
         let ret = invokable.evaluate(self, value_stack);
         self.current_frame = self.current_frame.prev_frame.clone();
+
+        while value_stack.pop() != Value::STACK_MARKER {}
+
         ret
     }
 
@@ -334,6 +350,10 @@ impl GlobalValueStack {
     pub fn iter(&self) -> Iter<'_, Value> {
         self.0.iter()
     }
+
+    pub fn get_capacity(&self) -> usize {
+        self.0.capacity()
+    }
 }
 
 impl Universe {
@@ -359,7 +379,7 @@ impl Universe {
         let method_name = self.intern_symbol("doesNotUnderstand:arguments:");
         let mut initialize = value.lookup_method(self, method_name)?;
         let sym = Value::Symbol(interned_sym);
-        let args = Value::Array(VecValue(self.gc_interface.alloc_slice(&args)));
+        let args = Value::Array(VecValue(self.gc_interface.alloc_slice(&args, AllocSiteMarker::VecValue)));
 
         //eprintln!("Couldn't invoke {}; exiting.", self.interner.lookup(interned_sym));
         //std::process::exit(1);
@@ -383,7 +403,6 @@ impl Universe {
         let unknown_global_result = method.invoke(self, value_stack, 2);
         match unknown_global_result {
             Return::Local(value) | Return::NonLocal(value, _) => Some(Return::Local(value)),
-            #[cfg(feature = "inlining-disabled")]
             Return::Restart => panic!("(from 'System>>#unknownGlobal:') incorrectly asked for a restart"),
         }
     }
@@ -392,7 +411,7 @@ impl Universe {
     pub fn initialize(&mut self, args: Vec<Value>, value_stack: &mut GlobalValueStack) -> Option<Return> {
         let method_name = self.interner.intern("initialize:");
         let mut initialize = self.core.system_class().lookup_method(method_name)?;
-        let args = Value::Array(VecValue(self.gc_interface.alloc_slice(&args)));
+        let args = Value::Array(VecValue(self.gc_interface.alloc_slice(&args, AllocSiteMarker::VecValue)));
 
         let system_value = self.lookup_global(self.interner.reverse_lookup("system")?)?;
         value_stack.push(system_value);
@@ -405,7 +424,6 @@ impl Universe {
 
 fn set_super_class(class: &mut Gc<Class>, super_class: &Gc<Class>, metaclass_class: &Gc<Class>) {
     class.set_super_class(super_class);
-
     class.class().set_super_class(&super_class.class());
     class.class().set_class(metaclass_class);
 }

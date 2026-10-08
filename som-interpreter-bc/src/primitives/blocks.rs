@@ -17,14 +17,13 @@ pub mod block1 {
     pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([]));
 
     fn value(interpreter: &mut Interpreter, universe: &mut Universe) -> Result<(), Error> {
-        interpreter.push_block_frame(1, universe.gc_interface);
+        interpreter.push_block_frame(1, &mut universe.gc_interface);
         Ok(())
     }
 
     fn restart(interpreter: &mut Interpreter, _: &mut Universe) -> Result<(), Error> {
         // interpreter.current_frame.bytecode_idx = 0;
         interpreter.bytecode_idx = 0;
-        interpreter.get_current_frame().stack_ptr = 0; // not sure why that's necessary... I think there's some odd stack popping rules for primitives
         Ok(())
     }
 
@@ -47,7 +46,7 @@ pub mod block2 {
     pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([]));
 
     fn value(interpreter: &mut Interpreter, universe: &mut Universe) -> Result<(), Error> {
-        interpreter.push_block_frame(2, universe.gc_interface);
+        interpreter.push_block_frame(2, &mut universe.gc_interface);
         Ok(())
     }
 
@@ -70,7 +69,7 @@ pub mod block3 {
     pub static CLASS_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| Box::new([]));
 
     fn value_with(interpreter: &mut Interpreter, universe: &mut Universe) -> Result<(), Error> {
-        interpreter.push_block_frame(3, universe.gc_interface);
+        interpreter.push_block_frame(3, &mut universe.gc_interface);
         Ok(())
     }
 

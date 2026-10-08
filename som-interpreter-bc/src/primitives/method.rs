@@ -3,6 +3,7 @@ use crate::interpreter::Interpreter;
 use crate::pop_args_from_stack;
 use crate::primitives::PrimInfo;
 use crate::primitives::PrimitiveFn;
+use crate::stack_pop;
 use crate::universe::Universe;
 use crate::value::convert::Primitive;
 use crate::value::Value;

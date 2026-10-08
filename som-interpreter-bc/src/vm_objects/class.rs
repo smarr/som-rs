@@ -1,9 +1,12 @@
 use std::fmt;
 
+use crate::gc::{visit_value, GcIdentifier};
 use crate::value::Value;
 use crate::vm_objects::method::Method;
 use indexmap::IndexMap;
+use som_gc::gc_interface::GcType;
 use som_gc::gcref::Gc;
+use som_gc::slot::SOMSlot;
 use som_value::interned::Interned;
 // /// A reference that may be either weak or owned/strong.
 // #[derive(Debug, Clone)]
@@ -92,11 +95,7 @@ impl Class {
 
     /// Get the total number of fields, counting the superclasses.
     pub fn get_nbr_fields(&self) -> usize {
-        let mut nbr_locals = self.fields.len();
-        if let Some(super_class) = self.super_class() {
-            nbr_locals += super_class.get_nbr_fields()
-        }
-        nbr_locals
+        self.fields.len()
     }
 }
 
@@ -108,5 +107,31 @@ impl fmt::Debug for Class {
             // .field("class", &self.class)
             // .field("super_class", &self.super_class)
             .finish()
+    }
+}
+
+impl GcType for Class {
+    fn get_magic_gc_id() -> u8 {
+        GcIdentifier::Class as u8
+    }
+
+    fn scan_object(class: Gc<Self>, visit_slot_fn: &mut dyn FnMut(som_gc::slot::SOMSlot)) {
+        visit_slot_fn(SOMSlot::from(&class.class));
+
+        if class.super_class.is_some() {
+            visit_slot_fn(SOMSlot::from(class.super_class.as_ref().unwrap()));
+        }
+
+        for (_, method_ref) in class.methods.iter() {
+            visit_slot_fn(SOMSlot::from(method_ref))
+        }
+
+        for field_ref in class.fields.iter() {
+            visit_value(field_ref, visit_slot_fn)
+        }
+    }
+
+    fn get_size_in_memory(_self: Gc<Self>) -> usize {
+        size_of::<Class>()
     }
 }

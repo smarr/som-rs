@@ -1,12 +1,16 @@
+use crate::gc::{visit_value, GcIdentifier};
 use crate::universe::{GlobalValueStack, Universe};
 use crate::value::Value;
 use core::mem::size_of;
 #[cfg(debug_assertions)]
 use som_gc::debug_assert_valid_semispace_ptr;
-use som_gc::gc_interface::{AllocSiteMarker, SOMAllocator};
+use som_gc::gc_interface::{AllocSiteMarker, GcType, SOMAllocator};
 use som_gc::gcref::Gc;
+use som_gc::slot::SOMSlot;
 use std::fmt::{Debug, Formatter};
 use std::marker::PhantomData;
+
+use super::instance::Instance;
 
 macro_rules! frame_args_ptr {
     ($base_ptr:expr) => {
@@ -24,13 +28,13 @@ macro_rules! frame_locals_ptr {
 pub struct Frame {
     pub prev_frame: Gc<Frame>,
     /// This frame's kind.
-    // #[cfg(feature = "frame-debug-info")]
-    // pub kind: FrameKind,
+    //#[cfg(feature = "frame-debug-info")]
+    //pub kind: FrameKind,
     pub nbr_args: u8,
     pub nbr_locals: u8,
 
     /// Parameters for this frame.
-    pub params_marker: PhantomData<Vec<Value>>,
+    pub args_marker: PhantomData<Vec<Value>>,
     /// Local variables that get defined within this frame.
     pub locals_marker: PhantomData<Vec<Value>>,
 }
@@ -44,12 +48,12 @@ impl Frame {
             prev_frame: Gc::default(),
             nbr_locals,
             nbr_args: nbr_args as u8,
-            params_marker: PhantomData,
+            args_marker: PhantomData,
             locals_marker: PhantomData,
         };
 
         let size = size_of::<Frame>() + ((frame.nbr_args + frame.nbr_locals) as usize * size_of::<Value>());
-        let mut frame_ptr = universe.gc_interface.alloc_with_size(frame, size, Some(AllocSiteMarker::AstFrame));
+        let mut frame_ptr = universe.gc_interface.alloc_with_size(frame, size, AllocSiteMarker::AstFrame);
 
         unsafe {
             let mut locals_addr = (frame_ptr.as_ptr().byte_add(size_of::<Frame>() + (nbr_args * size_of::<Value>()))) as *mut Value;
@@ -72,18 +76,18 @@ impl Frame {
         frame_ptr
     }
 
-    /// TODO: doc, and unify better with other function.
+    /// Same as normal frame allocation function, but for a special case. See function `eval_block_with_frame_no_pop`
     pub fn alloc_new_frame_no_pop(nbr_locals: u8, nbr_args: usize, universe: &mut Universe, value_stack: &mut GlobalValueStack) -> Gc<Self> {
         let frame = Self {
             prev_frame: Gc::default(),
             nbr_locals,
             nbr_args: nbr_args as u8,
-            params_marker: PhantomData,
+            args_marker: PhantomData,
             locals_marker: PhantomData,
         };
 
         let size = size_of::<Frame>() + ((frame.nbr_args + frame.nbr_locals) as usize * size_of::<Value>());
-        let mut frame_ptr = universe.gc_interface.alloc_with_size(frame, size, Some(AllocSiteMarker::AstFrame));
+        let mut frame_ptr = universe.gc_interface.alloc_with_size(frame, size, AllocSiteMarker::AstFrame);
 
         unsafe {
             let mut locals_addr = (frame_ptr.as_ptr().byte_add(size_of::<Frame>() + (nbr_args * size_of::<Value>()))) as *mut Value;
@@ -92,7 +96,9 @@ impl Frame {
                 locals_addr = locals_addr.wrapping_add(1);
             }
 
+            // Only intended difference with normal frame allocation function: borrowing instead of draining.
             let args = value_stack.borrow_n_last(nbr_args);
+
             std::slice::from_raw_parts_mut(frame_args_ptr!(frame_ptr), nbr_args).copy_from_slice(args);
 
             frame_ptr.prev_frame = universe.current_frame.clone();
@@ -162,7 +168,6 @@ impl FrameAccess for Gc<Frame> {
 
     #[inline(always)]
     fn assign_arg(&mut self, idx: u8, value: Value) {
-        // TODO: shouldn't assignments take refs?
         unsafe {
             let arg_ptr = frame_args_ptr!(self).add(idx as usize);
             *arg_ptr = value
@@ -198,7 +203,7 @@ impl FrameAccess for Gc<Frame> {
     fn lookup_field(&self, idx: u8) -> Value {
         let self_ = self.get_self();
         if let Some(instance) = self_.as_instance() {
-            *instance.lookup_field(idx)
+            *Instance::lookup_field(&instance, idx)
         } else if let Some(cls) = self_.as_class() {
             cls.class().lookup_field(idx)
         } else {
@@ -209,8 +214,8 @@ impl FrameAccess for Gc<Frame> {
     #[inline(always)]
     fn assign_field(&self, idx: u8, value: &Value) {
         let self_ = self.get_self();
-        if let Some(mut instance) = self_.as_instance() {
-            instance.assign_field(idx, *value)
+        if let Some(instance) = self_.as_instance() {
+            Instance::assign_field(&instance, idx, *value)
         } else if let Some(cls) = self_.as_class() {
             cls.class().assign_field(idx, *value)
         } else {
@@ -222,5 +227,31 @@ impl FrameAccess for Gc<Frame> {
 impl Debug for Frame {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Frame").field("nbr_args", &self.nbr_args).field("nbr_locals", &self.nbr_locals).finish()
+    }
+}
+
+impl GcType for Frame {
+    fn get_magic_gc_id() -> u8 {
+        GcIdentifier::Frame as u8
+    }
+
+    fn scan_object(frame: Gc<Self>, visit_slot_fn: &mut dyn FnMut(SOMSlot)) {
+        if !frame.prev_frame.is_empty() {
+            visit_slot_fn(SOMSlot::from(&frame.prev_frame));
+        }
+
+        for i in 0..frame.nbr_locals {
+            let val: &Value = frame.lookup_local(i);
+            visit_value(val, visit_slot_fn)
+        }
+
+        for i in 0..frame.nbr_args {
+            let val: &Value = frame.lookup_argument(i);
+            visit_value(val, visit_slot_fn)
+        }
+    }
+
+    fn get_size_in_memory(frame: Gc<Self>) -> usize {
+        Frame::get_true_size(frame.nbr_args, frame.nbr_locals)
     }
 }

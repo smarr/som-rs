@@ -30,8 +30,6 @@ use crate::value::convert::Primitive;
 use anyhow::Error;
 use once_cell::sync::Lazy;
 
-// TODO we're missing several primitive changes from master originally
-
 pub type PrimitiveFn = dyn Fn(&mut Interpreter, &mut Universe, usize) -> Result<(), Error> + Send + Sync + 'static;
 
 pub type PrimInfo = (&'static str, &'static PrimitiveFn, bool);
@@ -91,6 +89,6 @@ macro_rules! pop_args_from_stack {
 
     ($interp:ident, $var:ident => $ty:ty $(, $rest:ident => $rest_ty:ty )* $(,)?) => {
         pop_args_from_stack!($interp, $( $rest => $rest_ty ),*);
-        let $var: $ty = $crate::value::convert::FromArgs::from_args($interp.get_current_frame().stack_pop()).unwrap();
+        let $var: $ty = $crate::value::convert::FromArgs::from_args(stack_pop!($interp.sp)).unwrap();
     };
 }

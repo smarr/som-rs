@@ -1,3 +1,4 @@
+use crate::gc::{visit_expr, GcIdentifier, VecLiteral};
 use crate::nodes::global_read::GlobalNode;
 use crate::nodes::inlined::and_inlined_node::AndInlinedNode;
 use crate::nodes::inlined::if_inlined_node::IfInlinedNode;
@@ -11,8 +12,9 @@ use crate::vm_objects::class::Class;
 use crate::vm_objects::method::Method;
 use indenter::indented;
 use num_bigint::BigInt;
+use som_gc::gc_interface::GcType;
 use som_gc::gcref::Gc;
-use som_gc::gcslice::GcSlice;
+use som_gc::slot::SOMSlot;
 use som_value::interned::Interned;
 use std::fmt::Write;
 use std::fmt::{Debug, Display, Formatter};
@@ -58,7 +60,7 @@ pub enum AstExpression {
     Block(Gc<AstBlock>),
     /// Call to an inlined method node (no dispatching like a message would)
     InlinedCall(Box<InlinedNode>),
-    // TODO: we might want a SEQUENCENODE of some kind. instead of relying on AstBody at all, actually.
+    // FEAT: we might want a SEQUENCENODE of some kind, instead of relying on AstBody. Not sure that'd be beneficial but hey.
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -74,7 +76,7 @@ pub enum AstLiteral {
     /// Represents a big integer (bigger than a 64-bit signed integer can represent).
     BigInteger(Gc<BigInt>),
     /// Represents an array literal (eg. `$(1 2 3)`)
-    Array(GcSlice<AstLiteral>),
+    Array(VecLiteral),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -84,7 +86,7 @@ pub struct AstTerm {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct AstBlock {
-    pub nbr_params: u8,
+    pub nbr_args: u8,
     pub nbr_locals: u8,
     pub body: AstBody,
 }
@@ -98,7 +100,7 @@ pub struct AstDispatchNode {
     pub inline_cache: Option<CacheEntry>,
 }
 
-// TODO: not positive it's better to have them all own a dispatch node, as opposed to making one "Dispatch" enum encapsulating them all. checking would be nice.
+// TODO: not positive it's better to have them all own a dispatch node, as opposed to making one "Dispatch" enum encapsulating them all. checking perf would be nice.
 #[derive(Debug, Clone, PartialEq)]
 pub struct AstUnaryDispatch {
     pub dispatch_node: AstDispatchNode,
@@ -141,6 +143,22 @@ pub struct AstMethodDef {
     pub locals_nbr: u8,
 }
 
+impl GcType for AstBlock {
+    fn get_magic_gc_id() -> u8 {
+        GcIdentifier::AstBlock as u8
+    }
+
+    fn scan_object(ast_block: Gc<Self>, visit_slot_fn: &mut dyn FnMut(SOMSlot)) {
+        for expr in &ast_block.body.exprs {
+            visit_expr(expr, visit_slot_fn)
+        }
+    }
+
+    fn get_size_in_memory(_self: Gc<Self>) -> usize {
+        size_of::<AstBlock>()
+    }
+}
+
 // ----------------
 
 impl Display for AstMethodDef {
@@ -162,7 +180,7 @@ impl Display for AstBody {
 
 impl Display for AstBlock {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "AstBlock({} params, {} locals):", self.nbr_params, self.nbr_locals)?;
+        writeln!(f, "AstBlock({} args, {} locals):", self.nbr_args, self.nbr_locals)?;
         for expr in &self.body.exprs {
             write!(indented(f), "{}", expr)?;
         }
@@ -170,7 +188,7 @@ impl Display for AstBlock {
     }
 }
 
-// probably not using the indenter lib as one should? though it works. I've given it as little effort as possible.
+// probably not using the indenter lib as one should? though it works. I've not given it much effort
 impl Display for AstExpression {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {

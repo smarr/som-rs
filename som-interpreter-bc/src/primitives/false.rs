@@ -7,6 +7,7 @@ use crate::primitives::PrimitiveFn;
 use crate::universe::Universe;
 use crate::value::convert::Primitive;
 use crate::value::Value;
+use crate::{stack_drop, stack_last, stack_pop, stack_push};
 
 pub static INSTANCE_PRIMITIVES: Lazy<Box<[PrimInfo]>> = Lazy::new(|| {
     Box::new([
@@ -31,17 +32,19 @@ fn and(_self: Value, _other: Value) -> Result<bool, Error> {
 }
 
 fn or_and_if_false(interpreter: &mut Interpreter, universe: &mut Universe) -> Result<(), Error> {
-    let cond_val = *interpreter.get_current_frame().stack_last();
+    let cond_val = *stack_last!(interpreter.sp);
 
     if cond_val.as_block().is_some() {
         // if it's a block: we execute "other" by creating a new frame.
-        interpreter.push_block_frame(1, universe.gc_interface);
-        interpreter.get_current_frame().prev_frame.remove_n_last_elements(1); // the "False". the "Block" was already consumed and put into the new frame
+        interpreter.push_block_frame(1, &mut universe.gc_interface);
+        let stack_marker = stack_pop!(interpreter.sp);
+        *stack_last!(interpreter.sp) = stack_marker; // the "False". the "Block" was already consumed and put into the new frame
     } else {
         // if it's not a block... we remove the arguments off the stack, and add the result back to
         // it ourselves: that being the "other" value.
-        interpreter.get_current_frame().remove_n_last_elements(2);
-        interpreter.get_current_frame().stack_push(cond_val);
+        stack_drop!(interpreter.sp);
+        stack_drop!(interpreter.sp);
+        stack_push!(interpreter.sp, cond_val);
     }
     Ok(())
 }

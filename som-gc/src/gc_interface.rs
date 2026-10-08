@@ -3,10 +3,10 @@ use crate::api::{
     mmtk_used_bytes,
 };
 use crate::gcref::Gc;
-use crate::gcslice::GcSlice;
+use crate::gcslice::{GcSlice, SupportedSliceType};
 use crate::object_model::OBJECT_REF_OFFSET;
 use crate::slot::SOMSlot;
-use crate::{MMTK_SINGLETON, MMTK_TO_VM_INTERFACE, MUTATOR_WRAPPER, SOMVM};
+use crate::{MMTK_SINGLETON, SOMVM};
 use core::mem::size_of;
 use log::debug;
 use mmtk::util::alloc::Allocator;
@@ -19,6 +19,9 @@ use mmtk::util::{Address, ObjectReference, OpaquePointer, VMMutatorThread, VMThr
 use mmtk::vm::SlotVisitor;
 use mmtk::{memory_manager, AllocationSemantics, MMTKBuilder, Mutator};
 use num_bigint::BigInt;
+#[cfg(feature = "track-allocations")]
+use std::collections::HashMap;
+use std::marker::PhantomPinned;
 use std::sync::{Condvar, LazyLock, Mutex};
 use std::time::{Duration, Instant};
 
@@ -34,20 +37,39 @@ static GC_OFFSET: usize = 0;
 static GC_ALIGN: usize = 8;
 // static GC_SEMANTICS: AllocationSemantics = AllocationSemantics::Default;
 
-/// TODO rename, maybe MutatorWrapper
+/// Interface from VM to the GC logic (MMTk)
 pub struct GCInterface {
+    /// Reference to the MMTk mutator.
     mutator: Box<Mutator<SOMVM>>,
+    /// Reference to the MMTk mutator thread.
+    mutator_thread: VMMutatorThread,
+    /// Allocator used by the selected GC plan.
     #[cfg(feature = "marksweep")]
     default_allocator: *mut FreeListAllocator<SOMVM>,
     #[cfg(feature = "semispace")]
     default_allocator: *mut mmtk::util::alloc::BumpAllocator<SOMVM>,
     #[cfg(feature = "semispace")]
     #[allow(unused)]
+    /// Unused bump pointer, that could lead to slightly faster allocation for the semispace implementation.
     alloc_bump_ptr: BumpPointer,
-    mutator_thread: VMMutatorThread,
+    /// Whether or not we are currently collecting. NB: might not be very useful, since we have `WORLD_LOCK`.
     is_collecting: bool,
+    /// How many times we've restarted the world, i.e., how many collections have been done (and finished) so far.
     start_the_world_count: usize,
+    /// Total amount of time spent collecting. Used by the `gc_stats` primitive.
     total_gc_time: Duration,
+    /// Size of the heap that we requested to MMTk.
+    max_heap_size: usize,
+
+    /// Making sure that GCInterface never moves.
+    _pin: PhantomPinned,
+
+    #[cfg(feature = "track-allocations")]
+    pub total_program_repr_size: u128, // public as a hack
+    #[cfg(feature = "track-allocations")]
+    pub total_other_memory_size: u128, // this + program repr should account for all allocations
+    #[cfg(feature = "track-allocations")]
+    pub alloc_map: HashMap<AllocSiteMarker, usize>,
 }
 
 impl Drop for GCInterface {
@@ -59,26 +81,26 @@ impl Drop for GCInterface {
 
 /// Callbacks used to provide MMTk->VM communication.
 pub struct MMTKtoVMCallbacks {
-    /// Scans an object. Needed for tracing.
+    /// Scans an object, needed for tracing.
     pub scan_object: fn(ObjectReference, &mut dyn SlotVisitor<SOMSlot>),
     /// Get the VM roots.
     pub get_roots_in_mutator_thread: fn(&mut Mutator<SOMVM>) -> Vec<SOMSlot>,
-    /// Adapt an object after being copied elsewhere (not really at the moment needed except in one case)
-    pub adapt_post_copy: fn(ObjectReference, ObjectReference),
-    /// Get the size of the object. Needed when copying it
+    /// Get the size of the object, needed for copying. Non-copying GC implementations will never invoke this.
     pub get_object_size: fn(ObjectReference) -> usize,
+    // /// Adapt an object after being copied elsewhere (no longer needed at the moment)
+    //pub adapt_post_copy: fn(ObjectReference, ObjectReference),
 }
 
 impl GCInterface {
-    /// Initialize the GCInterface. Internally inits MMTk and fetches everything needed to actually communicate with the GC.
-    pub fn init<'a>(heap_size: usize, vm_callbacks: MMTKtoVMCallbacks) -> &'a mut Self {
+    /// Initialize the GCInterface.
+    pub fn init(heap_size: usize) -> Self {
         let (mutator_thread, mutator) = Self::init_mmtk(heap_size);
         #[cfg(feature = "marksweep")]
         let default_allocator = Self::get_default_allocator::<FreeListAllocator<SOMVM>>(mutator.as_ref());
         #[cfg(feature = "semispace")]
         let default_allocator = Self::get_default_allocator::<BumpAllocator<SOMVM>>(mutator.as_ref());
 
-        let self_ = Box::new(Self {
+        Self {
             mutator_thread,
             mutator,
             is_collecting: false,
@@ -87,27 +109,15 @@ impl GCInterface {
             alloc_bump_ptr: BumpPointer::default(),
             start_the_world_count: 0,
             total_gc_time: Duration::new(0, 0),
-        });
-
-        let gc_interface_ptr = Box::leak(self_);
-
-        unsafe {
-            // in the context of tests, this function gets invoked many times, so they can have already been initialized.
-            // TODO: which makes me realize that this function's structure is subpar. Why do we return a NEW GCInterface at all, then?
-            // The universe should likely use a reference to the OnceCell, or something... That'd be better.
-
-            if MUTATOR_WRAPPER.get().is_none() {
-                // very unsafe, very ugly: we duplicate a mutable reference to the GC interface ptr. need to avoid by implementing above idea
-                let dup_ptr = &mut *(gc_interface_ptr as *mut GCInterface);
-                MUTATOR_WRAPPER.set(dup_ptr).unwrap_or_else(|_| panic!("couldn't set mutator wrapper?"));
-            }
-
-            if MMTK_TO_VM_INTERFACE.get().is_none() {
-                MMTK_TO_VM_INTERFACE.get_or_init(|| vm_callbacks);
-            }
+            max_heap_size: heap_size,
+            _pin: PhantomPinned,
+            #[cfg(feature = "track-allocations")]
+            total_program_repr_size: 0,
+            #[cfg(feature = "track-allocations")]
+            total_other_memory_size: 0,
+            #[cfg(feature = "track-allocations")]
+            alloc_map: HashMap::new(),
         }
-
-        gc_interface_ptr
     }
 
     /// Initialize MMTk, and get from it all the info we need to initialize our interface
@@ -184,8 +194,12 @@ impl GCInterface {
     }
 
     /// Returns the total time spent performing GC.
-    pub fn get_total_gc_time(&self) -> usize {
-        self.total_gc_time.as_micros() as usize
+    pub fn get_total_gc_time(&self) -> u128 {
+        self.total_gc_time.as_millis()
+    }
+
+    pub fn get_max_heap_size(&self) -> usize {
+        self.max_heap_size
     }
 
     /// Whether or not we're currently performing GC.
@@ -207,10 +221,28 @@ impl GCInterface {
 
         let time_pre_gc = Instant::now();
 
-        let result = cvar.wait_timeout_while(is_world_stopped.lock().unwrap(), Duration::from_secs(15), |pending| *pending).unwrap();
+        let result = cvar.wait_timeout_while(is_world_stopped.lock().unwrap(), Duration::from_secs(60), |pending| *pending).unwrap();
         if result.1.timed_out() {
             panic!("GC timed out: highly likely to be a crash in a GC thread.")
         }
+
+        // memset old heap
+        // #[cfg(debug_assertions)]
+        // {
+        //     let old_heap_start: *mut u8 = match self.get_nbr_collections() {
+        //         nbr_collections if nbr_collections % 2 == 1 => 0x20000000000 as *mut u8,
+        //         _ => 0x40000000000 as *mut u8,
+        //     };
+        //
+        //     let size_semi_heap: usize = self.get_max_heap_size() / 2;
+        //
+        //     unsafe {
+        //         std::ptr::write_bytes(old_heap_start, 0xEF, size_semi_heap);
+        //         //let count = size_semi_heap / 4;
+        //         //let slice = std::slice::from_raw_parts_mut(old_heap_start as *mut u32, count);
+        //         //slice.fill(0xDEADBEEF);
+        //     }
+        // }
 
         debug!("block_for_gc: world no longer stopped.");
         self.is_collecting = false;
@@ -222,11 +254,6 @@ impl GCInterface {
         F: FnMut(&'static mut Mutator<SOMVM>),
     {
         debug!("stop_all_mutators called");
-
-        //while !AtomicBool::load(&IS_WORLD_STOPPED, Ordering::SeqCst) {
-        //    // wait for world to be properly stopped (might not be needed)
-        //}
-
         mutator_visitor(self.mutator.as_mut())
     }
 
@@ -251,8 +278,8 @@ impl GCInterface {
 }
 
 /// Explicitly mentions what an allocation was requested for.
-/// The intent is to help debugging: we can track where GC was triggered, and what triggered it. This is all to find GC bugs.
-#[derive(Debug)]
+/// The intent is to help debugging: we can track where GC was triggered, and what triggered it. This is all to find GC bugs, and also track memory usage for experiments.
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
 pub enum AllocSiteMarker {
     AstFrame,
     MethodFrame,
@@ -262,8 +289,17 @@ pub enum AllocSiteMarker {
     BlockFrame,
     Instance,
     Method,
+    MethodInfo,
+    BlockMethod,
     Class,
-    Array,
+    String,
+    StringLiteral,
+    BigInt,
+    SliceAstExpression,
+    VecValue,
+    VecBCLiteral,
+    SliceAstLiteral,
+    RuntimeBlock,
 }
 
 /// To save on some space in the trait itself. Bit overkill, probably
@@ -272,57 +308,44 @@ impl<T> SliceConstraint for T where T: SupportedSliceType + std::fmt::Debug {}
 
 /// All functions necessary to allocate memory from within som-rs.
 pub trait SOMAllocator {
-    fn request_memory_for_type<T>(&mut self, type_size: usize, alloc_origin_marker: Option<AllocSiteMarker>) -> Gc<T>
+    fn request_memory_for_type<T>(&mut self, type_size: usize, alloc_origin_marker: AllocSiteMarker) -> Gc<T>
     where
-        T: HasTypeInfoForGC;
-    fn request_bytes(&mut self, size: usize, _alloc_origin_marker: Option<AllocSiteMarker>) -> Address;
-    fn request_bytes_for_slice(&mut self, slice_size: usize, alloc_origin_marker: Option<AllocSiteMarker>) -> Address;
-    fn request_bytes_los(&mut self, size: usize, _alloc_origin_marker: Option<AllocSiteMarker>) -> Address;
+        T: GcType;
+    fn request_bytes(&mut self, size: usize, _alloc_origin_marker: AllocSiteMarker) -> Address;
+    fn request_memory_for_slice_type(&mut self, slice_size: usize, alloc_origin_marker: AllocSiteMarker) -> Address;
+    fn request_bytes_los(&mut self, size: usize, _alloc_origin_marker: AllocSiteMarker) -> Address;
 
-    fn alloc<T>(&mut self, obj: T) -> Gc<T>
+    // #[deprecated(note="use alloc_with_marker instead")]
+    fn alloc<T>(&mut self, obj: T, alloc_origin_marker: AllocSiteMarker) -> Gc<T>
     where
-        T: HasTypeInfoForGC;
-    fn alloc_with_size<T>(&mut self, obj: T, size: usize, alloc_origin_marker: Option<AllocSiteMarker>) -> Gc<T>
+        T: GcType;
+    fn alloc_with_size<T>(&mut self, obj: T, size: usize, alloc_origin_marker: AllocSiteMarker) -> Gc<T>
     where
-        T: HasTypeInfoForGC;
-    fn alloc_with_marker<T>(&mut self, obj: T, alloc_origin_marker: Option<AllocSiteMarker>) -> Gc<T>
-    where
-        T: HasTypeInfoForGC;
+        T: GcType;
 
     // Methods for allocating slices.
-    fn alloc_safe_slice<T>(&mut self, obj: &[T]) -> GcSlice<T>
-    where
-        T: SliceConstraint;
-    fn alloc_safe_slice_with_marker<T>(&mut self, obj: &[T], alloc_origin_marker: Option<AllocSiteMarker>) -> GcSlice<T>
+    fn alloc_safe_slice<T>(&mut self, obj: &[T], alloc_origin_marker: AllocSiteMarker) -> GcSlice<T>
     where
         T: SliceConstraint;
     fn write_slice_to_addr<T>(&mut self, slice_header_addr: Address, obj: &[T]) -> GcSlice<T>
     where
         T: SupportedSliceType + std::fmt::Debug;
-    //#[deprecated]
-    fn alloc_slice_with_marker<T>(&mut self, obj: &[T], alloc_origin_marker: Option<AllocSiteMarker>) -> GcSlice<T>
-    where
-        T: SupportedSliceType + std::fmt::Debug;
 
     //#[deprecated]
-    fn alloc_slice<T>(&mut self, obj: &[T]) -> GcSlice<T>
+    fn alloc_slice<T>(&mut self, obj: &[T], alloc_origin_marker: AllocSiteMarker) -> GcSlice<T>
     where
         T: SupportedSliceType + std::fmt::Debug;
 }
 
 impl SOMAllocator for GCInterface {
-    fn alloc<T: HasTypeInfoForGC>(&mut self, obj: T) -> Gc<T> {
-        self.alloc_with_size(obj, size_of::<T>(), None)
-    }
-
     /// Allocates a type on the heap and returns a pointer to it.
     /// Considers that the provided object's size can be trivially inferred with a `size_of` call (which isn't the case for all of our objects, e.g. frames)
-    fn alloc_with_marker<T: HasTypeInfoForGC>(&mut self, obj: T, alloc_origin_marker: Option<AllocSiteMarker>) -> Gc<T> {
+    fn alloc<T: GcType>(&mut self, obj: T, alloc_origin_marker: AllocSiteMarker) -> Gc<T> {
         self.alloc_with_size(obj, size_of::<T>(), alloc_origin_marker)
     }
 
     /// Allocates a type, but with a given size.
-    fn alloc_with_size<T: HasTypeInfoForGC>(&mut self, obj: T, size: usize, alloc_origin_marker: Option<AllocSiteMarker>) -> Gc<T> {
+    fn alloc_with_size<T: GcType>(&mut self, obj: T, size: usize, alloc_origin_marker: AllocSiteMarker) -> Gc<T> {
         debug_assert!(size >= MIN_OBJECT_SIZE);
 
         // adding VM header size (type info) to amount we allocate
@@ -345,35 +368,17 @@ impl SOMAllocator for GCInterface {
     /// Allocates a slice that only contains values that ARE NOT pointers.
     /// Allocating a Vec<i32> is fine, allocating a Vec<Value> is fine if they're all Integer values.
     /// Not unforced by the Rust type system atm, but we could make some nice traits for this. Just afraid that this would add unnecessary complexity.
-    fn alloc_safe_slice<T: SupportedSliceType + std::fmt::Debug>(&mut self, obj: &[T]) -> GcSlice<T> {
-        self.alloc_safe_slice_with_marker(obj, None)
-    }
-
-    fn alloc_safe_slice_with_marker<T: SupportedSliceType + std::fmt::Debug>(
-        &mut self,
-        obj: &[T],
-        alloc_origin_marker: Option<AllocSiteMarker>,
-    ) -> GcSlice<T> {
-        let header_addr = self.request_bytes_for_slice(std::mem::size_of_val(obj), alloc_origin_marker);
+    fn alloc_safe_slice<T: SupportedSliceType + std::fmt::Debug>(&mut self, obj: &[T], alloc_origin_marker: AllocSiteMarker) -> GcSlice<T> {
+        let header_addr = self.request_memory_for_slice_type(std::mem::size_of_val(obj), alloc_origin_marker);
         self.write_slice_to_addr(header_addr, obj)
     }
 
+    /// Allocates a type on the heap and returns a pointer to it.
     /// Deprecated because too likely to be unsafe: GC triggered when allocating a slice makes the
     /// slice likely to be invalid.
     /// Now every uses should be replaced with alloc_safe_slice, or with `request_mem_for_slice` + `write_slice_to_addr`
-    fn alloc_slice<T: SupportedSliceType + std::fmt::Debug>(&mut self, obj: &[T]) -> GcSlice<T> {
-        self.alloc_slice_with_marker(obj, None)
-    }
-
-    // Allocates a type on the heap and returns a pointer to it.
-    /// See above for why it's deprecated.
-    // TODO: slices can get big, and need allocation with LOS. Need to implement.
-    fn alloc_slice_with_marker<T: SupportedSliceType + std::fmt::Debug>(
-        &mut self,
-        obj: &[T],
-        alloc_origin_marker: Option<AllocSiteMarker>,
-    ) -> GcSlice<T> {
-        let header_addr = self.request_bytes_for_slice(std::mem::size_of_val(obj), alloc_origin_marker);
+    fn alloc_slice<T: SupportedSliceType + std::fmt::Debug>(&mut self, obj: &[T], alloc_origin_marker: AllocSiteMarker) -> GcSlice<T> {
+        let header_addr = self.request_memory_for_slice_type(std::mem::size_of_val(obj), alloc_origin_marker);
         self.write_slice_to_addr(header_addr, obj)
     }
 
@@ -394,7 +399,7 @@ impl SOMAllocator for GCInterface {
     /// Request `size` bytes from MMTk.
     /// Importantly, this MAY TRIGGER A COLLECTION. Which means any function that relies on it must be mindful of this,
     /// such as by making sure no arguments are dangling on the Rust stack away from the GC's reach.
-    fn request_bytes(&mut self, size: usize, _alloc_origin_marker: Option<AllocSiteMarker>) -> Address {
+    fn request_bytes(&mut self, size: usize, _alloc_origin_marker: AllocSiteMarker) -> Address {
         unsafe { &mut (*self.default_allocator) }.alloc(size, GC_ALIGN, GC_OFFSET)
         // slow path, for debugging
         // crate::api::mmtk_alloc(&mut self.mutator, size, GC_ALIGN, GC_OFFSET, AllocationSemantics::Default)
@@ -404,8 +409,21 @@ impl SOMAllocator for GCInterface {
     /// Request `size` bytes from MMTk.
     /// Importantly, this MAY TRIGGER A COLLECTION. Which means any function that relies on it must be mindful of this,
     /// such as by making sure no arguments are dangling on the Rust stack away from the GC's reach.
-    fn request_bytes(&mut self, size: usize, _alloc_origin_marker: Option<AllocSiteMarker>) -> Address {
+    fn request_bytes(&mut self, size: usize, _alloc_origin_marker: AllocSiteMarker) -> Address {
         //unsafe { &mut (*self.default_allocator) }.alloc(size, GC_ALIGN, GC_OFFSET)
+
+        #[cfg(feature = "track-allocations")]
+        {
+            use AllocSiteMarker::*;
+            match _alloc_origin_marker {
+                AstFrame | Instance | MethodFrame | MethodFrameWithArgs | InitMethodFrame | BlockFrame | String | VecValue | BigInt
+                | SliceAstLiteral | RuntimeBlock => self.total_other_memory_size += size as u128,
+                Block | Method | MethodInfo | BlockMethod | Class | SliceAstExpression | VecBCLiteral | StringLiteral => {
+                    self.total_program_repr_size += size as u128
+                }
+            }
+            *self.alloc_map.entry(_alloc_origin_marker).or_insert(0) += 1;
+        }
 
         let _gc_watcher = self.start_the_world_count;
 
@@ -417,10 +435,7 @@ impl SOMAllocator for GCInterface {
 
         #[cfg(debug_assertions)]
         if self.start_the_world_count > _gc_watcher {
-            match _alloc_origin_marker {
-                Some(alloc_type) => println!("GC was triggered after allocating a {:?}", alloc_type),
-                None => println!("GC triggered after allocating something (no marker)"),
-            };
+            println!("GC was triggered after allocating a {:?}", _alloc_origin_marker)
         }
 
         addr
@@ -442,7 +457,7 @@ impl SOMAllocator for GCInterface {
         // }
     }
 
-    fn request_bytes_los(&mut self, size: usize, _alloc_origin_marker: Option<AllocSiteMarker>) -> Address {
+    fn request_bytes_los(&mut self, size: usize, _alloc_origin_marker: AllocSiteMarker) -> Address {
         debug_assert!(
             size >= crate::mmtk().get_plan().constraints().max_non_los_default_alloc_bytes,
             "Requesting LOS for a non large object"
@@ -450,8 +465,10 @@ impl SOMAllocator for GCInterface {
         crate::api::mmtk_alloc(&mut self.mutator, size, GC_ALIGN, GC_OFFSET, AllocationSemantics::Los)
     }
 
-    /// TODO doc + should likely deduce the size from the type
-    fn request_memory_for_type<T: HasTypeInfoForGC>(&mut self, type_size: usize, alloc_origin_marker: Option<AllocSiteMarker>) -> Gc<T> {
+    /// Requests memory for a type T, given the size of the type, and returns a pointer to a newly allocated T.
+    /// FEAT: should perhaps deduce the size from the type, but some types lie about their real size (e.g. Frames). Though perhaps
+    /// there's a way to use Sized here, and make frames be !Sized.
+    fn request_memory_for_type<T: GcType>(&mut self, type_size: usize, alloc_origin_marker: AllocSiteMarker) -> Gc<T> {
         let mut bytes = self.request_bytes(type_size + OBJECT_REF_OFFSET, alloc_origin_marker);
         unsafe {
             *bytes.as_mut_ref::<u8>() = T::get_magic_gc_id();
@@ -460,7 +477,8 @@ impl SOMAllocator for GCInterface {
         }
     }
 
-    fn request_bytes_for_slice(&mut self, slice_size: usize, alloc_origin_marker: Option<AllocSiteMarker>) -> Address {
+    /// Requests memory for a slice type T, given the size of the type, and returns a pointer to a newly allocated slice T.
+    fn request_memory_for_slice_type(&mut self, slice_size: usize, alloc_origin_marker: AllocSiteMarker) -> Address {
         let mut size = {
             match slice_size {
                 v if v < MIN_OBJECT_SIZE => MIN_OBJECT_SIZE,
@@ -470,15 +488,15 @@ impl SOMAllocator for GCInterface {
 
         size += std::mem::size_of::<usize>(); // size stored at the start
 
-        // slices can be big enough to warrant using large object storage.
-        let header_addr = {
-            match size <= crate::mmtk().get_plan().constraints().max_non_los_default_alloc_bytes {
-                true => self.request_bytes(size + OBJECT_REF_OFFSET, alloc_origin_marker),
-                false => self.request_bytes_los(size + OBJECT_REF_OFFSET, alloc_origin_marker),
-            }
-        };
+        // when LOS is enabled, slices can be big enough to warrant using large object storage.
+        //let header_addr = {
+        //    match size <= crate::mmtk().get_plan().constraints().max_non_los_default_alloc_bytes {
+        //        true => self.request_bytes(size + OBJECT_REF_OFFSET, alloc_origin_marker),
+        //        false => self.request_bytes_los(size + OBJECT_REF_OFFSET, alloc_origin_marker),
+        //    }
+        //};
 
-        header_addr
+        self.request_bytes(size + OBJECT_REF_OFFSET, alloc_origin_marker)
     }
 }
 
@@ -486,36 +504,38 @@ impl SOMAllocator for GCInterface {
 
 /// Implements a per-type magic number.
 /// GC needs to access type info from raw ObjectReference types, so data that gets put on the GC heap has an associated type ID that gets put in a per-allocation header.
-pub trait HasTypeInfoForGC {
+pub trait GcType
+where
+    Self: Sized,
+{
     fn get_magic_gc_id() -> u8;
+    fn scan_object(_self: Gc<Self>, visit_slot_fn: &mut dyn FnMut(SOMSlot));
+    fn get_size_in_memory(_self: Gc<Self>) -> usize;
 }
 
 pub const STRING_MAGIC_ID: u8 = 10;
 pub const BIGINT_MAGIC_ID: u8 = 11;
 
-impl HasTypeInfoForGC for String {
+impl GcType for String {
     fn get_magic_gc_id() -> u8 {
         STRING_MAGIC_ID
     }
-}
-impl HasTypeInfoForGC for BigInt {
-    fn get_magic_gc_id() -> u8 {
-        BIGINT_MAGIC_ID
+
+    fn scan_object(_self: Gc<Self>, _visit_slot_fn: &mut dyn FnMut(SOMSlot)) {}
+
+    fn get_size_in_memory(_self: Gc<Self>) -> usize {
+        size_of::<String>()
     }
 }
 
-//impl<T> HasTypeInfoForGC for GCSlice<T> {
-//    fn get_magic_gc_id() -> u8 {
-//        GCSLICE_MAGIC_ID
-//    }
-//}
-
-pub trait SupportedSliceType {
-    fn get_magic_gc_slice_id() -> u8;
-}
-
-impl<T: SupportedSliceType> HasTypeInfoForGC for GcSlice<T> {
+impl GcType for BigInt {
     fn get_magic_gc_id() -> u8 {
-        T::get_magic_gc_slice_id()
+        BIGINT_MAGIC_ID
+    }
+
+    fn scan_object(_self: Gc<Self>, _scan_fn: &mut dyn FnMut(SOMSlot)) {}
+
+    fn get_size_in_memory(_self: Gc<Self>) -> usize {
+        32 // HACK: thought it would be better than a dependency on BigInt just to fetch that size. But eh
     }
 }

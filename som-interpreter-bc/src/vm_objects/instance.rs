@@ -1,7 +1,10 @@
+use crate::gc::{visit_value, GcIdentifier};
 use crate::value::Value;
 use crate::vm_objects::class::Class;
 use core::mem::size_of;
+use som_gc::gc_interface::GcType;
 use som_gc::gcref::Gc;
+use som_gc::slot::SOMSlot;
 use std::fmt;
 use std::marker::PhantomData;
 
@@ -15,6 +18,14 @@ pub struct Instance {
 }
 
 impl Instance {
+    /// Construct an instance for a given class.
+    pub fn from_class(class: Gc<Class>) -> Self {
+        Self {
+            class,
+            fields_marker: PhantomData,
+        }
+    }
+
     /// Get the class of which this is an instance from.
     pub fn class(&self) -> Gc<Class> {
         self.class.clone()
@@ -57,5 +68,24 @@ impl fmt::Debug for Instance {
             .field("name", &self.class.name())
             // .field("locals", &self.locals.keys())
             .finish()
+    }
+}
+
+impl GcType for Instance {
+    fn get_magic_gc_id() -> u8 {
+        GcIdentifier::Instance as u8
+    }
+
+    fn scan_object(_self: Gc<Instance>, visit_slot_fn: &mut dyn FnMut(SOMSlot)) {
+        visit_slot_fn(SOMSlot::from(&_self.class));
+
+        for i in 0.._self.class().get_nbr_fields() {
+            let val: &Value = Instance::lookup_field(&_self, i);
+            visit_value(val, visit_slot_fn)
+        }
+    }
+
+    fn get_size_in_memory(_self: Gc<Self>) -> usize {
+        size_of::<Instance>() + _self.class.fields.len() * size_of::<Value>()
     }
 }

@@ -58,7 +58,7 @@ pub fn interactive(universe: &mut Universe, verbose: bool) -> Result<(), Error> 
                 continue;
             }
         };
-        let class_expr = Class::from_class_def(classdef, None, universe.gc_interface, &mut universe.interner).unwrap();
+        let class_expr = Class::from_class_def(classdef, None, &mut universe.gc_interface, &mut universe.interner).unwrap();
         let elapsed = start.elapsed();
         if verbose {
             writeln!(&mut stdout, "Parsing time: {} ms ({} µs)", elapsed.as_millis(), elapsed.as_micros(),)?;
@@ -73,6 +73,7 @@ pub fn interactive(universe: &mut Universe, verbose: bool) -> Result<(), Error> 
             match method.invoke(universe, &mut value_stack, 2) {
                 Return::Local(v) => v,
                 Return::NonLocal(v, _) => v,
+                Return::Restart => panic!("restart called in shell. What is the intended behavior here?"),
             }
         };
 

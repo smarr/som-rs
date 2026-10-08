@@ -2,23 +2,20 @@
 //! This module only needs to expose the compile_class() function: the rest of the VM should not
 //! need access to more than that, barring testing.
 
-use crate::gc::VecValue;
+use crate::gc::{VecLiteral, VecValue};
 use crate::value::Value;
-use crate::vm_objects::block::Block;
+use crate::vm_objects::method::MethodInfo;
 use num_bigint::BigInt;
+use som_gc::gc_interface::AllocSiteMarker;
 use som_gc::{
     gc_interface::{GCInterface, SOMAllocator},
     gcref::Gc,
-    gcslice::GcSlice,
 };
 use som_value::interned::Interned;
 use std::hash::{Hash, Hasher};
 
 /// Facilities to compile code.
 pub mod compile;
-
-/// Inlining some calls to a select few builtin functions for sizeable perf gains.
-mod inliner;
 
 #[derive(Debug, Clone)]
 pub enum Literal {
@@ -27,8 +24,8 @@ pub enum Literal {
     Double(f64),
     Integer(i32),
     BigInteger(Gc<BigInt>),
-    Array(GcSlice<Literal>),
-    Block(Gc<Block>),
+    Array(VecLiteral),
+    Block(Gc<MethodInfo>),
 }
 
 impl PartialEq for Literal {
@@ -94,8 +91,10 @@ pub fn value_from_literal(literal: &Literal, gc_interface: &mut GCInterface) -> 
         Literal::BigInteger(val) => Value::BigInteger(val.clone()),
         Literal::Array(val) => {
             let arr = &val.iter().map(|lit| value_from_literal(lit, gc_interface)).collect::<Vec<_>>();
-            Value::Array(VecValue(gc_interface.alloc_slice(arr)))
+            Value::Array(VecValue(gc_interface.alloc_slice(arr, AllocSiteMarker::VecValue)))
         }
-        Literal::Block(val) => Value::Block(val.clone()),
+        Literal::Block(_) => {
+            panic!("We should never request a value from a block literal, which are always only associated with a PushBlock bytecode")
+        }
     }
 }

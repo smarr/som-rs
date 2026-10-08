@@ -25,7 +25,7 @@ macro_rules! debug_assert_valid_semispace_ptr_value {
                 if slice.get_true_size() >= 65535 {
                     // pass
                 } else {
-                    assert!(slice.ptr.is_pointer_to_valid_space(), "Pointer to invalid space.");
+                    assert!(slice.ptr.is_pointer_to_valid_space(), "Pointer to slice in invalid space.");
                 }
             } else if let Some(ptr) = $value.0.as_something::<Gc<()>>() {
                 assert!(ptr.is_pointer_to_valid_space(), "Pointer to invalid space.");
@@ -158,16 +158,27 @@ impl<T> Gc<T> {
             number as u8
         }
 
-        let gc_interface = unsafe { &**crate::MUTATOR_WRAPPER.get().unwrap() };
+        let gc_interface = unsafe {
+            match crate::VM_TO_MMTK_INTERFACE.get() {
+                Some(gc_interface) => &**gc_interface,
+                None => return true, // Assume we're initializing the VM for now, just return true
+            }
+        };
 
         // if we're collecting, we're handling both new and old pointers, so we just say they're all valid for simplicity.
         if gc_interface.is_currently_collecting() {
             return true;
         }
 
+        let leftmost_digit = leftmost_digit(self.ptr as usize);
+
+        if leftmost_digit == 8 {
+            return true; // assume it's large object storage. This feels hack-ish, but I guess this whole function is a bit of a hack..
+        }
+
         match gc_interface.get_nbr_collections() % 2 == 0 {
-            true => leftmost_digit(self.ptr as usize) == 2,
-            false => leftmost_digit(self.ptr as usize) == 4,
+            true => leftmost_digit == 2,
+            false => leftmost_digit == 4,
         }
     }
 

@@ -1,7 +1,8 @@
 use rstest::{fixture, rstest};
-use som_gc::gc_interface::SOMAllocator;
+use som_gc::gc_interface::{AllocSiteMarker, SOMAllocator};
 use som_gc::gcref::Gc;
-use som_interpreter_ast::compiler::compile::AstMethodCompilerCtxt;
+use som_interpreter_ast::compiler::AstMethodCompilerCtxt;
+use som_interpreter_ast::gc::get_callbacks_for_gc;
 use som_interpreter_ast::invokable::Return;
 use som_interpreter_ast::universe::{GlobalValueStack, Universe};
 use som_interpreter_ast::value::Value;
@@ -28,13 +29,13 @@ pub fn universe<'a>() -> &'a mut Universe {
                 PathBuf::from("../core-lib/Examples/Benchmarks/Json"),
                 PathBuf::from("../core-lib/Examples/Benchmarks/DeltaBlue"),
                 PathBuf::from("../core-lib/Examples/Benchmarks/Richards"),
-                // PathBuf::from("../core-lib/Examples/Benchmarks/LanguageFeatures"), // breaks basic tests?
                 PathBuf::from("../core-lib/TestSuite/BasicInterpreterTests"),
             ];
             Universe::with_classpath(classpath).expect("could not setup test universe")
         });
 
         let mut_universe_ref = UNIVERSE_CELL.get_mut().unwrap();
+        som_gc::handshake_with_vm(&mut mut_universe_ref.gc_interface, get_callbacks_for_gc());
         UNIVERSE_RAW_PTR_CONST.store(mut_universe_ref, Ordering::SeqCst);
 
         mut_universe_ref
@@ -139,7 +140,7 @@ fn basic_interpreter_tests(universe: &mut Universe, stack: &mut GlobalValueStack
         assert!(lexer.text().is_empty(), "could not fully tokenize test expression");
 
         let ast_parser = som_parser::apply(lang::expression(), tokens.as_slice()).unwrap();
-        let mut compiler = AstMethodCompilerCtxt::new(universe.gc_interface, &mut universe.interner);
+        let mut compiler = AstMethodCompilerCtxt::new(&mut universe.gc_interface, &mut universe.interner);
         let mut ast = compiler.parse_expression(&ast_parser);
 
         stack.push(system_value);
@@ -155,7 +156,10 @@ fn basic_interpreter_tests(universe: &mut Universe, stack: &mut GlobalValueStack
 /// Runs the TestHarness, which handles many basic tests written in SOM
 #[rstest]
 fn test_harness(universe: &mut Universe, stack: &mut GlobalValueStack) {
-    let args = ["TestHarness"].iter().map(|str| Value::String(universe.gc_interface.alloc(String::from(*str)))).collect();
+    let args = ["TestHarness"]
+        .iter()
+        .map(|str| Value::String(universe.gc_interface.alloc(String::from(*str), AllocSiteMarker::String)))
+        .collect();
 
     let output = universe.initialize(args, stack).unwrap();
 
@@ -182,7 +186,7 @@ fn test_harness(universe: &mut Universe, stack: &mut GlobalValueStack) {
 fn basic_benchmark_runner(universe: &mut Universe, stack: &mut GlobalValueStack, #[case] benchmark_name: &str) {
     let args = ["BenchmarkHarness", benchmark_name, "1", "1"]
         .iter()
-        .map(|str| Value::String(universe.gc_interface.alloc(String::from(*str))))
+        .map(|str| Value::String(universe.gc_interface.alloc(String::from(*str), AllocSiteMarker::String)))
         .collect();
 
     let output = universe.initialize(args, stack).unwrap();

@@ -9,7 +9,7 @@ use crate::vm_objects::class::Class;
 use anyhow::{bail, Context, Error};
 use num_bigint::BigInt;
 use once_cell::sync::Lazy;
-use som_gc::gc_interface::SOMAllocator;
+use som_gc::gc_interface::{AllocSiteMarker, SOMAllocator};
 use som_gc::gcref::Gc;
 use som_value::interned::Interned;
 use std::convert::TryFrom;
@@ -45,7 +45,7 @@ fn load_file(universe: &mut Universe, stack: &mut GlobalValueStack) -> Result<Va
     };
 
     match fs::read_to_string(path) {
-        Ok(value) => Ok(Value::String(universe.gc_interface.alloc(value))),
+        Ok(value) => Ok(Value::String(universe.gc_interface.alloc(value, AllocSiteMarker::String))),
         Err(_) => Ok(Value::NIL),
     }
 }
@@ -159,9 +159,7 @@ fn time(universe: &mut Universe, stack: &mut GlobalValueStack) -> Result<Value, 
 
 // this function is unusable after my recent changes to the frame. needs to be fixed when a compilation flag for frame debug info is enabled
 fn print_stack_trace(_: Value) -> Result<bool, Error> {
-    // const SIGNATURE: &str = "System>>#printStackTrace";
-
-    dbg!("printStackTrace is broken (on purpose). It can be fixed and reenabled with a debug flag, though.");
+    eprintln!("printStackTrace is broken (on purpose). It can be fixed and reenabled with a debug flag, though.");
     /*
             for frame in &universe.frames {
             // let class = frame.borrow().get_method_holder(universe);
@@ -188,15 +186,41 @@ fn gc_stats(universe: &mut Universe, stack: &mut GlobalValueStack) -> Result<Vec
     get_args_from_stack!(stack, _a => Value);
     let gc_interface = &mut universe.gc_interface;
 
-    let total_gc = gc_interface.get_nbr_collections();
-    let total_gc_time = gc_interface.alloc(BigInt::from(gc_interface.get_total_gc_time()));
-    let total_bytes_bigint = gc_interface.alloc(BigInt::from(gc_interface.get_used_bytes()));
+    let (total_gc, total_gc_time, total_bytes_bigint) = {
+        // ----- INTENDED BEHAVIOR -----
+        let total_gc = gc_interface.get_nbr_collections();
+        let total_gc_time = gc_interface.alloc(BigInt::from(gc_interface.get_total_gc_time()), AllocSiteMarker::BigInt);
+        let total_bytes_bigint = gc_interface.alloc(BigInt::from(gc_interface.get_used_bytes()), AllocSiteMarker::BigInt);
 
-    Ok(VecValue(universe.gc_interface.alloc_slice(&[
-        Value::Integer(total_gc as i32),
-        Value::BigInteger(total_gc_time),
-        Value::BigInteger(total_bytes_bigint),
-    ])))
+        // -----  PROGRAM REPR SIZE -----
+        //let total_gc: usize = 24;
+        //let total_gc_time = gc_interface.alloc(BigInt::from(-2424), AllocSiteMarker::BigInt);
+        //let total_bytes_bigint = gc_interface.alloc(BigInt::from(gc_interface.total_program_repr_size), AllocSiteMarker::BigInt);
+
+        // -----  TOTAL MEM USAGE -----
+        //let total_gc: usize = 42;
+        //let total_gc_time = gc_interface.alloc(BigInt::from(-4242), AllocSiteMarker::BigInt);
+        //let total_bytes_bigint = gc_interface.alloc(
+        //    BigInt::from(
+        //        gc_interface.total_program_repr_size
+        //        + gc_interface.total_other_memory_size
+        //        // not fully accurate since the stack may grow later still? but i think it's very much fine
+        //        + (stack.get_capacity() * size_of::<Value>()) as u128,
+        //    ),
+        //    AllocSiteMarker::BigInt,
+        //);
+
+        (total_gc, total_gc_time, total_bytes_bigint)
+    };
+
+    Ok(VecValue(universe.gc_interface.alloc_slice(
+        &[
+            Value::Integer(total_gc as i32),
+            Value::BigInteger(total_gc_time),
+            Value::BigInteger(total_bytes_bigint),
+        ],
+        AllocSiteMarker::VecValue,
+    )))
 }
 
 /// Search for an instance primitive matching the given signature.

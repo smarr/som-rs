@@ -1,14 +1,16 @@
-use std::fmt;
+use std::{fmt, vec};
 
-use crate::compiler::compile::AstMethodCompilerCtxt;
+use crate::compiler::AstMethodCompilerCtxt;
+use crate::gc::{visit_value, GcIdentifier};
 use crate::primitives;
 use crate::value::Value;
 use crate::vm_objects::method::{Method, MethodKind};
 use indexmap::IndexMap;
 use som_core::ast::ClassDef;
 use som_core::interner::Interner;
-use som_gc::gc_interface::{GCInterface, SOMAllocator};
+use som_gc::gc_interface::{AllocSiteMarker, GCInterface, GcType, SOMAllocator};
 use som_gc::gcref::Gc;
+use som_gc::slot::SOMSlot;
 use som_value::interned::Interned;
 
 // /// A reference that may be either weak or owned/strong.
@@ -35,18 +37,12 @@ pub struct Class {
     pub field_names: Vec<String>,
     /// The class' methods/invokables.
     pub methods: IndexMap<Interned, Gc<Method>>,
-    /// Is this class a static one ?
-    pub is_static: bool,
 }
 
 // I don't test every field, but this should be good enough, AFAIK.
 impl PartialEq for Class {
     fn eq(&self, other: &Self) -> bool {
-        self.name == other.name
-            && self.fields == other.fields
-            && self.field_names == other.field_names
-            && self.methods == other.methods
-            && self.is_static == other.is_static
+        self.name == other.name && self.fields == other.fields && self.field_names == other.field_names && self.methods == other.methods
     }
 }
 
@@ -61,22 +57,33 @@ impl Class {
         interner: &mut Interner,
     ) -> Result<Gc<Class>, String> {
         let static_locals = {
-            let mut static_locals = IndexMap::new();
-            for field in defn.static_locals.iter() {
-                if static_locals.insert(field.clone(), Value::NIL).is_some() {
-                    return Err(format!("{}: the field named '{}' is already defined in this class", defn.name, field,));
+            let mut static_locals = vec![];
+
+            if let Some(super_class) = &super_class {
+                // NB: only need to check the one superclass, and not walk the superclass tree, since the superclass already contains all the fields of its parents
+                for scls_field in &super_class.class.field_names {
+                    static_locals.push(scls_field.to_string())
                 }
+            }
+
+            for field in defn.static_locals.iter() {
+                static_locals.push(field.clone());
             }
             static_locals
         };
 
         let instance_locals = {
-            let mut instance_locals = IndexMap::new();
-            for field in defn.instance_locals.iter() {
-                if instance_locals.insert(field.clone(), Value::NIL).is_some() {
-                    return Err(format!("{}: the field named '{}' is already defined in this class", defn.name, field,));
+            let mut instance_locals = vec![];
+            if let Some(super_class) = &super_class {
+                for scls_field in &super_class.field_names {
+                    instance_locals.push(scls_field.to_string());
                 }
             }
+
+            for field in defn.instance_locals.iter() {
+                instance_locals.push(field.clone());
+            }
+
             instance_locals
         };
 
@@ -87,24 +94,22 @@ impl Class {
             class: Gc::default(),
             super_class: maybe_static_superclass,
             fields: vec![Value::NIL; static_locals.len()],
-            field_names: defn.static_locals,
+            field_names: static_locals,
             methods: IndexMap::new(),
-            is_static: true,
         };
 
-        let mut static_class_gc_ptr = gc_interface.alloc(static_class);
+        let mut static_class_gc_ptr = gc_interface.alloc(static_class, AllocSiteMarker::Class);
 
         let instance_class = Self {
             name: defn.name.clone(),
             class: static_class_gc_ptr.clone(),
             super_class,
             fields: vec![Value::NIL; instance_locals.len()],
-            field_names: defn.instance_locals,
+            field_names: instance_locals,
             methods: IndexMap::new(),
-            is_static: false,
         };
 
-        let mut instance_class_gc_ptr = gc_interface.alloc(instance_class);
+        let mut instance_class_gc_ptr = gc_interface.alloc(instance_class, AllocSiteMarker::Class);
 
         let mut static_methods: IndexMap<Interned, Gc<Method>> = defn
             .static_methods
@@ -117,7 +122,7 @@ impl Class {
                     signature: signature.clone(),
                     holder: static_class_gc_ptr.clone(),
                 };
-                (interner.intern(signature.as_str()), gc_interface.alloc(method))
+                (interner.intern(signature.as_str()), gc_interface.alloc(method, AllocSiteMarker::Method))
             })
             .collect();
 
@@ -134,7 +139,7 @@ impl Class {
                     signature: signature.to_string(),
                     holder: static_class_gc_ptr.clone(),
                 };
-                static_methods.insert(interned_signature, gc_interface.alloc(method));
+                static_methods.insert(interned_signature, gc_interface.alloc(method, AllocSiteMarker::Method));
             }
         }
 
@@ -149,7 +154,7 @@ impl Class {
                     signature: method.signature.clone(),
                     holder: instance_class_gc_ptr.clone(),
                 };
-                (interned_signature, gc_interface.alloc(method))
+                (interned_signature, gc_interface.alloc(method, AllocSiteMarker::Method))
             })
             .collect();
 
@@ -166,7 +171,7 @@ impl Class {
                     signature: signature.to_string(),
                     holder: instance_class_gc_ptr.clone(),
                 };
-                instance_methods.insert(interned_signature, gc_interface.alloc(method));
+                instance_methods.insert(interned_signature, gc_interface.alloc(method, AllocSiteMarker::Method));
             }
         }
 
@@ -198,13 +203,6 @@ impl Class {
 
     /// Set the superclass of this class (as a weak reference).
     pub fn set_super_class(&mut self, class: &Gc<Self>) {
-        // for local_name in class.borrow().field_names.iter().rev() {
-        //     self.field_names.insert(0, local_name.clone());
-        // }
-        for local in class.fields.iter().rev() {
-            self.fields.insert(0, *local);
-        }
-
         self.super_class = Some(class.clone());
     }
 
@@ -237,28 +235,20 @@ impl Class {
         self.field_names
             .iter()
             .position(|field_name| field_name == name)
-            .map(|pos| pos + self.super_class().map(|scls| scls.get_total_field_nbr()).unwrap_or(0))
+            .map(|pos| pos + self.super_class().map(|scls| scls.get_nbr_fields()).unwrap_or(0))
             .or_else(|| match self.super_class() {
                 Some(super_class) => super_class.get_field_offset_by_name(name),
                 _ => None,
             })
     }
 
-    pub fn get_total_field_nbr(&self) -> usize {
-        let scls_nbr_fields = match self.super_class() {
-            Some(scls) => scls.get_total_field_nbr(),
-            None => 0,
-        };
-        self.field_names.len() + scls_nbr_fields
+    pub fn get_nbr_fields(&self) -> usize {
+        self.field_names.len()
     }
 
     /// Used by the `fields` primitive. Could be made faster (strings get cloned, then put on the GC heap in the primitive), but it's also basically never used.
     pub fn get_all_field_names(&self) -> Vec<String> {
-        self.field_names
-            .iter()
-            .cloned()
-            .chain(self.super_class.as_ref().map(|scls| scls.get_all_field_names()).unwrap_or_default())
-            .collect()
+        self.field_names.clone()
     }
 }
 
@@ -271,5 +261,31 @@ impl fmt::Debug for Class {
             // .field("class", &self.class)
             // .field("super_class", &self.super_class)
             .finish()
+    }
+}
+
+impl GcType for Class {
+    fn get_magic_gc_id() -> u8 {
+        GcIdentifier::Class as u8
+    }
+
+    fn scan_object(class: Gc<Self>, visit_slot_fn: &mut dyn FnMut(SOMSlot)) {
+        visit_slot_fn(SOMSlot::from(&class.class));
+
+        if let Some(scls) = class.super_class.as_ref() {
+            visit_slot_fn(SOMSlot::from(scls));
+        }
+
+        for (_, method_ref) in class.methods.iter() {
+            visit_slot_fn(SOMSlot::from(method_ref))
+        }
+
+        for field_ref in class.fields.iter() {
+            visit_value(field_ref, visit_slot_fn)
+        }
+    }
+
+    fn get_size_in_memory(_self: Gc<Self>) -> usize {
+        size_of::<Class>()
     }
 }

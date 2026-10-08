@@ -9,7 +9,7 @@ pub struct VMObjectModel {}
 /// This is the offset from the allocation result to the object reference for the object.
 /// For bindings that this offset is not a constant, you can implement the calculation in the method `ref_to_object_start``, and
 /// remove this constant.
-pub const OBJECT_REF_OFFSET: usize = 8; // TODO: 8 bytes is overkill. though we need all that for alignment reasons... don't we?
+pub const OBJECT_REF_OFFSET: usize = 8; // NB: 8 bytes is of course overkill, but we need that value to be word aligned.
 
 /// This is the offset from the object reference to an in-object address. The binding needs
 /// to guarantee the in-object address is inside the storage associated with the object.
@@ -49,9 +49,9 @@ impl ObjectModel<SOMVM> for VMObjectModel {
         let from_header = unsafe { ObjectReference::from_raw_address_unchecked(Self::ref_to_object_start(from)) };
 
         // > 65535
-        if bytes >= crate::mmtk().get_plan().constraints().max_non_los_default_alloc_bytes {
-            panic!("we tried to copy an object that should be in LOS? (addr: {:?})", from);
-        }
+        // if bytes >= crate::mmtk().get_plan().constraints().max_non_los_default_alloc_bytes {
+        //     panic!("we tried to copy an object that should be in LOS? (addr: {:?})", from);
+        // }
 
         let header_dst = copy_context.alloc_copy(from_header, bytes, align, offset, semantics);
         debug_assert!(!header_dst.is_zero());

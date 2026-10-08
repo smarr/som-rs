@@ -36,6 +36,8 @@ pub struct ClassDef {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct MethodDef {
+    /// The method parameters/arguments.
+    pub args: Vec<String>,
     /// The method's signature (eg. `println`, `at:put:` or `==`).
     pub signature: String,
     /// The method's body.
@@ -57,12 +59,7 @@ pub enum MethodBody {
     /// A primitive (meant to be implemented by the VM itself).
     Primitive,
     /// An actual body for the method, with locals.
-    Body {
-        locals_nbr: usize,
-        body: Body,
-        #[cfg(feature = "block-debug-info")]
-        debug_info: BlockDebugInfo,
-    },
+    Body { locals: Vec<String>, locals_nbr: usize, body: Body },
 }
 
 /// Represents the contents of a body (within a term or block).
@@ -104,23 +101,13 @@ pub struct Body {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expression {
     /// A reference to a binding (eg. `counter`).
-    GlobalRead(String),
-    /// This does NOT exist: this is a field write which will be resolved by the AST/BC compilers, or it's an error.
-    GlobalWrite(String, Box<Expression>),
-    /// Read of a local var.
-    LocalVarRead(usize),
-    /// Read of a nonlocal var.
-    NonLocalVarRead(usize, usize),
-    /// Read of an argument.
-    ArgRead(usize, usize),
+    Read(String),
     /// An assignment to a binding (eg. `counter := 10`).
-    LocalVarWrite(usize, Box<Expression>),
-    NonLocalVarWrite(usize, usize, Box<Expression>),
-    ArgWrite(usize, usize, Box<Expression>),
+    Write(String, Box<Expression>),
     /// A message send (eg. `counter incrementBy: 5`).
     Message(Box<Message>),
-    /// An exit operation (eg. `^counter`). Second argument is the scope level to differentiate local and nonlocal returns
-    Exit(Box<Expression>, usize),
+    /// An exit operation (eg. `^counter`).
+    Exit(Box<Expression>),
     /// A literal (eg. `'foo'`, `10`, `#foo`, ...).
     Literal(Literal),
     /// A block (eg. `[ :value | counter incrementBy: value ]`).
@@ -141,7 +128,19 @@ pub enum Expression {
 /// value == 3
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub struct Message {
+pub enum Message {
+    Regular(RegularMessage),
+    IfInlined(IfInlinedMsg),
+    IfNilInlined(IfNilInlinedMsg),
+    IfTrueIfFalseInlined(IfTrueIfFalseInlinedMsg),
+    IfNilIfNotNilInlined(IfNilIfNotNilInlinedMsg),
+    WhileInlined(WhileInlinedMsg),
+    AndOrInlined(AndOrInlinedMsg),
+    ToDoInlined(ToDoInlinedMsg),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct RegularMessage {
     /// The object to which the message is sent to.
     pub receiver: Expression,
     /// The signature of the message (eg. "ifTrue:ifFalse:").
@@ -150,17 +149,56 @@ pub struct Message {
     pub values: Vec<Expression>,
 }
 
-/// A message with "super" as the receiver, so the superclass.
 #[derive(Debug, Clone, PartialEq)]
-pub struct SuperMessage {
-    /// The object to which the message is sent to. TODO should not do a super call, but cache the class, really.
-    pub receiver_name: String,
-    /// Do we access the static or instance methods of the superclass?
-    pub is_static_class_call: bool,
-    /// The signature of the message (eg. "ifTrue:ifFalse:").
-    pub signature: String,
-    /// The list of dynamic values that are passed.
-    pub values: Vec<Expression>,
+pub struct IfInlinedMsg {
+    pub expected_bool: bool,
+    pub cond_expr: Expression,
+    pub body_instrs: Vec<Expression>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct IfNilInlinedMsg {
+    pub expects_nil: bool,
+    pub cond_expr: Expression,
+    pub body_instrs: Vec<Expression>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct IfTrueIfFalseInlinedMsg {
+    pub expected_bool: bool,
+    pub cond_expr: Expression,
+    pub body_1_instrs: Vec<Expression>,
+    pub body_2_instrs: Vec<Expression>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct IfNilIfNotNilInlinedMsg {
+    pub expects_nil: bool,
+    pub cond_expr: Expression,
+    pub body_1_instrs: Vec<Expression>,
+    pub body_2_instrs: Vec<Expression>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct WhileInlinedMsg {
+    pub expected_bool: bool,
+    pub cond_instrs: Vec<Expression>,
+    pub body_instrs: Vec<Expression>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct AndOrInlinedMsg {
+    pub is_and: bool,
+    pub first: Expression,
+    pub second: Vec<Expression>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ToDoInlinedMsg {
+    pub start_expr: Expression,
+    pub end_expr: Expression,
+    pub body_instrs: Vec<Expression>,
+    pub accumulator_name: String,
 }
 
 /// Represents a binary operation.
@@ -195,21 +233,11 @@ pub struct BinaryOp {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Block {
     /// Represents the parameters' names.
-    pub nbr_params: usize,
+    pub args: Vec<String>,
     /// The names of the locals.
-    pub nbr_locals: usize,
+    pub locals: Vec<String>,
     /// Represents the block's body.
     pub body: Body,
-    #[cfg(feature = "block-debug-info")]
-    /// Debug info for the block: parameters and local variable names
-    pub dbg_info: BlockDebugInfo,
-}
-
-#[cfg(feature = "block-debug-info")]
-#[derive(Debug, Clone, PartialEq)]
-pub struct BlockDebugInfo {
-    pub parameters: Vec<String>,
-    pub locals: Vec<String>,
 }
 
 /// Represents a term.

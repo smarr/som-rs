@@ -9,7 +9,7 @@ use crate::value::Value;
 use crate::vm_objects::block::Block;
 use crate::vm_objects::frame::{Frame, FrameAccess};
 use num_bigint::BigInt;
-use som_gc::gc_interface::SOMAllocator;
+use som_gc::gc_interface::{AllocSiteMarker, SOMAllocator};
 use som_gc::gcref::Gc;
 use som_gc::{debug_assert_valid_semispace_ptr, debug_assert_valid_semispace_ptr_value};
 
@@ -51,7 +51,7 @@ impl Evaluate for AstExpression {
                 } else if let Some(mut big_int) = local_val.as_big_integer::<Gc<BigInt>>() {
                     *big_int += 1;
                 } else {
-                    panic!("Invalid type in Inc")
+                    panic!("Invalid type in Inc: {:?}", local_val)
                 }
                 Return::Local(*local_val)
             }
@@ -64,7 +64,7 @@ impl Evaluate for AstExpression {
                 } else if let Some(mut big_int) = local_val.as_big_integer::<Gc<BigInt>>() {
                     *big_int -= 1;
                 } else {
-                    panic!("Invalid type in Dec")
+                    panic!("Invalid type in Dec: {:?}", local_val)
                 }
                 Return::Local(*local_val)
             }
@@ -160,7 +160,9 @@ impl Evaluate for AstLiteral {
                     let value = propagate!(literal.clone().evaluate(universe, _value_stack));
                     output.push(value);
                 }
-                Return::Local(Value::Array(VecValue(universe.gc_interface.alloc_slice(&output))))
+                Return::Local(Value::Array(VecValue(
+                    universe.gc_interface.alloc_slice(&output, AllocSiteMarker::VecValue),
+                )))
             }
             Self::Integer(int) => Return::Local(Value::Integer(*int)),
             Self::BigInteger(bigint) => Return::Local(Value::BigInteger(bigint.clone())),
@@ -180,7 +182,7 @@ impl Evaluate for AstTerm {
 impl Evaluate for Gc<AstBlock> {
     fn evaluate(&mut self, universe: &mut Universe, _value_stack: &mut GlobalValueStack) -> Return {
         debug_assert_valid_semispace_ptr!(self);
-        let mut block_ptr = universe.gc_interface.request_memory_for_type(size_of::<Block>(), Some(som_gc::gc_interface::AllocSiteMarker::Block));
+        let mut block_ptr = universe.gc_interface.request_memory_for_type(size_of::<Block>(), som_gc::gc_interface::AllocSiteMarker::RuntimeBlock);
         *block_ptr = Block {
             block: self.clone(),
             frame: universe.current_frame.clone(),
@@ -199,10 +201,8 @@ impl AstDispatchNode {
                 debug_assert_valid_semispace_ptr!(method);
 
                 if *cached_rcvr_ptr == receiver.class(universe) {
-                    // dbg!("cache hit");
                     return method.invoke(universe, value_stack, nbr_args);
                 } else {
-                    // dbg!("cache miss");
                     receiver.lookup_method(universe, self.signature)
                 }
             }
@@ -337,21 +337,6 @@ impl Evaluate for AstMethodDef {
         // Not sure how to better solve that one, to be honest.
         let current_frame = unsafe { &*(&universe.current_frame as *const Gc<Frame>) };
 
-        #[cfg(not(feature = "inlining-disabled"))]
-        match self.body.evaluate(universe, value_stack) {
-            Return::NonLocal(value, frame) => {
-                debug_assert_valid_semispace_ptr!(frame);
-                debug_assert_valid_semispace_ptr!(current_frame);
-                if *current_frame == frame {
-                    Return::Local(value)
-                } else {
-                    Return::NonLocal(value, frame)
-                }
-            }
-            Return::Local(_) => Return::Local(current_frame.get_self()),
-        }
-
-        #[cfg(feature = "inlining-disabled")]
         loop {
             match self.body.evaluate(universe, value_stack) {
                 Return::NonLocal(value, frame) => {

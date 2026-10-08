@@ -56,6 +56,7 @@ impl Value {
     pub const NIL: Self = Value(BaseValue::NIL);
     pub const INTEGER_ZERO: Self = Value(BaseValue::INTEGER_ZERO);
     pub const INTEGER_ONE: Self = Value(BaseValue::INTEGER_ONE);
+    pub const STACK_MARKER: Self = Value(BaseValue::new(42, 42));
 
     delegate_to_base_value!(
         new_boolean(value: bool) -> Self,
@@ -175,7 +176,7 @@ impl Value {
             }
             BLOCK_TAG => {
                 let block = self.as_block().unwrap();
-                format!("instance of Block{}", block.nb_parameters() + 1)
+                format!("instance of Block{}", block.nbr_args() + 1)
             }
             INSTANCE_TAG => {
                 let instance = self.as_instance().unwrap();

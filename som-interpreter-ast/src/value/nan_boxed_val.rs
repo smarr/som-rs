@@ -120,6 +120,7 @@ impl Value {
     pub const NIL: Self = Value(BaseValue::NIL);
     pub const INTEGER_ZERO: Self = Value(BaseValue::INTEGER_ZERO);
     pub const INTEGER_ONE: Self = Value(BaseValue::INTEGER_ONE);
+    pub const STACK_MARKER: Self = Value(BaseValue::new(42, 42));
 
     delegate_to_base_value!(
         new_boolean(value: bool) -> Self,
@@ -191,13 +192,13 @@ impl Value {
             }
             STRING_TAG => self.as_string::<Gc<String>>().unwrap().to_string(),
             ARRAY_TAG => {
-                // TODO: I think we can do better here (less allocations).
+                // Original ToDo comment from Nicolas: I think we can do better here (less allocations).
                 let strings: Vec<String> = self.as_array().unwrap().iter().map(|value| value.to_string(universe)).collect();
                 format!("#({})", strings.join(" "))
             }
             BLOCK_TAG => {
                 let block = self.as_block().unwrap();
-                format!("instance of Block{}", block.nb_parameters() + 1)
+                format!("instance of Block{}", block.nbr_args() + 1)
             }
             INSTANCE_TAG => {
                 let instance = self.as_instance().unwrap();
@@ -365,7 +366,7 @@ impl ValueEnum {
     #[inline(always)]
     pub fn lookup_local(&self, idx: u8) -> Self {
         match self {
-            Self::Instance(instance_ptr) => (*instance_ptr.lookup_field(idx)).into(),
+            Self::Instance(instance_ptr) => (*Instance::lookup_field(instance_ptr, idx)).into(),
             Self::Class(class) => class.lookup_field(idx).into(),
             v => unreachable!("Attempting to look up a local in {:?}", v),
         }
@@ -374,7 +375,7 @@ impl ValueEnum {
     /// Assign a value to a local binding within this value.
     pub fn assign_local(&mut self, idx: u8, value: Self) {
         match self {
-            Self::Instance(instance_ptr) => instance_ptr.assign_field(idx, value.into()),
+            Self::Instance(instance_ptr) => Instance::assign_field(instance_ptr, idx, value.into()),
             Self::Class(class) => class.assign_field(idx, value.into()),
             v => unreachable!("Attempting to assign a local in {:?}", v),
         }
@@ -403,7 +404,7 @@ impl ValueEnum {
                 let strings: Vec<String> = values.iter().map(|value| value.to_string(universe)).collect();
                 format!("#({})", strings.join(" "))
             }
-            Self::Block(block) => format!("instance of Block{}", block.nb_parameters() + 1),
+            Self::Block(block) => format!("instance of Block{}", block.nbr_args() + 1),
             Self::Instance(instance_ptr) => {
                 format!("instance of {} class", instance_ptr.class().name(),)
             }

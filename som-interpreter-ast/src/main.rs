@@ -12,7 +12,7 @@ use som_core::cli_parser::CLIOptions;
 
 mod shell;
 
-use som_gc::gc_interface::SOMAllocator;
+use som_gc::gc_interface::{AllocSiteMarker, SOMAllocator};
 #[cfg(feature = "inlining-disabled")]
 use som_interpreter_ast::invokable::Return;
 
@@ -28,10 +28,6 @@ fn main() -> anyhow::Result<()> {
     let opts: CLIOptions = CLIOptions::parse();
 
     match opts.file {
-        None => {
-            let mut universe = Universe::with_classpath(opts.classpath)?;
-            shell::interactive(&mut universe, opts.verbose)?
-        }
         Some(file) => {
             let file_stem = file.file_stem().ok_or_else(|| anyhow!("the given path has no file stem"))?;
             let file_stem = file_stem.to_str().ok_or_else(|| anyhow!("the given path contains invalid UTF-8 in its file stem"))?;
@@ -50,15 +46,40 @@ fn main() -> anyhow::Result<()> {
 
             let mut value_stack = GlobalValueStack::from(Vec::with_capacity(1000));
 
+            som_gc::handshake_with_vm(&mut universe.gc_interface, som_interpreter_ast::gc::get_callbacks_for_gc());
             UNIVERSE_RAW_PTR_CONST.store(&mut universe, Ordering::SeqCst);
             STACK_ARGS_RAW_PTR_CONST.store(&mut value_stack, Ordering::SeqCst);
 
             let args = std::iter::once(String::from(file_stem))
                 .chain(opts.args.iter().cloned())
-                .map(|str| Value::String(universe.gc_interface.alloc(str)))
+                .map(|str| Value::String(universe.gc_interface.alloc(str, AllocSiteMarker::String)))
                 .collect();
 
             let output = universe.initialize(args, &mut value_stack).unwrap_or_else(|| panic!("could not find 'System>>#initialize:'"));
+
+            //let _total_nbr_frames = &universe
+            //    .gc_interface
+            //    .alloc_map
+            //    .iter()
+            //    .map(|(k, v)| {
+            //        if [
+            //            &AllocSiteMarker::AstFrame,
+            //            &AllocSiteMarker::BlockFrame,
+            //            &AllocSiteMarker::MethodFrame,
+            //            &AllocSiteMarker::MethodFrameWithArgs,
+            //            &AllocSiteMarker::InitMethodFrame,
+            //        ]
+            //        .contains(&k)
+            //        {
+            //            *v
+            //        } else {
+            //            0
+            //        }
+            //    })
+            //    .sum::<usize>();
+            //dbg!(&_total_nbr_frames);
+            //dbg!(&universe.gc_interface.alloc_map[&AllocSiteMarker::Instance]);
+            //dbg!(&universe.gc_interface.alloc_map);
 
             debug_assert!(value_stack.is_empty());
 
@@ -67,6 +88,11 @@ fn main() -> anyhow::Result<()> {
                 Return::Restart => println!("ERROR: asked for a restart to the top-level"),
                 _ => {}
             }
+        }
+        None => {
+            let mut universe = Universe::with_classpath(opts.classpath)?;
+            som_gc::handshake_with_vm(&mut universe.gc_interface, som_interpreter_ast::gc::get_callbacks_for_gc());
+            shell::interactive(&mut universe, opts.verbose)?
         }
     }
 

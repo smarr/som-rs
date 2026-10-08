@@ -67,7 +67,7 @@ pub fn interactive(universe: &mut Universe, verbose: bool) -> Result<(), Error> 
         }
 
         let object_class = universe.core.object_class();
-        let mut class = match compile_class(&mut universe.interner, &class_def, Some(&object_class), universe.gc_interface) {
+        let mut class = match compile_class(&mut universe.interner, &class_def, Some(&object_class), &mut universe.gc_interface) {
             Some(class) => class,
             None => {
                 writeln!(&mut stdout, "could not compile expression")?;
@@ -79,10 +79,10 @@ pub fn interactive(universe: &mut Universe, verbose: bool) -> Result<(), Error> 
         class.class().set_super_class(&object_class.class());
         class.class().set_class(&metaclass_class);
 
-        let method = class.lookup_method(method_name).expect("method not found ??");
+        let method = class.lookup_method(method_name).expect("method not found ??").as_method_info();
         let start = Instant::now();
 
-        let frame_ptr = Frame::alloc_initial_method(method, &[Value::Class(class), last_value], universe.gc_interface);
+        let frame_ptr = Frame::alloc_initial_method(method, &[Value::Class(class), last_value], &mut universe.gc_interface);
         let mut interpreter = Interpreter::new(frame_ptr);
         last_value = interpreter.run(universe).expect("failed to run");
 

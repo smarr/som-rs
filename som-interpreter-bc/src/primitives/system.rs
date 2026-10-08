@@ -1,3 +1,4 @@
+use crate::stack_pop;
 use std::convert::TryInto;
 use std::fs;
 use std::io::Write;
@@ -14,7 +15,7 @@ use crate::vm_objects::class::Class;
 use anyhow::{Context, Error};
 use num_bigint::BigInt;
 use once_cell::sync::Lazy;
-use som_gc::gc_interface::SOMAllocator;
+use som_gc::gc_interface::{AllocSiteMarker, SOMAllocator};
 use som_gc::gcref::Gc;
 use som_value::interned::Interned;
 
@@ -47,7 +48,7 @@ fn load_file(interpreter: &mut Interpreter, universe: &mut Universe) -> Result<O
         return Ok(None);
     };
 
-    Ok(Some(universe.gc_interface.alloc(value)))
+    Ok(Some(universe.gc_interface.alloc(value, AllocSiteMarker::String)))
 }
 
 fn print_string(interp: &mut Interpreter, universe: &mut Universe) -> Result<Value, Error> {
@@ -158,7 +159,7 @@ fn print_stack_trace(interpreter: &mut Interpreter, _: &mut Universe) -> Result<
             "\t{}: {}>>#{} @bi: {}",
             frame_idx,
             class.name(),
-            frame.current_context.signature(),
+            frame.context.basic_method_info.signature,
             frame.bytecode_idx
         );
     }
@@ -177,15 +178,36 @@ fn gc_stats(interp: &mut Interpreter, universe: &mut Universe) -> Result<VecValu
 
     let gc_interface = &mut universe.gc_interface;
 
-    let total_gc = gc_interface.get_nbr_collections();
-    let total_gc_time = gc_interface.alloc(BigInt::from(gc_interface.get_total_gc_time()));
-    let total_bytes_bigint = gc_interface.alloc(BigInt::from(gc_interface.get_used_bytes()));
+    let (total_gc, total_gc_time, total_bytes_bigint) = {
+        // ----- INTENDED BEHAVIOR -----
+        let total_gc = gc_interface.get_nbr_collections();
+        let total_gc_time = gc_interface.alloc(BigInt::from(gc_interface.get_total_gc_time()), AllocSiteMarker::BigInt);
+        let total_bytes_bigint = gc_interface.alloc(BigInt::from(gc_interface.get_used_bytes()), AllocSiteMarker::BigInt);
 
-    Ok(VecValue(universe.gc_interface.alloc_slice(&[
-        Value::Integer(total_gc as i32),
-        Value::BigInteger(total_gc_time),
-        Value::BigInteger(total_bytes_bigint),
-    ])))
+        // -----  PROGRAM REPR SIZE -----
+        //let total_gc: usize = 24;
+        //let total_gc_time = gc_interface.alloc(BigInt::from(-2424), AllocSiteMarker::BigInt);
+        //let total_bytes_bigint = gc_interface.alloc(BigInt::from(gc_interface.total_program_repr_size), AllocSiteMarker::BigInt);
+
+        // -----  TOTAL MEM USAGE -----
+        //let total_gc: usize = 42;
+        //let total_gc_time = gc_interface.alloc(BigInt::from(-4242), AllocSiteMarker::BigInt);
+        //let total_bytes_bigint = gc_interface.alloc(
+        //    BigInt::from(gc_interface.total_program_repr_size + gc_interface.total_other_memory_size),
+        //    AllocSiteMarker::BigInt,
+        //);
+
+        (total_gc, total_gc_time, total_bytes_bigint)
+    };
+
+    Ok(VecValue(universe.gc_interface.alloc_slice(
+        &[
+            Value::Integer(total_gc as i32),
+            Value::BigInteger(total_gc_time),
+            Value::BigInteger(total_bytes_bigint),
+        ],
+        AllocSiteMarker::VecValue,
+    )))
 }
 
 /// Search for an instance primitive matching the given signature.

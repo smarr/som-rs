@@ -38,15 +38,15 @@ fn expression_test_1() {
 
     assert_eq!(
         expression,
-        Expression::Message(Box::new(Message {
+        Expression::Message(Box::new(Message::Regular(RegularMessage {
             signature: String::from("+"),
             receiver: Expression::Literal(Literal::Integer(3)),
-            values: vec![Expression::Message(Box::new(Message {
-                receiver: Expression::GlobalRead(String::from("counter")),
+            values: vec![Expression::Message(Box::new(Message::Regular(RegularMessage {
+                receiver: Expression::Read(String::from("counter")),
                 signature: String::from("get"),
                 values: vec![],
-            }))],
-        }))
+            })))],
+        })))
     );
 }
 
@@ -63,21 +63,19 @@ fn block_test() {
     assert_eq!(
         block,
         Expression::Block(Block {
-            #[cfg(feature = "block-debug-info")]
-            dbg_info: BlockDebugInfo {
-                parameters: vec![String::from("test")],
-                locals: vec![String::from("local")]
-            },
-            nbr_params: 1,
-            nbr_locals: 1,
+            args: vec!["test".to_string()],
+            locals: vec!["local".to_string()],
             body: Body {
                 exprs: vec![
-                    Expression::LocalVarWrite(0, Box::new(Expression::Literal(Literal::String(String::from("this is correct"))))),
-                    Expression::Message(Box::new(Message {
-                        receiver: Expression::LocalVarRead(0),
+                    Expression::Write(
+                        "local".to_string(),
+                        Box::new(Expression::Literal(Literal::String(String::from("this is correct"))))
+                    ),
+                    Expression::Message(Box::new(Message::Regular(RegularMessage {
+                        receiver: Expression::Read("local".to_string()),
                         signature: String::from("println"),
                         values: vec![],
-                    }))
+                    })))
                 ],
                 full_stopped: true,
             }
@@ -85,8 +83,9 @@ fn block_test() {
     );
 }
 
+#[cfg(not(feature = "inlining-disabled"))]
 #[test]
-fn expression_test_2() {
+fn expression_test_inlining() {
     let tokens: Vec<Token> = Lexer::new("( 3 == 3 ) ifTrue: [ 'this is correct' println. ] ifFalse: [ 'oh no' println ]")
         .skip_whitespace(true)
         .collect();
@@ -99,50 +98,24 @@ fn expression_test_2() {
 
     assert_eq!(
         expression,
-        Expression::Message(Box::new(Message {
-            receiver: Expression::Message(Box::new(Message {
+        Expression::Message(Box::new(Message::IfTrueIfFalseInlined(IfTrueIfFalseInlinedMsg {
+            expected_bool: true,
+            cond_expr: Expression::Message(Box::new(Message::Regular(RegularMessage {
                 signature: String::from("=="),
                 receiver: Expression::Literal(Literal::Integer(3)),
                 values: vec![Expression::Literal(Literal::Integer(3))],
-            })),
-            signature: String::from("ifTrue:ifFalse:"),
-            values: vec![
-                Expression::Block(Block {
-                    #[cfg(feature = "block-debug-info")]
-                    dbg_info: BlockDebugInfo {
-                        parameters: vec![],
-                        locals: vec![]
-                    },
-                    nbr_params: 0,
-                    nbr_locals: 0,
-                    body: Body {
-                        exprs: vec![Expression::Message(Box::new(Message {
-                            receiver: Expression::Literal(Literal::String(String::from("this is correct"))),
-                            signature: String::from("println"),
-                            values: vec![],
-                        }))],
-                        full_stopped: true,
-                    }
-                }),
-                Expression::Block(Block {
-                    #[cfg(feature = "block-debug-info")]
-                    dbg_info: BlockDebugInfo {
-                        parameters: vec![],
-                        locals: vec![]
-                    },
-                    nbr_params: 0,
-                    nbr_locals: 0,
-                    body: Body {
-                        exprs: vec![Expression::Message(Box::new(Message {
-                            receiver: Expression::Literal(Literal::String(String::from("oh no"))),
-                            signature: String::from("println"),
-                            values: vec![],
-                        }))],
-                        full_stopped: false,
-                    }
-                }),
-            ],
-        }),)
+            }))),
+            body_1_instrs: vec![Expression::Message(Box::new(Message::Regular(RegularMessage {
+                receiver: Expression::Literal(Literal::String(String::from("this is correct"))),
+                signature: String::from("println"),
+                values: vec![],
+            })))],
+            body_2_instrs: vec![Expression::Message(Box::new(Message::Regular(RegularMessage {
+                receiver: Expression::Literal(Literal::String(String::from("oh no"))),
+                signature: String::from("println"),
+                values: vec![],
+            })))],
+        })))
     );
 }
 
@@ -159,35 +132,30 @@ fn primary_test() {
     assert_eq!(
         primary,
         Expression::Block(Block {
-            #[cfg(feature = "block-debug-info")]
-            dbg_info: BlockDebugInfo {
-                parameters: vec![],
-                locals: vec![]
-            },
-            nbr_params: 0,
-            nbr_locals: 0,
+            locals: vec![],
+            args: vec![],
             body: Body {
-                exprs: vec![Expression::Message(Box::new(Message {
-                    receiver: Expression::ArgRead(0, 0),
+                exprs: vec![Expression::Message(Box::new(Message::Regular(RegularMessage {
+                    receiver: Expression::Read("self".to_string()),
                     signature: String::from("fib:"),
-                    values: vec![Expression::Message(Box::new(Message {
+                    values: vec![Expression::Message(Box::new(Message::Regular(RegularMessage {
                         signature: String::from("+"),
-                        receiver: Expression::Message(Box::new(Message {
+                        receiver: Expression::Message(Box::new(Message::Regular(RegularMessage {
                             signature: String::from("-"),
-                            receiver: Expression::GlobalRead(String::from("n")),
+                            receiver: Expression::Read(String::from("n")),
                             values: vec![Expression::Literal(Literal::Integer(1))],
-                        })),
-                        values: vec![Expression::Message(Box::new(Message {
-                            receiver: Expression::ArgRead(0, 0),
+                        }))),
+                        values: vec![Expression::Message(Box::new(Message::Regular(RegularMessage {
+                            receiver: Expression::Read("self".to_string()),
                             signature: String::from("fib:"),
-                            values: vec![Expression::Message(Box::new(Message {
+                            values: vec![Expression::Message(Box::new(Message::Regular(RegularMessage {
                                 signature: String::from("-"),
-                                receiver: Expression::GlobalRead(String::from("n")),
+                                receiver: Expression::Read(String::from("n")),
                                 values: vec![Expression::Literal(Literal::Integer(2))],
-                            }))],
-                        }))]
-                    }))],
-                }))],
+                            })))],
+                        })))]
+                    })))],
+                })))],
                 full_stopped: false,
             }
         }),
