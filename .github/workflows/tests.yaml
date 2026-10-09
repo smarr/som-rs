@@ -29,11 +29,12 @@ jobs:
           python -m pip install --upgrade pip
           pip install pytest
 
-          export VM="./target/release/${{ matrix.interpreter }}"
-          export CLASSPATH=core-lib/Smalltalk
-          export AWFY=core-lib/Examples/AreWeFastYet/Core
-          export TEST_EXPECTATIONS=.integration-tests-${{ matrix.interpreter }}.yml
-          pytest core-lib/IntegrationTests
+          cd core-lib
+          export VM="../target/release/${{ matrix.interpreter }}"
+          export CLASSPATH=Smalltalk
+          export AWFY=Examples/AreWeFastYet/Core
+          export TEST_EXPECTATIONS=../.integration-tests-${{ matrix.interpreter }}.yml
+          pytest IntegrationTests
 
   run_own_tests:
     name: Run own tests
