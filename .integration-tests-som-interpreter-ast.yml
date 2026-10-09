@@ -71,7 +71,6 @@ known_failures:
 - Tests/int_modulus.som
 - Tests/int_modulus_err.som
 - Tests/integer_asdouble.som
-- Tests/load_file.som
 - Tests/load_string.som
 - Tests/mutate_methods.som
 - Tests/mutate_superclass_method/test.som
